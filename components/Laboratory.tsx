@@ -305,13 +305,157 @@ export const Laboratory: React.FC<LaboratoryProps> = ({ setPage, currentUser, ga
 
     const filteredEntries = useMemo(() => {
         let f = entries;
-        if (opFilter) f = f.filter(e => e.productionOrderId === opFilter);
+        if (opFilter) f = f.filter(e => e.productionOrderNumber === opFilter);
         if (searchTerm.trim()) {
             const t = searchTerm.toLowerCase();
             f = f.filter(e => (e.lote || '').toLowerCase().includes(t) || (e.fornecedor || '').toLowerCase().includes(t) || (e.productionOrderNumber || '').toLowerCase().includes(t));
         }
         return f;
     }, [entries, searchTerm, opFilter]);
+
+    const groupedEntries = useMemo(() => {
+        const groups: Record<string, LabAnalysisEntry[]> = {};
+        const isolated: LabAnalysisEntry[] = [];
+
+        filteredEntries.forEach(entry => {
+            const op = entry.productionOrderNumber?.trim();
+            if (op) {
+                if (!groups[op]) groups[op] = [];
+                groups[op].push(entry);
+            } else {
+                isolated.push(entry);
+            }
+        });
+
+        // Ordena cada grupo cronologicamente (do mais antigo para o mais recente)
+        // para podermos ver a evolução (#1, #2, #3...)
+        Object.keys(groups).forEach(op => {
+            groups[op].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        });
+
+        // Ordena as OPs pela data do teste mais recente (decrescente)
+        const sortedOps = Object.entries(groups).sort((a, b) => {
+            const latestA = Math.max(...a[1].map(e => new Date(e.date).getTime()));
+            const latestB = Math.max(...b[1].map(e => new Date(e.date).getTime()));
+            return latestB - latestA;
+        });
+
+        // Ordena os isolados do mais recente para o mais antigo
+        isolated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        return { sortedOps, isolated };
+    }, [filteredEntries]);
+
+    const renderAnalysisTable = (list: LabAnalysisEntry[]) => {
+        return (
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                    <thead>
+                        <tr className="bg-slate-800 text-white">
+                            <th colSpan={2} className="p-2 text-center text-[10px] font-bold uppercase tracking-widest border-r border-slate-700">Identificação</th>
+                            <th colSpan={9} className="p-2 text-center text-[10px] font-bold uppercase tracking-widest border-r border-slate-700">Setup — Cassetes (K7)</th>
+                            <th colSpan={7} className="p-2 text-center text-[10px] font-bold uppercase tracking-widest border-r border-slate-700">Análise Físico / Tração</th>
+                            <th className="p-2 text-center text-[10px] font-bold uppercase tracking-widest" rowSpan={2}>Ações</th>
+                        </tr>
+                        <tr className="bg-slate-700 text-slate-200 text-[10px] uppercase tracking-wider">
+                            <th className="p-2 font-semibold text-left">Lote</th>
+                            <th className="p-2 font-semibold border-r border-slate-600">Fornecedor / MP</th>
+                            <th className="p-2 font-semibold text-center border-l border-slate-600" colSpan={2}>1°K7</th>
+                            <th className="p-2 font-semibold text-center" colSpan={2}>2°K7</th>
+                            <th className="p-2 font-semibold text-center" colSpan={2}>3°K7</th>
+                            <th className="p-2 font-semibold text-center" colSpan={2}>4°K7</th>
+                            <th className="p-2 font-semibold text-center border-r border-slate-600">Média</th>
+                            <th className="p-2 font-semibold text-center mt-1 text-slate-300"><span className="text-[8px] block">Massa</span><span className="text-[8px] block">Comp.</span></th>
+                            <th className="p-2 font-semibold text-center bg-amber-900/40 text-amber-300">Bitola Final</th>
+                            <th className="p-2 font-semibold text-center">Esc.</th>
+                            <th className="p-2 font-semibold text-center">Resist.</th>
+                            <th className="p-2 font-semibold text-center">Along.</th>
+                            <th className="p-2 font-semibold text-center bg-indigo-900/40 text-indigo-300 border-r border-slate-600">Relação</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {list.slice().reverse().map((entry, index) => {
+                            const rel = calcRelacao(Number(entry.resistencia), Number(entry.escoamento));
+                            const bit = calcBitola(Number(entry.massa), Number(entry.comprimento));
+                            const getE = (v: any, k: string) => {
+                                const camel = k.replace(/_([a-z])/g, (_, g) => g.toUpperCase());
+                                return v[k] ?? v[camel];
+                            };
+
+                            const k7AvgArr = [
+                                calcK7Media(getE(entry, 'k7_1_entrada') != null ? Number(getE(entry, 'k7_1_entrada')) : null, getE(entry, 'k7_1_saida') != null ? Number(getE(entry, 'k7_1_saida')) : null),
+                                calcK7Media(getE(entry, 'k7_2_entrada') != null ? Number(getE(entry, 'k7_2_entrada')) : null, getE(entry, 'k7_2_saida') != null ? Number(getE(entry, 'k7_2_saida')) : null),
+                                calcK7Media(getE(entry, 'k7_3_entrada') != null ? Number(getE(entry, 'k7_3_entrada')) : null, getE(entry, 'k7_3_saida') != null ? Number(getE(entry, 'k7_3_saida')) : null),
+                                calcK7Media(getE(entry, 'k7_4_entrada') != null ? Number(getE(entry, 'k7_4_entrada')) : null, getE(entry, 'k7_4_saida') != null ? Number(getE(entry, 'k7_4_saida')) : null),
+                            ].filter(v => v !== null) as number[];
+                            const k7Avg = k7AvgArr.length > 0 ? k7AvgArr.reduce((a, b) => a + b, 0) / k7AvgArr.length : null;
+
+                            const n = (v: any) => (v !== null && v !== undefined && !isNaN(Number(v))) ? Number(v).toFixed(2) : <span className="opacity-30">—</span>;
+
+                            return (
+                                <tr key={entry.id} className="hover:bg-slate-50">
+                                    <td className="p-3 font-bold text-slate-800 text-left">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-slate-400 font-bold">#{list.length - index}</span>
+                                            <span className="text-sm font-black">{entry.lote}</span>
+                                        </div>
+                                        {entry.productionOrderNumber && <div className="text-[10px] text-indigo-500 font-semibold bg-indigo-50 rounded px-1 mt-0.5 inline-block">OP: {entry.productionOrderNumber}</div>}
+                                        {(entry.actionTaken || entry.actionResult) && (
+                                            <div className="mt-2 text-[10px] bg-slate-50 border border-slate-200/60 p-2 rounded-lg text-slate-600 font-normal leading-tight max-w-xs">
+                                                {entry.actionTaken && <div><span className="font-bold text-indigo-600">Ajuste:</span> {entry.actionTaken}</div>}
+                                                {entry.actionResult && <div className="mt-1"><span className="font-bold text-emerald-600">Efeito:</span> {entry.actionResult}</div>}
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td className="p-3 text-xs text-slate-500 border-r border-slate-100 text-left">
+                                        <div className="font-bold text-slate-800">{entry.fornecedor}</div>
+                                        <div className="text-[10px] text-emerald-600 font-black mt-0.5">MP: {entry.bitola_mp} mm</div>
+                                    </td>
+
+                                    <td className="p-1 px-2 text-[11px] text-center text-slate-500 border-l border-slate-100 bg-slate-50/50">{n(getE(entry, 'k7_1_entrada'))}</td>
+                                    <td className="p-1 px-2 text-[11px] text-center text-slate-500 bg-slate-50/50">{n(getE(entry, 'k7_1_saida'))}</td>
+                                    <td className="p-1 px-2 text-[11px] text-center text-slate-500">{n(getE(entry, 'k7_2_entrada'))}</td>
+                                    <td className="p-1 px-2 text-[11px] text-center text-slate-500">{n(getE(entry, 'k7_2_saida'))}</td>
+                                    <td className="p-1 px-2 text-[11px] text-center text-slate-500 bg-slate-50/50">{n(getE(entry, 'k7_3_entrada'))}</td>
+                                    <td className="p-1 px-2 text-[11px] text-center text-slate-500 bg-slate-50/50">{n(getE(entry, 'k7_3_saida'))}</td>
+                                    <td className="p-1 px-2 text-[11px] text-center text-slate-500">{n(getE(entry, 'k7_4_entrada'))}</td>
+                                    <td className="p-1 px-2 text-[11px] text-center text-slate-500">{n(getE(entry, 'k7_4_saida'))}</td>
+                                    <td className="p-2 text-center font-bold text-indigo-500 text-xs border-r border-slate-100">{n(k7Avg)}</td>
+
+                                    <td className="p-1 px-2 text-[10px] text-center text-slate-400 font-medium">
+                                        <div className="border-b border-slate-100 pb-0.5 mb-0.5 text-center">{entry.massa ? Number(entry.massa).toFixed(2) : '-'}</div>
+                                        <div className="text-center">{entry.comprimento || '-'}</div>
+                                    </td>
+                                    <td className="p-2 text-center font-black text-amber-700 bg-amber-50">{n(bit)}</td>
+
+                                    <td className={`p-2 text-center text-[11px] font-bold ${checkAnalysisValue(entry.escoamento, 600).color} ${checkAnalysisValue(entry.escoamento, 600).bg}`}>
+                                        {n(entry.escoamento)} <span className="opacity-70 text-[10px] ml-0.5">{checkAnalysisValue(entry.escoamento, 600).icon}</span>
+                                    </td>
+                                    <td className={`p-2 text-center text-[11px] font-bold border-x border-slate-100 ${checkAnalysisValue(entry.resistencia, 660).color} ${checkAnalysisValue(entry.resistencia, 660).bg}`}>
+                                        {n(entry.resistencia)} <span className="opacity-70 text-[10px] ml-0.5">{checkAnalysisValue(entry.resistencia, 660).icon}</span>
+                                    </td>
+                                    <td className={`p-2 text-center text-[11px] font-bold ${checkAnalysisValue(entry.alongamento, 5).color} ${checkAnalysisValue(entry.alongamento, 5).bg}`}>
+                                        {n(entry.alongamento)} <span className="opacity-70 text-[10px] ml-0.5">{checkAnalysisValue(entry.alongamento, 5).icon}</span>
+                                    </td>
+
+                                    <td className={`p-2 text-center font-black border-r border-slate-100 ${checkAnalysisValue(rel, 1.05).color} ${checkAnalysisValue(rel, 1.05).bg}`}>
+                                        {n(rel)} <span className="text-[12px] opacity-80 ml-0.5">{checkAnalysisValue(rel, 1.05).icon}</span>
+                                    </td>
+
+                                    <td className="p-2 text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                            <button onClick={() => setPrintingEntry(entry)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Imprimir Relatório"><PrinterIcon className="h-4 w-4" /></button>
+                                            <button onClick={() => handleDelete(entry.id)} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition" title="Excluir"><TrashIcon className="h-4 w-4" /></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        );
+    };
 
     const checkAnalysisValue = (val: any, min: number) => {
         if (!val || isNaN(Number(val))) return { color: 'text-slate-600', icon: '', bg: 'bg-slate-50' };
@@ -1079,37 +1223,10 @@ export const Laboratory: React.FC<LaboratoryProps> = ({ setPage, currentUser, ga
                     ))}
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-50 p-6">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                        <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                            <ChartBarIcon className="h-4 w-4 text-indigo-500" /> Gráfico do Histórico
-                        </h2>
-                        <div className="flex gap-2 flex-wrap">
-                            {(['resistencia', 'alongamento', 'relacao', 'bitola'] as const).map(type => {
-                                const labels = {
-                                    resistencia: 'Resistência (MPa)', alongamento: 'Alongamento (%)',
-                                    relacao: 'Relação (Res./Esc.)', bitola: 'Bitola Final (mm)'
-                                };
-                                return (
-                                    <button
-                                        key={type} onClick={() => setChartType(type)}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${chartType === type ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                                    >
-                                        {labels[type]}
-                                    </button>
-                                )
-                            })}
-                        </div>
-                    </div>
-                    <div className="relative" style={{ height: 300 }}>
-                        <canvas ref={chartCanvasRef} className="w-full h-full" style={{ width: '100%', height: '100%' }} />
-                    </div>
-                </div>
-
                 <div className="flex flex-col md:flex-row items-center gap-4">
                     <div className="relative flex-1 max-w-md w-full">
                         <SearchIcon className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input type="text" placeholder="Buscar lote ou OP..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-indigo-500 focus:ring-0 shadow-sm" />
+                        <input type="text" placeholder="Buscar lote ou OP..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-indigo-500 focus:ring-0 shadow-sm font-medium" />
                     </div>
                     
                     <div className="flex-1 w-full md:max-w-xs relative">
@@ -1120,117 +1237,78 @@ export const Laboratory: React.FC<LaboratoryProps> = ({ setPage, currentUser, ga
                             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-indigo-500 focus:ring-0 shadow-sm appearance-none font-semibold text-slate-600"
                         >
                             <option value="">Todas as Produções (OP)</option>
-                            {Array.from(new Set(entries.filter(e => e.productionOrderId).map(e => e.productionOrderId))).map(opId => {
-                                const e = entries.find(x => x.productionOrderId === opId);
-                                return <option key={opId as string} value={opId as string}>OP: {e?.productionOrderNumber || opId}</option>;
-                            })}
+                            {Array.from(new Set(entries.filter(e => e.productionOrderNumber).map(e => e.productionOrderNumber))).map(opNum => (
+                                <option key={opNum} value={opNum}>OP: {opNum}</option>
+                            ))}
                         </select>
                     </div>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-50 overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="bg-slate-900 text-white">
-                                    <th colSpan={3} className="p-2 text-center text-[10px] font-bold uppercase tracking-widest border-r border-slate-700">Identificação</th>
-                                    <th colSpan={9} className="p-2 text-center text-[10px] font-bold uppercase tracking-widest border-r border-slate-700">Setup — Cassetes (K7)</th>
-                                    <th colSpan={7} className="p-2 text-center text-[10px] font-bold uppercase tracking-widest border-r border-slate-700">Análise Físico / Tração</th>
-                                    <th className="p-2 text-center text-[10px] font-bold uppercase tracking-widest" rowSpan={2}>Ações</th>
-                                </tr>
-                                <tr className="bg-slate-800 text-slate-300 text-[10px] uppercase tracking-wider">
-                                    <th className="p-2 font-semibold text-left">Lote</th>
-                                    <th className="p-2 font-semibold">Bitola MP</th>
-                                    <th className="p-2 font-semibold border-r border-slate-700">Fornecedor</th>
-                                    <th className="p-2 font-semibold text-center border-l border-slate-700" colSpan={2}>1°K7</th>
-                                    <th className="p-2 font-semibold text-center" colSpan={2}>2°K7</th>
-                                    <th className="p-2 font-semibold text-center" colSpan={2}>3°K7</th>
-                                    <th className="p-2 font-semibold text-center" colSpan={2}>4°K7</th>
-                                    <th className="p-2 font-semibold text-center border-r border-slate-700">Média</th>
-                                    <th className="p-2 font-semibold text-center mt-1 text-slate-400"><span className="text-[8px] block">Massa</span><span className="text-[8px] block">Comp.</span></th>
-                                    <th className="p-2 font-semibold text-center bg-amber-900/30 text-amber-300">Bitola Final</th>
-                                    <th className="p-2 font-semibold text-center">Esc.</th>
-                                    <th className="p-2 font-semibold text-center">Resist.</th>
-                                    <th className="p-2 font-semibold text-center">Along.</th>
-                                    <th className="p-2 font-semibold text-center bg-indigo-900/30 text-indigo-300 border-r border-slate-700">Relação</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {filteredEntries.map(entry => {
-                                    const rel = calcRelacao(Number(entry.resistencia), Number(entry.escoamento));
-                                    const bit = calcBitola(Number(entry.massa), Number(entry.comprimento));
-                                    const getE = (v: any, k: string) => {
-                                        const camel = k.replace(/_([a-z])/g, (_, g) => g.toUpperCase());
-                                        return v[k] ?? v[camel];
-                                    };
+                {/* HISTÓRICO AGRUPADO POR ORDEM DE PRODUÇÃO (OP) */}
+                <div className="space-y-8">
+                    {groupedEntries.sortedOps.length === 0 && groupedEntries.isolated.length === 0 && (
+                        <div className="bg-white border border-slate-100 rounded-2xl p-12 text-center text-slate-400 shadow-sm">
+                            <span className="text-4xl block mb-3">🔍</span>
+                            <p className="font-bold text-slate-500">Nenhuma análise encontrada com os filtros aplicados.</p>
+                            <p className="text-xs text-slate-400 mt-1">Experimente limpar a busca ou selecionar outra OP.</p>
+                        </div>
+                    )}
 
-                                    const k7AvgArr = [
-                                        calcK7Media(getE(entry, 'k7_1_entrada') != null ? Number(getE(entry, 'k7_1_entrada')) : null, getE(entry, 'k7_1_saida') != null ? Number(getE(entry, 'k7_1_saida')) : null),
-                                        calcK7Media(getE(entry, 'k7_2_entrada') != null ? Number(getE(entry, 'k7_2_entrada')) : null, getE(entry, 'k7_2_saida') != null ? Number(getE(entry, 'k7_2_saida')) : null),
-                                        calcK7Media(getE(entry, 'k7_3_entrada') != null ? Number(getE(entry, 'k7_3_entrada')) : null, getE(entry, 'k7_3_saida') != null ? Number(getE(entry, 'k7_3_saida')) : null),
-                                        calcK7Media(getE(entry, 'k7_4_entrada') != null ? Number(getE(entry, 'k7_4_entrada')) : null, getE(entry, 'k7_4_saida') != null ? Number(getE(entry, 'k7_4_saida')) : null),
-                                    ].filter(v => v !== null) as number[];
-                                    const k7Avg = k7AvgArr.length > 0 ? k7AvgArr.reduce((a, b) => a + b, 0) / k7AvgArr.length : null;
+                    {groupedEntries.sortedOps.map(([opNum, list]) => {
+                        const latestDate = new Date(list[list.length - 1].date).toLocaleDateString('pt-BR');
+                        return (
+                            <div key={opNum} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in-up">
+                                <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                                            ⚙️
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="text-lg font-black text-slate-800">Ordem de Produção: {opNum}</h3>
+                                                <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-0.5 rounded-full">
+                                                    {list.length} {list.length === 1 ? 'teste' : 'testes'}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-slate-500 mt-0.5 font-medium">Última alteração: {latestDate}</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 border border-indigo-100/60 px-2.5 py-1 rounded-md">
+                                            Evolução da Produção
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="p-2 md:p-4">
+                                    {renderAnalysisTable(list)}
+                                </div>
+                            </div>
+                        );
+                    })}
 
-                                    const n = (v: any) => (v !== null && v !== undefined && !isNaN(Number(v))) ? Number(v).toFixed(2) : <span className="opacity-30">—</span>;
-
-                                    return (
-                                        <tr key={entry.id} className="hover:bg-slate-50">
-                                            <td className="p-3 font-bold text-slate-800 text-left">
-                                                {entry.lote}
-                                                {entry.productionOrderNumber && <div className="text-[10px] text-indigo-500 font-semibold bg-indigo-50 rounded px-1 mt-0.5 inline-block">OP: {entry.productionOrderNumber}</div>}
-                                                {(entry.actionTaken || entry.actionResult) && (
-                                                    <div className="mt-2 text-[10px] bg-indigo-50 border border-indigo-100 p-2 rounded-lg text-slate-600 font-normal leading-tight">
-                                                        {entry.actionTaken && <div><span className="font-bold text-indigo-600">Ação:</span> {entry.actionTaken}</div>}
-                                                        {entry.actionResult && <div className="mt-1"><span className="font-bold text-emerald-600">Efeito:</span> {entry.actionResult}</div>}
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="p-3 text-center text-emerald-600 font-bold bg-emerald-50/30">{entry.bitola_mp}</td>
-                                            <td className="p-3 text-xs text-slate-500 border-r border-slate-100">{entry.fornecedor}</td>
-
-                                            <td className="p-1 px-2 text-[11px] text-center text-slate-500 border-l border-slate-100 bg-slate-50/50">{n(getE(entry, 'k7_1_entrada'))}</td>
-                                            <td className="p-1 px-2 text-[11px] text-center text-slate-500 bg-slate-50/50">{n(getE(entry, 'k7_1_saida'))}</td>
-                                            <td className="p-1 px-2 text-[11px] text-center text-slate-500">{n(getE(entry, 'k7_2_entrada'))}</td>
-                                            <td className="p-1 px-2 text-[11px] text-center text-slate-500">{n(getE(entry, 'k7_2_saida'))}</td>
-                                            <td className="p-1 px-2 text-[11px] text-center text-slate-500 bg-slate-50/50">{n(getE(entry, 'k7_3_entrada'))}</td>
-                                            <td className="p-1 px-2 text-[11px] text-center text-slate-500 bg-slate-50/50">{n(getE(entry, 'k7_3_saida'))}</td>
-                                            <td className="p-1 px-2 text-[11px] text-center text-slate-500">{n(getE(entry, 'k7_4_entrada'))}</td>
-                                            <td className="p-1 px-2 text-[11px] text-center text-slate-500">{n(getE(entry, 'k7_4_saida'))}</td>
-                                            <td className="p-2 text-center font-bold text-indigo-500 text-xs border-r border-slate-100">{n(k7Avg)}</td>
-
-                                            <td className="p-1 px-2 text-[10px] text-center text-slate-400 font-medium">
-                                                <div className="border-b border-slate-100 pb-0.5 mb-0.5 text-center">{entry.massa ? Number(entry.massa).toFixed(2) : '-'}</div>
-                                                <div className="text-center">{entry.comprimento || '-'}</div>
-                                            </td>
-                                            <td className="p-2 text-center font-black text-amber-700 bg-amber-50">{n(bit)}</td>
-
-                                            <td className={`p-2 text-center text-[11px] font-bold ${checkAnalysisValue(entry.escoamento, 600).color} ${checkAnalysisValue(entry.escoamento, 600).bg}`}>
-                                                {n(entry.escoamento)} <span className="opacity-70 text-[10px] ml-0.5">{checkAnalysisValue(entry.escoamento, 600).icon}</span>
-                                            </td>
-                                            <td className={`p-2 text-center text-[11px] font-bold border-x border-slate-100 ${checkAnalysisValue(entry.resistencia, 660).color} ${checkAnalysisValue(entry.resistencia, 660).bg}`}>
-                                                {n(entry.resistencia)} <span className="opacity-70 text-[10px] ml-0.5">{checkAnalysisValue(entry.resistencia, 660).icon}</span>
-                                            </td>
-                                            <td className={`p-2 text-center text-[11px] font-bold ${checkAnalysisValue(entry.alongamento, 5).color} ${checkAnalysisValue(entry.alongamento, 5).bg}`}>
-                                                {n(entry.alongamento)} <span className="opacity-70 text-[10px] ml-0.5">{checkAnalysisValue(entry.alongamento, 5).icon}</span>
-                                            </td>
-
-                                            <td className={`p-2 text-center font-black border-r border-slate-100 ${checkAnalysisValue(rel, 1.05).color} ${checkAnalysisValue(rel, 1.05).bg}`}>
-                                                {n(rel)} <span className="text-[12px] opacity-80 ml-0.5">{checkAnalysisValue(rel, 1.05).icon}</span>
-                                            </td>
-
-                                            <td className="p-2 text-center">
-                                                <div className="flex items-center justify-center gap-1">
-                                                    <button onClick={() => setPrintingEntry(entry)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Imprimir Relatório"><PrinterIcon className="h-4 w-4" /></button>
-                                                    <button onClick={() => handleDelete(entry.id)} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition" title="Excluir"><TrashIcon className="h-4 w-4" /></button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                    {groupedEntries.isolated.length > 0 && (
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in-up">
+                            <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                                        🔬
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-lg font-black text-slate-800">Testes Avulsos / Sem Vínculo</h3>
+                                            <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-0.5 rounded-full">
+                                                {groupedEntries.isolated.length} {groupedEntries.isolated.length === 1 ? 'teste' : 'testes'}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-0.5 font-medium">Análises de laboratório rápidas ou sem OP vinculada</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="p-2 md:p-4">
+                                {renderAnalysisTable(groupedEntries.isolated)}
+                            </div>
+                        </div>
+                    )}
                 </div>
                 {printingEntry && <LabReportModal reportData={printingEntry} onClose={() => setPrintingEntry(null)} />}
             </div>
