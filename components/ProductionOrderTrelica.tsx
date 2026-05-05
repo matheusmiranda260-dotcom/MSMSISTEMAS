@@ -495,6 +495,9 @@ const ProductionOrderTrelica: React.FC<ProductionOrderTrelicaProps> = ({ setPage
             totalWeight: totalPlannedConsumption,
             plannedOutputWeight: plannedOutputWeight,
             isGhostOrder: isGhostOrder,
+            trelicaSuperior: selectedModel.superior,
+            trelicaInferior: selectedModel.inferior,
+            trelicaSinusoide: selectedModel.senozoide,
         });
 
         setOrderNumber('');
@@ -695,11 +698,11 @@ const ProductionOrderTrelica: React.FC<ProductionOrderTrelicaProps> = ({ setPage
                                                 <input type="number" step="0.1" value={customModelSetup.superior} onChange={(e) => setCustomModelSetup(prev => ({ ...prev, superior: e.target.value }))} className="w-full text-sm font-bold p-3 bg-white rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all outline-none" placeholder="Ex: 5.6" />
                                             </div>
                                             <div>
-                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Bitola Inferior</label>
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Bitola Senozoide</label>
                                                 <input type="number" step="0.1" value={customModelSetup.inferior} onChange={(e) => setCustomModelSetup(prev => ({ ...prev, inferior: e.target.value }))} className="w-full text-sm font-bold p-3 bg-white rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all outline-none" placeholder="Ex: 3.8" />
                                             </div>
                                             <div>
-                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Bitola Senozoide</label>
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Bitola Inferior</label>
                                                 <input type="number" step="0.1" value={customModelSetup.senozoide} onChange={(e) => setCustomModelSetup(prev => ({ ...prev, senozoide: e.target.value }))} className="w-full text-sm font-bold p-3 bg-white rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all outline-none" placeholder="Ex: 3.8" />
                                             </div>
                                         </div>
@@ -759,8 +762,8 @@ const ProductionOrderTrelica: React.FC<ProductionOrderTrelicaProps> = ({ setPage
                                         <div className="grid grid-cols-3 gap-2">
                                             {[
                                                 { label: 'SUP', gauge: selectedModel.superior },
-                                                { label: 'INF', gauge: selectedModel.inferior },
-                                                { label: 'SENO', gauge: selectedModel.senozoide },
+                                                { label: 'SENO', gauge: selectedModel.inferior },
+                                                { label: 'INF', gauge: selectedModel.senozoide },
                                             ].map((comp, idx) => (
                                                 <div key={idx} className="bg-white/5 p-2 rounded-lg border border-white/5 text-center">
                                                     <div className="text-[10px] text-slate-400 font-bold">{comp.label}</div>

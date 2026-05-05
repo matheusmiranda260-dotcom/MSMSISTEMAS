@@ -151,6 +151,9 @@ export interface ProductionOrderData {
     scrapx?: { type: string; weight: number }[]; // Compatibility if typo was used
     inputBitola?: string;
     isGhostOrder?: boolean;
+    trelicaSuperior?: string;
+    trelicaInferior?: string;
+    trelicaSinusoide?: string;
 }
 
 export interface TransferRecord {
@@ -422,6 +425,11 @@ export interface LabAnalysisEntry {
     alongamento: number | null;
     date: string;
     operator: string;
+    productionOrderId?: string;
+    productionOrderNumber?: string;
+    setupProfile?: 'descrescente' | 'linear';
+    actionTaken?: string;
+    actionResult?: string;
 }
 
 export interface TrefilaRecipe {

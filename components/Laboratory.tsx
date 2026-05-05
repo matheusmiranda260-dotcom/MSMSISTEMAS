@@ -28,10 +28,13 @@ export const Laboratory: React.FC<LaboratoryProps> = ({ setPage, currentUser, ga
     const [printingEntry, setPrintingEntry] = useState<LabAnalysisEntry | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeOps, setActiveOps] = useState<any[]>([]);
+    const [opFilter, setOpFilter] = useState('');
     const [chartType, setChartType] = useState<'resistencia' | 'alongamento' | 'relacao' | 'bitola'>('resistencia');
     const chartCanvasRef = useRef<HTMLCanvasElement>(null);
     const summaryChartRef = useRef<HTMLCanvasElement>(null);
     const step2FlowChartRef = useRef<HTMLCanvasElement>(null);
+    const idealSetupChartRef = useRef<HTMLCanvasElement>(null);
 
     // Obtém bitolas ativas de "Fio Máquina" ou pega as pedidas pelo usuário caso não tenha na base
     const dbBitolas = useMemo(() => {
@@ -63,6 +66,11 @@ export const Laboratory: React.FC<LaboratoryProps> = ({ setPage, currentUser, ga
         velocidade: '',
         comprimento: '', massa: '',
         escoamento: '', resistencia: '', alongamento: '',
+        setupProfile: 'descrescente' as 'descrescente' | 'linear',
+        productionOrderId: '',
+        productionOrderNumber: '',
+        actionTaken: '',
+        actionResult: '',
     };
 
     const [form, setForm] = useState(initialForm);
@@ -77,6 +85,8 @@ export const Laboratory: React.FC<LaboratoryProps> = ({ setPage, currentUser, ga
                     const d2 = new Date(a.date || 0).getTime();
                     return (isNaN(d1) ? 0 : d1) - (isNaN(d2) ? 0 : d2);
                 }));
+                const ops = await fetchTable<any>('production_orders');
+                setActiveOps(ops.filter((o: any) => o.status === 'Ativa' || o.status === 'pending' || o.status === 'Em Andamento'));
             } catch (e) {
                 console.error('Erro ao carregar análises:', e);
             } finally {
@@ -157,47 +167,54 @@ export const Laboratory: React.FC<LaboratoryProps> = ({ setPage, currentUser, ga
 
         const totalAreaRatio = Math.pow(saidaEsperada / mp, 2);
 
-        // Alvo matemático para o passe final (média da meta: 12.5% de redução de área => 0.875 ratio)
-        let finalReductionRatio = 0.875;
-        if (qtdK7 === 1) {
-            finalReductionRatio = totalAreaRatio; // Se tem só 1 passe, ele faz o tranco inteiro
-        }
-
-        let interReductionRatioTarget = 1;
-        if (qtdK7 > 1) {
-            interReductionRatioTarget = totalAreaRatio / finalReductionRatio;
-        }
-
         const ideals = [];
         const pctReducoes = [];
         let currentD = mp;
 
-        if (qtdK7 > 1) {
-            const L_total = -Math.log(interReductionRatioTarget);
-
-            let totalWeight = 0;
-            for (let i = 1; i <= qtdK7 - 1; i++) {
-                totalWeight += (qtdK7 - i) + 1.5;
-            }
-
-            for (let i = 1; i <= qtdK7 - 1; i++) {
-                const w = (qtdK7 - i) + 1.5;
-                const L_i = L_total * (w / totalWeight);
-                const ratio_i = Math.exp(-L_i);
-
-                currentD = currentD * Math.sqrt(ratio_i);
+        if (form.setupProfile === 'linear') {
+            const ratioPerPass = Math.pow(totalAreaRatio, 1 / qtdK7);
+            for (let i = 1; i <= qtdK7; i++) {
+                currentD = currentD * Math.sqrt(ratioPerPass);
                 ideals.push(currentD);
-                pctReducoes.push((1 - ratio_i) * 100);
+                pctReducoes.push((1 - ratioPerPass) * 100);
+            }
+        } else {
+            let finalReductionRatio = 0.875;
+            if (qtdK7 === 1) {
+                finalReductionRatio = totalAreaRatio; 
             }
 
-            // Passe Final
-            currentD = saidaEsperada;
-            ideals.push(currentD);
-            pctReducoes.push((1 - finalReductionRatio) * 100);
-        } else {
-            currentD = saidaEsperada;
-            ideals.push(currentD);
-            pctReducoes.push((1 - finalReductionRatio) * 100);
+            let interReductionRatioTarget = 1;
+            if (qtdK7 > 1) {
+                interReductionRatioTarget = totalAreaRatio / finalReductionRatio;
+            }
+
+            if (qtdK7 > 1) {
+                const L_total = -Math.log(interReductionRatioTarget);
+
+                let totalWeight = 0;
+                for (let i = 1; i <= qtdK7 - 1; i++) {
+                    totalWeight += (qtdK7 - i) + 1.5;
+                }
+
+                for (let i = 1; i <= qtdK7 - 1; i++) {
+                    const w = (qtdK7 - i) + 1.5;
+                    const L_i = L_total * (w / totalWeight);
+                    const ratio_i = Math.exp(-L_i);
+
+                    currentD = currentD * Math.sqrt(ratio_i);
+                    ideals.push(currentD);
+                    pctReducoes.push((1 - ratio_i) * 100);
+                }
+
+                currentD = saidaEsperada;
+                ideals.push(currentD);
+                pctReducoes.push((1 - finalReductionRatio) * 100);
+            } else {
+                currentD = saidaEsperada;
+                ideals.push(currentD);
+                pctReducoes.push((1 - finalReductionRatio) * 100);
+            }
         }
 
         setForm(prev => ({
@@ -208,17 +225,19 @@ export const Laboratory: React.FC<LaboratoryProps> = ({ setPage, currentUser, ga
             k7_4_ideal: ideals[3] ? ideals[3].toFixed(2).replace('.', ',') : '',
         }));
 
-        let msg = `✨ A IA calculou uma CURVA DESCENDENTE LINEAR para o Setup Ideal!\n\n`;
+        let msg = `✨ A IA calculou uma curva ${form.setupProfile === 'linear' ? 'CONSTANTE/LINEAR' : 'DESCENDENTE'} para o Setup Ideal!\n\n`;
         if (qtdK7 > 1) {
-            msg += `Em um processo correto, os estiramentos caem em formato de rampa. Veja sua curva detalhada:\n`;
+            msg += form.setupProfile === 'linear' ? `A redução de área foi distribuída igualmente entre os passes.\n` : `Em um processo correto, os estiramentos caem em formato de rampa. Veja sua curva detalhada:\n`;
             for (let i = 0; i < pctReducoes.length; i++) {
-                if (i === pctReducoes.length - 1) {
+                if (i === pctReducoes.length - 1 && form.setupProfile !== 'linear') {
                     msg += `K7-${i + 1} (Final/Refino): ${pctReducoes[i].toFixed(1)}%\n`;
                 } else {
                     msg += `K7-${i + 1} (Intermediário): ${pctReducoes[i].toFixed(1)}%\n`;
                 }
             }
-            msg += `\nA rampa evita rompimento na última fieira/disco e otimiza Alongamento/Escoamento na saída!`;
+            if (form.setupProfile !== 'linear') {
+                msg += `\nA rampa evita rompimento na última fieira/disco e otimiza Alongamento/Escoamento na saída!`;
+            }
         } else {
             msg += `Alerta: Um único passe violento esmagando ${pctReducoes[0].toFixed(1)}% do aço (Encruamento altíssimo!).`;
         }
@@ -254,6 +273,11 @@ export const Laboratory: React.FC<LaboratoryProps> = ({ setPage, currentUser, ga
             alongamento: a,
             date: new Date().toISOString(),
             operator: currentUser?.username || 'N/A',
+            productionOrderId: form.productionOrderId,
+            productionOrderNumber: form.productionOrderNumber,
+            setupProfile: form.setupProfile,
+            actionTaken: form.actionTaken,
+            actionResult: form.actionResult,
         };
 
         try {
@@ -280,10 +304,14 @@ export const Laboratory: React.FC<LaboratoryProps> = ({ setPage, currentUser, ga
     };
 
     const filteredEntries = useMemo(() => {
-        if (!searchTerm.trim()) return entries;
-        const t = searchTerm.toLowerCase();
-        return entries.filter(e => (e.lote || '').toLowerCase().includes(t) || (e.fornecedor || '').toLowerCase().includes(t));
-    }, [entries, searchTerm]);
+        let f = entries;
+        if (opFilter) f = f.filter(e => e.productionOrderId === opFilter);
+        if (searchTerm.trim()) {
+            const t = searchTerm.toLowerCase();
+            f = f.filter(e => (e.lote || '').toLowerCase().includes(t) || (e.fornecedor || '').toLowerCase().includes(t) || (e.productionOrderNumber || '').toLowerCase().includes(t));
+        }
+        return f;
+    }, [entries, searchTerm, opFilter]);
 
     const checkAnalysisValue = (val: any, min: number) => {
         if (!val || isNaN(Number(val))) return { color: 'text-slate-600', icon: '', bg: 'bg-slate-50' };
@@ -583,7 +611,19 @@ export const Laboratory: React.FC<LaboratoryProps> = ({ setPage, currentUser, ga
             const pt = [1, 2, 3, 4].map(i => ({ label: `K7 ${i}`, value: formK7Medias[i - 1] || 0 })).filter(k => k.value > 0);
             drawDynamicChart(summaryChartRef, pt, 'default', 'Médias de Cassetes (Setup)');
         }
-    }, [step, filteredEntries, chartType, formK7Medias, bitolaMP, formK7Reducoes]);
+
+        if (step === 1 && form.qtd_k7_ideal && parseLocalNum((form as any)['k7_1_ideal'])) {
+            const points = [];
+            if (bitolaMP) points.push({ label: 'MP', value: bitolaMP });
+            for (let i = 1; i <= parseInt(form.qtd_k7_ideal); i++) {
+                const v = parseLocalNum((form as any)[`k7_${i}_ideal`]);
+                if (v) points.push({ label: `K7-${i}`, value: v });
+            }
+            if (points.length > 1) {
+                setTimeout(() => drawDynamicChart(idealSetupChartRef, points, 'bitola', `Curva do Setup Ideal - ${form.setupProfile === 'linear' ? 'Linear' : 'Rampa'}`), 50);
+            }
+        }
+    }, [step, filteredEntries, chartType, formK7Medias, bitolaMP, formK7Reducoes, form]);
 
 
     if (isLoading) return <div className="p-10 text-center text-slate-500 font-bold">Carregando...</div>;
@@ -646,6 +686,17 @@ export const Laboratory: React.FC<LaboratoryProps> = ({ setPage, currentUser, ga
                                         ))}
                                     </div>
                                 </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-600 mb-2 uppercase tracking-wide">Ordem de Produção / OP (Opcional)</label>
+                                    <input 
+                                        type="text" 
+                                        value={form.productionOrderNumber} 
+                                        onChange={e => setForm({ ...form, productionOrderNumber: e.target.value, productionOrderId: e.target.value })} 
+                                        className="w-full p-4 border-2 border-slate-200 rounded-xl text-lg font-bold focus:border-indigo-500 focus:ring-0 transition" 
+                                        placeholder="Ex: 10542" 
+                                    />
+                                    <p className="text-xs text-slate-400 mt-1">Digite o número da OP para vincular e criar um histórico de aprendizado da máquina.</p>
+                                </div>
                                 <div className="grid grid-cols-2 gap-6 pt-4 border-t-2 border-slate-100">
                                     <div>
                                         <label className="block text-sm font-bold text-slate-600 mb-2 uppercase tracking-wide">Bitola de Saída Esperada (ex: CA60)</label>
@@ -661,31 +712,61 @@ export const Laboratory: React.FC<LaboratoryProps> = ({ setPage, currentUser, ga
                                                 <option value="3">3 K7s</option>
                                                 <option value="4">4 K7s</option>
                                             </select>
-                                            <button
-                                                type="button"
-                                                onClick={handleAISuggestion}
-                                                className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold px-4 rounded-xl transition flex flex-col items-center justify-center border-2 border-indigo-200"
-                                                title="Sugerir baseado no histórico de testes aprovados"
-                                            >
-                                                <span className="text-xl">💡</span>
-                                                <span className="text-[10px] uppercase tracking-widest mt-1">IA</span>
-                                            </button>
                                         </div>
                                     </div>
                                 </div>
-                                {form.qtd_k7_ideal && (
-                                    <div className="bg-slate-50 p-6 rounded-2xl border-2 border-slate-100 mt-4 animate-fade-in-up">
-                                        <label className="block text-sm font-black text-slate-700 mb-4 uppercase tracking-widest border-b border-slate-200 pb-2">Setup Ideal (Média Esperada em cada K7)</label>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                            {Array.from({ length: parseInt(form.qtd_k7_ideal) || 0 }).map((_, i) => (
-                                                <div key={i}>
-                                                    <label className="block text-xs font-bold text-slate-500 mb-1">Média K7-{i + 1}</label>
-                                                    <input type="text" inputMode="decimal" value={(form as any)[`k7_${i + 1}_ideal`]} onChange={e => setForm({ ...form, [`k7_${i + 1}_ideal`]: e.target.value })} className="w-full p-3 border-2 border-slate-200 rounded-xl text-center font-bold focus:border-indigo-500 transition" placeholder="mm" />
-                                                </div>
-                                            ))}
+                                <div className="bg-slate-50 p-6 rounded-2xl border-2 border-slate-100 mt-4 animate-fade-in-up">
+                                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-slate-200 pb-4">
+                                        <label className="block text-sm font-black text-slate-700 uppercase tracking-widest">
+                                            Setup Ideal (Cálculo IA)
+                                        </label>
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setForm({ ...form, setupProfile: 'descrescente' })}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${form.setupProfile === 'descrescente' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
+                                                >
+                                                    Descrescente (Rampa)
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setForm({ ...form, setupProfile: 'linear' })}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${form.setupProfile === 'linear' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
+                                                >
+                                                    Linear (Constante)
+                                                </button>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={handleAISuggestion}
+                                                className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold px-4 py-2 rounded-xl transition flex items-center gap-2 border-2 border-indigo-200 shadow-sm"
+                                                title="Calcular/Sugerir baseado no perfil"
+                                            >
+                                                <span className="text-xl">💡</span>
+                                                <span className="text-xs uppercase tracking-widest mt-0.5">Calcular IA</span>
+                                            </button>
                                         </div>
                                     </div>
-                                )}
+                                    
+                                    {form.qtd_k7_ideal ? (
+                                        <>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                {Array.from({ length: parseInt(form.qtd_k7_ideal) || 0 }).map((_, i) => (
+                                                    <div key={i}>
+                                                        <label className="block text-xs font-bold text-slate-500 mb-1">Média K7-{i + 1}</label>
+                                                        <input type="text" inputMode="decimal" value={(form as any)[`k7_${i + 1}_ideal`]} onChange={e => setForm({ ...form, [`k7_${i + 1}_ideal`]: e.target.value })} className="w-full p-3 border-2 border-slate-200 rounded-xl text-center font-bold focus:border-indigo-500 transition" placeholder="mm" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="mt-6 bg-white border border-slate-200 rounded-xl p-4 shadow-sm" style={{ height: 250 }}>
+                                                <canvas ref={idealSetupChartRef} className="w-full h-full" style={{ width: '100%', height: '100%' }}></canvas>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <p className="text-sm text-slate-400 italic text-center py-2">Preencha a bitola de saída e quantidade de K7 para calcular o setup ideal.</p>
+                                    )}
+                                </div>
 
                                 {aiDiagnosisMsg && (
                                     <div className="bg-emerald-50 border-2 border-emerald-200 p-6 rounded-2xl mt-6 animate-fade-in-up">
@@ -899,6 +980,32 @@ export const Laboratory: React.FC<LaboratoryProps> = ({ setPage, currentUser, ga
                                 </div>
                             </div>
 
+                            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 mb-8">
+                                <h3 className="font-black text-indigo-800 uppercase tracking-widest text-xs mb-4">Registro de Aprendizado (Opcional)</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-sm font-bold text-indigo-700 mb-2">Ajuste Realizado (O que foi feito?)</label>
+                                        <textarea 
+                                            value={form.actionTaken}
+                                            onChange={e => setForm({...form, actionTaken: e.target.value})}
+                                            className="w-full p-3 border border-indigo-200 rounded-xl text-sm focus:border-indigo-500 focus:ring-0"
+                                            rows={3}
+                                            placeholder="Ex: Apertei o K7-2 em 0.10mm para tentar melhorar a relação."
+                                        ></textarea>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-indigo-700 mb-2">Resultado Esperado/Observado (Efeito)</label>
+                                        <textarea 
+                                            value={form.actionResult}
+                                            onChange={e => setForm({...form, actionResult: e.target.value})}
+                                            className="w-full p-3 border border-indigo-200 rounded-xl text-sm focus:border-indigo-500 focus:ring-0"
+                                            rows={3}
+                                            placeholder="Ex: A relação subiu para 1.08, mas o escoamento ainda está no limite."
+                                        ></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="mt-12 flex justify-between pt-6 border-t border-slate-100">
                                 <button onClick={() => setStep(3)} className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-4 px-8 rounded-xl transition">Revisar Dados</button>
                                 <button onClick={handleSave} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 px-10 rounded-xl text-lg transition shadow-lg shadow-emerald-200 flex items-center gap-2">
@@ -1002,7 +1109,22 @@ export const Laboratory: React.FC<LaboratoryProps> = ({ setPage, currentUser, ga
                 <div className="flex flex-col md:flex-row items-center gap-4">
                     <div className="relative flex-1 max-w-md w-full">
                         <SearchIcon className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input type="text" placeholder="Buscar lote..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-indigo-500 focus:ring-0 shadow-sm" />
+                        <input type="text" placeholder="Buscar lote ou OP..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-indigo-500 focus:ring-0 shadow-sm" />
+                    </div>
+                    
+                    <div className="flex-1 w-full md:max-w-xs relative">
+                        <FilterIcon className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 z-10" />
+                        <select 
+                            value={opFilter} 
+                            onChange={e => setOpFilter(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-indigo-500 focus:ring-0 shadow-sm appearance-none font-semibold text-slate-600"
+                        >
+                            <option value="">Todas as Produções (OP)</option>
+                            {Array.from(new Set(entries.filter(e => e.productionOrderId).map(e => e.productionOrderId))).map(opId => {
+                                const e = entries.find(x => x.productionOrderId === opId);
+                                return <option key={opId as string} value={opId as string}>OP: {e?.productionOrderNumber || opId}</option>;
+                            })}
+                        </select>
                     </div>
                 </div>
 
@@ -1054,7 +1176,16 @@ export const Laboratory: React.FC<LaboratoryProps> = ({ setPage, currentUser, ga
 
                                     return (
                                         <tr key={entry.id} className="hover:bg-slate-50">
-                                            <td className="p-3 font-bold text-slate-800 text-left">{entry.lote}</td>
+                                            <td className="p-3 font-bold text-slate-800 text-left">
+                                                {entry.lote}
+                                                {entry.productionOrderNumber && <div className="text-[10px] text-indigo-500 font-semibold bg-indigo-50 rounded px-1 mt-0.5 inline-block">OP: {entry.productionOrderNumber}</div>}
+                                                {(entry.actionTaken || entry.actionResult) && (
+                                                    <div className="mt-2 text-[10px] bg-indigo-50 border border-indigo-100 p-2 rounded-lg text-slate-600 font-normal leading-tight">
+                                                        {entry.actionTaken && <div><span className="font-bold text-indigo-600">Ação:</span> {entry.actionTaken}</div>}
+                                                        {entry.actionResult && <div className="mt-1"><span className="font-bold text-emerald-600">Efeito:</span> {entry.actionResult}</div>}
+                                                    </div>
+                                                )}
+                                            </td>
                                             <td className="p-3 text-center text-emerald-600 font-bold bg-emerald-50/30">{entry.bitola_mp}</td>
                                             <td className="p-3 text-xs text-slate-500 border-r border-slate-100">{entry.fornecedor}</td>
 

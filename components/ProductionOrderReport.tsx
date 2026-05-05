@@ -189,7 +189,15 @@ const ProductionOrderReport: React.FC<ProductionOrderReportProps> = ({ reportDat
 
     const trelicaModelDetails = useMemo(() => {
         if (!reportData.trelicaModel) return null;
-        return trelicaModels.find(m => m.modelo === reportData.trelicaModel && m.tamanho === reportData.tamanho);
+        const normalize = (s: string) => s?.toUpperCase().replace(/[-\s]/g, '').trim() || '';
+        const orderModelNormalized = normalize(reportData.trelicaModel);
+
+        return trelicaModels.find(m => {
+            const currentModelNormalized = normalize(m.modelo);
+            const matchesModel = orderModelNormalized.includes(currentModelNormalized) || currentModelNormalized.includes(orderModelNormalized);
+            const matchesSize = reportData.tamanho ? reportData.tamanho.toString() === m.tamanho : true;
+            return matchesModel && matchesSize;
+        });
     }, [reportData]);
 
     // Treliça Specific Layout

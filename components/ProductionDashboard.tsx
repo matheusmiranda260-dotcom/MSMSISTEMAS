@@ -456,11 +456,17 @@ const MachineStatusView: React.FC<MachineStatusViewProps> = ({ machineType, acti
     const trelicaDetails = useMemo(() => {
         if (!machineType.startsWith('Treliça') || !activeOrder?.trelicaModel) return null;
         
+        // Função auxiliar para normalizar nomes de modelo (remove hifens, espaços e deixa em maiúsculo)
+        const normalize = (s: string) => s?.toUpperCase().replace(/[-\s]/g, '').trim() || '';
+        const orderModelNormalized = normalize(activeOrder.trelicaModel);
+
         // Tenta encontrar o modelo exato na lista de trelicaModels
-        const model = trelicaModels.find(m => 
-            activeOrder.trelicaModel?.toUpperCase().trim().includes(m.modelo.toUpperCase()) &&
-            (activeOrder.tamanho ? activeOrder.tamanho.toString() === m.tamanho : true)
-        );
+        const model = trelicaModels.find(m => {
+            const currentModelNormalized = normalize(m.modelo);
+            const matchesModel = orderModelNormalized.includes(currentModelNormalized) || currentModelNormalized.includes(orderModelNormalized);
+            const matchesSize = activeOrder.tamanho ? activeOrder.tamanho.toString() === m.tamanho : true;
+            return matchesModel && matchesSize;
+        });
 
         return {
             superior: activeOrder.trelicaSuperior || model?.superior || '-',
@@ -501,8 +507,8 @@ const MachineStatusView: React.FC<MachineStatusViewProps> = ({ machineType, acti
                             {trelicaDetails && (
                                 <div className="flex gap-2 ml-1">
                                     <span className="text-[8px] font-black text-slate-600 bg-white/5 px-1.5 py-0.5 rounded uppercase">S: {trelicaDetails.superior}</span>
-                                    <span className="text-[8px] font-black text-slate-600 bg-white/5 px-1.5 py-0.5 rounded uppercase">I: {trelicaDetails.inferior}</span>
-                                    <span className="text-[8px] font-black text-slate-600 bg-white/5 px-1.5 py-0.5 rounded uppercase">Z: {trelicaDetails.sinusoide}</span>
+                                    <span className="text-[8px] font-black text-slate-600 bg-white/5 px-1.5 py-0.5 rounded uppercase">I: {trelicaDetails.sinusoide}</span>
+                                    <span className="text-[8px] font-black text-slate-600 bg-white/5 px-1.5 py-0.5 rounded uppercase">Z: {trelicaDetails.inferior}</span>
                                 </div>
                             )}
                         </div>
@@ -545,11 +551,11 @@ const MachineStatusView: React.FC<MachineStatusViewProps> = ({ machineType, acti
                                         </div>
                                         <div className="flex flex-col items-center">
                                             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Inferior</span>
-                                            <span className="text-sm font-black text-white">{trelicaDetails.inferior}</span>
+                                            <span className="text-sm font-black text-white">{trelicaDetails.sinusoide}</span>
                                         </div>
                                         <div className="flex flex-col items-center">
                                             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Senozoide</span>
-                                            <span className="text-sm font-black text-white">{trelicaDetails.sinusoide}</span>
+                                            <span className="text-sm font-black text-white">{trelicaDetails.inferior}</span>
                                         </div>
                                     </div>
                                 )}
