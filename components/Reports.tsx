@@ -481,11 +481,16 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                         border: 1px solid #cbd5e1 !important;
                         background-color: #ffffff !important;
                         border-radius: 4px !important;
-                        padding: 3px 6px !important;
+                        padding: 0px 8px !important;
                         font-weight: bold !important;
                         font-family: inherit !important;
                         font-size: 12px !important;
                         transition: all 0.2s;
+                        height: 24px !important;
+                        line-height: 24px !important;
+                        vertical-align: middle !important;
+                        box-sizing: border-box !important;
+                        display: inline-block !important;
                     }
                     .worksheet-input:focus {
                         border-color: #3b82f6 !important;
@@ -523,6 +528,8 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                         box-shadow: none !important;
                         pointer-events: none !important;
                         font-size: 12px !important;
+                        height: auto !important;
+                        line-height: normal !important;
                     }
                     .input-center {
                         text-align: center !important;
@@ -541,6 +548,7 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                     border: 1px solid #1e293b;
                     padding: 5px 10px;
                     font-size: 13px;
+                    vertical-align: middle !important;
                 }
                 .stops-grid-table {
                     width: 100%;
@@ -550,6 +558,14 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                     border: 1px solid #94a3b8;
                     padding: 3px 6px;
                     font-size: 11px;
+                    vertical-align: middle !important;
+                }
+                .production-updates-table td, .production-updates-table th {
+                    border: 1px solid #1e293b !important;
+                    padding: 4px !important;
+                    font-size: 12px !important;
+                    vertical-align: middle !important;
+                    text-align: center !important;
                 }
                 .stats-container-box {
                     border: 1.5px solid #1e293b;
@@ -1184,7 +1200,7 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
 
                             {/* Tabela de Lotes com case e estilo IDÊNTICOS à foto */}
                             <div className="max-w-xl mx-auto overflow-x-auto">
-                                <table className="w-full text-center" style={{ borderCollapse: 'collapse', border: '1px solid #1e293b' }}>
+                                <table className="w-full text-center production-updates-table" style={{ borderCollapse: 'collapse', border: '1px solid #1e293b' }}>
                                     <thead>
                                         <tr className="bg-slate-50 font-bold" style={{ fontSize: '12px' }}>
                                             <th style={{ border: '1px solid #1e293b', padding: '4px', textAlign: 'center' }} className="text-center uppercase font-bold">Qnt.</th>
