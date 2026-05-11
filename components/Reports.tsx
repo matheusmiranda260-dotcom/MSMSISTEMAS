@@ -426,12 +426,21 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
             
             showToast('Gerando imagem de alta resolução...', 'info');
             
+            // Ativa o estilo de captura limpo (idêntico à impressão)
+            element.classList.add('is-capturing');
+            
+            // Pequeno delay para garantir o repaint do navegador
+            await new Promise(resolve => setTimeout(resolve, 80));
+            
             const canvas = await html2canvas(element, {
-                scale: 2, // High resolution for beautiful clarity on WhatsApp
+                scale: 2, // Alta resolução para legibilidade perfeita no WhatsApp
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff'
             });
+            
+            // Remove o estilo de captura imediatamente após gerar o canvas
+            element.classList.remove('is-capturing');
             
             canvas.toBlob(async (blob) => {
                 if (blob) {
@@ -455,6 +464,9 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
             }, 'image/png');
         } catch (e) {
             console.error(e);
+            // Garante que a classe de captura seja removida em caso de erro
+            const element = document.getElementById('trelica-report-sheet');
+            if (element) element.classList.remove('is-capturing');
             showToast('Erro ao gerar imagem.', 'error');
         }
     };
@@ -544,6 +556,32 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                     padding: 10px 15px;
                     font-size: 13px;
                     line-height: 1.6;
+                }
+
+                /* ESTILOS DE CAPTURA DO WHATSAPP (IDÊNTICO À IMPRESSÃO) */
+                .is-capturing .no-print {
+                    display: none !important;
+                }
+                .is-capturing {
+                    padding: 24px !important;
+                    margin: 0 auto !important;
+                    box-shadow: none !important;
+                    border: 1px solid #1e293b !important;
+                }
+                .is-capturing input {
+                    border: none !important;
+                    background: transparent !important;
+                    padding: 0 !important;
+                    box-shadow: none !important;
+                    pointer-events: none !important;
+                }
+                .is-capturing .worksheet-input {
+                    border: none !important;
+                    background: transparent !important;
+                    padding: 0 !important;
+                    box-shadow: none !important;
+                    pointer-events: none !important;
+                    font-size: 12px !important;
                 }
             `}} />
 
