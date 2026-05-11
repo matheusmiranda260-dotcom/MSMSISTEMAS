@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Page, StockItem, ProductionRecord } from '../types';
 import { supabase } from '../services/supabaseService';
+import html2canvas from 'html2canvas';
 
 interface ReportsProps {
     stock: StockItem[];
@@ -418,6 +419,46 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
         setProductionUpdates(productionUpdates.map(r => r.id === id ? { ...r, [field]: value } : r));
     };
 
+    const copyToClipboard = async () => {
+        try {
+            const element = document.getElementById('trelica-report-sheet');
+            if (!element) return;
+            
+            showToast('Gerando imagem de alta resolução...', 'info');
+            
+            const canvas = await html2canvas(element, {
+                scale: 2, // High resolution for beautiful clarity on WhatsApp
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+            });
+            
+            canvas.toBlob(async (blob) => {
+                if (blob) {
+                    try {
+                        await navigator.clipboard.write([
+                            new ClipboardItem({
+                                [blob.type]: blob
+                            })
+                        ]);
+                        showToast('Imagem copiada para a área de transferência! Cole (Ctrl+V) no WhatsApp.', 'success');
+                    } catch (err) {
+                        console.error('Falha ao copiar:', err);
+                        // Fallback: download as image
+                        const link = document.createElement('a');
+                        link.download = `Relatorio_Trelica_${selectedDate}.png`;
+                        link.href = canvas.toDataURL();
+                        link.click();
+                        showToast('Baixamos o relatório como imagem! Envie o arquivo no WhatsApp.', 'info');
+                    }
+                }
+            }, 'image/png');
+        } catch (e) {
+            console.error(e);
+            showToast('Erro ao gerar imagem.', 'error');
+        }
+    };
+
     return (
         <div className="p-4 sm:p-6 md:p-8 bg-slate-50 min-h-screen font-mono text-slate-800 relative select-none">
             
@@ -539,6 +580,13 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                     </button>
 
                     <button
+                        onClick={copyToClipboard}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 px-3 rounded text-xs shadow flex items-center gap-1"
+                    >
+                        🟢 Copiar Imagem (Zap)
+                    </button>
+
+                    <button
                         onClick={() => window.print()}
                         className="bg-slate-700 hover:bg-slate-800 text-white font-bold py-1.5 px-3 rounded text-xs shadow"
                     >
@@ -597,7 +645,7 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                     Carregando dados...
                 </div>
             ) : (
-                <div className="bg-white p-6 md:p-10 shadow-lg border border-slate-300 max-w-5xl mx-auto worksheet-container print-sheet">
+                <div id="trelica-report-sheet" className="bg-white p-6 md:p-10 shadow-lg border border-slate-300 max-w-5xl mx-auto worksheet-container print-sheet">
                     
                     {/* Tabela do Cabeçalho - Idêntica à Foto */}
                     <table className="worksheet-table mb-6">
@@ -1094,18 +1142,6 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                                     )}
                                 </tbody>
                             </table>
-                        </div>
-                    </div>
-
-                    {/* Assinaturas Diárias */}
-                    <div className="mt-8 pt-8 grid grid-cols-2 gap-8 text-center text-[10px] font-bold border-t border-dashed border-slate-300">
-                        <div className="flex flex-col items-center">
-                            <div className="w-48 border-b border-slate-900 mb-1" />
-                            <span className="text-slate-500 uppercase tracking-wider">Assinatura Encarregado / Operador Turno A</span>
-                        </div>
-                        <div className="flex flex-col items-center">
-                            <div className="w-48 border-b border-slate-900 mb-1" />
-                            <span className="text-slate-500 uppercase tracking-wider">Assinatura Encarregado / Operador Turno B</span>
                         </div>
                     </div>
 
