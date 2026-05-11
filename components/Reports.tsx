@@ -583,6 +583,20 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                     pointer-events: none !important;
                     font-size: 12px !important;
                 }
+                
+                /* Toggling input elements for perfect text rendering in canvas */
+                .capture-show {
+                    display: none !important;
+                }
+                .is-capturing .capture-hide {
+                    display: none !important;
+                }
+                .is-capturing .capture-show {
+                    display: inline-block !important;
+                }
+                .is-capturing .capture-show.block {
+                    display: block !important;
+                }
             `}} />
 
             {/* Toasts de Notificação */}
@@ -714,9 +728,12 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                                             type="text"
                                             value={productionOrder}
                                             onChange={e => setProductionOrder(e.target.value)}
-                                            className="w-full worksheet-input"
+                                            className="w-full worksheet-input capture-hide"
                                             placeholder="Digite..."
                                         />
+                                        <span className="capture-show hidden font-bold text-xs text-slate-900 pl-1 uppercase">
+                                            {productionOrder}
+                                        </span>
                                     </div>
                                 </td>
                             </tr>
@@ -740,9 +757,12 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                                             type="text"
                                             value={operatorShiftA}
                                             onChange={e => setOperatorShiftA(e.target.value)}
-                                            className="w-full worksheet-input"
+                                            className="w-full worksheet-input capture-hide"
                                             placeholder="Insira..."
                                         />
+                                        <span className="capture-show hidden font-bold text-xs text-slate-900 pl-1 uppercase">
+                                            {operatorShiftA}
+                                        </span>
                                     </div>
                                 </td>
                             </tr>
@@ -756,9 +776,12 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                                             type="text"
                                             value={operatorShiftB}
                                             onChange={e => setOperatorShiftB(e.target.value)}
-                                            className="w-full worksheet-input"
+                                            className="w-full worksheet-input capture-hide"
                                             placeholder="Insira..."
                                         />
+                                        <span className="capture-show hidden font-bold text-xs text-slate-900 pl-1 uppercase">
+                                            {operatorShiftB}
+                                        </span>
                                     </div>
                                 </td>
                             </tr>                            {/* Linha 6: Descrição do produto */}
@@ -771,8 +794,11 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                                                 type="text"
                                                 value={productDescription}
                                                 onChange={e => setProductDescription(e.target.value)}
-                                                className="w-full md:w-80 worksheet-input"
+                                                className="w-full md:w-80 worksheet-input capture-hide"
                                             />
+                                            <span className="capture-show hidden font-bold text-xs text-slate-900 pl-1 uppercase">
+                                                {productDescription}
+                                            </span>
                                         </div>
                                         <div className="flex items-center gap-1 text-xs">
                                             <span className="font-bold text-slate-800 whitespace-nowrap">Qnt. De peças produzidas:</span>
@@ -819,9 +845,12 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                                                             type="text"
                                                             value={stop.inicio}
                                                             onChange={e => updateStopField('A', stop.id, 'inicio', e.target.value)}
-                                                            className="text-center w-20 worksheet-input text-[#dc2626]"
+                                                            className="text-center w-20 worksheet-input text-[#dc2626] capture-hide"
                                                             placeholder="00:00:00"
                                                         />
+                                                        <span className="capture-show hidden font-bold text-xs text-[#dc2626] text-center w-full block">
+                                                            {stop.inicio}
+                                                        </span>
                                                     </td>
                                                     {/* Hora Final (Verde na foto) */}
                                                     <td style={{ width: '85px', textAlign: 'center' }} className="p-0.5">
@@ -829,9 +858,12 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                                                             type="text"
                                                             value={stop.fim}
                                                             onChange={e => updateStopField('A', stop.id, 'fim', e.target.value)}
-                                                            className="text-center w-20 worksheet-input text-[#16a34a]"
+                                                            className="text-center w-20 worksheet-input text-[#16a34a] capture-hide"
                                                             placeholder="00:00:00"
                                                         />
+                                                        <span className="capture-show hidden font-bold text-xs text-[#16a34a] text-center w-full block">
+                                                            {stop.fim}
+                                                        </span>
                                                     </td>
                                                     {/* Motivo (Texto normal) */}
                                                     <td className="p-0.5 text-left pl-2">
@@ -839,9 +871,12 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                                                             type="text"
                                                             value={stop.motivo}
                                                             onChange={e => updateStopField('A', stop.id, 'motivo', e.target.value)}
-                                                            className="text-left w-full worksheet-input text-slate-800"
+                                                            className="text-left w-full worksheet-input text-slate-800 capture-hide"
                                                             placeholder="Motivo..."
                                                         />
+                                                        <span className="capture-show hidden font-bold text-xs text-slate-800 text-left pl-1">
+                                                            {stop.motivo}
+                                                        </span>
                                                     </td>
                                                     {/* Duração (Vermelho na foto) */}
                                                     <td style={{ width: '75px', textAlign: 'center', color: '#dc2626' }} className="p-0.5 font-bold text-center text-xs">
@@ -897,9 +932,12 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                                                             type="text"
                                                             value={stop.inicio}
                                                             onChange={e => updateStopField('B', stop.id, 'inicio', e.target.value)}
-                                                            className="text-center w-20 worksheet-input text-[#dc2626]"
+                                                            className="text-center w-20 worksheet-input text-[#dc2626] capture-hide"
                                                             placeholder="00:00:00"
                                                         />
+                                                        <span className="capture-show hidden font-bold text-xs text-[#dc2626] text-center w-full block">
+                                                            {stop.inicio}
+                                                        </span>
                                                     </td>
                                                     {/* Hora Final (Verde na foto) */}
                                                     <td style={{ width: '85px', textAlign: 'center' }} className="p-0.5">
@@ -907,9 +945,12 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                                                             type="text"
                                                             value={stop.fim}
                                                             onChange={e => updateStopField('B', stop.id, 'fim', e.target.value)}
-                                                            className="text-center w-20 worksheet-input text-[#16a34a]"
+                                                            className="text-center w-20 worksheet-input text-[#16a34a] capture-hide"
                                                             placeholder="00:00:00"
                                                         />
+                                                        <span className="capture-show hidden font-bold text-xs text-[#16a34a] text-center w-full block">
+                                                            {stop.fim}
+                                                        </span>
                                                     </td>
                                                     {/* Motivo (Texto normal) */}
                                                     <td className="p-0.5 text-left pl-2">
@@ -917,9 +958,12 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                                                             type="text"
                                                             value={stop.motivo}
                                                             onChange={e => updateStopField('B', stop.id, 'motivo', e.target.value)}
-                                                            className="text-left w-full worksheet-input text-slate-800"
+                                                            className="text-left w-full worksheet-input text-slate-800 capture-hide"
                                                             placeholder="Motivo..."
                                                         />
+                                                        <span className="capture-show hidden font-bold text-xs text-slate-800 text-left pl-1">
+                                                            {stop.motivo}
+                                                        </span>
                                                     </td>
                                                     {/* Duração (Vermelho na foto) */}
                                                     <td style={{ width: '75px', textAlign: 'center', color: '#dc2626' }} className="p-0.5 font-bold text-center text-xs">
@@ -959,8 +1003,11 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                                         type="text"
                                         value={statsShiftA.horasTrabalhadas}
                                         onChange={e => setStatsShiftA({ ...statsShiftA, horasTrabalhadas: e.target.value })}
-                                        className="font-bold text-center text-slate-900 w-24 worksheet-input text-xs"
+                                        className="font-bold text-center text-slate-900 w-24 worksheet-input text-xs capture-hide"
                                     />
+                                    <span className="capture-show hidden font-bold text-xs text-slate-900">
+                                        {statsShiftA.horasTrabalhadas}
+                                    </span>
                                 </div>
                                 
                                 <div className="flex justify-between items-center text-[#dc2626] font-bold">
@@ -986,17 +1033,23 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                                             type="number"
                                             value={statsShiftA.pecasProduzidas || ''}
                                             onChange={e => setStatsShiftA({ ...statsShiftA, pecasProduzidas: parseInt(e.target.value, 10) || 0 })}
-                                            className="w-16 worksheet-input text-xs font-bold text-center mr-1"
+                                            className="w-16 worksheet-input text-xs font-bold text-center mr-1 capture-hide"
                                             placeholder="Qnt."
                                         />
+                                        <span className="capture-show hidden font-bold text-xs text-slate-900 mr-2">
+                                            {statsShiftA.pecasProduzidas}
+                                        </span>
                                         <span>peças de</span>
                                         <input
                                             type="number"
                                             value={statsShiftA.tamanhoPeca || ''}
                                             onChange={e => setStatsShiftA({ ...statsShiftA, tamanhoPeca: parseFloat(e.target.value) || 0 })}
-                                            className="w-16 worksheet-input text-xs font-bold text-center mr-1"
+                                            className="w-16 worksheet-input text-xs font-bold text-center mr-1 capture-hide"
                                             placeholder="Tam."
                                         />
+                                        <span className="capture-show hidden font-bold text-xs text-slate-900 mx-2">
+                                            {statsShiftA.tamanhoPeca}
+                                        </span>
                                         <span>metros</span>
                                     </div>
                                 </div>
@@ -1030,8 +1083,11 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                                         type="text"
                                         value={statsShiftB.horasTrabalhadas}
                                         onChange={e => setStatsShiftB({ ...statsShiftB, horasTrabalhadas: e.target.value })}
-                                        className="font-bold text-center text-slate-900 w-24 worksheet-input text-xs"
+                                        className="font-bold text-center text-slate-900 w-24 worksheet-input text-xs capture-hide"
                                     />
+                                    <span className="capture-show hidden font-bold text-xs text-slate-900">
+                                        {statsShiftB.horasTrabalhadas}
+                                    </span>
                                 </div>
                                 
                                 <div className="flex justify-between items-center text-[#dc2626] font-bold">
@@ -1057,17 +1113,23 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                                             type="number"
                                             value={statsShiftB.pecasProduzidas || ''}
                                             onChange={e => setStatsShiftB({ ...statsShiftB, pecasProduzidas: parseInt(e.target.value, 10) || 0 })}
-                                            className="w-16 worksheet-input text-xs font-bold text-center mr-1"
+                                            className="w-16 worksheet-input text-xs font-bold text-center mr-1 capture-hide"
                                             placeholder="Qnt."
                                         />
+                                        <span className="capture-show hidden font-bold text-xs text-slate-900 mr-2">
+                                            {statsShiftB.pecasProduzidas}
+                                        </span>
                                         <span>peças de</span>
                                         <input
                                             type="number"
                                             value={statsShiftB.tamanhoPeca || ''}
                                             onChange={e => setStatsShiftB({ ...statsShiftB, tamanhoPeca: parseFloat(e.target.value) || 0 })}
-                                            className="w-16 worksheet-input text-xs font-bold text-center mr-1"
+                                            className="w-16 worksheet-input text-xs font-bold text-center mr-1 capture-hide"
                                             placeholder="Tam."
                                         />
+                                        <span className="capture-show hidden font-bold text-xs text-slate-900 mx-2">
+                                            {statsShiftB.tamanhoPeca}
+                                        </span>
                                         <span>metros</span>
                                     </div>
                                 </div>
@@ -1097,74 +1159,86 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                             ATUALIZAÇÃO DA PRODUÇÃO:
                         </h4>
                         <div className="flex items-center justify-center gap-1.5 font-bold text-xs mb-3 text-center w-full">
-                            <span>Qntidade de peças a produzir:</span>
-                            <input
-                                type="number"
-                                value={piecesToProduce}
-                                onChange={e => setPiecesToProduce(parseInt(e.target.value, 10) || 0)}
-                                className="w-20 text-center worksheet-input"
-                            />
-                            <span>treliças</span>
-                            <button
-                                onClick={addProductionUpdateRow}
-                                className="bg-slate-800 hover:bg-black text-white text-[9px] py-0.5 px-2 rounded-md ml-3 no-print"
-                            >
-                                + Registrar Peso
-                            </button>
-                        </div>
+                                <span>Qntidade de peças a produzir:</span>
+                                <input
+                                    type="number"
+                                    value={piecesToProduce}
+                                    onChange={e => setPiecesToProduce(parseInt(e.target.value, 10) || 0)}
+                                    className="w-20 text-center worksheet-input capture-hide"
+                                />
+                                <span className="capture-show hidden font-bold text-xs text-slate-900 mx-2">
+                                    {piecesToProduce}
+                                </span>
+                                <span>treliças</span>
+                                <button
+                                    onClick={addProductionUpdateRow}
+                                    className="bg-slate-800 hover:bg-black text-white text-[9px] py-0.5 px-2 rounded-md ml-3 no-print"
+                                >
+                                    + Registrar Peso
+                                </button>
+                            </div>
 
-                        {/* Tabela de Lotes com case e estilo IDÊNTICOS à foto */}
-                        <div className="max-w-xl mx-auto overflow-x-auto">
-                            <table className="w-full text-center" style={{ borderCollapse: 'collapse', border: '1px solid #1e293b' }}>
-                                <thead>
-                                    <tr className="bg-slate-50 font-bold" style={{ fontSize: '12px' }}>
-                                        <th style={{ border: '1px solid #1e293b', padding: '4px' }}>Qnt.</th>
-                                        <th style={{ border: '1px solid #1e293b', padding: '4px' }}>peso</th>
-                                        <th style={{ border: '1px solid #1e293b', padding: '4px' }}>media</th>
-                                        <th style={{ border: '1px solid #1e293b', padding: '4px' }}>Data</th>
-                                        <th style={{ border: '1px solid #1e293b', padding: '2px' }} className="no-print">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {productionUpdates.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={5} className="py-3 text-slate-400 italic font-bold border border-slate-300 text-xs">
-                                                Nenhum lote registrado. Clique em "+ Registrar Peso"
-                                            </td>
+                            {/* Tabela de Lotes com case e estilo IDÊNTICOS à foto */}
+                            <div className="max-w-xl mx-auto overflow-x-auto">
+                                <table className="w-full text-center" style={{ borderCollapse: 'collapse', border: '1px solid #1e293b' }}>
+                                    <thead>
+                                        <tr className="bg-slate-50 font-bold" style={{ fontSize: '12px' }}>
+                                            <th style={{ border: '1px solid #1e293b', padding: '4px' }}>Qnt.</th>
+                                            <th style={{ border: '1px solid #1e293b', padding: '4px' }}>peso</th>
+                                            <th style={{ border: '1px solid #1e293b', padding: '4px' }}>media</th>
+                                            <th style={{ border: '1px solid #1e293b', padding: '4px' }}>Data</th>
+                                            <th style={{ border: '1px solid #1e293b', padding: '2px' }} className="no-print">Ações</th>
                                         </tr>
-                                    ) : (
-                                        productionUpdates.map(row => {
-                                            const weightAverage = row.qnt > 0 ? (row.peso / row.qnt) : 0;
-                                            return (
-                                                <tr key={row.id} style={{ fontSize: '12px' }}>
-                                                    <td style={{ border: '1px solid #1e293b', padding: '3px' }}>
-                                                        <input
-                                                            type="number"
-                                                            value={row.qnt || ''}
-                                                            onChange={e => updateProductionUpdateField(row.id, 'qnt', parseInt(e.target.value, 10) || 0)}
-                                                            className="text-center w-full worksheet-input"
-                                                        />
-                                                    </td>
-                                                    <td style={{ border: '1px solid #1e293b', padding: '3px' }}>
-                                                        <input
-                                                            type="number"
-                                                            value={row.peso || ''}
-                                                            onChange={e => updateProductionUpdateField(row.id, 'peso', parseFloat(e.target.value) || 0)}
-                                                            className="text-center w-full worksheet-input"
-                                                        />
-                                                    </td>
-                                                    <td style={{ border: '1px solid #1e293b', padding: '3px' }} className="font-bold text-slate-900">
-                                                        {weightAverage > 0 ? weightAverage.toFixed(2).replace('.', ',') : ''}
-                                                    </td>
-                                                    <td style={{ border: '1px solid #1e293b', padding: '3px' }}>
-                                                        <input
-                                                            type="text"
-                                                            value={row.data}
-                                                            onChange={e => updateProductionUpdateField(row.id, 'data', e.target.value)}
-                                                            className="text-center w-full worksheet-input"
-                                                            placeholder="Ex: 1-04"
-                                                        />
-                                                    </td>
+                                    </thead>
+                                    <tbody>
+                                        {productionUpdates.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="py-3 text-slate-400 italic font-bold border border-slate-300 text-xs">
+                                                    Nenhum lote registrado. Clique em "+ Registrar Peso"
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            productionUpdates.map(row => {
+                                                const weightAverage = row.qnt > 0 ? (row.peso / row.qnt) : 0;
+                                                return (
+                                                    <tr key={row.id} style={{ fontSize: '12px' }}>
+                                                        <td style={{ border: '1px solid #1e293b', padding: '3px' }}>
+                                                            <input
+                                                                type="number"
+                                                                value={row.qnt || ''}
+                                                                onChange={e => updateProductionUpdateField(row.id, 'qnt', parseInt(e.target.value, 10) || 0)}
+                                                                className="text-center w-full worksheet-input capture-hide"
+                                                            />
+                                                            <span className="capture-show hidden font-bold text-xs text-slate-900 text-center w-full block">
+                                                                {row.qnt}
+                                                            </span>
+                                                        </td>
+                                                        <td style={{ border: '1px solid #1e293b', padding: '3px' }}>
+                                                            <input
+                                                                type="number"
+                                                                value={row.peso || ''}
+                                                                onChange={e => updateProductionUpdateField(row.id, 'peso', parseFloat(e.target.value) || 0)}
+                                                                className="text-center w-full worksheet-input capture-hide"
+                                                            />
+                                                            <span className="capture-show hidden font-bold text-xs text-slate-900 text-center w-full block">
+                                                                {row.peso}
+                                                            </span>
+                                                        </td>
+                                                        <td style={{ border: '1px solid #1e293b', padding: '3px' }} className="font-bold text-slate-900">
+                                                            {weightAverage > 0 ? weightAverage.toFixed(2).replace('.', ',') : ''}
+                                                        </td>
+                                                        <td style={{ border: '1px solid #1e293b', padding: '3px' }}>
+                                                            <input
+                                                                type="text"
+                                                                value={row.data}
+                                                                onChange={e => updateProductionUpdateField(row.id, 'data', e.target.value)}
+                                                                className="text-center w-full worksheet-input capture-hide"
+                                                                placeholder="Ex: 1-04"
+                                                            />
+                                                            <span className="capture-show hidden font-bold text-xs text-slate-900 text-center w-full block">
+                                                                {row.data}
+                                                            </span>
+                                                        </td>
                                                     <td style={{ border: '1px solid #1e293b', padding: '3px' }} className="no-print">
                                                         <button
                                                             onClick={() => removeProductionUpdateRow(row.id)}
