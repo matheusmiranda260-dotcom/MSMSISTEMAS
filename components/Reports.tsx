@@ -251,8 +251,16 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
         // Soma total das peças
         const totalPecasProduzidas = statsShiftA.pecasProduzidas + statsShiftB.pecasProduzidas;
 
+        // Totais de atualização de produção (pesagem)
+        const totalUpdateQnt = productionUpdates.reduce((sum, r) => sum + (Number(r.qnt) || 0), 0);
+        const totalUpdateWeight = productionUpdates.reduce((sum, r) => sum + (Number(r.peso) || 0), 0);
+        const totalUpdateAverage = totalUpdateQnt > 0 ? (totalUpdateWeight / totalUpdateQnt) : 0;
+
         return {
             totalPecasProduzidas,
+            totalUpdateQnt,
+            totalUpdateWeight,
+            totalUpdateAverage,
             turnoA: {
                 tempoParadoStr: secondsToTime(secondsParadoA),
                 percentParado: percentParadoA.toFixed(1).replace('.', ','),
@@ -272,7 +280,7 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                 velocidadeStr: `${velocidadeMinutoB.toFixed(1).replace('.', ',')} metros/ minuto`
             }
         };
-    }, [stopsShiftA, stopsShiftB, statsShiftA, statsShiftB]);
+    }, [stopsShiftA, stopsShiftB, statsShiftA, statsShiftB, productionUpdates]);
 
     // 6. Efeito para carregar o rascunho salvo ao abrir a tela
     useEffect(() => {
@@ -1400,6 +1408,23 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                                                 </tr>
                                             );
                                         })
+                                    )}
+                                    {productionUpdates.length > 0 && (
+                                        <tr className="bg-slate-100 font-black text-[#002060] text-xs border-t-2 border-[#002060]">
+                                            <td className="p-2 border-r border-slate-200 text-center font-extrabold text-[#002060]">
+                                                {calculatedData.totalUpdateQnt}
+                                            </td>
+                                            <td className="p-2 border-r border-slate-200 text-center font-extrabold text-[#002060]">
+                                                {calculatedData.totalUpdateWeight > 0 ? calculatedData.totalUpdateWeight.toLocaleString('pt-BR') : '0'}
+                                            </td>
+                                            <td className="p-2 border-r border-slate-200 text-center text-emerald-700 font-black">
+                                                {calculatedData.totalUpdateAverage > 0 ? calculatedData.totalUpdateAverage.toFixed(2).replace('.', ',') : '0,00'}
+                                            </td>
+                                            <td className="p-2 border-r border-slate-200 text-center text-slate-500 uppercase tracking-wider text-[9px] font-black">
+                                                TOTAL / MÉDIA
+                                            </td>
+                                            <td className="p-2 text-center no-print"></td>
+                                        </tr>
                                     )}
                                 </tbody>
                             </table>
