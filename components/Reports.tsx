@@ -1157,88 +1157,88 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                             </div>
                             <div className="p-3 divide-y divide-slate-100 flex flex-col justify-between h-full">
                                 {/* Horas Trabalhadas */}
-                                <div className="flex items-center justify-between py-2">
+                                <div className="flex items-center justify-between py-2.5">
                                     <div className="flex items-center gap-2">
                                         <ClockIcon className="h-4 w-4 text-slate-400" />
-                                        <span className="text-xs font-bold text-slate-600">Horas (Turno trabalhado)</span>
+                                        <span className="text-sm font-extrabold text-slate-700">Horas (Turno trabalhado)</span>
                                     </div>
                                     <input
                                         type="text"
                                         value={statsShiftA.horasTrabalhadas}
                                         onChange={e => setStatsShiftA({ ...statsShiftA, horasTrabalhadas: e.target.value })}
-                                        className="modern-editable-input text-right w-24 text-slate-900 font-black text-xs"
+                                        className="modern-editable-input text-right w-24 text-slate-950 font-black text-sm"
                                     />
                                 </div>
                                 {/* Tempo Parada */}
-                                <div className="flex items-center justify-between py-2 bg-rose-50/20 px-1 rounded">
+                                <div className="flex items-center justify-between py-2.5 bg-rose-50/20 px-1 rounded">
                                     <div className="flex items-center gap-2">
                                         <ClockIcon className="h-4 w-4 text-rose-500" />
-                                        <span className="text-xs font-black text-rose-600 uppercase tracking-tight">Tempo de máquina (parada)</span>
+                                        <span className="text-[13px] font-black text-rose-600 uppercase tracking-tight">Tempo de máquina (parada)</span>
                                     </div>
-                                    <div className="flex gap-4 font-black text-xs text-rose-600">
+                                    <div className="flex gap-4 font-black text-sm text-rose-600">
                                         <span>{calculatedData.turnoA.tempoParadoStr}</span>
                                         <span className="w-12 text-right">{calculatedData.turnoA.percentParado}%</span>
                                     </div>
                                 </div>
                                 {/* Tempo Efetivo */}
-                                <div className="flex items-center justify-between py-2 bg-emerald-50/20 px-1 rounded">
+                                <div className="flex items-center justify-between py-2.5 bg-emerald-50/20 px-1 rounded">
                                     <div className="flex items-center gap-2">
                                         <ClockIcon className="h-4 w-4 text-emerald-500" />
-                                        <span className="text-xs font-black text-emerald-600 uppercase tracking-tight">Tempo de máquina (E efetivo)</span>
+                                        <span className="text-[13px] font-black text-emerald-600 uppercase tracking-tight">Tempo de máquina (E efetivo)</span>
                                     </div>
-                                    <div className="flex gap-4 font-black text-xs text-emerald-600">
+                                    <div className="flex gap-4 font-black text-sm text-emerald-600">
                                         <span>{calculatedData.turnoA.tempoEfetivoStr}</span>
                                         <span className="w-12 text-right">{calculatedData.turnoA.percentEfetivo}%</span>
                                     </div>
                                 </div>
                                 {/* Peças Produzidas (Editáveis) */}
-                                <div className="flex items-center justify-between py-2">
+                                <div className="flex items-center justify-between py-2.5">
                                     <div className="flex items-center gap-2">
                                         <LayersIcon className="h-4 w-4 text-slate-400" />
-                                        <span className="text-xs font-bold text-slate-600">Quantidade de peças produzidas</span>
+                                        <span className="text-sm font-extrabold text-slate-700">Quantidade de peças produzidas</span>
                                     </div>
-                                    <div className="flex items-center gap-1 font-bold text-xs text-slate-900">
+                                    <div className="flex items-center gap-1.5 font-extrabold text-sm text-slate-950">
                                         <input
                                             type="number"
                                             value={statsShiftA.pecasProduzidas || ''}
                                             onChange={e => setStatsShiftA({ ...statsShiftA, pecasProduzidas: parseInt(e.target.value, 10) || 0 })}
-                                            className="modern-editable-input text-center w-12 text-slate-900 border-b border-slate-200 font-black text-xs"
+                                            className="modern-editable-input text-center w-14 text-slate-950 border-b border-slate-200 font-black text-sm"
                                             placeholder="Qnt."
                                         />
-                                        <span className="text-slate-500">peças de</span>
+                                        <span className="text-slate-500 font-bold">peças de</span>
                                         <input
                                             type="number"
                                             value={statsShiftA.tamanhoPeca || ''}
                                             onChange={e => setStatsShiftA({ ...statsShiftA, tamanhoPeca: parseFloat(e.target.value) || 0 })}
-                                            className="modern-editable-input text-center w-12 text-slate-900 border-b border-slate-200 font-black text-xs"
+                                            className="modern-editable-input text-center w-14 text-slate-950 border-b border-slate-200 font-black text-sm"
                                             placeholder="Tam."
                                         />
-                                        <span className="text-slate-500">metros</span>
+                                        <span className="text-slate-500 font-bold">metros</span>
                                     </div>
                                 </div>
                                 {/* Metros Produzidos */}
-                                <div className="flex items-center justify-between py-2">
+                                <div className="flex items-center justify-between py-2.5">
                                     <div className="flex items-center gap-2">
                                         <RulerIcon className="h-4 w-4 text-slate-400" />
-                                        <span className="text-xs font-bold text-slate-600">Quantidade de metros produzidos</span>
+                                        <span className="text-sm font-extrabold text-slate-700">Quantidade de metros produzidos</span>
                                     </div>
-                                    <span className="text-xs font-black text-slate-900">{statsShiftA.pecasProduzidas * statsShiftA.tamanhoPeca} metros</span>
+                                    <span className="text-sm font-black text-slate-950">{statsShiftA.pecasProduzidas * statsShiftA.tamanhoPeca} metros</span>
                                 </div>
                                 {/* Tempo por Peça */}
-                                <div className="flex items-center justify-between py-2">
+                                <div className="flex items-center justify-between py-2.5">
                                     <div className="flex items-center gap-2">
                                         <ClockIcon className="h-4 w-4 text-slate-400" />
-                                        <span className="text-xs font-bold text-slate-600">Tempo por peça (médio)</span>
+                                        <span className="text-sm font-extrabold text-slate-700">Tempo por peça (médio)</span>
                                     </div>
-                                    <span className="text-xs font-black text-slate-900">{calculatedData.turnoA.tempoPorPecaStr}</span>
+                                    <span className="text-sm font-black text-slate-950">{calculatedData.turnoA.tempoPorPecaStr}</span>
                                 </div>
                                 {/* Velocidade */}
-                                <div className="flex items-center justify-between py-2">
+                                <div className="flex items-center justify-between py-2.5">
                                     <div className="flex items-center gap-2">
                                         <GaugeIcon className="h-4 w-4 text-slate-400" />
-                                        <span className="text-xs font-bold text-slate-600">Velocidade (média)</span>
+                                        <span className="text-sm font-extrabold text-slate-700">Velocidade (média)</span>
                                     </div>
-                                    <span className="text-xs font-black text-slate-900">{calculatedData.turnoA.velocidadeStr}</span>
+                                    <span className="text-sm font-black text-slate-950">{calculatedData.turnoA.velocidadeStr}</span>
                                 </div>
                             </div>
                         </div>
@@ -1251,88 +1251,88 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                             </div>
                             <div className="p-3 divide-y divide-slate-100 flex flex-col justify-between h-full">
                                 {/* Horas Trabalhadas */}
-                                <div className="flex items-center justify-between py-2">
+                                <div className="flex items-center justify-between py-2.5">
                                     <div className="flex items-center gap-2">
                                         <ClockIcon className="h-4 w-4 text-slate-400" />
-                                        <span className="text-xs font-bold text-slate-600">Horas (Turno trabalhado)</span>
+                                        <span className="text-sm font-extrabold text-slate-700">Horas (Turno trabalhado)</span>
                                     </div>
                                     <input
                                         type="text"
                                         value={statsShiftB.horasTrabalhadas}
                                         onChange={e => setStatsShiftB({ ...statsShiftB, horasTrabalhadas: e.target.value })}
-                                        className="modern-editable-input text-right w-24 text-slate-900 font-black text-xs"
+                                        className="modern-editable-input text-right w-24 text-slate-950 font-black text-sm"
                                     />
                                 </div>
                                 {/* Tempo Parada */}
-                                <div className="flex items-center justify-between py-2 bg-rose-50/20 px-1 rounded">
+                                <div className="flex items-center justify-between py-2.5 bg-rose-50/20 px-1 rounded">
                                     <div className="flex items-center gap-2">
                                         <ClockIcon className="h-4 w-4 text-rose-500" />
-                                        <span className="text-xs font-black text-rose-600 uppercase tracking-tight">Tempo de máquina (parada)</span>
+                                        <span className="text-[13px] font-black text-rose-600 uppercase tracking-tight">Tempo de máquina (parada)</span>
                                     </div>
-                                    <div className="flex gap-4 font-black text-xs text-rose-600">
+                                    <div className="flex gap-4 font-black text-sm text-rose-600">
                                         <span>{calculatedData.turnoB.tempoParadoStr}</span>
                                         <span className="w-12 text-right">{calculatedData.turnoB.percentParado}%</span>
                                     </div>
                                 </div>
                                 {/* Tempo Efetivo */}
-                                <div className="flex items-center justify-between py-2 bg-emerald-50/20 px-1 rounded">
+                                <div className="flex items-center justify-between py-2.5 bg-emerald-50/20 px-1 rounded">
                                     <div className="flex items-center gap-2">
                                         <ClockIcon className="h-4 w-4 text-emerald-500" />
-                                        <span className="text-xs font-black text-emerald-600 uppercase tracking-tight">Tempo de máquina (E efetivo)</span>
+                                        <span className="text-[13px] font-black text-emerald-600 uppercase tracking-tight">Tempo de máquina (E efetivo)</span>
                                     </div>
-                                    <div className="flex gap-4 font-black text-xs text-emerald-600">
+                                    <div className="flex gap-4 font-black text-sm text-emerald-600">
                                         <span>{calculatedData.turnoB.tempoEfetivoStr}</span>
                                         <span className="w-12 text-right">{calculatedData.turnoB.percentEfetivo}%</span>
                                     </div>
                                 </div>
                                 {/* Peças Produzidas (Editáveis) */}
-                                <div className="flex items-center justify-between py-2">
+                                <div className="flex items-center justify-between py-2.5">
                                     <div className="flex items-center gap-2">
                                         <LayersIcon className="h-4 w-4 text-slate-400" />
-                                        <span className="text-xs font-bold text-slate-600">Quantidade de peças produzidas</span>
+                                        <span className="text-sm font-extrabold text-slate-700">Quantidade de peças produzidas</span>
                                     </div>
-                                    <div className="flex items-center gap-1 font-bold text-xs text-slate-900">
+                                    <div className="flex items-center gap-1.5 font-extrabold text-sm text-slate-950">
                                         <input
                                             type="number"
                                             value={statsShiftB.pecasProduzidas || ''}
                                             onChange={e => setStatsShiftB({ ...statsShiftB, pecasProduzidas: parseInt(e.target.value, 10) || 0 })}
-                                            className="modern-editable-input text-center w-12 text-slate-900 border-b border-slate-200 font-black text-xs"
+                                            className="modern-editable-input text-center w-14 text-slate-950 border-b border-slate-200 font-black text-sm"
                                             placeholder="Qnt."
                                         />
-                                        <span className="text-slate-500">peças de</span>
+                                        <span className="text-slate-500 font-bold">peças de</span>
                                         <input
                                             type="number"
                                             value={statsShiftB.tamanhoPeca || ''}
                                             onChange={e => setStatsShiftB({ ...statsShiftB, tamanhoPeca: parseFloat(e.target.value) || 0 })}
-                                            className="modern-editable-input text-center w-12 text-slate-900 border-b border-slate-200 font-black text-xs"
+                                            className="modern-editable-input text-center w-14 text-slate-950 border-b border-slate-200 font-black text-sm"
                                             placeholder="Tam."
                                         />
-                                        <span className="text-slate-500">metros</span>
+                                        <span className="text-slate-500 font-bold">metros</span>
                                     </div>
                                 </div>
                                 {/* Metros Produzidos */}
-                                <div className="flex items-center justify-between py-2">
+                                <div className="flex items-center justify-between py-2.5">
                                     <div className="flex items-center gap-2">
                                         <RulerIcon className="h-4 w-4 text-slate-400" />
-                                        <span className="text-xs font-bold text-slate-600">Quantidade de metros produzidos</span>
+                                        <span className="text-sm font-extrabold text-slate-700">Quantidade de metros produzidos</span>
                                     </div>
-                                    <span className="text-xs font-black text-slate-900">{statsShiftB.pecasProduzidas * statsShiftB.tamanhoPeca} metros</span>
+                                    <span className="text-sm font-black text-slate-950">{statsShiftB.pecasProduzidas * statsShiftB.tamanhoPeca} metros</span>
                                 </div>
                                 {/* Tempo por Peça */}
-                                <div className="flex items-center justify-between py-2">
+                                <div className="flex items-center justify-between py-2.5">
                                     <div className="flex items-center gap-2">
                                         <ClockIcon className="h-4 w-4 text-slate-400" />
-                                        <span className="text-xs font-bold text-slate-600">Tempo por peça (médio)</span>
+                                        <span className="text-sm font-extrabold text-slate-700">Tempo por peça (médio)</span>
                                     </div>
-                                    <span className="text-xs font-black text-slate-900">{calculatedData.turnoB.tempoPorPecaStr}</span>
+                                    <span className="text-sm font-black text-slate-950">{calculatedData.turnoB.tempoPorPecaStr}</span>
                                 </div>
                                 {/* Velocidade */}
-                                <div className="flex items-center justify-between py-2">
+                                <div className="flex items-center justify-between py-2.5">
                                     <div className="flex items-center gap-2">
                                         <GaugeIcon className="h-4 w-4 text-slate-400" />
-                                        <span className="text-xs font-bold text-slate-600">Velocidade (média)</span>
+                                        <span className="text-sm font-extrabold text-slate-700">Velocidade (média)</span>
                                     </div>
-                                    <span className="text-xs font-black text-slate-900">{calculatedData.turnoB.velocidadeStr}</span>
+                                    <span className="text-sm font-black text-slate-950">{calculatedData.turnoB.velocidadeStr}</span>
                                 </div>
                             </div>
                         </div>
