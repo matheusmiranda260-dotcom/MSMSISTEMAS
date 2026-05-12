@@ -678,6 +678,17 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
             
             {/* CSS de Alta Fidelidade com o Layout Premium do Mockup */}
             <style dangerouslySetInnerHTML={{ __html: `
+                /* Remove setas padrão de inputs numéricos (Chrome, Safari, Edge, Opera) */
+                input::-webkit-outer-spin-button,
+                input::-webkit-inner-spin-button {
+                    -webkit-appearance: none;
+                    margin: 0;
+                }
+                /* Remove setas padrão de inputs numéricos (Firefox) */
+                input[type=number] {
+                    -moz-appearance: textfield;
+                }
+
                 .worksheet-container {
                     font-family: 'Inter', 'Segoe UI', 'Arial', sans-serif;
                 }
