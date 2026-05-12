@@ -282,38 +282,39 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
         };
     }, [stopsShiftA, stopsShiftB, statsShiftA, statsShiftB, productionUpdates]);
 
-    // 6. Efeito para carregar o rascunho salvo ao abrir a tela
-    useEffect(() => {
-        const loadDraft = () => {
-            setLoading(true);
-            const draft = localStorage.getItem('trelica_report_draft');
-            if (draft) {
-                try {
-                    const parsed = JSON.parse(draft);
-                    setReportId(parsed.id || null);
-                    if (parsed.machine_type) setSelectedMachine(parsed.machine_type);
-                    if (parsed.date) setSelectedDate(parsed.date);
-                    setProductionOrder(parsed.production_order || '');
-                    setOperatorShiftA(parsed.operator_shift_a || '');
-                    setOperatorShiftB(parsed.operator_shift_b || '');
-                    setProductDescription(parsed.product_description || 'TRELIÇA H-12 LEVE 6 MTS');
-                    setPiecesToProduce(Number(parsed.pieces_to_produce ?? 4500));
-                    setStopsShiftA(parsed.stops_shift_a || []);
-                    setStopsShiftB(parsed.stops_shift_b || []);
-                    setStatsShiftA(parsed.stats_shift_a || { horasTrabalhadas: '09:00:00', pecasProduzidas: 0, tamanhoPeca: 12 });
-                    setStatsShiftB(parsed.stats_shift_b || { horasTrabalhadas: '09:00:00', pecasProduzidas: 0, tamanhoPeca: 6 });
-                    setProductionUpdates(parsed.production_updates || []);
-                    showToast(`Rascunho recuperado.`, 'info');
-                } catch (e) {
-                    resetFormToDefault();
-                }
-            } else {
+    // Função para carregar o rascunho de uma máquina específica do localStorage
+    const loadDraftForMachine = (machine: 'Treliça 1' | 'Treliça 2') => {
+        setLoading(true);
+        const localKey = `trelica_report_draft_${machine}`;
+        const draft = localStorage.getItem(localKey);
+        if (draft) {
+            try {
+                const parsed = JSON.parse(draft);
+                setReportId(parsed.id || null);
+                reportIdRef.current = parsed.id || null;
+                setProductionOrder(parsed.production_order || '');
+                setOperatorShiftA(parsed.operator_shift_a || '');
+                setOperatorShiftB(parsed.operator_shift_b || '');
+                setProductDescription(parsed.product_description || 'TRELIÇA H-12 LEVE 6 MTS');
+                setPiecesToProduce(Number(parsed.pieces_to_produce ?? 4500));
+                setStopsShiftA(parsed.stops_shift_a || []);
+                setStopsShiftB(parsed.stops_shift_b || []);
+                setStatsShiftA(parsed.stats_shift_a || { horasTrabalhadas: '09:00:00', pecasProduzidas: 0, tamanhoPeca: 12 });
+                setStatsShiftB(parsed.stats_shift_b || { horasTrabalhadas: '09:00:00', pecasProduzidas: 0, tamanhoPeca: 6 });
+                setProductionUpdates(parsed.production_updates || []);
+                showToast(`Rascunho de ${machine} carregado.`, 'info');
+            } catch (e) {
                 resetFormToDefault();
             }
-            setLoading(false);
-        };
+        } else {
+            resetFormToDefault();
+        }
+        setLoading(false);
+    };
 
-        loadDraft();
+    // 6. Carregamento inicial do rascunho ao abrir a tela
+    useEffect(() => {
+        loadDraftForMachine(selectedMachine);
     }, []);
 
     const resetFormToDefault = () => {
@@ -365,7 +366,7 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
             production_updates: currentData.productionUpdates,
         };
 
-        const localKey = 'trelica_report_draft';
+        const localKey = `trelica_report_draft_${machine}`;
         // Salva síncronamente no localStorage IMEDIATAMENTE (nunca perde dados)
         const localId = currentData.reportId || `local_${Date.now()}`;
         localStorage.setItem(localKey, JSON.stringify({ id: localId, ...reportData }));
@@ -422,14 +423,14 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
         }, options);
     };
 
-    // Autosave: salva no localStorage sempre que qualquer dado do formulário mudar
+    // Autosave: salva no localStorage específico da máquina sempre que qualquer dado mudar
     useEffect(() => {
         // Não executa no carregamento inicial (loading) para não sobrescrever com dados vazios
         if (loading) return;
 
         if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
         autoSaveTimerRef.current = setTimeout(() => {
-            const localKey = 'trelica_report_draft';
+            const localKey = `trelica_report_draft_${selectedMachine}`;
             const reportData = {
                 id: reportIdRef.current || `local_${Date.now()}`,
                 date: selectedDate,
@@ -464,10 +465,18 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
         setIsSaving(false);
     };
 
-    // Troca de máquina: apenas atualiza o estado (o autosave cuida de salvar no rascunho)
+    // Troca de máquina: salva a atual e carrega a nova de forma totalmente independente
     const handleSwitchMachine = (newMachine: 'Treliça 1' | 'Treliça 2') => {
         if (selectedMachine === newMachine) return;
+        
+        // 1. Salva o rascunho atual antes de trocar de aba
+        saveCurrentState(selectedMachine, selectedDate);
+        
+        // 2. Altera a máquina selecionada
         setSelectedMachine(newMachine);
+        
+        // 3. Carrega o rascunho independente da nova máquina
+        loadDraftForMachine(newMachine);
     };
 
     // Troca de data: apenas atualiza o estado (o autosave cuida de salvar no rascunho)
@@ -476,15 +485,16 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
         setSelectedDate(newDate);
     };
 
-    // Limpar e apagar o relatório de forma explícita com confirmação do usuário
+    // Limpar e apagar o relatório de forma explícita com confirmação do usuário (específico por máquina)
     const handleClearReport = async () => {
-        const confirmDelete = window.confirm("Deseja realmente limpar a tela e começar um novo formulário em branco?");
+        const confirmDelete = window.confirm(`Deseja realmente limpar a tela e começar um novo formulário em branco para a ${selectedMachine}?`);
         if (!confirmDelete) return;
 
         setLoading(true);
         try {
-            localStorage.removeItem('trelica_report_draft');
-            showToast('Tela limpa com sucesso!', 'success');
+            const localKey = `trelica_report_draft_${selectedMachine}`;
+            localStorage.removeItem(localKey);
+            showToast(`Tela de ${selectedMachine} limpa com sucesso!`, 'success');
         } catch (err) {
             console.error("Erro ao limpar:", err);
         } finally {
