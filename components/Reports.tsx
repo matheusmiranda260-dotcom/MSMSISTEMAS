@@ -128,6 +128,12 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
     // Estado para guiar se o banco está ativo ou usando localStorage
     const [dbAvailable, setDbAvailable] = useState<boolean>(true);
 
+    // Ref para autosave com debounce
+    const autoSaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const reportIdRef = React.useRef<string | null>(null);
+    // Atualiza o ref sempre que reportId muda
+    React.useEffect(() => { reportIdRef.current = reportId; }, [reportId]);
+
     // 3. Sistema de Toasts
     const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
         const id = Math.random().toString(36).substring(2, 9);
@@ -357,25 +363,44 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
     };
 
     // Função central para salvar relatório (tanto localmente quanto na nuvem)
-    const saveReportData = (machine: 'Treliça 1' | 'Treliça 2', date: string, options?: { showToastAlert?: boolean }) => {
+    // Recebe os dados EXPLICITAMENTE para evitar problemas de closure com estado desatualizado
+    const saveReportData = (
+        machine: 'Treliça 1' | 'Treliça 2',
+        date: string,
+        currentData: {
+            productionOrder: string;
+            operatorShiftA: string;
+            operatorShiftB: string;
+            productDescription: string;
+            piecesToProduce: number;
+            stopsShiftA: StopRow[];
+            stopsShiftB: StopRow[];
+            statsShiftA: ShiftStats;
+            statsShiftB: ShiftStats;
+            productionUpdates: ProductionUpdateRow[];
+            reportId: string | null;
+        },
+        options?: { showToastAlert?: boolean }
+    ) => {
         const reportData = {
             date,
             machine_type: machine,
-            production_order: productionOrder,
-            operator_shift_a: operatorShiftA,
-            operator_shift_b: operatorShiftB,
-            product_description: productDescription,
-            pieces_to_produce: piecesToProduce,
-            stops_shift_a: stopsShiftA,
-            stops_shift_b: stopsShiftB,
-            stats_shift_a: statsShiftA,
-            stats_shift_b: statsShiftB,
-            production_updates: productionUpdates,
+            production_order: currentData.productionOrder,
+            operator_shift_a: currentData.operatorShiftA,
+            operator_shift_b: currentData.operatorShiftB,
+            product_description: currentData.productDescription,
+            pieces_to_produce: currentData.piecesToProduce,
+            stops_shift_a: currentData.stopsShiftA,
+            stops_shift_b: currentData.stopsShiftB,
+            stats_shift_a: currentData.statsShiftA,
+            stats_shift_b: currentData.statsShiftB,
+            production_updates: currentData.productionUpdates,
         };
 
         const localKey = `trelica_report_${machine}_${date}`;
-        // Salva síncronamente no localStorage para garantir persistência imediata antes de trocar estados
-        localStorage.setItem(localKey, JSON.stringify({ id: reportId || `local_${Date.now()}`, ...reportData }));
+        // Salva síncronamente no localStorage IMEDIATAMENTE (nunca perde dados)
+        const localId = currentData.reportId || `local_${Date.now()}`;
+        localStorage.setItem(localKey, JSON.stringify({ id: localId, ...reportData }));
 
         const saveToSupabase = async () => {
             if (!dbAvailable) {
@@ -385,7 +410,7 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                 return;
             }
             try {
-                const payload = reportId ? { id: reportId, ...reportData } : reportData;
+                const payload = currentData.reportId ? { id: currentData.reportId, ...reportData } : reportData;
                 const { data, error } = await supabase
                     .from('trelica_daily_reports')
                     .upsert(payload, { onConflict: 'date,machine_type' })
@@ -395,6 +420,7 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                 if (error) throw error;
                 if (data) {
                     setReportId(data.id);
+                    reportIdRef.current = data.id;
                     localStorage.setItem(localKey, JSON.stringify(data));
                 }
                 if (options?.showToastAlert) {
@@ -411,24 +437,110 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
         return saveToSupabase();
     };
 
+    // Helper para capturar o estado atual e chamar saveReportData
+    const saveCurrentState = (machine: 'Treliça 1' | 'Treliça 2', date: string, options?: { showToastAlert?: boolean }) => {
+        return saveReportData(machine, date, {
+            productionOrder,
+            operatorShiftA,
+            operatorShiftB,
+            productDescription,
+            piecesToProduce,
+            stopsShiftA,
+            stopsShiftB,
+            statsShiftA,
+            statsShiftB,
+            productionUpdates,
+            reportId: reportIdRef.current,
+        }, options);
+    };
+
+    // Autosave: salva no localStorage sempre que qualquer dado do formulário mudar
+    useEffect(() => {
+        // Não executa no carregamento inicial (loading) para não sobrescrever com dados vazios
+        if (loading) return;
+
+        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = setTimeout(() => {
+            const localKey = `trelica_report_${selectedMachine}_${selectedDate}`;
+            const reportData = {
+                id: reportIdRef.current || `local_${Date.now()}`,
+                date: selectedDate,
+                machine_type: selectedMachine,
+                production_order: productionOrder,
+                operator_shift_a: operatorShiftA,
+                operator_shift_b: operatorShiftB,
+                product_description: productDescription,
+                pieces_to_produce: piecesToProduce,
+                stops_shift_a: stopsShiftA,
+                stops_shift_b: stopsShiftB,
+                stats_shift_a: statsShiftA,
+                stats_shift_b: statsShiftB,
+                production_updates: productionUpdates,
+            };
+            localStorage.setItem(localKey, JSON.stringify(reportData));
+        }, 500); // debounce de 500ms
+
+        return () => {
+            if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        };
+    }, [
+        productionOrder, operatorShiftA, operatorShiftB, productDescription,
+        piecesToProduce, stopsShiftA, stopsShiftB, statsShiftA, statsShiftB, productionUpdates,
+        selectedMachine, selectedDate, loading
+    ]);
+
     // Salvar relatório manualmente via botão
     const handleSaveReport = async () => {
         setIsSaving(true);
-        await saveReportData(selectedMachine, selectedDate, { showToastAlert: true });
+        await saveCurrentState(selectedMachine, selectedDate, { showToastAlert: true });
         setIsSaving(false);
     };
 
-    // Troca de máquina salvando o estado da máquina anterior
-    const handleSwitchMachine = (newMachine: 'Treliça 1' | 'Treliça 2') => {
+    // Troca de máquina: salva o estado atual ANTES de trocar
+    const handleSwitchMachine = async (newMachine: 'Treliça 1' | 'Treliça 2') => {
         if (selectedMachine === newMachine) return;
-        saveReportData(selectedMachine, selectedDate);
+        // Salva síncronamente no localStorage antes de qualquer mudança de estado
+        const localKey = `trelica_report_${selectedMachine}_${selectedDate}`;
+        const reportData = {
+            id: reportIdRef.current || `local_${Date.now()}`,
+            date: selectedDate,
+            machine_type: selectedMachine,
+            production_order: productionOrder,
+            operator_shift_a: operatorShiftA,
+            operator_shift_b: operatorShiftB,
+            product_description: productDescription,
+            pieces_to_produce: piecesToProduce,
+            stops_shift_a: stopsShiftA,
+            stops_shift_b: stopsShiftB,
+            stats_shift_a: statsShiftA,
+            stats_shift_b: statsShiftB,
+            production_updates: productionUpdates,
+        };
+        localStorage.setItem(localKey, JSON.stringify(reportData));
+        // Depois troca a máquina (o useEffect de load vai carregar os dados da nova máquina)
         setSelectedMachine(newMachine);
     };
 
-    // Troca de data salvando o estado da data anterior
-    const handleSwitchDate = (newDate: string) => {
+    // Troca de data: salva o estado atual ANTES de trocar
+    const handleSwitchDate = async (newDate: string) => {
         if (selectedDate === newDate) return;
-        saveReportData(selectedMachine, selectedDate);
+        const localKey = `trelica_report_${selectedMachine}_${selectedDate}`;
+        const reportData = {
+            id: reportIdRef.current || `local_${Date.now()}`,
+            date: selectedDate,
+            machine_type: selectedMachine,
+            production_order: productionOrder,
+            operator_shift_a: operatorShiftA,
+            operator_shift_b: operatorShiftB,
+            product_description: productDescription,
+            pieces_to_produce: piecesToProduce,
+            stops_shift_a: stopsShiftA,
+            stops_shift_b: stopsShiftB,
+            stats_shift_a: statsShiftA,
+            stats_shift_b: statsShiftB,
+            production_updates: productionUpdates,
+        };
+        localStorage.setItem(localKey, JSON.stringify(reportData));
         setSelectedDate(newDate);
     };
 
