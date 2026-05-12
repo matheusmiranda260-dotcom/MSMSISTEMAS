@@ -38,6 +38,56 @@ interface Toast {
     id: string;
 }
 
+// Ícones em SVG de Alta Resolução para o Layout Premium
+const CalendarIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+);
+
+const ClipboardIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    </svg>
+);
+
+const UserIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+    </svg>
+);
+
+const GaugeIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" fill="none" />
+        <path d="M12 12 l5 -5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M6 12 a6 6 0 0 1 12 0" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2,2" />
+    </svg>
+);
+
+const ClockIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+);
+
+const LayersIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+    </svg>
+);
+
+const RulerIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <rect x="3" y="8" width="18" height="8" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
+        <line x1="6" y1="8" x2="6" y2="12" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="9" y1="8" x2="9" y2="11" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="12" y1="8" x2="12" y2="13" stroke="currentColor" strokeWidth="2" />
+        <line x1="15" y1="8" x2="15" y2="11" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="18" y1="8" x2="18" y2="12" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+);
+
 const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
     // 1. Estados de Controle da Página
     const [selectedMachine, setSelectedMachine] = useState<'Treliça 1' | 'Treliça 2'>('Treliça 1');
@@ -128,6 +178,30 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
         const monthName = dateObj.toLocaleDateString('pt-BR', { month: 'long' });
         
         return `${dayName}, ${day} de ${monthName} de ${year}`;
+    }, [selectedDate]);
+
+    // Formata a data no estilo "DD/MM/YYYY"
+    const formattedDateNumbers = useMemo(() => {
+        if (!selectedDate) return '';
+        const parts = selectedDate.split('-');
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }, [selectedDate]);
+
+    // Obtém o dia da semana por extenso em caixa alta (ex: "QUARTA-FEIRA")
+    const formattedDayOfWeek = useMemo(() => {
+        if (!selectedDate) return '';
+        const parts = selectedDate.split('-');
+        const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        const days = [
+            'DOMINGO',
+            'SEGUNDA-FEIRA',
+            'TERÇA-FEIRA',
+            'QUARTA-FEIRA',
+            'QUINTA-FEIRA',
+            'SEXTA-FEIRA',
+            'SÁBADO'
+        ];
+        return days[dateObj.getDay()];
     }, [selectedDate]);
 
     // 5. Cálculos em Tempo Real
@@ -282,12 +356,11 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
         setProductionUpdates([]);
     };
 
-    // Salvar relatório
-    const handleSaveReport = async () => {
-        setIsSaving(true);
+    // Função central para salvar relatório (tanto localmente quanto na nuvem)
+    const saveReportData = (machine: 'Treliça 1' | 'Treliça 2', date: string, options?: { showToastAlert?: boolean }) => {
         const reportData = {
-            date: selectedDate,
-            machine_type: selectedMachine,
+            date,
+            machine_type: machine,
             production_order: productionOrder,
             operator_shift_a: operatorShiftA,
             operator_shift_b: operatorShiftB,
@@ -300,11 +373,18 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
             production_updates: productionUpdates,
         };
 
-        const localKey = `trelica_report_${selectedMachine}_${selectedDate}`;
+        const localKey = `trelica_report_${machine}_${date}`;
+        // Salva síncronamente no localStorage para garantir persistência imediata antes de trocar estados
         localStorage.setItem(localKey, JSON.stringify({ id: reportId || `local_${Date.now()}`, ...reportData }));
 
-        try {
-            if (dbAvailable) {
+        const saveToSupabase = async () => {
+            if (!dbAvailable) {
+                if (options?.showToastAlert) {
+                    showToast(`Salvo localmente (Offline).`, 'warning');
+                }
+                return;
+            }
+            try {
                 const payload = reportId ? { id: reportId, ...reportData } : reportData;
                 const { data, error } = await supabase
                     .from('trelica_daily_reports')
@@ -317,16 +397,68 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                     setReportId(data.id);
                     localStorage.setItem(localKey, JSON.stringify(data));
                 }
-                showToast(`Salvo na nuvem com sucesso!`, 'success');
-            } else {
-                showToast(`Salvo localmente (Offline).`, 'warning');
+                if (options?.showToastAlert) {
+                    showToast(`Salvo na nuvem com sucesso!`, 'success');
+                }
+            } catch (err: any) {
+                console.error(err);
+                if (options?.showToastAlert) {
+                    showToast(`Erro ao salvar online. Salvo offline.`, 'warning');
+                }
             }
-        } catch (err: any) {
-            console.error(err);
-            setDbAvailable(false);
-            showToast(`Erro ao salvar online. Salvo offline.`, 'warning');
+        };
+
+        return saveToSupabase();
+    };
+
+    // Salvar relatório manualmente via botão
+    const handleSaveReport = async () => {
+        setIsSaving(true);
+        await saveReportData(selectedMachine, selectedDate, { showToastAlert: true });
+        setIsSaving(false);
+    };
+
+    // Troca de máquina salvando o estado da máquina anterior
+    const handleSwitchMachine = (newMachine: 'Treliça 1' | 'Treliça 2') => {
+        if (selectedMachine === newMachine) return;
+        saveReportData(selectedMachine, selectedDate);
+        setSelectedMachine(newMachine);
+    };
+
+    // Troca de data salvando o estado da data anterior
+    const handleSwitchDate = (newDate: string) => {
+        if (selectedDate === newDate) return;
+        saveReportData(selectedMachine, selectedDate);
+        setSelectedDate(newDate);
+    };
+
+    // Limpar e apagar o relatório de forma explícita com confirmação do usuário
+    const handleClearReport = async () => {
+        const confirmDelete = window.confirm("Deseja realmente limpar e APAGAR permanentemente este relatório da tela e do banco de dados?");
+        if (!confirmDelete) return;
+
+        setLoading(true);
+        try {
+            const localKey = `trelica_report_${selectedMachine}_${selectedDate}`;
+            localStorage.removeItem(localKey);
+
+            if (dbAvailable && reportId) {
+                const { error } = await supabase
+                    .from('trelica_daily_reports')
+                    .delete()
+                    .eq('id', reportId);
+                
+                if (error) throw error;
+                showToast('Relatório apagado com sucesso na nuvem e local!', 'success');
+            } else {
+                showToast('Relatório apagado localmente.', 'success');
+            }
+        } catch (err) {
+            console.error("Erro ao apagar relatório:", err);
+            showToast('Erro ao apagar relatório da nuvem.', 'error');
         } finally {
-            setIsSaving(false);
+            resetFormToDefault();
+            setLoading(false);
         }
     };
 
@@ -474,36 +606,47 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
     return (
         <div className="p-4 sm:p-6 md:p-8 bg-slate-50 min-h-screen font-mono text-slate-800 relative select-none">
             
-            {/* CSS de Alta Fidelidade com o Layout impresso da foto */}
+            {/* CSS de Alta Fidelidade com o Layout Premium do Mockup */}
             <style dangerouslySetInnerHTML={{ __html: `
-                @media screen {
-                    .worksheet-input {
-                        border: 1px solid #cbd5e1 !important;
-                        background-color: #ffffff !important;
-                        border-radius: 4px !important;
-                        padding: 0px 8px !important;
-                        font-weight: bold !important;
-                        font-family: inherit !important;
-                        font-size: 12px !important;
-                        transition: all 0.2s;
-                        height: 24px !important;
-                        line-height: 24px !important;
-                        vertical-align: middle !important;
-                        box-sizing: border-box !important;
-                        display: inline-block !important;
-                    }
-                    .worksheet-input:focus {
-                        border-color: #3b82f6 !important;
-                        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15) !important;
-                        background-color: #f8fafc !important;
-                        outline: none !important;
-                    }
+                .worksheet-container {
+                    font-family: 'Inter', 'Segoe UI', 'Arial', sans-serif;
                 }
+                
+                /* Inputs modernos "editáveis sobre hover" */
+                .modern-editable-input {
+                    border: none !important;
+                    background: transparent !important;
+                    font-weight: 800 !important;
+                    color: #002060 !important;
+                    padding: 2px 4px !important;
+                    margin: 0 !important;
+                    outline: none !important;
+                    box-shadow: none !important;
+                    transition: all 0.2s;
+                    border-bottom: 1.5px dashed transparent !important;
+                    border-radius: 0 !important;
+                    height: auto !important;
+                    line-height: normal !important;
+                }
+                .modern-editable-input:hover {
+                    border-bottom: 1.5px dashed #3b82f6 !important;
+                    background-color: rgba(59, 130, 246, 0.04) !important;
+                }
+                .modern-editable-input:focus {
+                    border-bottom: 2px solid #002060 !important;
+                    background-color: rgba(59, 130, 246, 0.08) !important;
+                    outline: none !important;
+                }
+                .modern-editable-input::placeholder {
+                    color: #94a3b8;
+                    font-weight: 500;
+                    opacity: 0.6;
+                }
+
                 @media print {
                     body {
                         background: white !important;
                         color: black !important;
-                        font-family: 'Arial', 'Helvetica', sans-serif !important;
                     }
                     .no-print {
                         display: none !important;
@@ -514,64 +657,12 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                         border: none !important;
                         box-shadow: none !important;
                     }
-                    input {
-                        border: none !important;
+                    .modern-editable-input {
+                        border-bottom: none !important;
                         background: transparent !important;
-                        padding: 0 !important;
-                        box-shadow: none !important;
                         pointer-events: none !important;
-                    }
-                    .worksheet-input {
-                        border: none !important;
-                        background: transparent !important;
                         padding: 0 !important;
-                        box-shadow: none !important;
-                        pointer-events: none !important;
-                        font-size: 12px !important;
-                        height: auto !important;
-                        line-height: normal !important;
                     }
-                    .input-center {
-                        text-align: center !important;
-                    }
-                }
-                
-                /* Layout Fita Preta Estilo Formulário Papel */
-                .worksheet-container {
-                    font-family: 'Arial', 'Helvetica', sans-serif;
-                }
-                .worksheet-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                .worksheet-table td, .worksheet-table th {
-                    border: 1px solid #1e293b;
-                    padding: 5px 10px;
-                    font-size: 13px;
-                    vertical-align: middle !important;
-                }
-                .stops-grid-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                .stops-grid-table td {
-                    border: 1px solid #94a3b8;
-                    padding: 3px 6px;
-                    font-size: 11px;
-                    vertical-align: middle !important;
-                }
-                .production-updates-table td, .production-updates-table th {
-                    border: 1px solid #1e293b !important;
-                    padding: 4px !important;
-                    font-size: 12px !important;
-                    vertical-align: middle !important;
-                    text-align: center !important;
-                }
-                .stats-container-box {
-                    border: 1.5px solid #1e293b;
-                    padding: 10px 15px;
-                    font-size: 13px;
-                    line-height: 1.6;
                 }
 
                 /* ESTILOS DE CAPTURA DO WHATSAPP (IDÊNTICO À IMPRESSÃO) */
@@ -579,39 +670,18 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                     display: none !important;
                 }
                 .is-capturing {
-                    padding: 24px !important;
+                    padding: 0 !important;
                     margin: 0 auto !important;
                     box-shadow: none !important;
-                    border: 1px solid #1e293b !important;
-                }
-                .is-capturing input {
                     border: none !important;
+                    width: 1024px !important; /* Força largura fixa perfeita para o canvas */
+                    max-width: 1024px !important;
+                }
+                .is-capturing .modern-editable-input {
+                    border-bottom: none !important;
                     background: transparent !important;
-                    padding: 0 !important;
-                    box-shadow: none !important;
                     pointer-events: none !important;
-                }
-                .is-capturing .worksheet-input {
-                    border: none !important;
-                    background: transparent !important;
                     padding: 0 !important;
-                    box-shadow: none !important;
-                    pointer-events: none !important;
-                    font-size: 12px !important;
-                }
-                
-                /* Toggling input elements for perfect text rendering in canvas */
-                .capture-show {
-                    display: none !important;
-                }
-                .is-capturing .capture-hide {
-                    display: none !important;
-                }
-                .is-capturing .capture-show {
-                    display: inline-block !important;
-                }
-                .is-capturing .capture-show.block {
-                    display: block !important;
                 }
             `}} />
 
@@ -670,8 +740,8 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                     </button>
 
                     <button
-                        onClick={resetFormToDefault}
-                        className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-1.5 px-2 rounded text-xs"
+                        onClick={handleClearReport}
+                        className="bg-slate-200 hover:bg-rose-600 hover:text-white text-slate-700 font-bold py-1.5 px-2 rounded text-xs transition-colors"
                     >
                         Limpar
                     </button>
@@ -684,7 +754,7 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                     {(['Treliça 1', 'Treliça 2'] as const).map(machine => (
                         <button
                             key={machine}
-                            onClick={() => setSelectedMachine(machine)}
+                            onClick={() => handleSwitchMachine(machine)}
                             className={`py-1 px-4 rounded font-bold text-xs transition-all ${
                                 selectedMachine === machine
                                     ? 'bg-white text-slate-900 shadow-sm'
@@ -701,7 +771,7 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                     <input
                         type="date"
                         value={selectedDate}
-                        onChange={e => setSelectedDate(e.target.value)}
+                        onChange={e => handleSwitchDate(e.target.value)}
                         className="p-1 border border-slate-300 rounded text-xs font-bold text-slate-800"
                     />
                 </div>
@@ -709,561 +779,199 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
 
             {/* Ficha Técnica de Papel - ALTA FIDELIDADE */}
             {loading ? (
-                <div className="bg-white p-16 border rounded shadow-sm text-center font-bold">
-                    Carregando dados...
+                <div className="bg-white p-16 border border-slate-200 rounded-xl shadow-sm text-center font-bold text-slate-500 animate-pulse">
+                    Carregando dados do relatório...
                 </div>
             ) : (
-                <div id="trelica-report-sheet" className="bg-white p-6 md:p-10 shadow-lg border border-slate-300 max-w-5xl mx-auto worksheet-container print-sheet">
-                    
-                    {/* Tabela do Cabeçalho - Idêntica à Foto */}
-                    <table className="worksheet-table mb-6">
-                        <tbody>
-                            {/* Linha 1: Logo e Título */}
-                            <tr>
-                                <td style={{ width: '180px', verticalAlign: 'middle', textAlign: 'center' }} className="p-1">
-                                    <div className="flex items-center justify-center bg-white">
-                                        <img 
-                                            src="/ita-acos-logo.png" 
-                                            alt="Logo Grupo Ita Aços" 
-                                            className="h-10 object-contain mx-auto" 
-                                            style={{ maxHeight: '42px', display: 'block' }}
-                                        />
-                                    </div>
-                                </td>
-                                <td className="text-center font-black p-2 text-slate-900" style={{ fontSize: '15px', textTransform: 'uppercase', lineHeight: '1.2' }}>
-                                    CONTROLE DE PRODUÇÃO DIARIA- SETOR LAMINAÇÃO <br />
-                                    <span style={{ fontSize: '14px' }}>TRELIÇA</span>
-                                </td>
-                            </tr>
-                            {/* Linha 2: Ordem de Produção */}
-                            <tr>
-                                <td colSpan={2} className="p-1">
-                                    <div className="flex items-center gap-2 pl-2">
-                                        <span className="font-bold text-xs text-slate-800 whitespace-nowrap">Ordem de produção :</span>
-                                        <input
-                                            type="text"
-                                            value={productionOrder}
-                                            onChange={e => setProductionOrder(e.target.value)}
-                                            className="w-full worksheet-input capture-hide"
-                                            placeholder="Digite..."
-                                        />
-                                        <span className="capture-show hidden font-bold text-xs text-slate-900 pl-1 uppercase">
-                                            {productionOrder}
-                                        </span>
-                                    </div>
-                                </td>
-                            </tr>
+                <div 
+                    id="trelica-report-sheet" 
+                    className="bg-white max-w-5xl mx-auto worksheet-container print-sheet border-2 border-[#002060] rounded-xl overflow-hidden shadow-lg"
+                >
+                    {/* Cabeçalho de Alta Fidelidade - Idêntico ao Mockup */}
+                    <div className="grid grid-cols-1 md:grid-cols-12 border-b-2 border-[#002060]">
+                        {/* Bloco 1: Logo */}
+                        <div className="col-span-1 md:col-span-3 bg-white p-2.5 flex items-center justify-center md:border-r-2 border-[#002060]">
+                            <img 
+                                src="/ita-acos-logo.png" 
+                                alt="Logo Grupo Ita Aços" 
+                                className="h-16 md:h-20 object-contain" 
+                                style={{ maxHeight: '82px' }}
+                            />
+                        </div>
 
-                            {/* Linha 3: Data de Produção */}
-                            <tr>
-                                <td colSpan={2} className="p-1">
-                                    <div className="flex items-center gap-2 pl-2 py-1">
-                                        <span className="font-bold text-xs text-slate-800 whitespace-nowrap">Data da produção:</span>
-                                        <span className="font-bold text-xs text-slate-800">{formattedProductionDate}</span>
-                                    </div>
-                                </td>
-                            </tr>
+                        {/* Bloco 2: Título Central */}
+                        <div className="col-span-1 md:col-span-6 bg-[#002060] text-white p-4 flex flex-col justify-center text-center md:text-left md:pl-8">
+                            <h2 
+                                className="text-xl md:text-2xl font-black uppercase tracking-wider leading-none text-white"
+                                style={{ color: '#ffffff' }}
+                            >
+                                Controle de Produção Diária
+                            </h2>
+                            <p 
+                                className="text-xs md:text-sm font-extrabold uppercase tracking-widest text-slate-300 mt-1"
+                                style={{ color: '#cbd5e1' }}
+                            >
+                                Setor Laminação – {selectedMachine}
+                            </p>
+                        </div>
 
-                            {/* Linha 4: Operador Turno A */}
-                            <tr>
-                                <td colSpan={2} className="p-1">
-                                    <div className="flex items-center gap-2 pl-2">
-                                        <span className="font-bold text-xs text-slate-800 whitespace-nowrap">Operador/auxiliar turno A:</span>
-                                        <input
-                                            type="text"
-                                            value={operatorShiftA}
-                                            onChange={e => setOperatorShiftA(e.target.value)}
-                                            className="w-full worksheet-input capture-hide"
-                                            placeholder="Insira..."
-                                        />
-                                        <span className="capture-show hidden font-bold text-xs text-slate-900 pl-1 uppercase">
-                                            {operatorShiftA}
-                                        </span>
-                                    </div>
-                                </td>
-                            </tr>
+                        {/* Bloco 3: Data com Seletor Oculto Interativo */}
+                        <div className="col-span-1 md:col-span-3 bg-[#002060] text-white p-3 flex items-center justify-center border-t-2 md:border-t-0 md:border-l-2 border-white relative">
+                            <div className="relative cursor-pointer hover:bg-slate-800/40 p-2 rounded transition-colors flex items-center gap-2.5 w-full justify-center md:justify-start">
+                                <CalendarIcon className="h-6 w-6 text-white" />
+                                <div>
+                                    <div className="text-[9px] font-black text-slate-300 tracking-wider">DATA DA PRODUÇÃO</div>
+                                    <div className="text-base font-black text-white leading-tight">{formattedDateNumbers}</div>
+                                    <div className="text-[10px] font-extrabold text-slate-300 uppercase">{formattedDayOfWeek}</div>
+                                </div>
+                                {/* Input nativo invisível por cima para interação direta com wow-factor */}
+                                <input 
+                                    type="date" 
+                                    value={selectedDate} 
+                                    onChange={e => handleSwitchDate(e.target.value)} 
+                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                />
+                            </div>
+                        </div>
+                    </div>
 
-                            {/* Linha 5: Operador Turno B */}
-                            <tr>
-                                <td colSpan={2} className="p-1">
-                                    <div className="flex items-center gap-2 pl-2">
-                                        <span className="font-bold text-xs text-slate-800 whitespace-nowrap">Operador/auxiliar turno B:</span>
-                                        <input
-                                            type="text"
-                                            value={operatorShiftB}
-                                            onChange={e => setOperatorShiftB(e.target.value)}
-                                            className="w-full worksheet-input capture-hide"
-                                            placeholder="Insira..."
-                                        />
-                                        <span className="capture-show hidden font-bold text-xs text-slate-900 pl-1 uppercase">
-                                            {operatorShiftB}
-                                        </span>
-                                    </div>
-                                </td>
-                            </tr>                            {/* Linha 6: Descrição do produto */}
-                            <tr>
-                                <td colSpan={2} className="p-1">
-                                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between pl-2 pr-4 gap-2 py-0.5">
-                                        <div className="flex items-center gap-1.5 w-full md:w-auto">
-                                            <span className="font-bold text-xs text-slate-800 whitespace-nowrap">Descrição do produto:</span>
-                                            <input
-                                                type="text"
-                                                value={productDescription}
-                                                onChange={e => setProductDescription(e.target.value)}
-                                                className="w-full md:w-80 worksheet-input capture-hide"
-                                            />
-                                            <span className="capture-show hidden font-bold text-xs text-slate-900 pl-1 uppercase">
-                                                {productDescription}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-1 text-xs">
-                                            <span className="font-bold text-slate-800 whitespace-nowrap">Qnt. De peças produzidas:</span>
-                                            <span className="font-black text-slate-950 text-lg underline ml-1">{calculatedData.totalPecasProduzidas} peças</span>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    {/* SEÇÃO DE PARADAS LADO A LADO - IDÊNTICA À FOTO */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-                        
-                        {/* PARADAS TURNO A (LADO ESQUERDO) */}
-                        <div className="flex flex-col">
-                            <div className="flex items-center justify-between mb-1">
-                                <h4 className="text-center font-bold text-xs uppercase underline tracking-wider w-full pr-8">
-                                    PARADAS E SEUS MOTIVOS: TURNO A
-                                </h4>
+                    {/* Metadados e Ordem de Produção - Grid Premium */}
+                    <div className="grid grid-cols-1 md:grid-cols-12 border-b border-slate-200 bg-[#fbfcfd]">
+                        {/* Coluna 1: Ordem de Produção e Operador Turno A */}
+                        <div className="col-span-1 md:col-span-4 p-4 flex flex-col justify-between gap-3.5 border-r border-slate-200">
+                            <div className="flex items-start gap-2.5">
+                                <ClipboardIcon className="h-5 w-5 text-[#002060] mt-0.5" />
+                                <div className="flex-grow">
+                                    <div className="text-[9px] font-black text-slate-500 uppercase tracking-wider">ORDEM DE PRODUÇÃO</div>
+                                    <input 
+                                        type="text" 
+                                        value={productionOrder} 
+                                        onChange={e => setProductionOrder(e.target.value)} 
+                                        className="w-full text-sm font-black text-[#002060] bg-transparent border-none p-0 focus:ring-0 focus:outline-none modern-editable-input"
+                                        placeholder="Digite a OP..."
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-2.5 pt-3 border-t border-slate-100">
+                                <UserIcon className="h-5 w-5 text-[#002060] mt-0.5" />
+                                <div className="flex-grow">
+                                    <div className="text-[9px] font-black text-slate-500 uppercase tracking-wider">OPERADOR / AUXILIAR - TURNO A</div>
+                                    <input 
+                                        type="text" 
+                                        value={operatorShiftA} 
+                                        onChange={e => setOperatorShiftA(e.target.value)} 
+                                        className="w-full text-sm font-black text-[#002060] bg-transparent border-none p-0 focus:ring-0 focus:outline-none modern-editable-input uppercase"
+                                        placeholder="Nome do Operador..."
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Coluna 2: Descrição do Produto e Operador Turno B */}
+                        <div className="col-span-1 md:col-span-5 p-4 flex flex-col justify-between gap-3.5 border-r border-slate-200">
+                            <div className="flex items-start gap-2.5">
+                                <div className="flex-grow pl-1">
+                                    <div className="text-[9px] font-black text-slate-500 uppercase tracking-wider">DESCRIÇÃO DO PRODUTO</div>
+                                    <input 
+                                        type="text" 
+                                        value={productDescription} 
+                                        onChange={e => setProductDescription(e.target.value)} 
+                                        className="w-full text-sm font-black text-[#002060] bg-transparent border-none p-0 focus:ring-0 focus:outline-none modern-editable-input"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-2.5 pt-3 border-t border-slate-100">
+                                <UserIcon className="h-5 w-5 text-[#002060] mt-0.5" />
+                                <div className="flex-grow">
+                                    <div className="text-[9px] font-black text-slate-500 uppercase tracking-wider">OPERADOR / AUXILIAR - TURNO B</div>
+                                    <input 
+                                        type="text" 
+                                        value={operatorShiftB} 
+                                        onChange={e => setOperatorShiftB(e.target.value)} 
+                                        className="w-full text-sm font-black text-[#002060] bg-transparent border-none p-0 focus:ring-0 focus:outline-none modern-editable-input uppercase"
+                                        placeholder="Nome do Operador..."
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Coluna 3: Quantidade Total Produzida (Destaque do Mockup) */}
+                        <div className="col-span-1 md:col-span-3 p-4 flex flex-col justify-center items-center text-center bg-slate-50">
+                            <div className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1">QUANTIDADE DE PEÇAS PRODUZIDAS</div>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-4xl font-black text-[#002060] tracking-tight">{calculatedData.totalPecasProduzidas}</span>
+                                <span className="text-sm font-bold text-slate-600">peças</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Tabelas de Paradas dos Turnos A e B - Lado a Lado */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 border-b border-slate-200">
+                        {/* Paradas Turno A */}
+                        <div className="border border-[#002060] rounded-lg overflow-hidden bg-white shadow-sm flex flex-col">
+                            <div className="bg-[#002060] text-white py-2 px-3 flex items-center justify-between text-[11px] font-black tracking-wider">
+                                <span className="uppercase">PARADAS E SEUS MOTIVOS – TURNO A</span>
                                 <button
                                     onClick={() => addStopRow('A')}
-                                    className="bg-slate-800 hover:bg-black text-white font-bold text-[10px] px-2 py-0.5 rounded no-print whitespace-nowrap flex-shrink-0"
+                                    className="border border-white hover:bg-white hover:text-[#002060] text-white text-[9px] font-bold px-2 py-0.5 rounded transition-all no-print cursor-pointer uppercase"
                                 >
-                                    + Linha A
+                                    + Linha
                                 </button>
                             </div>
-
-                            <table className="stops-grid-table">
+                            <table className="w-full border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-700 uppercase">
+                                        <th className="py-1.5 border-r border-slate-200 text-center" style={{ width: '75px' }}>Início</th>
+                                        <th className="py-1.5 border-r border-slate-200 text-center" style={{ width: '75px' }}>Fim</th>
+                                        <th className="py-1.5 border-r border-slate-200 text-center" style={{ width: '70px' }}>Duração</th>
+                                        <th className="py-1.5 text-left pl-3">Motivo</th>
+                                    </tr>
+                                </thead>
                                 <tbody>
                                     {stopsShiftA.length === 0 ? (
                                         <tr>
-                                            <td colSpan={4} className="text-center py-4 text-slate-400 italic font-bold">
-                                                Nenhuma parada no Turno A (Clique em "+ Linha A")
+                                            <td colSpan={4} className="text-center py-6 text-slate-400 italic font-bold text-xs">
+                                                Nenhuma parada registrada no Turno A.
                                             </td>
                                         </tr>
                                     ) : (
                                         stopsShiftA.map(stop => {
                                             const durationSecs = calculateStopDurationSeconds(stop.inicio, stop.fim);
                                             return (
-                                                <tr key={stop.id} className="hover:bg-slate-50">
-                                                    {/* Hora Inicial (Vermelho na foto) */}
-                                                    <td style={{ width: '85px', textAlign: 'center' }} className="p-0.5">
+                                                <tr key={stop.id} className="border-b border-slate-200 hover:bg-slate-50/50 group text-xs">
+                                                    <td className="p-1 border-r border-slate-200 text-center">
                                                         <input
                                                             type="text"
                                                             value={stop.inicio}
                                                             onChange={e => updateStopField('A', stop.id, 'inicio', e.target.value)}
-                                                            className="text-center w-20 worksheet-input text-[#dc2626] capture-hide"
+                                                            className="modern-editable-input text-center text-rose-600 w-full font-black text-xs"
                                                             placeholder="00:00:00"
                                                         />
-                                                        <span className="capture-show hidden font-bold text-xs text-[#dc2626] text-center w-full block">
-                                                            {stop.inicio}
-                                                        </span>
                                                     </td>
-                                                    {/* Hora Final (Verde na foto) */}
-                                                    <td style={{ width: '85px', textAlign: 'center' }} className="p-0.5">
+                                                    <td className="p-1 border-r border-slate-200 text-center">
                                                         <input
                                                             type="text"
                                                             value={stop.fim}
                                                             onChange={e => updateStopField('A', stop.id, 'fim', e.target.value)}
-                                                            className="text-center w-20 worksheet-input text-[#16a34a] capture-hide"
+                                                            className="modern-editable-input text-center text-emerald-600 w-full font-black text-xs"
                                                             placeholder="00:00:00"
                                                         />
-                                                        <span className="capture-show hidden font-bold text-xs text-[#16a34a] text-center w-full block">
-                                                            {stop.fim}
-                                                        </span>
                                                     </td>
-                                                    {/* Motivo (Texto normal) */}
-                                                    <td className="p-0.5 text-left pl-2">
+                                                    <td className="p-1 border-r border-slate-200 text-center font-black text-rose-600 text-xs">
+                                                        {secondsToTime(durationSecs)}
+                                                    </td>
+                                                    <td className="p-1 text-left pl-3 relative pr-8">
                                                         <input
                                                             type="text"
                                                             value={stop.motivo}
                                                             onChange={e => updateStopField('A', stop.id, 'motivo', e.target.value)}
-                                                            className="text-left w-full worksheet-input text-slate-800 capture-hide"
+                                                            className="modern-editable-input text-left text-slate-800 w-full font-bold text-xs"
                                                             placeholder="Motivo..."
                                                         />
-                                                        <span className="capture-show hidden font-bold text-xs text-slate-800 text-left pl-1">
-                                                            {stop.motivo}
-                                                        </span>
-                                                    </td>
-                                                    {/* Duração (Vermelho na foto) */}
-                                                    <td style={{ width: '75px', textAlign: 'center', color: '#dc2626' }} className="p-0.5 font-bold text-center text-xs">
-                                                        <div className="flex items-center justify-between px-1">
-                                                            <span className="w-full text-center">{secondsToTime(durationSecs)}</span>
-                                                            <button
-                                                                onClick={() => removeStopRow('A', stop.id)}
-                                                                className="text-rose-600 hover:text-rose-800 font-extrabold no-print ml-1"
-                                                                title="Remover parada"
-                                                            >
-                                                                ×
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* PARADAS TURNO B (LADO DIREITO) */}
-                        <div className="flex flex-col">
-                            <div className="flex items-center justify-between mb-1">
-                                <h4 className="text-center font-bold text-xs uppercase underline tracking-wider w-full pr-8">
-                                    PARADAS E SEUS MOTIVOS: TURNO B
-                                </h4>
-                                <button
-                                    onClick={() => addStopRow('B')}
-                                    className="bg-slate-800 hover:bg-black text-white font-bold text-[10px] px-2 py-0.5 rounded no-print whitespace-nowrap flex-shrink-0"
-                                >
-                                    + Linha B
-                                </button>
-                            </div>
-
-                            <table className="stops-grid-table">
-                                <tbody>
-                                    {stopsShiftB.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={4} className="text-center py-4 text-slate-400 italic font-bold">
-                                                Nenhuma parada no Turno B (Clique em "+ Linha B")
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        stopsShiftB.map(stop => {
-                                            const durationSecs = calculateStopDurationSeconds(stop.inicio, stop.fim);
-                                            return (
-                                                <tr key={stop.id} className="hover:bg-slate-50">
-                                                    {/* Hora Inicial (Vermelho na foto) */}
-                                                    <td style={{ width: '85px', textAlign: 'center' }} className="p-0.5">
-                                                        <input
-                                                            type="text"
-                                                            value={stop.inicio}
-                                                            onChange={e => updateStopField('B', stop.id, 'inicio', e.target.value)}
-                                                            className="text-center w-20 worksheet-input text-[#dc2626] capture-hide"
-                                                            placeholder="00:00:00"
-                                                        />
-                                                        <span className="capture-show hidden font-bold text-xs text-[#dc2626] text-center w-full block">
-                                                            {stop.inicio}
-                                                        </span>
-                                                    </td>
-                                                    {/* Hora Final (Verde na foto) */}
-                                                    <td style={{ width: '85px', textAlign: 'center' }} className="p-0.5">
-                                                        <input
-                                                            type="text"
-                                                            value={stop.fim}
-                                                            onChange={e => updateStopField('B', stop.id, 'fim', e.target.value)}
-                                                            className="text-center w-20 worksheet-input text-[#16a34a] capture-hide"
-                                                            placeholder="00:00:00"
-                                                        />
-                                                        <span className="capture-show hidden font-bold text-xs text-[#16a34a] text-center w-full block">
-                                                            {stop.fim}
-                                                        </span>
-                                                    </td>
-                                                    {/* Motivo (Texto normal) */}
-                                                    <td className="p-0.5 text-left pl-2">
-                                                        <input
-                                                            type="text"
-                                                            value={stop.motivo}
-                                                            onChange={e => updateStopField('B', stop.id, 'motivo', e.target.value)}
-                                                            className="text-left w-full worksheet-input text-slate-800 capture-hide"
-                                                            placeholder="Motivo..."
-                                                        />
-                                                        <span className="capture-show hidden font-bold text-xs text-slate-800 text-left pl-1">
-                                                            {stop.motivo}
-                                                        </span>
-                                                    </td>
-                                                    {/* Duração (Vermelho na foto) */}
-                                                    <td style={{ width: '75px', textAlign: 'center', color: '#dc2626' }} className="p-0.5 font-bold text-center text-xs">
-                                                        <div className="flex items-center justify-between px-1">
-                                                            <span className="w-full text-center">{secondsToTime(durationSecs)}</span>
-                                                            <button
-                                                                onClick={() => removeStopRow('B', stop.id)}
-                                                                className="text-rose-600 hover:text-rose-800 font-extrabold no-print ml-1"
-                                                                title="Remover parada"
-                                                            >
-                                                                ×
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-
-                    </div>
-
-                    {/* SEÇÃO DE ESTATÍSTICA DO DIA LADO A LADO - IDÊNTICA À FOTO */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-                        
-                        {/* ESTATÍSTICA DO DIA TURNO A */}
-                        <div className="stats-container-box">
-                            <h4 className="text-center font-bold text-xs uppercase underline tracking-wider mb-3">
-                                ESTATÍSTICA DO DIA: TURNO A
-                            </h4>
-                            <div className="space-y-1.5 text-sm">
-                                <div className="flex justify-between items-center pb-1 border-b border-slate-100">
-                                    <span className="font-bold text-slate-800">Horas (Turno trabalhados):</span>
-                                    <input
-                                        type="text"
-                                        value={statsShiftA.horasTrabalhadas}
-                                        onChange={e => setStatsShiftA({ ...statsShiftA, horasTrabalhadas: e.target.value })}
-                                        className="font-bold text-center text-slate-900 w-24 worksheet-input text-sm capture-hide"
-                                    />
-                                    <span className="capture-show hidden font-bold text-sm text-slate-900">
-                                        {statsShiftA.horasTrabalhadas}
-                                    </span>
-                                </div>
-                                
-                                {/* TEMPO MAQUINA PARADA: MAIOR E MAIS NEGRITO */}
-                                <div className="flex justify-between items-center text-[#dc2626] font-black text-sm pb-1 border-b border-rose-100">
-                                    <span className="uppercase tracking-tight">Tempo de maquina (parada) :</span>
-                                    <div className="flex gap-4 font-black text-sm">
-                                        <span>{calculatedData.turnoA.tempoParadoStr}</span>
-                                        <span className="w-12 text-right">{calculatedData.turnoA.percentParado}%</span>
-                                    </div>
-                                </div>
-
-                                {/* TEMPO MAQUINA EFETIVO: MAIOR E MAIS NEGRITO */}
-                                <div className="flex justify-between items-center text-[#16a34a] font-black text-sm pb-1 border-b border-emerald-100">
-                                    <span className="uppercase tracking-tight">Tempo de maquina (Efetivo) :</span>
-                                    <div className="flex gap-4 font-black text-sm">
-                                        <span>{calculatedData.turnoA.tempoEfetivoStr}</span>
-                                        <span className="w-12 text-right">{calculatedData.turnoA.percentEfetivo}%</span>
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-between items-center pb-1 border-b border-slate-100">
-                                    <span className="font-bold text-slate-800">Quant. de peças produzidas:</span>
-                                    <div className="flex items-center gap-1 justify-end font-bold text-slate-900">
-                                        <input
-                                            type="number"
-                                            value={statsShiftA.pecasProduzidas || ''}
-                                            onChange={e => setStatsShiftA({ ...statsShiftA, pecasProduzidas: parseInt(e.target.value, 10) || 0 })}
-                                            className="w-16 worksheet-input text-sm font-bold text-center mr-1 capture-hide"
-                                            placeholder="Qnt."
-                                        />
-                                        <span className="capture-show hidden font-bold text-sm text-slate-900 mr-2">
-                                            {statsShiftA.pecasProduzidas}
-                                        </span>
-                                        <span>peças de</span>
-                                        <input
-                                            type="number"
-                                            value={statsShiftA.tamanhoPeca || ''}
-                                            onChange={e => setStatsShiftA({ ...statsShiftA, tamanhoPeca: parseFloat(e.target.value) || 0 })}
-                                            className="w-16 worksheet-input text-sm font-bold text-center mr-1 capture-hide"
-                                            placeholder="Tam."
-                                        />
-                                        <span className="capture-show hidden font-bold text-sm text-slate-900 mx-2">
-                                            {statsShiftA.tamanhoPeca}
-                                        </span>
-                                        <span>metros</span>
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-between items-center font-bold pb-1 border-b border-slate-100">
-                                    <span className="text-slate-800">Quant. de metros produzidos:</span>
-                                    <span className="text-slate-950 text-right">{statsShiftA.pecasProduzidas * statsShiftA.tamanhoPeca} metros</span>
-                                </div>
-
-                                <div className="flex justify-between items-center pb-1 border-b border-slate-100">
-                                    <span className="font-bold text-slate-800">Tempo por peça:</span>
-                                    <span className="font-bold text-slate-900 text-right">{calculatedData.turnoA.tempoPorPecaStr}</span>
-                                </div>
-
-                                <div className="flex justify-between items-center">
-                                    <span className="font-bold text-slate-800">Velocidade:</span>
-                                    <span className="font-bold text-slate-900 text-right">{calculatedData.turnoA.velocidadeStr}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* ESTATÍSTICA DO DIA TURNO B */}
-                        <div className="stats-container-box">
-                            <h4 className="text-center font-bold text-xs uppercase underline tracking-wider mb-3">
-                                ESTATÍSTICA DO DIA: TURNO B
-                            </h4>
-                            <div className="space-y-1.5 text-sm">
-                                <div className="flex justify-between items-center pb-1 border-b border-slate-100">
-                                    <span className="font-bold text-slate-800">Horas (Turno trabalhados):</span>
-                                    <input
-                                        type="text"
-                                        value={statsShiftB.horasTrabalhadas}
-                                        onChange={e => setStatsShiftB({ ...statsShiftB, horasTrabalhadas: e.target.value })}
-                                        className="font-bold text-center text-slate-900 w-24 worksheet-input text-sm capture-hide"
-                                    />
-                                    <span className="capture-show hidden font-bold text-sm text-slate-900">
-                                        {statsShiftB.horasTrabalhadas}
-                                    </span>
-                                </div>
-                                
-                                {/* TEMPO MAQUINA PARADA: MAIOR E MAIS NEGRITO */}
-                                <div className="flex justify-between items-center text-[#dc2626] font-black text-sm pb-1 border-b border-rose-100">
-                                    <span className="uppercase tracking-tight">Tempo de maquina (parada) :</span>
-                                    <div className="flex gap-4 font-black text-sm">
-                                        <span>{calculatedData.turnoB.tempoParadoStr}</span>
-                                        <span className="w-12 text-right">{calculatedData.turnoB.percentParado}%</span>
-                                    </div>
-                                </div>
-
-                                {/* TEMPO MAQUINA EFETIVO: MAIOR E MAIS NEGRITO */}
-                                <div className="flex justify-between items-center text-[#16a34a] font-black text-sm pb-1 border-b border-emerald-100">
-                                    <span className="uppercase tracking-tight">Tempo de maquina (Efetivo) :</span>
-                                    <div className="flex gap-4 font-black text-sm">
-                                        <span>{calculatedData.turnoB.tempoEfetivoStr}</span>
-                                        <span className="w-12 text-right">{calculatedData.turnoB.percentEfetivo}%</span>
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-between items-center pb-1 border-b border-slate-100">
-                                    <span className="font-bold text-slate-800">Quant. de peças produzidas:</span>
-                                    <div className="flex items-center gap-1 justify-end font-bold text-slate-900">
-                                        <input
-                                            type="number"
-                                            value={statsShiftB.pecasProduzidas || ''}
-                                            onChange={e => setStatsShiftB({ ...statsShiftB, pecasProduzidas: parseInt(e.target.value, 10) || 0 })}
-                                            className="w-16 worksheet-input text-sm font-bold text-center mr-1 capture-hide"
-                                            placeholder="Qnt."
-                                        />
-                                        <span className="capture-show hidden font-bold text-sm text-slate-900 mr-2">
-                                            {statsShiftB.pecasProduzidas}
-                                        </span>
-                                        <span>peças de</span>
-                                        <input
-                                            type="number"
-                                            value={statsShiftB.tamanhoPeca || ''}
-                                            onChange={e => setStatsShiftB({ ...statsShiftB, tamanhoPeca: parseFloat(e.target.value) || 0 })}
-                                            className="w-16 worksheet-input text-sm font-bold text-center mr-1 capture-hide"
-                                            placeholder="Tam."
-                                        />
-                                        <span className="capture-show hidden font-bold text-sm text-slate-900 mx-2">
-                                            {statsShiftB.tamanhoPeca}
-                                        </span>
-                                        <span>metros</span>
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-between items-center font-bold pb-1 border-b border-slate-100">
-                                    <span className="text-slate-800">Quant. de metros produzidos:</span>
-                                    <span className="text-slate-950 text-right">{statsShiftB.pecasProduzidas * statsShiftB.tamanhoPeca} metros</span>
-                                </div>
-
-                                <div className="flex justify-between items-center pb-1 border-b border-slate-100">
-                                    <span className="font-bold text-slate-800">Tempo por peça:</span>
-                                    <span className="font-bold text-slate-900 text-right">{calculatedData.turnoB.tempoPorPecaStr}</span>
-                                </div>
-
-                                <div className="flex justify-between items-center">
-                                    <span className="font-bold text-slate-800">Velocidade:</span>
-                                    <span className="font-bold text-slate-900 text-right">{calculatedData.turnoB.velocidadeStr}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    {/* SEÇÃO RODAPÉ: ATUALIZAÇÃO DA PRODUÇÃO - IDÊNTICA À FOTO */}
-                    <div className="border-1.5 border-[#1e293b] p-4 text-center rounded bg-white" style={{ border: '1.5px solid #1e293b' }}>
-                        <h4 className="text-center font-bold text-xs uppercase underline tracking-wider mb-1">
-                            ATUALIZAÇÃO DA PRODUÇÃO:
-                        </h4>
-                        <div className="flex items-center justify-center gap-1.5 font-bold text-xs mb-3 text-center w-full">
-                                <span>Qntidade de peças a produzir:</span>
-                                <input
-                                    type="number"
-                                    value={piecesToProduce}
-                                    onChange={e => setPiecesToProduce(parseInt(e.target.value, 10) || 0)}
-                                    className="w-20 text-center worksheet-input capture-hide"
-                                />
-                                <span className="capture-show hidden font-bold text-xs text-slate-900 mx-2">
-                                    {piecesToProduce}
-                                </span>
-                                <span>treliças</span>
-                                <button
-                                    onClick={addProductionUpdateRow}
-                                    className="bg-slate-800 hover:bg-black text-white text-[9px] py-0.5 px-2 rounded-md ml-3 no-print"
-                                >
-                                    + Registrar Peso
-                                </button>
-                            </div>
-
-                            {/* Tabela de Lotes com case e estilo IDÊNTICOS à foto */}
-                            <div className="max-w-xl mx-auto overflow-x-auto">
-                                <table className="w-full text-center production-updates-table" style={{ borderCollapse: 'collapse', border: '1px solid #1e293b' }}>
-                                    <thead>
-                                        <tr className="bg-slate-50 font-bold" style={{ fontSize: '12px' }}>
-                                            <th style={{ border: '1px solid #1e293b', padding: '4px', textAlign: 'center' }} className="text-center uppercase font-bold">Qnt.</th>
-                                            <th style={{ border: '1px solid #1e293b', padding: '4px', textAlign: 'center' }} className="text-center uppercase font-bold">peso</th>
-                                            <th style={{ border: '1px solid #1e293b', padding: '4px', textAlign: 'center' }} className="text-center uppercase font-bold">media</th>
-                                            <th style={{ border: '1px solid #1e293b', padding: '4px', textAlign: 'center' }} className="text-center uppercase font-bold">Data</th>
-                                            <th style={{ border: '1px solid #1e293b', padding: '2px', textAlign: 'center' }} className="no-print text-center uppercase font-bold">Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {productionUpdates.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={5} className="py-3 text-slate-400 italic font-bold border border-slate-300 text-xs">
-                                                    Nenhum lote registrado. Clique em "+ Registrar Peso"
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            productionUpdates.map(row => {
-                                                const weightAverage = row.qnt > 0 ? (row.peso / row.qnt) : 0;
-                                                return (
-                                                    <tr key={row.id} style={{ fontSize: '12px' }}>
-                                                        <td style={{ border: '1px solid #1e293b', padding: '3px' }}>
-                                                            <input
-                                                                type="number"
-                                                                value={row.qnt || ''}
-                                                                onChange={e => updateProductionUpdateField(row.id, 'qnt', parseInt(e.target.value, 10) || 0)}
-                                                                className="text-center w-full worksheet-input capture-hide"
-                                                            />
-                                                            <span className="capture-show hidden font-bold text-xs text-slate-900 text-center w-full block">
-                                                                {row.qnt}
-                                                            </span>
-                                                        </td>
-                                                        <td style={{ border: '1px solid #1e293b', padding: '3px' }}>
-                                                            <input
-                                                                type="number"
-                                                                value={row.peso || ''}
-                                                                onChange={e => updateProductionUpdateField(row.id, 'peso', parseFloat(e.target.value) || 0)}
-                                                                className="text-center w-full worksheet-input capture-hide"
-                                                            />
-                                                            <span className="capture-show hidden font-bold text-xs text-slate-900 text-center w-full block">
-                                                                {row.peso}
-                                                            </span>
-                                                        </td>
-                                                        <td style={{ border: '1px solid #1e293b', padding: '3px' }} className="font-bold text-slate-900">
-                                                            {weightAverage > 0 ? weightAverage.toFixed(2).replace('.', ',') : ''}
-                                                        </td>
-                                                        <td style={{ border: '1px solid #1e293b', padding: '3px' }}>
-                                                            <input
-                                                                type="text"
-                                                                value={row.data}
-                                                                onChange={e => updateProductionUpdateField(row.id, 'data', e.target.value)}
-                                                                className="text-center w-full worksheet-input capture-hide"
-                                                                placeholder="Ex: 1-04"
-                                                            />
-                                                            <span className="capture-show hidden font-bold text-xs text-slate-900 text-center w-full block">
-                                                                {row.data}
-                                                            </span>
-                                                        </td>
-                                                    <td style={{ border: '1px solid #1e293b', padding: '3px' }} className="no-print">
                                                         <button
-                                                            onClick={() => removeProductionUpdateRow(row.id)}
-                                                            className="text-rose-600 hover:text-rose-800 font-bold hover:bg-rose-50 px-1 rounded text-xs"
-                                                            title="Remover"
+                                                            onClick={() => removeStopRow('A', stop.id)}
+                                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-rose-600 hover:text-rose-800 font-black text-sm no-print opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            title="Remover parada"
                                                         >
                                                             ×
                                                         </button>
@@ -1274,6 +982,393 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                                     )}
                                 </tbody>
                             </table>
+                        </div>
+
+                        {/* Paradas Turno B */}
+                        <div className="border border-[#002060] rounded-lg overflow-hidden bg-white shadow-sm flex flex-col">
+                            <div className="bg-[#002060] text-white py-2 px-3 flex items-center justify-between text-[11px] font-black tracking-wider">
+                                <span className="uppercase">PARADAS E SEUS MOTIVOS – TURNO B</span>
+                                <button
+                                    onClick={() => addStopRow('B')}
+                                    className="border border-white hover:bg-white hover:text-[#002060] text-white text-[9px] font-bold px-2 py-0.5 rounded transition-all no-print cursor-pointer uppercase"
+                                >
+                                    + Linha
+                                </button>
+                            </div>
+                            <table className="w-full border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-700 uppercase">
+                                        <th className="py-1.5 border-r border-slate-200 text-center" style={{ width: '75px' }}>Início</th>
+                                        <th className="py-1.5 border-r border-slate-200 text-center" style={{ width: '75px' }}>Fim</th>
+                                        <th className="py-1.5 border-r border-slate-200 text-center" style={{ width: '70px' }}>Duração</th>
+                                        <th className="py-1.5 text-left pl-3">Motivo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {stopsShiftB.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={4} className="text-center py-6 text-slate-400 italic font-bold text-xs">
+                                                Nenhuma parada registrada no Turno B.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        stopsShiftB.map(stop => {
+                                            const durationSecs = calculateStopDurationSeconds(stop.inicio, stop.fim);
+                                            return (
+                                                <tr key={stop.id} className="border-b border-slate-200 hover:bg-slate-50/50 group text-xs">
+                                                    <td className="p-1 border-r border-slate-200 text-center">
+                                                        <input
+                                                            type="text"
+                                                            value={stop.inicio}
+                                                            onChange={e => updateStopField('B', stop.id, 'inicio', e.target.value)}
+                                                            className="modern-editable-input text-center text-rose-600 w-full font-black text-xs"
+                                                            placeholder="00:00:00"
+                                                        />
+                                                    </td>
+                                                    <td className="p-1 border-r border-slate-200 text-center">
+                                                        <input
+                                                            type="text"
+                                                            value={stop.fim}
+                                                            onChange={e => updateStopField('B', stop.id, 'fim', e.target.value)}
+                                                            className="modern-editable-input text-center text-emerald-600 w-full font-black text-xs"
+                                                            placeholder="00:00:00"
+                                                        />
+                                                    </td>
+                                                    <td className="p-1 border-r border-slate-200 text-center font-black text-rose-600 text-xs">
+                                                        {secondsToTime(durationSecs)}
+                                                    </td>
+                                                    <td className="p-1 text-left pl-3 relative pr-8">
+                                                        <input
+                                                            type="text"
+                                                            value={stop.motivo}
+                                                            onChange={e => updateStopField('B', stop.id, 'motivo', e.target.value)}
+                                                            className="modern-editable-input text-left text-slate-800 w-full font-bold text-xs"
+                                                            placeholder="Motivo..."
+                                                        />
+                                                        <button
+                                                            onClick={() => removeStopRow('B', stop.id)}
+                                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-rose-600 hover:text-rose-800 font-black text-sm no-print opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            title="Remover parada"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Seção de Estatísticas do Dia - Lado a Lado */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 border-b border-slate-200 bg-[#fbfcfd]">
+                        {/* Estatísticas Turno A */}
+                        <div className="border border-[#002060] rounded-lg overflow-hidden bg-white shadow-sm flex flex-col">
+                            <div className="bg-[#002060] text-white py-2 px-3 flex items-center gap-1.5 text-[11px] font-black tracking-wider uppercase">
+                                <GaugeIcon className="h-4 w-4 text-white" />
+                                <span>ESTATÍSTICA DO DIA – TURNO A</span>
+                            </div>
+                            <div className="p-3 divide-y divide-slate-100 flex flex-col justify-between h-full">
+                                {/* Horas Trabalhadas */}
+                                <div className="flex items-center justify-between py-2">
+                                    <div className="flex items-center gap-2">
+                                        <ClockIcon className="h-4 w-4 text-slate-400" />
+                                        <span className="text-xs font-bold text-slate-600">Horas (Turno trabalhado)</span>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={statsShiftA.horasTrabalhadas}
+                                        onChange={e => setStatsShiftA({ ...statsShiftA, horasTrabalhadas: e.target.value })}
+                                        className="modern-editable-input text-right w-24 text-slate-900 font-black text-xs"
+                                    />
+                                </div>
+                                {/* Tempo Parada */}
+                                <div className="flex items-center justify-between py-2 bg-rose-50/20 px-1 rounded">
+                                    <div className="flex items-center gap-2">
+                                        <ClockIcon className="h-4 w-4 text-rose-500" />
+                                        <span className="text-xs font-black text-rose-600 uppercase tracking-tight">Tempo de máquina (parada)</span>
+                                    </div>
+                                    <div className="flex gap-4 font-black text-xs text-rose-600">
+                                        <span>{calculatedData.turnoA.tempoParadoStr}</span>
+                                        <span className="w-12 text-right">{calculatedData.turnoA.percentParado}%</span>
+                                    </div>
+                                </div>
+                                {/* Tempo Efetivo */}
+                                <div className="flex items-center justify-between py-2 bg-emerald-50/20 px-1 rounded">
+                                    <div className="flex items-center gap-2">
+                                        <ClockIcon className="h-4 w-4 text-emerald-500" />
+                                        <span className="text-xs font-black text-emerald-600 uppercase tracking-tight">Tempo de máquina (E efetivo)</span>
+                                    </div>
+                                    <div className="flex gap-4 font-black text-xs text-emerald-600">
+                                        <span>{calculatedData.turnoA.tempoEfetivoStr}</span>
+                                        <span className="w-12 text-right">{calculatedData.turnoA.percentEfetivo}%</span>
+                                    </div>
+                                </div>
+                                {/* Peças Produzidas (Editáveis) */}
+                                <div className="flex items-center justify-between py-2">
+                                    <div className="flex items-center gap-2">
+                                        <LayersIcon className="h-4 w-4 text-slate-400" />
+                                        <span className="text-xs font-bold text-slate-600">Quantidade de peças produzidas</span>
+                                    </div>
+                                    <div className="flex items-center gap-1 font-bold text-xs text-slate-900">
+                                        <input
+                                            type="number"
+                                            value={statsShiftA.pecasProduzidas || ''}
+                                            onChange={e => setStatsShiftA({ ...statsShiftA, pecasProduzidas: parseInt(e.target.value, 10) || 0 })}
+                                            className="modern-editable-input text-center w-12 text-slate-900 border-b border-slate-200 font-black text-xs"
+                                            placeholder="Qnt."
+                                        />
+                                        <span className="text-slate-500">peças de</span>
+                                        <input
+                                            type="number"
+                                            value={statsShiftA.tamanhoPeca || ''}
+                                            onChange={e => setStatsShiftA({ ...statsShiftA, tamanhoPeca: parseFloat(e.target.value) || 0 })}
+                                            className="modern-editable-input text-center w-12 text-slate-900 border-b border-slate-200 font-black text-xs"
+                                            placeholder="Tam."
+                                        />
+                                        <span className="text-slate-500">metros</span>
+                                    </div>
+                                </div>
+                                {/* Metros Produzidos */}
+                                <div className="flex items-center justify-between py-2">
+                                    <div className="flex items-center gap-2">
+                                        <RulerIcon className="h-4 w-4 text-slate-400" />
+                                        <span className="text-xs font-bold text-slate-600">Quantidade de metros produzidos</span>
+                                    </div>
+                                    <span className="text-xs font-black text-slate-900">{statsShiftA.pecasProduzidas * statsShiftA.tamanhoPeca} metros</span>
+                                </div>
+                                {/* Tempo por Peça */}
+                                <div className="flex items-center justify-between py-2">
+                                    <div className="flex items-center gap-2">
+                                        <ClockIcon className="h-4 w-4 text-slate-400" />
+                                        <span className="text-xs font-bold text-slate-600">Tempo por peça (médio)</span>
+                                    </div>
+                                    <span className="text-xs font-black text-slate-900">{calculatedData.turnoA.tempoPorPecaStr}</span>
+                                </div>
+                                {/* Velocidade */}
+                                <div className="flex items-center justify-between py-2">
+                                    <div className="flex items-center gap-2">
+                                        <GaugeIcon className="h-4 w-4 text-slate-400" />
+                                        <span className="text-xs font-bold text-slate-600">Velocidade (média)</span>
+                                    </div>
+                                    <span className="text-xs font-black text-slate-900">{calculatedData.turnoA.velocidadeStr}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Estatísticas Turno B */}
+                        <div className="border border-[#002060] rounded-lg overflow-hidden bg-white shadow-sm flex flex-col">
+                            <div className="bg-[#002060] text-white py-2 px-3 flex items-center gap-1.5 text-[11px] font-black tracking-wider uppercase">
+                                <GaugeIcon className="h-4 w-4 text-white" />
+                                <span>ESTATÍSTICA DO DIA – TURNO B</span>
+                            </div>
+                            <div className="p-3 divide-y divide-slate-100 flex flex-col justify-between h-full">
+                                {/* Horas Trabalhadas */}
+                                <div className="flex items-center justify-between py-2">
+                                    <div className="flex items-center gap-2">
+                                        <ClockIcon className="h-4 w-4 text-slate-400" />
+                                        <span className="text-xs font-bold text-slate-600">Horas (Turno trabalhado)</span>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={statsShiftB.horasTrabalhadas}
+                                        onChange={e => setStatsShiftB({ ...statsShiftB, horasTrabalhadas: e.target.value })}
+                                        className="modern-editable-input text-right w-24 text-slate-900 font-black text-xs"
+                                    />
+                                </div>
+                                {/* Tempo Parada */}
+                                <div className="flex items-center justify-between py-2 bg-rose-50/20 px-1 rounded">
+                                    <div className="flex items-center gap-2">
+                                        <ClockIcon className="h-4 w-4 text-rose-500" />
+                                        <span className="text-xs font-black text-rose-600 uppercase tracking-tight">Tempo de máquina (parada)</span>
+                                    </div>
+                                    <div className="flex gap-4 font-black text-xs text-rose-600">
+                                        <span>{calculatedData.turnoB.tempoParadoStr}</span>
+                                        <span className="w-12 text-right">{calculatedData.turnoB.percentParado}%</span>
+                                    </div>
+                                </div>
+                                {/* Tempo Efetivo */}
+                                <div className="flex items-center justify-between py-2 bg-emerald-50/20 px-1 rounded">
+                                    <div className="flex items-center gap-2">
+                                        <ClockIcon className="h-4 w-4 text-emerald-500" />
+                                        <span className="text-xs font-black text-emerald-600 uppercase tracking-tight">Tempo de máquina (E efetivo)</span>
+                                    </div>
+                                    <div className="flex gap-4 font-black text-xs text-emerald-600">
+                                        <span>{calculatedData.turnoB.tempoEfetivoStr}</span>
+                                        <span className="w-12 text-right">{calculatedData.turnoB.percentEfetivo}%</span>
+                                    </div>
+                                </div>
+                                {/* Peças Produzidas (Editáveis) */}
+                                <div className="flex items-center justify-between py-2">
+                                    <div className="flex items-center gap-2">
+                                        <LayersIcon className="h-4 w-4 text-slate-400" />
+                                        <span className="text-xs font-bold text-slate-600">Quantidade de peças produzidas</span>
+                                    </div>
+                                    <div className="flex items-center gap-1 font-bold text-xs text-slate-900">
+                                        <input
+                                            type="number"
+                                            value={statsShiftB.pecasProduzidas || ''}
+                                            onChange={e => setStatsShiftB({ ...statsShiftB, pecasProduzidas: parseInt(e.target.value, 10) || 0 })}
+                                            className="modern-editable-input text-center w-12 text-slate-900 border-b border-slate-200 font-black text-xs"
+                                            placeholder="Qnt."
+                                        />
+                                        <span className="text-slate-500">peças de</span>
+                                        <input
+                                            type="number"
+                                            value={statsShiftB.tamanhoPeca || ''}
+                                            onChange={e => setStatsShiftB({ ...statsShiftB, tamanhoPeca: parseFloat(e.target.value) || 0 })}
+                                            className="modern-editable-input text-center w-12 text-slate-900 border-b border-slate-200 font-black text-xs"
+                                            placeholder="Tam."
+                                        />
+                                        <span className="text-slate-500">metros</span>
+                                    </div>
+                                </div>
+                                {/* Metros Produzidos */}
+                                <div className="flex items-center justify-between py-2">
+                                    <div className="flex items-center gap-2">
+                                        <RulerIcon className="h-4 w-4 text-slate-400" />
+                                        <span className="text-xs font-bold text-slate-600">Quantidade de metros produzidos</span>
+                                    </div>
+                                    <span className="text-xs font-black text-slate-900">{statsShiftB.pecasProduzidas * statsShiftB.tamanhoPeca} metros</span>
+                                </div>
+                                {/* Tempo por Peça */}
+                                <div className="flex items-center justify-between py-2">
+                                    <div className="flex items-center gap-2">
+                                        <ClockIcon className="h-4 w-4 text-slate-400" />
+                                        <span className="text-xs font-bold text-slate-600">Tempo por peça (médio)</span>
+                                    </div>
+                                    <span className="text-xs font-black text-slate-900">{calculatedData.turnoB.tempoPorPecaStr}</span>
+                                </div>
+                                {/* Velocidade */}
+                                <div className="flex items-center justify-between py-2">
+                                    <div className="flex items-center gap-2">
+                                        <GaugeIcon className="h-4 w-4 text-slate-400" />
+                                        <span className="text-xs font-bold text-slate-600">Velocidade (média)</span>
+                                    </div>
+                                    <span className="text-xs font-black text-slate-900">{calculatedData.turnoB.velocidadeStr}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Atualização da Produção (Lotes de Pesagem) */}
+                    <div className="p-4 bg-[#fbfcfd]">
+                        <div className="border border-[#002060] rounded-lg overflow-hidden bg-white shadow-sm">
+                            <div className="bg-[#002060] text-white py-2 text-center text-xs font-black tracking-wider uppercase">
+                                ATUALIZAÇÃO DA PRODUÇÃO
+                            </div>
+                            
+                            <div className="flex flex-col sm:flex-row items-center justify-between border-b border-slate-200 bg-slate-50/50 py-2 px-4 gap-2">
+                                <div className="flex items-center gap-1 text-xs font-bold text-slate-700">
+                                    <span>Quantidade de peças a produzir:</span>
+                                    <input
+                                        type="number"
+                                        value={piecesToProduce}
+                                        onChange={e => setPiecesToProduce(parseInt(e.target.value, 10) || 0)}
+                                        className="modern-editable-input text-center w-16 text-[#002060] font-black text-xs"
+                                    />
+                                    <span className="text-slate-500 font-medium">treliças</span>
+                                </div>
+                                
+                                <button
+                                    onClick={addProductionUpdateRow}
+                                    className="bg-[#002060] hover:bg-slate-800 text-white text-[10px] font-black py-1 px-3.5 rounded shadow transition-colors no-print uppercase"
+                                >
+                                    + Registrar Peso
+                                </button>
+                            </div>
+
+                            <table className="w-full border-collapse">
+                                <thead>
+                                    <tr className="bg-[#002060] text-white text-[10px] font-black uppercase border-b border-slate-700">
+                                        <th className="py-2 border-r border-slate-700 text-center" style={{ width: '25%' }}>Qnt.</th>
+                                        <th className="py-2 border-r border-slate-700 text-center" style={{ width: '25%' }}>Peso (kg)</th>
+                                        <th className="py-2 border-r border-slate-700 text-center" style={{ width: '25%' }}>Média (kg/peça)</th>
+                                        <th className="py-2 border-r border-slate-700 text-center" style={{ width: '25%' }}>Data</th>
+                                        <th className="py-2 text-center no-print" style={{ width: '60px' }}>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {productionUpdates.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={5} className="py-5 text-slate-400 italic font-bold text-center text-xs">
+                                                Nenhum lote de pesagem registrado. Clique em "+ Registrar Peso".
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        productionUpdates.map(row => {
+                                            const weightAverage = row.qnt > 0 ? (row.peso / row.qnt) : 0;
+                                            return (
+                                                <tr key={row.id} className="border-b border-slate-200 hover:bg-slate-50/50 group text-xs">
+                                                    <td className="p-1 border-r border-slate-200 text-center">
+                                                        <input
+                                                            type="number"
+                                                            value={row.qnt || ''}
+                                                            onChange={e => updateProductionUpdateField(row.id, 'qnt', parseInt(e.target.value, 10) || 0)}
+                                                            className="modern-editable-input text-center w-full font-black text-xs"
+                                                            placeholder="Qnt."
+                                                        />
+                                                    </td>
+                                                    <td className="p-1 border-r border-slate-200 text-center">
+                                                        <input
+                                                            type="number"
+                                                            value={row.peso || ''}
+                                                            onChange={e => updateProductionUpdateField(row.id, 'peso', parseFloat(e.target.value) || 0)}
+                                                            className="modern-editable-input text-center w-full font-black text-xs"
+                                                            placeholder="Peso (Kg)"
+                                                        />
+                                                    </td>
+                                                    <td className="p-1 border-r border-slate-200 text-center font-black text-slate-800 text-xs">
+                                                        {weightAverage > 0 ? weightAverage.toFixed(2).replace('.', ',') : ''}
+                                                    </td>
+                                                    <td className="p-1 border-r border-slate-200 text-center">
+                                                        <input
+                                                            type="text"
+                                                            value={row.data}
+                                                            onChange={e => updateProductionUpdateField(row.id, 'data', e.target.value)}
+                                                            className="modern-editable-input text-center w-full font-black text-xs"
+                                                            placeholder="Ex: 01/04"
+                                                        />
+                                                    </td>
+                                                    <td className="p-1 text-center no-print">
+                                                        <button
+                                                            onClick={() => removeProductionUpdateRow(row.id)}
+                                                            className="text-rose-600 hover:text-rose-800 font-bold hover:bg-rose-50 px-2 py-0.5 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            title="Remover pesagem"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Barra de Legenda e Notas de Sistema (Idêntica ao Rodapé do Mockup) */}
+                    <div className="flex flex-col sm:flex-row justify-between items-center text-[10px] text-slate-500 font-bold px-4 py-2 bg-slate-50 border-t border-slate-200 rounded-b-xl gap-2">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <span className="text-[#002060] font-black uppercase tracking-wider">LEGENDA</span>
+                            <span className="flex items-center gap-1 text-rose-600 font-extrabold">
+                                <span className="w-2 h-2 rounded-full bg-rose-600"></span>
+                                Horário de início
+                            </span>
+                            <span className="flex items-center gap-1 text-emerald-600 font-extrabold">
+                                <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                                Horário de fim
+                            </span>
+                            <span className="flex items-center gap-1 text-rose-600 font-black uppercase tracking-tight">
+                                <span className="w-2 h-2 rounded-full bg-rose-600"></span>
+                                Duração da parada
+                            </span>
+                        </div>
+                        <div className="text-slate-400 text-right flex items-center gap-1 font-semibold">
+                            Observação: Relatório gerado automaticamente - Sistema de Controle de Produção ⚙️
                         </div>
                     </div>
 
