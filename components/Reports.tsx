@@ -1431,23 +1431,8 @@ const Reports: React.FC<ReportsProps> = ({ stock, setPage }) => {
                         </div>
                     </div>
 
-                    {/* Barra de Legenda e Notas de Sistema (Idêntica ao Rodapé do Mockup) */}
-                    <div className="flex flex-col sm:flex-row justify-between items-center text-[10px] text-slate-500 font-bold px-4 py-2 bg-slate-50 border-t border-slate-200 rounded-b-xl gap-2">
-                        <div className="flex flex-wrap items-center gap-3">
-                            <span className="text-[#002060] font-black uppercase tracking-wider">LEGENDA</span>
-                            <span className="flex items-center gap-1 text-rose-600 font-extrabold">
-                                <span className="w-2 h-2 rounded-full bg-rose-600"></span>
-                                Horário de início
-                            </span>
-                            <span className="flex items-center gap-1 text-emerald-600 font-extrabold">
-                                <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-                                Horário de fim
-                            </span>
-                            <span className="flex items-center gap-1 text-rose-600 font-black uppercase tracking-tight">
-                                <span className="w-2 h-2 rounded-full bg-rose-600"></span>
-                                Duração da parada
-                            </span>
-                        </div>
+                    {/* Barra de Notas de Sistema (Idêntica ao Rodapé do Mockup) */}
+                    <div className="flex justify-end items-center text-[10px] text-slate-500 font-bold px-4 py-2 bg-slate-50 border-t border-slate-200 rounded-b-xl">
                         <div className="text-slate-400 text-right flex items-center gap-1 font-semibold">
                             Observação: Relatório gerado automaticamente - Sistema de Controle de Produção ⚙️
                         </div>
