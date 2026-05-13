@@ -634,7 +634,7 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                                         <th className="border-r border-[#002060] p-1 align-middle w-[10.5%]">entrada</th>
                                         <th className="border-r border-[#002060] p-1 align-middle w-[10.5%]">saída</th>
                                         <th className="border-r border-[#002060] p-1 align-middle w-[10.5%]">entrada</th>
-                                        <th className="p-1 align-middle w-[10.5%]">saída</th>
+                                        <th className="border-l border-[#002060] p-1 align-middle w-[10.5%]">saída</th>
                                     </tr>
                                 </thead>
                                 <tbody className="text-xs font-black text-[#002060]">
@@ -647,7 +647,7 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                                         <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass3.aneisEntrada} onChange={e => setSetup({...setup, pass3: {...setup.pass3, aneisEntrada: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs py-1" placeholder="..." /></td>
                                         <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass3.aneisSaida} onChange={e => setSetup({...setup, pass3: {...setup.pass3, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs py-1" placeholder="..." /></td>
                                         <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass4.aneisEntrada} onChange={e => setSetup({...setup, pass4: {...setup.pass4, aneisEntrada: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs py-1" placeholder="..." /></td>
-                                        <td className="p-1"><input type="text" value={setup.pass4.aneisSaida} onChange={e => setSetup({...setup, pass4: {...setup.pass4, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs py-1" placeholder="..." /></td>
+                                        <td className="border-l border-[#002060] p-1"><input type="text" value={setup.pass4.aneisSaida} onChange={e => setSetup({...setup, pass4: {...setup.pass4, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs py-1" placeholder="..." /></td>
                                     </tr>
                                     <tr>
                                         <td className="bg-slate-50 border-r border-[#002060] py-1.5 font-bold text-[9px] text-[#002060] uppercase">mm (saida)</td>
