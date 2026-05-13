@@ -600,78 +600,78 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                     {/* SEÇÃO SUPÉRIO: BITOLA E SETUP */}
                     <div className="grid grid-cols-12 gap-3 mb-3">
                         {/* Bitola Entrada/Saida */}
-                        <div className="col-span-12 md:col-span-3 flex flex-col gap-2">
-                            <div className="flex items-center gap-2 border border-[#002060] p-1.5 rounded bg-slate-50">
-                                <span className="text-[10px] font-black text-[#002060] uppercase shrink-0">Bitola Entrada:</span>
+                        <div className="col-span-12 md:col-span-2 flex flex-col gap-2 justify-center">
+                            <div className="flex flex-col border border-[#002060] p-1.5 rounded bg-slate-50">
+                                <span className="text-[8px] font-black text-[#002060] uppercase text-center border-b border-[#002060]/20 pb-0.5 mb-1">Bitola Entrada</span>
                                 <input type="text" value={bitolaEntrada} onChange={e => setBitolaEntrada(e.target.value)} className="op-editable-input w-full text-xs font-black text-center" placeholder="Ex: 6,35mm" />
                             </div>
-                            <div className="flex items-center gap-2 border border-[#002060] p-1.5 rounded bg-slate-50">
-                                <span className="text-[10px] font-black text-[#002060] uppercase shrink-0">Bitola Saída:</span>
+                            <div className="flex flex-col border border-[#002060] p-1.5 rounded bg-slate-50">
+                                <span className="text-[8px] font-black text-[#002060] uppercase text-center border-b border-[#002060]/20 pb-0.5 mb-1">Bitola Saída</span>
                                 <input type="text" value={bitolaSaida} onChange={e => setBitolaSaida(e.target.value)} className="op-editable-input w-full text-xs font-black text-center" placeholder="Ex: 4,20mm" />
                             </div>
                         </div>
 
                         {/* Setup - Plano de passe (GRID DO MODELO) */}
-                        <div className="col-span-12 md:col-span-6 border border-[#002060] rounded overflow-hidden">
+                        <div className="col-span-12 md:col-span-8 border border-[#002060] rounded overflow-x-auto">
                             <div className="bg-[#002060] text-white py-1 text-center text-[11px] font-black uppercase tracking-wider">
                                 Setup - Plano de passe
                             </div>
-                            <table className="w-full border-collapse text-center">
+                            <table className="w-full border-collapse text-center" style={{ minWidth: '600px' }}>
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-[#002060] text-[9.5px] font-black text-slate-700 uppercase">
-                                        <th rowSpan={2} className="border-r border-[#002060] py-1 text-center w-[100px] font-extrabold text-[#002060]">passes</th>
+                                        <th rowSpan={2} className="border-r border-[#002060] py-1 text-center w-[16%] font-extrabold text-[#002060]">passes</th>
                                         <th colSpan={2} className="border-r border-[#002060] py-0.5 text-center font-extrabold text-[#002060]">1º Passe</th>
                                         <th colSpan={2} className="border-r border-[#002060] py-0.5 text-center font-extrabold text-[#002060]">2º Passe</th>
                                         <th colSpan={2} className="border-r border-[#002060] py-0.5 text-center font-extrabold text-[#002060]">3º Passe</th>
                                         <th colSpan={2} className="py-0.5 text-center font-extrabold text-[#002060]">4º Passe</th>
                                     </tr>
                                     <tr className="bg-slate-100 border-b border-[#002060] text-[8.5px] font-bold text-slate-600 uppercase text-center">
-                                        <th className="border-r border-[#002060] py-0.5 w-[11.5%]">entrada</th>
-                                        <th className="border-r border-[#002060] py-0.5 w-[11.5%]">saída</th>
-                                        <th className="border-r border-[#002060] py-0.5 w-[11.5%]">entrada</th>
-                                        <th className="border-r border-[#002060] py-0.5 w-[11.5%]">saída</th>
-                                        <th className="border-r border-[#002060] py-0.5 w-[11.5%]">entrada</th>
-                                        <th className="border-r border-[#002060] py-0.5 w-[11.5%]">saída</th>
-                                        <th className="border-r border-[#002060] py-0.5 w-[11.5%]">entrada</th>
-                                        <th className="py-0.5 w-[11.5%]">saída</th>
+                                        <th className="border-r border-[#002060] py-0.5 w-[10.5%]">entrada</th>
+                                        <th className="border-r border-[#002060] py-0.5 w-[10.5%]">saída</th>
+                                        <th className="border-r border-[#002060] py-0.5 w-[10.5%]">entrada</th>
+                                        <th className="border-r border-[#002060] py-0.5 w-[10.5%]">saída</th>
+                                        <th className="border-r border-[#002060] py-0.5 w-[10.5%]">entrada</th>
+                                        <th className="border-r border-[#002060] py-0.5 w-[10.5%]">saída</th>
+                                        <th className="border-r border-[#002060] py-0.5 w-[10.5%]">entrada</th>
+                                        <th className="py-0.5 w-[10.5%]">saída</th>
                                     </tr>
                                 </thead>
                                 <tbody className="text-xs font-black text-[#002060]">
                                     <tr className="border-b border-[#002060]">
                                         <td className="bg-slate-50 border-r border-[#002060] py-1.5 font-bold text-[9px] text-[#002060] uppercase">aneis</td>
-                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass1.aneisEntrada} onChange={e => setSetup({...setup, pass1: {...setup.pass1, aneisEntrada: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
-                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass1.aneisSaida} onChange={e => setSetup({...setup, pass1: {...setup.pass1, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
-                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass2.aneisEntrada} onChange={e => setSetup({...setup, pass2: {...setup.pass2, aneisEntrada: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
-                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass2.aneisSaida} onChange={e => setSetup({...setup, pass2: {...setup.pass2, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
-                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass3.aneisEntrada} onChange={e => setSetup({...setup, pass3: {...setup.pass3, aneisEntrada: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
-                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass3.aneisSaida} onChange={e => setSetup({...setup, pass3: {...setup.pass3, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
-                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass4.aneisEntrada} onChange={e => setSetup({...setup, pass4: {...setup.pass4, aneisEntrada: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
-                                        <td className="p-1"><input type="text" value={setup.pass4.aneisSaida} onChange={e => setSetup({...setup, pass4: {...setup.pass4, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
+                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass1.aneisEntrada} onChange={e => setSetup({...setup, pass1: {...setup.pass1, aneisEntrada: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs py-1" placeholder="..." /></td>
+                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass1.aneisSaida} onChange={e => setSetup({...setup, pass1: {...setup.pass1, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs py-1" placeholder="..." /></td>
+                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass2.aneisEntrada} onChange={e => setSetup({...setup, pass2: {...setup.pass2, aneisEntrada: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs py-1" placeholder="..." /></td>
+                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass2.aneisSaida} onChange={e => setSetup({...setup, pass2: {...setup.pass2, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs py-1" placeholder="..." /></td>
+                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass3.aneisEntrada} onChange={e => setSetup({...setup, pass3: {...setup.pass3, aneisEntrada: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs py-1" placeholder="..." /></td>
+                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass3.aneisSaida} onChange={e => setSetup({...setup, pass3: {...setup.pass3, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs py-1" placeholder="..." /></td>
+                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass4.aneisEntrada} onChange={e => setSetup({...setup, pass4: {...setup.pass4, aneisEntrada: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs py-1" placeholder="..." /></td>
+                                        <td className="p-1"><input type="text" value={setup.pass4.aneisSaida} onChange={e => setSetup({...setup, pass4: {...setup.pass4, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs py-1" placeholder="..." /></td>
                                     </tr>
                                     <tr>
                                         <td className="bg-slate-50 border-r border-[#002060] py-1.5 font-bold text-[9px] text-[#002060] uppercase">mm (saida)</td>
-                                        <td colSpan={2} className="border-r border-[#002060] p-1"><input type="text" value={setup.pass1.mmSaida} onChange={e => setSetup({...setup, pass1: {...setup.pass1, mmSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
-                                        <td colSpan={2} className="border-r border-[#002060] p-1"><input type="text" value={setup.pass2.mmSaida} onChange={e => setSetup({...setup, pass2: {...setup.pass2, mmSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
-                                        <td colSpan={2} className="border-r border-[#002060] p-1"><input type="text" value={setup.pass3.mmSaida} onChange={e => setSetup({...setup, pass3: {...setup.pass3, mmSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
-                                        <td colSpan={2} className="p-1"><input type="text" value={setup.pass4.mmSaida} onChange={e => setSetup({...setup, pass4: {...setup.pass4, mmSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
+                                        <td colSpan={2} className="border-r border-[#002060] p-1"><input type="text" value={setup.pass1.mmSaida} onChange={e => setSetup({...setup, pass1: {...setup.pass1, mmSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs py-1" placeholder="..." /></td>
+                                        <td colSpan={2} className="border-r border-[#002060] p-1"><input type="text" value={setup.pass2.mmSaida} onChange={e => setSetup({...setup, pass2: {...setup.pass2, mmSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs py-1" placeholder="..." /></td>
+                                        <td colSpan={2} className="border-r border-[#002060] p-1"><input type="text" value={setup.pass3.mmSaida} onChange={e => setSetup({...setup, pass3: {...setup.pass3, mmSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs py-1" placeholder="..." /></td>
+                                        <td colSpan={2} className="p-1"><input type="text" value={setup.pass4.mmSaida} onChange={e => setSetup({...setup, pass4: {...setup.pass4, mmSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs py-1" placeholder="..." /></td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
 
                         {/* Informações de Liberação */}
-                        <div className="col-span-12 md:col-span-3 border border-[#002060] rounded p-2 flex flex-col justify-between gap-1.5 bg-slate-50">
-                            <div className="flex items-center gap-1">
-                                <span className="text-[8px] font-black text-slate-500 uppercase tracking-tight shrink-0">Responsável:</span>
-                                <input type="text" value={responsavelHeader} onChange={e => setResponsavelHeader(e.target.value)} className="op-editable-input w-full text-[9px] font-black" placeholder="Nome..." />
+                        <div className="col-span-12 md:col-span-2 border border-[#002060] rounded p-2 flex flex-col justify-center gap-1.5 bg-slate-50">
+                            <div className="flex items-center gap-1 justify-between">
+                                <span className="text-[8px] font-black text-slate-500 uppercase tracking-tight shrink-0">Resp:</span>
+                                <input type="text" value={responsavelHeader} onChange={e => setResponsavelHeader(e.target.value)} className="op-editable-input w-full text-[10px] font-black text-right" placeholder="Nome..." />
                             </div>
-                            <div className="flex items-center gap-1 border-t border-slate-200 pt-1">
-                                <span className="text-[8px] font-black text-slate-500 uppercase tracking-tight shrink-0">Bitola Aferida:</span>
-                                <input type="text" value={bitolaAferida} onChange={e => setBitolaAferida(e.target.value)} className="op-editable-input w-full text-[9px] font-black" placeholder="Mm..." />
+                            <div className="flex items-center gap-1 justify-between border-t border-slate-200 pt-1">
+                                <span className="text-[8px] font-black text-slate-500 uppercase tracking-tight shrink-0">Aferida:</span>
+                                <input type="text" value={bitolaAferida} onChange={e => setBitolaAferida(e.target.value)} className="op-editable-input w-full text-[10px] font-black text-right" placeholder="Mm..." />
                             </div>
-                            <div className="flex items-center gap-1 border-t border-slate-200 pt-1">
+                            <div className="flex items-center gap-1 justify-between border-t border-slate-200 pt-1">
                                 <span className="text-[8px] font-black text-slate-500 uppercase tracking-tight shrink-0">Liberação:</span>
-                                <input type="text" value={liberacao} onChange={e => setLiberacao(e.target.value)} className="op-editable-input w-full text-[9px] font-black" placeholder="Status..." />
+                                <input type="text" value={liberacao} onChange={e => setLiberacao(e.target.value)} className="op-editable-input w-full text-[10px] font-black text-right text-emerald-700" placeholder="Status..." />
                             </div>
                         </div>
                     </div>
