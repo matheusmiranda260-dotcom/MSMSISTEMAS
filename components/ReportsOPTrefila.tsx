@@ -680,6 +680,27 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                     {/* TABELA PRINCIPAL DA FICHA */}
                     <div className="border border-[#002060] rounded overflow-hidden relative mb-3">
                         <table className="w-full border-collapse text-left text-[10px] table-fixed">
+                            <colgroup>
+                                <col style={{ width: '4%' }} />
+                                <col style={{ width: '8%' }} />
+                                <col style={{ width: '10%' }} />
+                                <col style={{ width: '7%' }} />
+                                <col style={{ width: '7%' }} />
+                                <col style={{ width: '5%' }} />
+                                <col style={{ width: '4.5%' }} />
+                                <col style={{ width: '4.5%' }} />
+                                <col style={{ width: '4.5%' }} />
+                                <col style={{ width: '4.5%' }} />
+                                <col style={{ width: '4.5%' }} />
+                                <col style={{ width: '3.5%' }} />
+                                <col style={{ width: '3.5%' }} />
+                                <col style={{ width: '3.5%' }} />
+                                <col style={{ width: '4.5%' }} />
+                                <col style={{ width: '4.5%' }} />
+                                <col style={{ width: '5.5%' }} />
+                                <col style={{ width: '4.5%' }} />
+                                <col style={{ width: '7%' }} />
+                            </colgroup>
                             <thead>
                                 {/* Cabeçalho de Grupos */}
                                 <tr className="bg-[#002060] text-white text-[9.5px] font-black uppercase text-center border-b border-[#002060]">
@@ -692,32 +713,32 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                                 </tr>
                                 {/* Sub-cabeçalho de colunas */}
                                 <tr className="bg-slate-100 border-b border-[#002060] text-[8.5px] font-black text-slate-700 uppercase text-center">
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '4%' }}>Data</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '8%' }}>Lote (copex)</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '10%' }}>Fornecedor</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '7%' }}>Nº Certif.</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '7%' }}>Nº Corrida</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '5%' }}>Nota Fiscal</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5">Data</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5">Lote (copex)</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5">Fornecedor</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5">Nº Certif.</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5">Nº Corrida</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5">Nota Fiscal</th>
                                     <th colSpan={3} className="border-r border-slate-300 py-0.5 text-center">Peso (kg)</th>
                                     
                                     <th colSpan={2} className="border-r border-slate-300 py-0.5 text-center">Dimensional</th>
                                     <th colSpan={3} className="border-r border-slate-300 py-0.5 text-center">Ensaio Tração</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5 text-[8px]" style={{ width: '4.5%' }}>Caract. Geom.</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5 text-[8px]" style={{ width: '4.5%' }}>Dobram.</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5 text-[8px]" style={{ width: '5.5%' }}>Verif. Marcação</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5 text-[8px]" style={{ width: '4.5%' }}>Alonga.</th>
-                                    <th rowSpan={2} className="py-1.5 px-0.5" style={{ width: '7%' }}>Aprovação</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5 text-[8px]">Caract. Geom.</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5 text-[8px]">Dobram.</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5 text-[8px]">Verif. Marcação</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5 text-[8px]">Alonga.</th>
+                                    <th rowSpan={2} className="py-1.5 px-0.5">Aprovação</th>
                                 </tr>
                                 <tr className="bg-slate-50 border-b border-[#002060] text-[7.5px] font-bold text-slate-600 uppercase text-center">
-                                    <th className="border-r border-slate-300 py-0.5" style={{ width: '4.5%' }}>etiqueta</th>
-                                    <th className="border-r border-slate-300 py-0.5" style={{ width: '4.5%' }}>balança</th>
-                                    <th className="border-r border-slate-300 py-0.5" style={{ width: '4.5%' }}>diferença</th>
+                                    <th className="border-r border-slate-300 py-0.5">etiqueta</th>
+                                    <th className="border-r border-slate-300 py-0.5">balança</th>
+                                    <th className="border-r border-slate-300 py-0.5">diferença</th>
                                     
-                                    <th className="border-r border-slate-300 py-0.5" style={{ width: '4.5%' }}>massa linear</th>
-                                    <th className="border-r border-slate-300 py-0.5" style={{ width: '4.5%' }}>bitola (mm)</th>
-                                    <th className="border-r border-slate-300 py-0.5" style={{ width: '3.5%' }}>R.T</th>
-                                    <th className="border-r border-slate-300 py-0.5" style={{ width: '3.5%' }}>L.E</th>
-                                    <th className="border-r border-slate-300 py-0.5" style={{ width: '3.5%' }}>RT/LE</th>
+                                    <th className="border-r border-slate-300 py-0.5">massa linear</th>
+                                    <th className="border-r border-slate-300 py-0.5">bitola (mm)</th>
+                                    <th className="border-r border-slate-300 py-0.5">R.T</th>
+                                    <th className="border-r border-slate-300 py-0.5">L.E</th>
+                                    <th className="border-r border-slate-300 py-0.5">RT/LE</th>
                                 </tr>
                             </thead>
                             <tbody>
