@@ -428,6 +428,7 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                     border-radius: 0 !important;
                     height: auto !important;
                     line-height: normal !important;
+                    min-width: 0 !important;
                 }
                 .op-editable-input:hover {
                     border-bottom: 1.5px dashed #3b82f6 !important;
@@ -612,11 +613,11 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                         </div>
 
                         {/* Setup - Plano de passe (GRID DO MODELO) */}
-                        <div className="col-span-12 md:col-span-8 border border-[#002060] rounded overflow-x-auto">
+                        <div className="col-span-12 md:col-span-8 border border-[#002060] rounded overflow-hidden">
                             <div className="bg-[#002060] text-white py-1 text-center text-[11px] font-black uppercase tracking-wider">
                                 Setup - Plano de passe
                             </div>
-                            <table className="w-full border-collapse text-center" style={{ minWidth: '600px' }}>
+                            <table className="w-full border-collapse text-center table-fixed">
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-[#002060] text-[9.5px] font-black text-slate-700 uppercase">
                                         <th rowSpan={2} className="border-r border-[#002060] py-1 text-center w-[16%] font-extrabold text-[#002060]">passes</th>
@@ -677,8 +678,8 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                     </div>
 
                     {/* TABELA PRINCIPAL DA FICHA */}
-                    <div className="border border-[#002060] rounded overflow-x-auto relative mb-3">
-                        <table className="w-full border-collapse text-left text-[10px]">
+                    <div className="border border-[#002060] rounded overflow-hidden relative mb-3">
+                        <table className="w-full border-collapse text-left text-[10px] table-fixed">
                             <thead>
                                 {/* Cabeçalho de Grupos */}
                                 <tr className="bg-[#002060] text-white text-[9.5px] font-black uppercase text-center border-b border-[#002060]">
@@ -694,9 +695,9 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                                     <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '4%' }}>Data</th>
                                     <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '8%' }}>Lote (copex)</th>
                                     <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '10%' }}>Fornecedor</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '8%' }}>Nº Certif.</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '7%' }}>Nº Certif.</th>
                                     <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '7%' }}>Nº Corrida</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '6%' }}>Nota Fiscal</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '5%' }}>Nota Fiscal</th>
                                     <th colSpan={3} className="border-r border-slate-300 py-0.5 text-center">Peso (kg)</th>
                                     
                                     <th colSpan={2} className="border-r border-slate-300 py-0.5 text-center">Dimensional</th>
@@ -704,8 +705,8 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                                     <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5 text-[8px]" style={{ width: '4.5%' }}>Caract. Geom.</th>
                                     <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5 text-[8px]" style={{ width: '4.5%' }}>Dobram.</th>
                                     <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5 text-[8px]" style={{ width: '5.5%' }}>Verif. Marcação</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5 text-[8px]" style={{ width: '5%' }}>Alonga.</th>
-                                    <th rowSpan={2} className="py-1.5 px-0.5" style={{ width: '6.5%' }}>Aprovação</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5 text-[8px]" style={{ width: '4.5%' }}>Alonga.</th>
+                                    <th rowSpan={2} className="py-1.5 px-0.5" style={{ width: '7%' }}>Aprovação</th>
                                 </tr>
                                 <tr className="bg-slate-50 border-b border-[#002060] text-[7.5px] font-bold text-slate-600 uppercase text-center">
                                     <th className="border-r border-slate-300 py-0.5" style={{ width: '4.5%' }}>etiqueta</th>
