@@ -446,8 +446,8 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
 
                 @media print {
                     @page {
-                        size: A4 portrait;
-                        margin: 8mm 6mm;
+                        size: A4 landscape;
+                        margin: 5mm;
                     }
                     body {
                         background: white !important;
@@ -489,8 +489,8 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                     margin: 0 auto !important;
                     box-shadow: none !important;
                     border: none !important;
-                    width: 1024px !important;
-                    max-width: 1024px !important;
+                    width: 1180px !important;
+                    max-width: 1180px !important;
                     border-radius: 0 !important;
                 }
                 .is-capturing .op-editable-input {
@@ -556,7 +556,7 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                     Carregando dados...
                 </div>
             ) : (
-                <div id="trefila-op-sheet" className="bg-white max-w-[1024px] mx-auto op-sheet-container print-sheet-a4 border-2 border-[#002060] rounded-lg overflow-hidden shadow-lg p-4 bg-white relative">
+                <div id="trefila-op-sheet" className="bg-white max-w-[1240px] mx-auto op-sheet-container print-sheet-a4 border-2 border-[#002060] rounded-lg overflow-hidden shadow-lg p-4 bg-white relative">
                     
                     {/* CABEÇALHO */}
                     <div className="grid grid-cols-12 border border-[#002060] mb-3">
@@ -613,47 +613,47 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
 
                         {/* Setup - Plano de passe (GRID DO MODELO) */}
                         <div className="col-span-12 md:col-span-6 border border-[#002060] rounded overflow-hidden">
-                            <div className="bg-[#002060] text-white py-0.5 text-center text-[9px] font-black uppercase tracking-wider">
+                            <div className="bg-[#002060] text-white py-1 text-center text-[11px] font-black uppercase tracking-wider">
                                 Setup - Plano de passe
                             </div>
                             <table className="w-full border-collapse text-center">
                                 <thead>
-                                    <tr className="bg-slate-50 border-b border-[#002060] text-[8px] font-black text-slate-700 uppercase">
-                                        <th rowSpan={2} className="border-r border-[#002060] py-1 text-center w-[75px]">passes</th>
-                                        <th colSpan={2} className="border-r border-[#002060] py-0.5 text-center">1º Passe</th>
-                                        <th colSpan={2} className="border-r border-[#002060] py-0.5 text-center">2º Passe</th>
-                                        <th colSpan={2} className="border-r border-[#002060] py-0.5 text-center">3º Passe</th>
-                                        <th colSpan={2} className="py-0.5 text-center">4º Passe</th>
+                                    <tr className="bg-slate-50 border-b border-[#002060] text-[9.5px] font-black text-slate-700 uppercase">
+                                        <th rowSpan={2} className="border-r border-[#002060] py-1 text-center w-[100px] font-extrabold text-[#002060]">passes</th>
+                                        <th colSpan={2} className="border-r border-[#002060] py-0.5 text-center font-extrabold text-[#002060]">1º Passe</th>
+                                        <th colSpan={2} className="border-r border-[#002060] py-0.5 text-center font-extrabold text-[#002060]">2º Passe</th>
+                                        <th colSpan={2} className="border-r border-[#002060] py-0.5 text-center font-extrabold text-[#002060]">3º Passe</th>
+                                        <th colSpan={2} className="py-0.5 text-center font-extrabold text-[#002060]">4º Passe</th>
                                     </tr>
-                                    <tr className="bg-slate-100 border-b border-[#002060] text-[7px] font-bold text-slate-600 uppercase">
-                                        <th className="border-r border-[#002060] py-0.5">entrada</th>
-                                        <th className="border-r border-[#002060] py-0.5">saída</th>
-                                        <th className="border-r border-[#002060] py-0.5">entrada</th>
-                                        <th className="border-r border-[#002060] py-0.5">saída</th>
-                                        <th className="border-r border-[#002060] py-0.5">entrada</th>
-                                        <th className="border-r border-[#002060] py-0.5">saída</th>
-                                        <th className="border-r border-[#002060] py-0.5">entrada</th>
-                                        <th className="py-0.5">saída</th>
+                                    <tr className="bg-slate-100 border-b border-[#002060] text-[8.5px] font-bold text-slate-600 uppercase text-center">
+                                        <th className="border-r border-[#002060] py-0.5 w-[11.5%]">entrada</th>
+                                        <th className="border-r border-[#002060] py-0.5 w-[11.5%]">saída</th>
+                                        <th className="border-r border-[#002060] py-0.5 w-[11.5%]">entrada</th>
+                                        <th className="border-r border-[#002060] py-0.5 w-[11.5%]">saída</th>
+                                        <th className="border-r border-[#002060] py-0.5 w-[11.5%]">entrada</th>
+                                        <th className="border-r border-[#002060] py-0.5 w-[11.5%]">saída</th>
+                                        <th className="border-r border-[#002060] py-0.5 w-[11.5%]">entrada</th>
+                                        <th className="py-0.5 w-[11.5%]">saída</th>
                                     </tr>
                                 </thead>
-                                <tbody className="text-[9px] font-black">
+                                <tbody className="text-xs font-black text-[#002060]">
                                     <tr className="border-b border-[#002060]">
-                                        <td className="bg-slate-50 border-r border-[#002060] py-1 font-bold text-[8px] uppercase">aneis</td>
-                                        <td className="border-r border-[#002060] p-0.5"><input type="text" value={setup.pass1.aneisEntrada} onChange={e => setSetup({...setup, pass1: {...setup.pass1, aneisEntrada: e.target.value}})} className="op-editable-input text-center w-full font-black text-[9px]" placeholder="..." /></td>
-                                        <td className="border-r border-[#002060] p-0.5"><input type="text" value={setup.pass1.aneisSaida} onChange={e => setSetup({...setup, pass1: {...setup.pass1, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-[9px]" placeholder="..." /></td>
-                                        <td className="border-r border-[#002060] p-0.5"><input type="text" value={setup.pass2.aneisEntrada} onChange={e => setSetup({...setup, pass2: {...setup.pass2, aneisEntrada: e.target.value}})} className="op-editable-input text-center w-full font-black text-[9px]" placeholder="..." /></td>
-                                        <td className="border-r border-[#002060] p-0.5"><input type="text" value={setup.pass2.aneisSaida} onChange={e => setSetup({...setup, pass2: {...setup.pass2, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-[9px]" placeholder="..." /></td>
-                                        <td className="border-r border-[#002060] p-0.5"><input type="text" value={setup.pass3.aneisEntrada} onChange={e => setSetup({...setup, pass3: {...setup.pass3, aneisEntrada: e.target.value}})} className="op-editable-input text-center w-full font-black text-[9px]" placeholder="..." /></td>
-                                        <td className="border-r border-[#002060] p-0.5"><input type="text" value={setup.pass3.aneisSaida} onChange={e => setSetup({...setup, pass3: {...setup.pass3, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-[9px]" placeholder="..." /></td>
-                                        <td className="border-r border-[#002060] p-0.5"><input type="text" value={setup.pass4.aneisEntrada} onChange={e => setSetup({...setup, pass4: {...setup.pass4, aneisEntrada: e.target.value}})} className="op-editable-input text-center w-full font-black text-[9px]" placeholder="..." /></td>
-                                        <td className="p-0.5"><input type="text" value={setup.pass4.aneisSaida} onChange={e => setSetup({...setup, pass4: {...setup.pass4, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-[9px]" placeholder="..." /></td>
+                                        <td className="bg-slate-50 border-r border-[#002060] py-1.5 font-bold text-[9px] text-[#002060] uppercase">aneis</td>
+                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass1.aneisEntrada} onChange={e => setSetup({...setup, pass1: {...setup.pass1, aneisEntrada: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
+                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass1.aneisSaida} onChange={e => setSetup({...setup, pass1: {...setup.pass1, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
+                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass2.aneisEntrada} onChange={e => setSetup({...setup, pass2: {...setup.pass2, aneisEntrada: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
+                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass2.aneisSaida} onChange={e => setSetup({...setup, pass2: {...setup.pass2, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
+                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass3.aneisEntrada} onChange={e => setSetup({...setup, pass3: {...setup.pass3, aneisEntrada: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
+                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass3.aneisSaida} onChange={e => setSetup({...setup, pass3: {...setup.pass3, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
+                                        <td className="border-r border-[#002060] p-1"><input type="text" value={setup.pass4.aneisEntrada} onChange={e => setSetup({...setup, pass4: {...setup.pass4, aneisEntrada: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
+                                        <td className="p-1"><input type="text" value={setup.pass4.aneisSaida} onChange={e => setSetup({...setup, pass4: {...setup.pass4, aneisSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
                                     </tr>
                                     <tr>
-                                        <td className="bg-slate-50 border-r border-[#002060] py-1 font-bold text-[8px] uppercase">mm (saida)</td>
-                                        <td colSpan={2} className="border-r border-[#002060] p-0.5"><input type="text" value={setup.pass1.mmSaida} onChange={e => setSetup({...setup, pass1: {...setup.pass1, mmSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-[9px]" placeholder="..." /></td>
-                                        <td colSpan={2} className="border-r border-[#002060] p-0.5"><input type="text" value={setup.pass2.mmSaida} onChange={e => setSetup({...setup, pass2: {...setup.pass2, mmSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-[9px]" placeholder="..." /></td>
-                                        <td colSpan={2} className="border-r border-[#002060] p-0.5"><input type="text" value={setup.pass3.mmSaida} onChange={e => setSetup({...setup, pass3: {...setup.pass3, mmSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-[9px]" placeholder="..." /></td>
-                                        <td colSpan={2} className="p-0.5"><input type="text" value={setup.pass4.mmSaida} onChange={e => setSetup({...setup, pass4: {...setup.pass4, mmSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-[9px]" placeholder="..." /></td>
+                                        <td className="bg-slate-50 border-r border-[#002060] py-1.5 font-bold text-[9px] text-[#002060] uppercase">mm (saida)</td>
+                                        <td colSpan={2} className="border-r border-[#002060] p-1"><input type="text" value={setup.pass1.mmSaida} onChange={e => setSetup({...setup, pass1: {...setup.pass1, mmSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
+                                        <td colSpan={2} className="border-r border-[#002060] p-1"><input type="text" value={setup.pass2.mmSaida} onChange={e => setSetup({...setup, pass2: {...setup.pass2, mmSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
+                                        <td colSpan={2} className="border-r border-[#002060] p-1"><input type="text" value={setup.pass3.mmSaida} onChange={e => setSetup({...setup, pass3: {...setup.pass3, mmSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
+                                        <td colSpan={2} className="p-1"><input type="text" value={setup.pass4.mmSaida} onChange={e => setSetup({...setup, pass4: {...setup.pass4, mmSaida: e.target.value}})} className="op-editable-input text-center w-full font-black text-xs min-w-[50px] py-1" placeholder="..." /></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -678,36 +678,36 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
 
                     {/* TABELA PRINCIPAL DA FICHA */}
                     <div className="border border-[#002060] rounded overflow-x-auto relative mb-3">
-                        <table className="w-full border-collapse text-left text-[9px]">
+                        <table className="w-full border-collapse text-left text-[10px]">
                             <thead>
                                 {/* Cabeçalho de Grupos */}
-                                <tr className="bg-[#002060] text-white text-[8px] font-black uppercase text-center border-b border-[#002060]">
-                                    <th colSpan={9} className="border-r border-[#002060] py-1 text-center font-black tracking-wider">
+                                <tr className="bg-[#002060] text-white text-[9.5px] font-black uppercase text-center border-b border-[#002060]">
+                                    <th colSpan={9} className="border-r border-[#002060] py-1.5 text-center font-black tracking-wider">
                                         Controle da Matéria Prima (Aços entrada)
                                     </th>
-                                    <th colSpan={10} className="py-1 text-center font-black tracking-wider">
+                                    <th colSpan={10} className="py-1.5 text-center font-black tracking-wider">
                                         Controle Produto em Linha / Laboratório (Trefilado)
                                     </th>
                                 </tr>
                                 {/* Sub-cabeçalho de colunas */}
-                                <tr className="bg-slate-100 border-b border-[#002060] text-[7.5px] font-black text-slate-700 uppercase text-center">
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1 px-0.5" style={{ width: '4%' }}>Data</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1 px-0.5" style={{ width: '8%' }}>Lote (copex)</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1 px-0.5" style={{ width: '10%' }}>Fornecedor</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1 px-0.5" style={{ width: '8%' }}>Nº Certif.</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1 px-0.5" style={{ width: '7%' }}>Nº Corrida</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1 px-0.5" style={{ width: '6%' }}>Nota Fiscal</th>
+                                <tr className="bg-slate-100 border-b border-[#002060] text-[8.5px] font-black text-slate-700 uppercase text-center">
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '4%' }}>Data</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '8%' }}>Lote (copex)</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '10%' }}>Fornecedor</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '8%' }}>Nº Certif.</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '7%' }}>Nº Corrida</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5" style={{ width: '6%' }}>Nota Fiscal</th>
                                     <th colSpan={3} className="border-r border-slate-300 py-0.5 text-center">Peso (kg)</th>
                                     
                                     <th colSpan={2} className="border-r border-slate-300 py-0.5 text-center">Dimensional</th>
                                     <th colSpan={3} className="border-r border-slate-300 py-0.5 text-center">Ensaio Tração</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1 px-0.5 text-[7px]" style={{ width: '4.5%' }}>Caract. Geom.</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1 px-0.5 text-[7px]" style={{ width: '4.5%' }}>Dobram.</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1 px-0.5 text-[7px]" style={{ width: '5.5%' }}>Verif. Marcação</th>
-                                    <th rowSpan={2} className="border-r border-slate-300 py-1 px-0.5 text-[7px]" style={{ width: '5%' }}>Alonga.</th>
-                                    <th rowSpan={2} className="py-1 px-0.5" style={{ width: '6.5%' }}>Aprovação</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5 text-[8px]" style={{ width: '4.5%' }}>Caract. Geom.</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5 text-[8px]" style={{ width: '4.5%' }}>Dobram.</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5 text-[8px]" style={{ width: '5.5%' }}>Verif. Marcação</th>
+                                    <th rowSpan={2} className="border-r border-slate-300 py-1.5 px-0.5 text-[8px]" style={{ width: '5%' }}>Alonga.</th>
+                                    <th rowSpan={2} className="py-1.5 px-0.5" style={{ width: '6.5%' }}>Aprovação</th>
                                 </tr>
-                                <tr className="bg-slate-50 border-b border-[#002060] text-[6.5px] font-bold text-slate-600 uppercase text-center">
+                                <tr className="bg-slate-50 border-b border-[#002060] text-[7.5px] font-bold text-slate-600 uppercase text-center">
                                     <th className="border-r border-slate-300 py-0.5" style={{ width: '4.5%' }}>etiqueta</th>
                                     <th className="border-r border-slate-300 py-0.5" style={{ width: '4.5%' }}>balança</th>
                                     <th className="border-r border-[#002060] py-0.5" style={{ width: '4.5%' }}>diferença</th>
