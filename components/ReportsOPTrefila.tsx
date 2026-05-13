@@ -710,13 +710,13 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                                 <tr className="bg-slate-50 border-b border-[#002060] text-[7.5px] font-bold text-slate-600 uppercase text-center">
                                     <th className="border-r border-slate-300 py-0.5" style={{ width: '4.5%' }}>etiqueta</th>
                                     <th className="border-r border-slate-300 py-0.5" style={{ width: '4.5%' }}>balança</th>
-                                    <th className="border-r border-[#002060] py-0.5" style={{ width: '4.5%' }}>diferença</th>
+                                    <th className="border-r border-slate-300 py-0.5" style={{ width: '4.5%' }}>diferença</th>
                                     
                                     <th className="border-r border-slate-300 py-0.5" style={{ width: '4.5%' }}>massa linear</th>
                                     <th className="border-r border-slate-300 py-0.5" style={{ width: '4.5%' }}>bitola (mm)</th>
                                     <th className="border-r border-slate-300 py-0.5" style={{ width: '3.5%' }}>R.T</th>
                                     <th className="border-r border-slate-300 py-0.5" style={{ width: '3.5%' }}>L.E</th>
-                                    <th className="border-r border-[#002060] py-0.5" style={{ width: '3.5%' }}>RT/LE</th>
+                                    <th className="border-r border-slate-300 py-0.5" style={{ width: '3.5%' }}>RT/LE</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -806,7 +806,7 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                                             </td>
 
                                             {/* Peso Diferença (Calculado) */}
-                                            <td className={`border-r border-[#002060] p-0.5 font-black text-center text-[9px] ${diff && diff < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                            <td className={`border-r border-slate-300 p-0.5 font-black text-center text-[9px] ${diff && diff < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                                                 {diff !== null ? `${diff > 0 ? '+' : ''}${diff}` : '-'}
                                             </td>
 
@@ -831,7 +831,7 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                                             </td>
 
                                             {/* Tração - RT/LE (Calculado) */}
-                                            <td className="border-r border-[#002060] p-0.5 font-black text-center text-[9px] text-[#002060]">
+                                            <td className="border-r border-slate-300 p-0.5 font-black text-center text-[9px] text-[#002060]">
                                                 {ratio !== null ? ratio : '-'}
                                             </td>
 
