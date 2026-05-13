@@ -417,6 +417,99 @@ const MachineSpeedModal: React.FC<{
     );
 };
 
+const BitolaCheckModal: React.FC<{
+    onClose: () => void;
+}> = ({ onClose }) => {
+    const [comprimento, setComprimento] = useState('');
+    const [massa, setMassa] = useState('');
+
+    const parseNum = (v: string) => {
+        const n = parseFloat(v.replace(',', '.'));
+        return isNaN(n) ? null : n;
+    };
+
+    const c = parseNum(comprimento);
+    const m = parseNum(massa);
+    const bitolaFinal = (m && c && c > 0) ? Math.sqrt(m / c) * 12.744 : null;
+
+    return (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[110] p-4">
+            <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-zoom-in border border-slate-100">
+                {/* Header */}
+                <div className="bg-gradient-to-br from-amber-50 to-white p-8 border-b border-slate-100 flex justify-between items-center">
+                    <div>
+                        <h2 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-3">
+                            <div className="p-2 bg-amber-100 rounded-xl">
+                                <ScaleIcon className="h-6 w-6 text-amber-600" />
+                            </div>
+                            Conferir Bitola
+                        </h2>
+                        <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mt-1">Calculadora rápida</p>
+                    </div>
+                    <button type="button" onClick={onClose} className="p-3 hover:bg-slate-100 rounded-2xl text-slate-400 transition-all active:scale-90">
+                        <XCircleIcon className="h-8 w-8" />
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div className="p-8 space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Comprimento</label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={comprimento}
+                                    onChange={(e) => setComprimento(e.target.value)}
+                                    placeholder="199"
+                                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-center text-2xl font-black text-slate-800 focus:border-amber-500 focus:bg-white transition-all outline-none"
+                                    autoFocus
+                                />
+                                <span className="absolute top-1/2 -translate-y-1/2 right-3 text-slate-300 text-xs font-bold">mm</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Massa</label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={massa}
+                                    onChange={(e) => setMassa(e.target.value)}
+                                    placeholder="14,101"
+                                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-center text-2xl font-black text-slate-800 focus:border-amber-500 focus:bg-white transition-all outline-none"
+                                />
+                                <span className="absolute top-1/2 -translate-y-1/2 right-3 text-slate-300 text-xs font-bold">g</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Result */}
+                    <div className={`p-6 rounded-3xl border-4 transition-all duration-500 ${
+                        bitolaFinal !== null
+                            ? 'bg-amber-50 border-amber-400 shadow-lg shadow-amber-100'
+                            : 'bg-slate-50 border-slate-200'
+                    }`}>
+                        <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${bitolaFinal !== null ? 'text-amber-600' : 'text-slate-400'}`}>
+                            ⚡ Bitola Final
+                        </p>
+                        <p className={`text-5xl font-black text-center transition-colors ${bitolaFinal !== null ? 'text-amber-800' : 'text-slate-300'}`}>
+                            {bitolaFinal !== null ? bitolaFinal.toFixed(2) : '—'}
+                            {bitolaFinal !== null && <span className="text-lg text-amber-500 ml-2">mm</span>}
+                        </p>
+                    </div>
+
+                    {/* Formula hint */}
+                    <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                        Fórmula: √(massa ÷ comprimento) × 12,744
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const QuantityPromptModal: React.FC<{
     onClose: () => void;
     onSubmit: (quantity: number) => void;
@@ -990,6 +1083,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
     const [lastPromptShownAt, setLastPromptShownAt] = useState<number>(0);
     const [showLotSelectionModal, setShowLotSelectionModal] = useState(false);
     const [showMobileActions, setShowMobileActions] = useState(false);
+    const [showBitolaCheck, setShowBitolaCheck] = useState(initialModal === 'bitolaCheck');
 
     const hasPermission = (targetPage: Page): boolean => {
         if (!currentUser) return false;
@@ -1312,6 +1406,8 @@ const MachineControl: React.FC<MachineControlProps> = ({
         } else if (initialModal === 'parts') {
             setShowPartsRequestModal(true);
             setShowShiftReportsModal(false);
+        } else if (initialModal === 'bitolaCheck') {
+            setShowBitolaCheck(true);
         } else if (initialModal === null) {
             setShowPartsRequestModal(false);
         }
@@ -1906,6 +2002,9 @@ const MachineControl: React.FC<MachineControlProps> = ({
                     }}
                 />
             )}
+            {showBitolaCheck && (
+                <BitolaCheckModal onClose={() => setShowBitolaCheck(false)} />
+            )}
 
 
             {/* Machine Header for better context on mobile */}
@@ -2065,6 +2164,14 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                 label="Simulação"
                                 description="Anéis & K-7"
                                 icon={<CalculatorIcon className="h-6 w-6" />}
+                            />
+                        )}
+                        {activeMachine.startsWith('Trefila') && (
+                            <MachineMenuButton
+                                onClick={() => setShowBitolaCheck(true)}
+                                label="Conferir Bitola"
+                                description="Calculadora Rápida"
+                                icon={<ScaleIcon className="h-6 w-6" />}
                             />
                         )}
                     </div>

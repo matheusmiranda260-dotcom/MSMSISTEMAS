@@ -36,7 +36,7 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
     React.useEffect(() => {
         if (['stock', 'stockAdd', 'stockTransfer'].includes(page)) {
             setExpandedMenus(prev => prev.includes('stock') ? prev : [...prev, 'stock']);
-        } else if (['trefilaInProgress', 'trefilaPending', 'trefilaCompleted', 'trefilaReports', 'trefilaWeighing', 'trefilaRings'].includes(page)) {
+        } else if (['trefilaInProgress', 'trefilaPending', 'trefilaCompleted', 'trefilaReports', 'trefilaWeighing', 'trefilaRings', 'trefilaBitolaCheck'].includes(page)) {
             setExpandedMenus(prev => prev.includes('trefila') ? prev : [...prev, 'trefila']);
         } else if (['trelicaInProgress', 'trelicaPending', 'trelicaCompleted', 'trelicaReports'].includes(page)) {
             setExpandedMenus(prev => prev.includes('trelica') ? prev : [...prev, 'trelica']);
@@ -116,11 +116,11 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                     <div className="sidebar-category-title">{isCollapsed ? '🏭' : '🏭 Produção'}</div>
 
                     {/* Trefila Collapsible */}
-                    {(hasPermission('trefilaInProgress') || hasPermission('trefilaWeighing') || hasPermission('trefilaPending') || hasPermission('trefilaCompleted') || hasPermission('trefilaReports') || hasPermission('trefilaRings')) && (
+                    {(hasPermission('trefilaInProgress') || hasPermission('trefilaWeighing') || hasPermission('trefilaPending') || hasPermission('trefilaCompleted') || hasPermission('trefilaReports') || hasPermission('trefilaRings') || hasPermission('trefilaBitolaCheck')) && (
                         <>
                             <button
                                 onClick={() => toggleMenu('trefila')}
-                                className={`sidebar-item ${['trefilaInProgress', 'trefilaPending', 'trefilaCompleted', 'trefilaReports', 'trefilaWeighing', 'trefilaRings'].includes(page) ? 'active' : ''} justify-between group`}
+                                className={`sidebar-item ${['trefilaInProgress', 'trefilaPending', 'trefilaCompleted', 'trefilaReports', 'trefilaWeighing', 'trefilaRings', 'trefilaBitolaCheck'].includes(page) ? 'active' : ''} justify-between group`}
                                 title={isCollapsed ? 'Produção – Trefila' : ''}
                             >
                                 <div className="flex items-center gap-3 overflow-hidden">
@@ -172,6 +172,9 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                                             💍 Simulação & Anéis
                                         </button>
                                     )}
+                                    <button onClick={() => setPage('trefilaBitolaCheck')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'trefilaBitolaCheck' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                        ⚖️ Aferir Bitola
+                                    </button>
                                 </div>
                             )}
                         </>

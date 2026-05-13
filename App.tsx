@@ -2213,6 +2213,7 @@ const App: React.FC = () => {
             case 'trefilaParts': return <MachineControl machineType="Trefila" {...mcProps} initialView="dashboard" initialModal="parts" />;
             case 'trefilaWeighing': return <TrefilaWeighing productionOrders={productionOrders} stock={stock} recordLotWeight={recordLotWeight} />;
             case 'trefilaRings': return <MachineControl machineType="Trefila" {...mcProps} initialView="dashboard" initialModal="rings" />;
+            case 'trefilaBitolaCheck': return <MachineControl machineType="Trefila" {...mcProps} initialView="dashboard" initialModal="bitolaCheck" />;
 
             case 'trelica': return <MachineControl machineType="Treliça" {...mcProps} initialView="dashboard" initialModal={null} />;
             case 'trelicaInProgress': return <MachineControl machineType="Treliça" {...mcProps} initialView="in_progress" initialModal={null} />;
