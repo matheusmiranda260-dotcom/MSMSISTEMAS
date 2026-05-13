@@ -94,6 +94,7 @@ const ReportsTrefila: React.FC<ReportsTrefilaProps> = ({ setPage }) => {
     const [loading, setLoading] = useState<boolean>(false);
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const [toasts, setToasts] = useState<Toast[]>([]);
+    const dateInputRef = useRef<HTMLInputElement>(null);
 
     // 2. Estados dos Campos do Formulário
     const [productionOrder, setProductionOrder] = useState<string>('');
@@ -548,6 +549,22 @@ const ReportsTrefila: React.FC<ReportsTrefilaProps> = ({ setPage }) => {
                 </div>
             </header>
 
+            {/* Filtros - No Print */}
+            <section className="bg-white p-4 rounded border border-slate-200 shadow-sm mb-4 flex flex-col sm:flex-row items-center justify-between gap-4 no-print">
+                <div>
+                    <span className="text-xs font-bold text-slate-500 uppercase">Configurações de Relatório</span>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <span className="font-bold text-slate-700 text-xs">Data:</span>
+                    <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={e => setSelectedDate(e.target.value)}
+                        className="p-1 border border-slate-300 rounded text-xs font-bold text-slate-800 cursor-pointer"
+                    />
+                </div>
+            </section>
+
             {/* Ficha Técnica - ALTA FIDELIDADE */}
             {loading ? (
                 <div className="bg-white p-16 border border-slate-200 rounded-xl shadow-sm text-center font-bold text-slate-500 animate-pulse">
@@ -572,14 +589,29 @@ const ReportsTrefila: React.FC<ReportsTrefilaProps> = ({ setPage }) => {
                         </div>
 
                         <div className="col-span-1 md:col-span-3 bg-[#002060] text-white p-3 flex items-center justify-center border-t-2 md:border-t-0 md:border-l-2 border-white relative">
-                            <div className="relative cursor-pointer hover:bg-slate-800/40 p-2 rounded transition-colors flex items-center gap-2.5 w-full justify-center md:justify-start">
+                            <div 
+                                onClick={() => {
+                                    try {
+                                        dateInputRef.current?.showPicker();
+                                    } catch (err) {
+                                        dateInputRef.current?.click();
+                                    }
+                                }}
+                                className="relative cursor-pointer hover:bg-slate-800/40 p-2 rounded transition-colors flex items-center gap-2.5 w-full justify-center md:justify-start"
+                            >
                                 <CalendarIcon className="h-6 w-6 text-white" />
                                 <div>
                                     <div className="text-[9px] font-black text-slate-300 tracking-wider">DATA DA PRODUÇÃO</div>
                                     <div className="text-base font-black text-white leading-tight">{formattedDateNumbers}</div>
                                     <div className="text-[10px] font-extrabold text-slate-300 uppercase">{formattedDayOfWeek}</div>
                                 </div>
-                                <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                                <input 
+                                    ref={dateInputRef}
+                                    type="date" 
+                                    value={selectedDate} 
+                                    onChange={e => setSelectedDate(e.target.value)} 
+                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" 
+                                />
                             </div>
                         </div>
                     </div>

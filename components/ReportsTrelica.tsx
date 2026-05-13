@@ -131,6 +131,7 @@ const ReportsTrelica: React.FC<ReportsTrelicaProps> = ({ stock, setPage }) => {
     // Ref para autosave com debounce
     const autoSaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const reportIdRef = React.useRef<string | null>(null);
+    const dateInputRef = React.useRef<HTMLInputElement>(null);
     // Atualiza o ref sempre que reportId muda
     React.useEffect(() => { reportIdRef.current = reportId; }, [reportId]);
 
@@ -902,7 +903,16 @@ const ReportsTrelica: React.FC<ReportsTrelicaProps> = ({ stock, setPage }) => {
 
                         {/* Bloco 3: Data com Seletor Oculto Interativo */}
                         <div className="col-span-1 md:col-span-3 bg-[#002060] text-white p-3 flex items-center justify-center border-t-2 md:border-t-0 md:border-l-2 border-white relative">
-                            <div className="relative cursor-pointer hover:bg-slate-800/40 p-2 rounded transition-colors flex items-center gap-2.5 w-full justify-center md:justify-start">
+                            <div 
+                                onClick={() => {
+                                    try {
+                                        dateInputRef.current?.showPicker();
+                                    } catch (err) {
+                                        dateInputRef.current?.click();
+                                    }
+                                }}
+                                className="relative cursor-pointer hover:bg-slate-800/40 p-2 rounded transition-colors flex items-center gap-2.5 w-full justify-center md:justify-start"
+                            >
                                 <CalendarIcon className="h-6 w-6 text-white" />
                                 <div>
                                     <div className="text-[9px] font-black text-slate-300 tracking-wider">DATA DA PRODUÇÃO</div>
@@ -911,6 +921,7 @@ const ReportsTrelica: React.FC<ReportsTrelicaProps> = ({ stock, setPage }) => {
                                 </div>
                                 {/* Input nativo invisível por cima para interação direta com wow-factor */}
                                 <input 
+                                    ref={dateInputRef}
                                     type="date" 
                                     value={selectedDate} 
                                     onChange={e => handleSwitchDate(e.target.value)} 
