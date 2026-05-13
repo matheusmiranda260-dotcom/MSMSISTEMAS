@@ -727,14 +727,14 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                                     const ratio = (!isNaN(parsedRt) && !isNaN(parsedLe) && parsedLe > 0) ? (parsedRt / parsedLe).toFixed(2) : null;
 
                                     return (
-                                        <tr key={row.id} className="border-b border-slate-200 hover:bg-slate-50/50 text-center font-bold">
+                                        <tr key={row.id} className="border-b border-slate-300 hover:bg-slate-50/50 text-center font-bold">
                                             {/* Data */}
-                                            <td className="border-r border-slate-200 p-0.5">
+                                            <td className="border-r border-slate-300 p-0.5">
                                                 <input type="text" value={row.data} onChange={e => updateRowField(row.id, 'data', e.target.value)} className="op-editable-input text-center w-full font-black text-[9px]" placeholder="dd/mm" />
                                             </td>
                                             
                                             {/* Lote autocomplete */}
-                                            <td className="border-r border-slate-200 p-0.5 relative">
+                                            <td className="border-r border-slate-300 p-0.5 relative">
                                                 <input 
                                                     type="text" 
                                                     value={row.lote} 
@@ -764,27 +764,27 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                                             </td>
 
                                             {/* Fornecedor */}
-                                            <td className="border-r border-slate-200 p-0.5">
+                                            <td className="border-r border-slate-300 p-0.5">
                                                 <input type="text" value={row.fornecedor} onChange={e => updateRowField(row.id, 'fornecedor', e.target.value)} className="op-editable-input text-left w-full font-bold text-[8px] uppercase truncate" placeholder="..." />
                                             </td>
 
                                             {/* Nº Certificado */}
-                                            <td className="border-r border-slate-200 p-0.5">
+                                            <td className="border-r border-slate-300 p-0.5">
                                                 <input type="text" value={row.certificado} onChange={e => updateRowField(row.id, 'certificado', e.target.value)} className="op-editable-input text-center w-full font-bold text-[9px]" placeholder="..." />
                                             </td>
 
                                             {/* Nº Corrida */}
-                                            <td className="border-r border-slate-200 p-0.5">
+                                            <td className="border-r border-slate-300 p-0.5">
                                                 <input type="text" value={row.corrida} onChange={e => updateRowField(row.id, 'corrida', e.target.value)} className="op-editable-input text-center w-full font-black text-[9px] uppercase" placeholder="..." />
                                             </td>
 
                                             {/* Nota Fiscal */}
-                                            <td className="border-r border-slate-200 p-0.5">
+                                            <td className="border-r border-slate-300 p-0.5">
                                                 <input type="text" value={row.notaFiscal} onChange={e => updateRowField(row.id, 'notaFiscal', e.target.value)} className="op-editable-input text-center w-full font-bold text-[9px]" placeholder="..." />
                                             </td>
 
                                             {/* Peso Etiqueta */}
-                                            <td className="border-r border-slate-200 p-0.5 bg-slate-50/40">
+                                            <td className="border-r border-slate-300 p-0.5 bg-slate-50/40">
                                                 <input 
                                                     type="number" 
                                                     value={row.pesoEtiqueta} 
@@ -795,7 +795,7 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                                             </td>
 
                                             {/* Peso Balança */}
-                                            <td className="border-r border-slate-200 p-0.5">
+                                            <td className="border-r border-slate-300 p-0.5">
                                                 <input 
                                                     type="number" 
                                                     value={row.pesoBalanca} 
@@ -811,22 +811,22 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                                             </td>
 
                                             {/* Dimensional - Massa Linear */}
-                                            <td className="border-r border-slate-200 p-0.5">
+                                            <td className="border-r border-slate-300 p-0.5">
                                                 <input type="text" value={row.massaLinear} onChange={e => updateRowField(row.id, 'massaLinear', e.target.value)} className="op-editable-input text-center w-full font-bold text-[9px]" placeholder="..." />
                                             </td>
 
                                             {/* Dimensional - Bitola mm */}
-                                            <td className="border-r border-slate-200 p-0.5">
+                                            <td className="border-r border-slate-300 p-0.5">
                                                 <input type="text" value={row.bitolaMm} onChange={e => updateRowField(row.id, 'bitolaMm', e.target.value)} className="op-editable-input text-center w-full font-black text-[9px]" placeholder="..." />
                                             </td>
 
                                             {/* Tração - R.T */}
-                                            <td className="border-r border-slate-200 p-0.5">
+                                            <td className="border-r border-slate-300 p-0.5">
                                                 <input type="text" value={row.rt} onChange={e => updateRowField(row.id, 'rt', e.target.value)} className="op-editable-input text-center w-full font-bold text-[9px]" placeholder="..." />
                                             </td>
 
                                             {/* Tração - L.E */}
-                                            <td className="border-r border-slate-200 p-0.5">
+                                            <td className="border-r border-slate-300 p-0.5">
                                                 <input type="text" value={row.le} onChange={e => updateRowField(row.id, 'le', e.target.value)} className="op-editable-input text-center w-full font-bold text-[9px]" placeholder="..." />
                                             </td>
 
@@ -836,22 +836,22 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                                             </td>
 
                                             {/* Geometrica */}
-                                            <td className="border-r border-slate-200 p-0.5">
+                                            <td className="border-r border-slate-300 p-0.5">
                                                 <input type="text" value={row.caractGeo} onChange={e => updateRowField(row.id, 'caractGeo', e.target.value)} className="op-editable-input text-center w-full font-medium text-[9px]" placeholder="..." />
                                             </td>
 
                                             {/* Dobramento */}
-                                            <td className="border-r border-slate-200 p-0.5">
+                                            <td className="border-r border-slate-300 p-0.5">
                                                 <input type="text" value={row.dobramento} onChange={e => updateRowField(row.id, 'dobramento', e.target.value)} className="op-editable-input text-center w-full font-medium text-[9px]" placeholder="..." />
                                             </td>
 
                                             {/* Verif. Marcação */}
-                                            <td className="border-r border-slate-200 p-0.5">
+                                            <td className="border-r border-slate-300 p-0.5">
                                                 <input type="text" value={row.verifMarcacao} onChange={e => updateRowField(row.id, 'verifMarcacao', e.target.value)} className="op-editable-input text-center w-full font-medium text-[9px]" placeholder="..." />
                                             </td>
 
                                             {/* Alongamento */}
-                                            <td className="border-r border-slate-200 p-0.5">
+                                            <td className="border-r border-slate-300 p-0.5">
                                                 <input type="text" value={row.alongamento} onChange={e => updateRowField(row.id, 'alongamento', e.target.value)} className="op-editable-input text-center w-full font-bold text-[9px]" placeholder="..." />
                                             </td>
 
