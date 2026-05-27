@@ -2024,7 +2024,12 @@ const MachineControl: React.FC<MachineControlProps> = ({
                 />
             )}
             {showBitolaCheck && (
-                <BitolaCheckModal onClose={() => setShowBitolaCheck(false)} />
+                <BitolaCheckModal onClose={() => {
+                    setShowBitolaCheck(false);
+                    if (!hasPermission('trefilaInProgress') && !isGestor) {
+                        setPage('menu');
+                    }
+                }} />
             )}
 
 
