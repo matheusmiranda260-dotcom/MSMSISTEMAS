@@ -436,7 +436,7 @@ const App: React.FC = () => {
             password: data.password, // Storing simple password as requested
             role: (data.role as any) || 'user',
             permissions: data.permissions,
-            employeeId: data.employeeId,
+            employeeId: data.employeeId || null,
         };
 
         try {
@@ -450,8 +450,12 @@ const App: React.FC = () => {
 
     const updateUser = async (userId: string, data: Partial<User>) => {
         try {
-            await updateItem<User>('app_users', userId, data);
-            setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...data } : u));
+            const sanitizedData = { ...data };
+            if ('employeeId' in sanitizedData) {
+                sanitizedData.employeeId = sanitizedData.employeeId || null;
+            }
+            await updateItem<User>('app_users', userId, sanitizedData);
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...sanitizedData } : u));
             showNotification('Usuário atualizado com sucesso!', 'success');
         } catch (error) {
             showNotification('Erro ao atualizar usuário.', 'error');
