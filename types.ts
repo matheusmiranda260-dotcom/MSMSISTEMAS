@@ -583,6 +583,13 @@ export interface WorkInstruction {
     updatedAt?: string;
 }
 
+export interface UserAccessLog {
+    id: string;
+    userId: string;
+    username: string;
+    loginAt: string;
+}
+
 export const trelicaLabels = ['H08 (8m)', 'H12 (12m)', 'H6 (6m)', 'H10 (10m)'];
 export const MaterialOptions = ['Fio Máquina', 'CA-60'];
 export const FioMaquinaBitolaOptions = ['8.00', '7.00', '6.50', '6.35', '5.50'];

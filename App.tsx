@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'; // Refresh Trigger
-import type { Page, User, Employee, StockItem, ConferenceData, ProductionOrderData, TransferRecord, Bitola, MachineType, PartsRequest, ShiftReport, ProductionRecord, TransferredLotInfo, ProcessedLot, DowntimeEvent, OperatorLog, TrelicaSelectedLots, WeighedPackage, FinishedProductItem, Ponta, PontaItem, FinishedGoodsTransferRecord, TransferredFinishedGoodInfo, KaizenProblem, Meeting, MeetingItem, MeetingCategory, StockMovement, DowntimeConfig } from './types';
+import type { Page, User, Employee, StockItem, ConferenceData, ProductionOrderData, TransferRecord, Bitola, MachineType, PartsRequest, ShiftReport, ProductionRecord, TransferredLotInfo, ProcessedLot, DowntimeEvent, OperatorLog, TrelicaSelectedLots, WeighedPackage, FinishedProductItem, Ponta, PontaItem, FinishedGoodsTransferRecord, TransferredFinishedGoodInfo, KaizenProblem, Meeting, MeetingItem, MeetingCategory, StockMovement, DowntimeConfig, UserAccessLog } from './types';
 import { FioMaquinaBitolaOptions, TrefilaBitolaOptions } from './types';
 import Login from './components/Login';
 import MainMenu from './components/MainMenu';
@@ -45,6 +45,7 @@ const App: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     const [users, setUsers] = useState<User[]>([]);
+    const [accessLogs, setAccessLogs] = useState<UserAccessLog[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [stock, setStock] = useState<StockItem[]>([]);
     const [conferences, setConferences] = useState<ConferenceData[]>([]);
@@ -127,7 +128,8 @@ const App: React.FC = () => {
                 const [
                     fetchedUsers, fetchedEmployees, fetchedStock, fetchedConferences, fetchedTransfers,
                     fetchedOrders, fetchedFinishedGoods, fetchedPontas, fetchedFGTransfers,
-                    fetchedParts, fetchedReports, fetchedProductionRecords, fetchedGauges, fetchedNotes, fetchedMeetings, fetchedCategories, fetchedDowntimeConfigs
+                    fetchedParts, fetchedReports, fetchedProductionRecords, fetchedGauges, fetchedNotes, fetchedMeetings, fetchedCategories, fetchedDowntimeConfigs,
+                    fetchedAccessLogs
                 ] = await Promise.all([
                     fetchTable<User>('app_users'),
                     fetchTable<Employee>('employees'),
@@ -146,10 +148,12 @@ const App: React.FC = () => {
                     fetchTable<StickyNote>('sticky_notes').catch(() => []),
                     fetchTable<Meeting>('meetings').catch(() => []),
                     fetchTable<MeetingCategory>('meeting_categories').catch(() => []),
-                    fetchTable<DowntimeConfig>('downtime_configs').catch(() => [])
+                    fetchTable<DowntimeConfig>('downtime_configs').catch(() => []),
+                    fetchTable<UserAccessLog>('user_access_logs').catch(() => [])
                 ]);
 
                 setUsers(fetchedUsers);
+                setAccessLogs(fetchedAccessLogs || []);
                 setEmployees(fetchedEmployees);
                 setStock(fetchedStock);
                 setConferences(fetchedConferences);
@@ -242,6 +246,7 @@ const App: React.FC = () => {
         setMeetingCategories,
         setDowntimeConfigs,
         setUsers,
+        setAccessLogs,
     }), []);
 
     useAllRealtimeSubscriptions(realtimeSetters, !!currentUser);
@@ -372,6 +377,19 @@ const App: React.FC = () => {
                         .eq('id', usersFound.id);
                 } catch (dbUpdateErr) {
                     console.error('Failed to update login statistics in Supabase:', dbUpdateErr);
+                }
+
+                // Gravar log de acesso na tabela user_access_logs
+                const newAccessLog = {
+                    id: generateId('log'),
+                    user_id: usersFound.id,
+                    username: usersFound.username,
+                    login_at: new Date().toISOString()
+                };
+                try {
+                    await supabase.from('user_access_logs').insert(newAccessLog);
+                } catch (logErr) {
+                    console.error('Failed to create user access log:', logErr);
                 }
 
                 const appUser = mapToCamelCase({
@@ -2309,7 +2327,7 @@ const App: React.FC = () => {
             case 'productionOrderTrelica': return <ProductionOrderTrelica setPage={setPage} stock={stock} productionOrders={productionOrders} addProductionOrder={addProductionOrder} showNotification={showNotification} updateProductionOrder={updateProductionOrder} deleteProductionOrder={deleteProductionOrder} gauges={gauges} currentUser={currentUser} />;
             case 'productionDashboard': return <ProductionDashboard setPage={setPage} productionOrders={productionOrders} stock={stock} currentUser={currentUser} downtimeConfigs={downtimeConfigs} />;
             case 'reports': return <Reports setPage={setPage} stock={stock} trefilaProduction={trefilaProduction} trelicaProduction={trelicaProduction} />;
-            case 'userManagement': return <UserManagement users={users} employees={employees} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} setPage={setPage} />;
+            case 'userManagement': return <UserManagement users={users} employees={employees} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} setPage={setPage} accessLogs={accessLogs} />;
             case 'finishedGoods': return <FinishedGoods finishedGoods={finishedGoods} pontasStock={pontasStock} setPage={setPage} finishedGoodsTransfers={finishedGoodsTransfers} createFinishedGoodsTransfer={createFinishedGoodsTransfer} onDelete={deleteFinishedGoods} />;
             case 'trelicaStock': return <TrelicaStockManager finishedGoods={finishedGoods} setPage={setPage} createFinishedGoodsTransfer={createFinishedGoodsTransfer} onDelete={deleteFinishedGoods} onUpdateQuantity={updateFinishedGood} onAddManual={addManualFinishedGood} currentUser={currentUser} />;
 

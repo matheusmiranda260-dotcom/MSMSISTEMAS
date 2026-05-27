@@ -5,7 +5,8 @@ import type {
     StockItem, ConferenceData, ProductionOrderData, TransferRecord,
     FinishedProductItem, PontaItem, FinishedGoodsTransferRecord,
     PartsRequest, ShiftReport, ProductionRecord,
-    StickyNote, Meeting, MeetingCategory, DowntimeConfig, User
+    StickyNote, Meeting, MeetingCategory, DowntimeConfig, User,
+    UserAccessLog
 } from '../types';
 import { mapToCamelCase } from '../services/supabaseService';
 
@@ -27,6 +28,7 @@ interface RealtimeSetters {
     setMeetingCategories: React.Dispatch<React.SetStateAction<MeetingCategory[]>>;
     setDowntimeConfigs: React.Dispatch<React.SetStateAction<DowntimeConfig[]>>;
     setUsers?: React.Dispatch<React.SetStateAction<User[]>>;
+    setAccessLogs?: React.Dispatch<React.SetStateAction<UserAccessLog[]>>;
 }
 
 /**
@@ -194,6 +196,11 @@ export function useAllRealtimeSubscriptions(setters: RealtimeSetters, enabled: b
         // Users Realtime Subscription
         if (setters.setUsers) {
             createSubscription<User>('app_users', setters.setUsers);
+        }
+
+        // Access Logs Realtime Subscription
+        if (setters.setAccessLogs) {
+            createSubscription<UserAccessLog>('user_access_logs', setters.setAccessLogs);
         }
 
         // Production Records (Trefila e Treliça)

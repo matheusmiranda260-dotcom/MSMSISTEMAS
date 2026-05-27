@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import type { Page, User, Employee } from '../types';
+import React, { useState, useMemo } from 'react';
+import type { Page, User, Employee, UserAccessLog } from '../types';
 import { ArrowLeftIcon, PencilIcon, TrashIcon, WarningIcon } from './icons';
 
 interface UserManagementProps {
@@ -9,6 +9,7 @@ interface UserManagementProps {
     updateUser: (userId: string, data: Partial<User>) => void;
     deleteUser: (userId: string) => void;
     setPage: (page: Page) => void;
+    accessLogs: UserAccessLog[];
 }
 
 const permissionCategories = [
@@ -247,10 +248,71 @@ const UserModal: React.FC<{
 };
 
 
-const UserManagement: React.FC<UserManagementProps> = ({ users, employees, addUser, updateUser, deleteUser, setPage }) => {
+const AccessHistoryModal: React.FC<{
+    user: User;
+    accessLogs: UserAccessLog[];
+    onClose: () => void;
+}> = ({ user, accessLogs, onClose }) => {
+    const userLogs = useMemo(() => {
+        return accessLogs
+            .filter(log => log.userId === user.id)
+            .sort((a, b) => new Date(b.loginAt).getTime() - new Date(a.loginAt).getTime());
+    }, [accessLogs, user.id]);
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col animate-fadeIn">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        📜 Histórico: {user.username}
+                    </h2>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+                </div>
+                
+                <div className="flex-grow overflow-y-auto pr-1 space-y-2 mb-6">
+                    {userLogs.length > 0 ? (
+                        userLogs.map((log) => {
+                            const formattedDate = new Date(log.loginAt).toLocaleString('pt-BR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit'
+                            });
+                            return (
+                                <div key={log.id} className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-indigo-500"></div>
+                                        <span className="text-xs font-bold text-slate-700">Acesso ao sistema</span>
+                                    </div>
+                                    <span className="text-xs font-semibold text-slate-500">{formattedDate}</span>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div className="text-center py-10 text-slate-400">
+                            <p>Nenhum registro de acesso encontrado.</p>
+                        </div>
+                    )}
+                </div>
+                
+                <div className="flex justify-end pt-4 border-t">
+                    <button onClick={onClose} className="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-4 rounded-lg transition">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+const UserManagement: React.FC<UserManagementProps> = ({ users, employees, addUser, updateUser, deleteUser, setPage, accessLogs }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [deletingUser, setDeletingUser] = useState<User | null>(null);
+    const [viewingHistoryUser, setViewingHistoryUser] = useState<User | null>(null);
 
     // Permite gerenciar todos os usuários, mas o admin principal (id: 'admin') pode ter proteção extra se quiser
     const manageableUsers = users.filter(u => u.username !== 'admin');
@@ -278,6 +340,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, employees, addUs
         <div className="p-4 sm:p-6 md:p-8">
             {isModalOpen && <UserModal employees={employees} onClose={() => setIsModalOpen(false)} onSubmit={handleAddUser} />}
             {editingUser && <UserModal user={editingUser} employees={employees} onClose={() => setEditingUser(null)} onSubmit={handleEditUser} />}
+            {viewingHistoryUser && <AccessHistoryModal user={viewingHistoryUser} accessLogs={accessLogs} onClose={() => setViewingHistoryUser(null)} />}
             {deletingUser && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white p-8 rounded-xl shadow-xl w-full max-w-md text-center">
@@ -355,7 +418,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, employees, addUs
                                         <td className="px-6 py-4 text-xs font-semibold text-slate-500">{formattedLastAccess}</td>
                                         <td className="px-6 py-4 font-medium text-slate-600">{Object.values(user.permissions || {}).filter(Boolean).length} / {manageablePages.length}</td>
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center justify-center space-x-4">
+                                            <div className="flex items-center justify-center space-x-3">
+                                                <button onClick={() => setViewingHistoryUser(user)} className="p-1 text-indigo-600 hover:text-indigo-800 transition-colors" title="Histórico de Acessos">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-5 w-5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                                                </button>
                                                 <button onClick={() => setEditingUser(user)} className="p-1 text-slate-600 hover:text-slate-800 transition-colors" title="Editar Usuário">
                                                     <PencilIcon className="h-5 w-5" />
                                                 </button>
