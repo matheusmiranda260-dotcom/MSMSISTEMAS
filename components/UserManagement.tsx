@@ -26,6 +26,7 @@ const permissionCategories = [
             { page: 'trefila', label: 'Dashboard Trefila (Visão Geral)' },
             { page: 'trefilaInProgress', label: 'Painel: Máquina em Operação' },
             { page: 'trefilaWeighing', label: 'Pesagem de Rolos' },
+            { page: 'trefilaBitolaCheck', label: 'Aferir Bitola (Qualidade)' },
             { page: 'trefilaPending', label: 'Próximas Produções (Fila)' },
             { page: 'trefilaCompleted', label: 'Histórico de Produções' },
             { page: 'trefilaReports', label: 'Relatórios de Turno' },
@@ -311,28 +312,61 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, employees, addUs
                             <tr>
                                 <th scope="col" className="px-6 py-3">Nome de Usuário</th>
                                 <th scope="col" className="px-6 py-3">Função</th>
+                                <th scope="col" className="px-6 py-3">Status</th>
+                                <th scope="col" className="px-6 py-3">Acessos</th>
+                                <th scope="col" className="px-6 py-3">Último Acesso</th>
                                 <th scope="col" className="px-6 py-3">Permissões</th>
                                 <th scope="col" className="px-6 py-3 text-center">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {manageableUsers.map(user => (
-                                <tr key={user.id} className="bg-white border-b hover:bg-slate-50">
-                                    <td className="px-6 py-4 font-medium text-slate-900">{user.username}</td>
-                                    <td className="px-6 py-4 capitalize">{user.role}</td>
-                                    <td className="px-6 py-4 font-medium text-slate-600">{Object.values(user.permissions || {}).filter(Boolean).length} / {manageablePages.length}</td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center justify-center space-x-4">
-                                            <button onClick={() => setEditingUser(user)} className="p-1 text-slate-600 hover:text-slate-800 transition-colors" title="Editar Usuário">
-                                                <PencilIcon className="h-5 w-5" />
-                                            </button>
-                                            <button onClick={() => setDeletingUser(user)} className="p-1 text-red-600 hover:text-red-800 transition-colors" title="Excluir Usuário">
-                                                <TrashIcon className="h-5 w-5" />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                            {manageableUsers.map(user => {
+                                const formattedLastAccess = user.lastLoginAt
+                                    ? new Date(user.lastLoginAt).toLocaleString('pt-BR', {
+                                        day: '2-digit',
+                                        month: '2-digit',
+                                        year: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    })
+                                    : 'Sem registro';
+
+                                return (
+                                    <tr key={user.id} className="bg-white border-b hover:bg-slate-50">
+                                        <td className="px-6 py-4 font-medium text-slate-900">{user.username}</td>
+                                        <td className="px-6 py-4 capitalize">{user.role}</td>
+                                        <td className="px-6 py-4">
+                                            {user.isOnline ? (
+                                                <span className="flex items-center gap-1.5 text-emerald-600 font-bold">
+                                                    <span className="relative flex h-2.5 w-2.5">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                                                    </span>
+                                                    Online
+                                                </span>
+                                            ) : (
+                                                <span className="flex items-center gap-1.5 text-slate-400 font-semibold">
+                                                    <span className="h-2.5 w-2.5 rounded-full bg-slate-300"></span>
+                                                    Offline
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 font-bold text-slate-700">{user.loginCount || 0}</td>
+                                        <td className="px-6 py-4 text-xs font-semibold text-slate-500">{formattedLastAccess}</td>
+                                        <td className="px-6 py-4 font-medium text-slate-600">{Object.values(user.permissions || {}).filter(Boolean).length} / {manageablePages.length}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center justify-center space-x-4">
+                                                <button onClick={() => setEditingUser(user)} className="p-1 text-slate-600 hover:text-slate-800 transition-colors" title="Editar Usuário">
+                                                    <PencilIcon className="h-5 w-5" />
+                                                </button>
+                                                <button onClick={() => setDeletingUser(user)} className="p-1 text-red-600 hover:text-red-800 transition-colors" title="Excluir Usuário">
+                                                    <TrashIcon className="h-5 w-5" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                     {manageableUsers.length === 0 && (

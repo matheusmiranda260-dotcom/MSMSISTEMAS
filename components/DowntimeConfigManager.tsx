@@ -55,6 +55,16 @@ const DowntimeConfigManager: React.FC<DowntimeConfigManagerProps> = ({ onBack, s
         }
     };
 
+    const handleToggleActive = async (config: DowntimeConfig) => {
+        try {
+            await updateItem('downtime_configs', config.id, { isActive: !config.isActive });
+            showNotification(`Motivo ${!config.isActive ? 'ativado' : 'desativado'} com sucesso.`, 'success');
+            loadConfigs();
+        } catch (error) {
+            showNotification('Erro ao alterar status.', 'error');
+        }
+    };
+
     const handleEdit = (config: DowntimeConfig) => {
         setIsEditing(config.id);
         setEditForm(config);

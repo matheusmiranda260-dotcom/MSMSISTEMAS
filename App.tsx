@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'; // Refresh Trigger
-import type { Page, User, Employee, StockItem, ConferenceData, ProductionOrderData, TransferRecord, Bitola, MachineType, PartsRequest, ShiftReport, ProductionRecord, TransferredLotInfo, ProcessedLot, DowntimeEvent, OperatorLog, TrelicaSelectedLots, WeighedPackage, FinishedProductItem, Ponta, PontaItem, FinishedGoodsTransferRecord, TransferredFinishedGoodInfo, KaizenProblem, Meeting, MeetingItem, MeetingCategory, StockMovement } from './types';
+import type { Page, User, Employee, StockItem, ConferenceData, ProductionOrderData, TransferRecord, Bitola, MachineType, PartsRequest, ShiftReport, ProductionRecord, TransferredLotInfo, ProcessedLot, DowntimeEvent, OperatorLog, TrelicaSelectedLots, WeighedPackage, FinishedProductItem, Ponta, PontaItem, FinishedGoodsTransferRecord, TransferredFinishedGoodInfo, KaizenProblem, Meeting, MeetingItem, MeetingCategory, StockMovement, DowntimeConfig } from './types';
 import { FioMaquinaBitolaOptions, TrefilaBitolaOptions } from './types';
 import Login from './components/Login';
 import MainMenu from './components/MainMenu';
@@ -241,6 +241,7 @@ const App: React.FC = () => {
         setMeetings,
         setMeetingCategories,
         setDowntimeConfigs,
+        setUsers,
     }), []);
 
     useAllRealtimeSubscriptions(realtimeSetters, !!currentUser);
@@ -284,6 +285,55 @@ const App: React.FC = () => {
         return () => subscription.unsubscribe();
     }, []);
 
+    // Manage user online/offline status and unload behavior
+    useEffect(() => {
+        if (currentUser && currentUser.id && currentUser.id !== 'local-admin-gestor') {
+            // Set online in DB
+            supabase
+                .from('app_users')
+                .update({ is_online: true })
+                .eq('id', currentUser.id)
+                .then();
+
+            const handleBeforeUnload = () => {
+                const supabaseUrl = (supabase as any).supabaseUrl;
+                const supabaseKey = (supabase as any).supabaseKey;
+                if (!supabaseUrl || !supabaseKey) return;
+
+                const url = `${supabaseUrl}/rest/v1/app_users?id=eq.${currentUser.id}`;
+                const body = JSON.stringify({ is_online: false });
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'apikey': supabaseKey,
+                    'Authorization': `Bearer ${supabaseKey}`
+                };
+
+                try {
+                    fetch(url, {
+                        method: 'PATCH',
+                        headers,
+                        body,
+                        keepalive: true
+                    });
+                } catch (e) {
+                    console.error('Error updating status on unload:', e);
+                }
+            };
+
+            window.addEventListener('beforeunload', handleBeforeUnload);
+
+            return () => {
+                window.removeEventListener('beforeunload', handleBeforeUnload);
+                // Set offline in DB
+                supabase
+                    .from('app_users')
+                    .update({ is_online: false })
+                    .eq('id', currentUser.id)
+                    .then();
+            };
+        }
+    }, [currentUser?.id]);
+
     const handleUserSession = (supabaseUser: any) => {
         const role = (supabaseUser.email?.includes('gestor') || supabaseUser.email?.includes('admin') || supabaseUser.email === 'matheusmiranda357@gmail.com') ? 'gestor' : 'user';
 
@@ -309,7 +359,26 @@ const App: React.FC = () => {
                 .single();
 
             if (usersFound && usersFound.password === password) {
-                const appUser = mapToCamelCase(usersFound) as User;
+                const updatedFields = {
+                    is_online: true,
+                    login_count: (usersFound.login_count || 0) + 1,
+                    last_login_at: new Date().toISOString()
+                };
+
+                try {
+                    await supabase
+                        .from('app_users')
+                        .update(updatedFields)
+                        .eq('id', usersFound.id);
+                } catch (dbUpdateErr) {
+                    console.error('Failed to update login statistics in Supabase:', dbUpdateErr);
+                }
+
+                const appUser = mapToCamelCase({
+                    ...usersFound,
+                    ...updatedFields
+                }) as User;
+
                 setCurrentUser(appUser);
                 localStorage.setItem('msm_user', JSON.stringify(appUser));
                 setPage(appUser.role === 'gestor' || appUser.role === 'admin' ? 'productionDashboard' : 'menu');
@@ -342,6 +411,16 @@ const App: React.FC = () => {
     };
 
     const handleLogout = async (): Promise<void> => {
+        if (currentUser && currentUser.id && currentUser.id !== 'local-admin-gestor') {
+            try {
+                await supabase
+                    .from('app_users')
+                    .update({ is_online: false })
+                    .eq('id', currentUser.id);
+            } catch (err) {
+                console.error('Failed to set user offline during logout:', err);
+            }
+        }
         localStorage.removeItem('msm_user');
         setCurrentUser(null);
         setPage('login');

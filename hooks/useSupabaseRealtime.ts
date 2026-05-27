@@ -5,7 +5,7 @@ import type {
     StockItem, ConferenceData, ProductionOrderData, TransferRecord,
     FinishedProductItem, PontaItem, FinishedGoodsTransferRecord,
     PartsRequest, ShiftReport, ProductionRecord,
-    StickyNote, Meeting, MeetingCategory, DowntimeConfig
+    StickyNote, Meeting, MeetingCategory, DowntimeConfig, User
 } from '../types';
 import { mapToCamelCase } from '../services/supabaseService';
 
@@ -26,6 +26,7 @@ interface RealtimeSetters {
     setMeetings: React.Dispatch<React.SetStateAction<Meeting[]>>;
     setMeetingCategories: React.Dispatch<React.SetStateAction<MeetingCategory[]>>;
     setDowntimeConfigs: React.Dispatch<React.SetStateAction<DowntimeConfig[]>>;
+    setUsers?: React.Dispatch<React.SetStateAction<User[]>>;
 }
 
 /**
@@ -189,6 +190,11 @@ export function useAllRealtimeSubscriptions(setters: RealtimeSetters, enabled: b
 
         // Downtime Configs - Realtime sync para atualizar operadores instantaneamente
         createSubscription<DowntimeConfig>('downtime_configs', setters.setDowntimeConfigs);
+
+        // Users Realtime Subscription
+        if (setters.setUsers) {
+            createSubscription<User>('app_users', setters.setUsers);
+        }
 
         // Production Records (Trefila e Treliça)
         const productionRecordsChannel = supabase

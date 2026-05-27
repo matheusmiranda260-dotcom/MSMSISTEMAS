@@ -42,6 +42,9 @@ export interface User {
     role: 'admin' | 'user' | 'gestor';
     permissions?: Partial<Record<Page, boolean>>;
     employeeId?: string;
+    isOnline?: boolean;
+    loginCount?: number;
+    lastLoginAt?: string;
 }
 
 export interface Employee {
@@ -325,9 +328,9 @@ export interface FinishedGoodsTransferRecord {
 export interface StockMovement {
     id: string;
     date: string;
-    type: 'transfer' | 'adjustment' | 'out';
-    from: 'virtual' | 'physical' | 'system' | 'out';
-    to: 'virtual' | 'physical' | 'system' | 'out';
+    type: 'transfer' | 'adjustment' | 'out' | 'addition';
+    from: 'virtual' | 'physical' | 'system' | 'out' | 'production';
+    to: 'virtual' | 'physical' | 'system' | 'out' | 'production';
     quantity: number;
     operator: string;
     observations?: string;
