@@ -447,8 +447,22 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
 
                 @media print {
                     @page {
-                        size: A4 landscape;
+                        size: A4 portrait;
                         margin: 5mm;
+                    }
+                    /* Reset wrappers for print to ensure full width and no margins */
+                    .app-container,
+                    .main-content,
+                    .main-content > div,
+                    .app-container > main,
+                    div.p-4 {
+                        display: block !important;
+                        width: 100% !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        position: static !important;
+                        border: none !important;
+                        box-shadow: none !important;
                     }
                     body {
                         background: white !important;

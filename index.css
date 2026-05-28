@@ -318,7 +318,7 @@ tr:hover td {
 
 /* PRINT STYLES */
 @page {
-  size: A4;
+  size: A4 portrait;
   margin: 2mm 4mm 4.5mm 3mm;
 }
 

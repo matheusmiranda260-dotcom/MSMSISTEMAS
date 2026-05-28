@@ -14,6 +14,7 @@ interface FechamentoOPRow {
     pesoEtiqueta: number | '';
     pesoBalanca: number | '';
     bitola: string;
+    isSeparator?: boolean;
 }
 
 interface Toast {
@@ -122,6 +123,7 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
         let totalOutput = 0;
 
         rows.forEach(r => {
+            if (r.isSeparator) return;
             if (typeof r.pesoEtiqueta === 'number') {
                 totalInput += r.pesoEtiqueta;
             }
@@ -199,8 +201,36 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
         setRows(prev => [...prev, createEmptyRow()]);
     };
 
+    const addSeparatorRow = () => {
+        setRows(prev => [...prev, {
+            id: Math.random().toString(36).substring(2, 9),
+            data: '',
+            lote: '',
+            pesoEtiqueta: '',
+            pesoBalanca: '',
+            bitola: '',
+            isSeparator: true
+        }]);
+    };
+
     const removeRow = (rowId: string) => {
         setRows(prev => prev.filter(r => r.id !== rowId));
+    };
+
+    const getRowSpanForData = (rowIndex: number) => {
+        if (rows[rowIndex].isSeparator) return 1;
+        let isFirstInBlock = true;
+        if (rowIndex > 0 && !rows[rowIndex - 1].isSeparator) {
+            isFirstInBlock = false;
+        }
+        if (!isFirstInBlock) return 0;
+
+        let count = 1;
+        for (let i = rowIndex + 1; i < rows.length; i++) {
+            if (rows[i].isSeparator) break;
+            count++;
+        }
+        return count;
     };
 
     const clearForm = () => {
@@ -364,8 +394,22 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
 
                 @media print {
                     @page {
-                        size: A4 landscape;
+                        size: A4 portrait;
                         margin: 5mm;
+                    }
+                    /* Reset wrappers for print to ensure full width and no margins */
+                    .app-container,
+                    .main-content,
+                    .main-content > div,
+                    .app-container > main,
+                    div.p-4 {
+                        display: block !important;
+                        width: 100% !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        position: static !important;
+                        border: none !important;
+                        box-shadow: none !important;
                     }
                     body {
                         background: white !important;
@@ -479,48 +523,27 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                     {/* CABEÇALHO */}
                     <div className="grid grid-cols-12 border border-[#002060] mb-4">
                         <div className="col-span-3 bg-white p-2 flex items-center justify-center border-r border-[#002060]">
-                            <img src="/ita-acos-logo.png" alt="Logo Grupo Ita Aços" className="h-10 md:h-12 object-contain" style={{ maxHeight: '52px' }} />
+                            <img src="/ita-acos-logo.png" alt="Logo Grupo Ita Aços" className="h-16 md:h-20 object-contain w-full" style={{ maxHeight: '80px' }} />
                         </div>
 
-                        <div className="col-span-6 bg-white p-2 flex flex-col justify-center text-center">
-                            <h2 className="text-base md:text-lg font-black uppercase tracking-wider text-[#002060] leading-none">
+                        <div className="col-span-6 bg-white p-2 flex flex-col justify-center text-center gap-1">
+                            <h2 className="text-xl md:text-2xl font-black uppercase tracking-wider text-[#002060] leading-none">
                                 Fechamento de Ordem de Produção
                             </h2>
-                            <p className="text-[10px] font-extrabold text-slate-500 uppercase mt-0.5 mb-1.5">
-                                Setor Laminação e Trefilação (Rendimento)
+                            <p className="text-[14px] font-extrabold text-slate-500 uppercase mt-0.5 mb-1">
+                                Setor Laminação e Trefilação
                             </p>
-                            <div className="flex items-center justify-center gap-1.5 text-[#002060]">
-                                <span className="font-extrabold text-[10px] uppercase">Ordem de Produção:</span>
-                                <input 
-                                    type="text" 
-                                    value={ordemProducao} 
-                                    onChange={e => setOrdemProducao(e.target.value)} 
-                                    className="op-editable-input text-center text-xs font-black w-32 border-b border-[#002060]/30"
-                                    placeholder="Ex: 84536" 
-                                />
-                            </div>
                         </div>
 
-                        {/* Bloco Data */}
-                        <div 
-                            onClick={() => {
-                                try {
-                                    dateInputRef.current?.showPicker();
-                                } catch (err) {
-                                    dateInputRef.current?.click();
-                                }
-                            }}
-                            className="col-span-3 bg-[#002060] text-white p-2 flex flex-col justify-center text-center cursor-pointer hover:bg-slate-850/90 relative"
-                        >
-                            <div className="text-[8px] font-black text-slate-300">DATA DA PRODUÇÃO</div>
-                            <div className="text-sm font-black text-white leading-tight">{formattedDateNumbers}</div>
-                            <div className="text-[9px] font-extrabold text-slate-300 uppercase">{formattedDayOfWeek}</div>
+                        {/* Bloco OP */}
+                        <div className="col-span-3 bg-[#002060] text-white p-2 flex flex-col justify-center text-center">
+                            <div className="text-xs md:text-[14px] font-black text-slate-300 uppercase">Ordem de Produção</div>
                             <input 
-                                ref={dateInputRef}
-                                type="date" 
-                                value={selectedDate} 
-                                onChange={e => setSelectedDate(e.target.value)} 
-                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" 
+                                type="text" 
+                                value={ordemProducao} 
+                                onChange={e => setOrdemProducao(e.target.value)} 
+                                className="op-editable-input text-center text-3xl md:text-4xl font-black w-full bg-transparent text-white outline-none border-none placeholder:text-white mt-1"
+                                placeholder="84536" 
                             />
                         </div>
                     </div>
@@ -536,27 +559,44 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                                 <col style={{ width: '20%' }} />
                             </colgroup>
                             <thead>
-                                <tr className="bg-[#002060] text-white text-[9px] font-black uppercase text-center border-b border-[#002060] tracking-wider leading-tight">
-                                    <th className="border-r border-slate-300 py-2.5 align-middle">Data</th>
-                                    <th className="border-r border-slate-300 py-2.5 align-middle">Lote (copex)</th>
-                                    <th className="border-r border-slate-300 py-2.5 align-middle">Peso Etiqueta (kg)</th>
-                                    <th className="border-r border-slate-300 py-2.5 align-middle">Peso Balança (kg)</th>
-                                    <th className="py-2.5 align-middle">Bitola</th>
+                                <tr className="bg-[#002060] text-white text-[12px] font-black uppercase text-center border-b border-[#002060] tracking-wider leading-tight">
+                                    <th className="border-r border-slate-300 py-2.5 align-middle text-center">Data</th>
+                                    <th className="border-r border-slate-300 py-2.5 align-middle text-center">Lote (copex)</th>
+                                    <th className="border-r border-slate-300 py-2.5 align-middle text-center">Peso Etiqueta (kg)</th>
+                                    <th className="border-r border-slate-300 py-2.5 align-middle text-center">Peso Balança (kg)</th>
+                                    <th className="py-2.5 align-middle text-center">Bitola</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {rows.map((row) => (
+                                {rows.map((row, index) => {
+                                    const dataRowSpan = getRowSpanForData(index);
+                                    return row.isSeparator ? (
+                                        <tr key={row.id} className="bg-slate-200 border-y-2 border-[#002060] print:bg-white print:border-transparent print:border-0">
+                                            <td colSpan={5} className="py-3 text-center text-[13px] font-black text-[#002060] uppercase tracking-widest relative group print:py-4">
+                                                <span className="no-print">--- NOVO DIA DE PRODUÇÃO ---</span>
+                                                <button 
+                                                    onClick={() => removeRow(row.id)} 
+                                                    className="absolute right-1 top-1/2 -translate-y-1/2 text-rose-500 hover:text-rose-700 font-bold no-print opacity-0 group-hover:opacity-100 transition-opacity p-1" 
+                                                    title="Remover separador"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ) : (
                                     <tr key={row.id} className="border-b border-slate-300 hover:bg-slate-50/50 text-center font-bold">
                                         {/* Data */}
-                                        <td className="border-r border-slate-300 p-1">
-                                            <input 
-                                                type="text" 
-                                                value={row.data} 
-                                                onChange={e => updateRowField(row.id, 'data', e.target.value)} 
-                                                className="op-editable-input text-center w-full font-black text-[10px]" 
-                                                placeholder="dd/mm/aa" 
-                                            />
-                                        </td>
+                                        {dataRowSpan > 0 && (
+                                            <td className="border-r border-slate-300 p-1 bg-white align-middle" rowSpan={dataRowSpan}>
+                                                <input 
+                                                    type="text" 
+                                                    value={row.data} 
+                                                    onChange={e => updateRowField(row.id, 'data', e.target.value)} 
+                                                    className="op-editable-input text-center w-full font-black text-[13px]" 
+                                                    placeholder="dd/mm/aa" 
+                                                />
+                                            </td>
+                                        )}
                                         
                                         {/* Lote autocomplete */}
                                         <td className="border-r border-slate-300 p-1 relative">
@@ -568,7 +608,7 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                                                     setFilterText(row.lote);
                                                     setActiveSuggestionRowId(row.id);
                                                 }}
-                                                className="op-editable-input text-center w-full font-black text-[10px] uppercase text-[#002060]" 
+                                                className="op-editable-input text-center w-full font-black text-[13px] uppercase text-[#002060]" 
                                                 placeholder="Lote..." 
                                             />
                                             {/* Popover suggestions */}
@@ -594,20 +634,25 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                                                 type="number" 
                                                 value={row.pesoEtiqueta} 
                                                 onChange={e => updateRowField(row.id, 'pesoEtiqueta', e.target.value === '' ? '' : Number(e.target.value))} 
-                                                className="op-editable-input text-center w-full font-black text-[10px] text-[#002060]" 
+                                                className="op-editable-input text-center w-full font-black text-[13px] text-[#002060]" 
                                                 placeholder="0" 
                                             />
                                         </td>
 
                                         {/* Peso Balança */}
-                                        <td className="border-r border-slate-300 p-1">
+                                        <td className="border-r border-slate-300 p-1 relative">
                                             <input 
                                                 type="number" 
                                                 value={row.pesoBalanca} 
                                                 onChange={e => updateRowField(row.id, 'pesoBalanca', e.target.value === '' ? '' : Number(e.target.value))} 
-                                                className="op-editable-input text-center w-full font-black text-[10px] text-[#002060]" 
+                                                className="op-editable-input text-center w-full font-black text-[13px] text-[#002060]" 
                                                 placeholder="0" 
                                             />
+                                            {Number(row.pesoEtiqueta) > 0 && Number(row.pesoBalanca) > 0 && Number(row.pesoEtiqueta) > Number(row.pesoBalanca) && (
+                                                <span className="no-print absolute right-1 top-1/2 -translate-y-1/2 text-[14px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 shadow-sm pointer-events-none z-10">
+                                                    {(((Number(row.pesoEtiqueta) - Number(row.pesoBalanca)) / Number(row.pesoEtiqueta)) * 100).toFixed(2).replace('.', ',')}%
+                                                </span>
+                                            )}
                                         </td>
 
                                         {/* Bitola */}
@@ -616,7 +661,7 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                                                 type="text" 
                                                 value={row.bitola} 
                                                 onChange={e => updateRowField(row.id, 'bitola', e.target.value)} 
-                                                className="op-editable-input text-center w-full font-black text-[10px]" 
+                                                className="op-editable-input text-center w-full font-black text-[13px]" 
                                                 placeholder="..." 
                                             />
                                             <button 
@@ -628,15 +673,19 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                                             </button>
                                         </td>
                                     </tr>
-                                ))}
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
 
                     {/* Botões sob a tabela (Apenas na tela) */}
-                    <div className="flex justify-start mb-4 no-print">
+                    <div className="flex justify-start mb-4 no-print gap-2">
                         <button onClick={addRow} className="border-2 border-[#002060] text-[#002060] font-black text-[10px] px-3.5 py-1.5 rounded hover:bg-[#002060] hover:text-white transition-all uppercase">
                             + Adicionar Linha
+                        </button>
+                        <button onClick={addSeparatorRow} className="border-2 border-slate-400 text-slate-500 font-black text-[10px] px-3.5 py-1.5 rounded hover:bg-slate-400 hover:text-white transition-all uppercase">
+                            Pular Linha (Novo Dia)
                         </button>
                     </div>
 
@@ -644,21 +693,21 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                     <div className="grid grid-cols-12 gap-6 mt-4 pt-2 border-t border-slate-200">
                         {/* Box de Resumo (Calculado) */}
                         <div className="col-span-12 md:col-span-5">
-                            <table className="border-2 border-[#002060] font-black text-[10px] text-[#002060] w-full border-collapse">
+                            <table className="border-2 border-[#002060] font-black text-[13px] text-[#002060] w-full border-collapse">
                                 <tbody>
                                     <tr className="border-b border-[#002060]">
                                         <td className="bg-slate-50 p-2 border-r border-[#002060] uppercase w-[45%] font-extrabold">Peso Entrada</td>
-                                        <td className="p-2 text-right text-xs font-black">{totals.totalInput.toLocaleString('pt-BR')} kg</td>
+                                        <td className="p-2 text-right text-sm font-black">{totals.totalInput.toLocaleString('pt-BR')} kg</td>
                                     </tr>
                                     <tr className="border-b border-[#002060]">
                                         <td className="bg-slate-50 p-2 border-r border-[#002060] uppercase font-extrabold">Peso Saída</td>
-                                        <td className="p-2 text-right text-xs font-black">{totals.totalOutput.toLocaleString('pt-BR')} kg</td>
+                                        <td className="p-2 text-right text-sm font-black">{totals.totalOutput.toLocaleString('pt-BR')} kg</td>
                                     </tr>
                                     <tr>
                                         <td className="bg-slate-50 p-2 border-r border-[#002060] uppercase font-extrabold">Sucata</td>
-                                        <td className="p-2 text-right text-xs font-black flex justify-between items-center">
+                                        <td className="p-2 text-right text-sm font-black flex justify-between items-center">
                                             <span>{totals.scrap.toLocaleString('pt-BR')} kg</span>
-                                            <span className="text-[10px] text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded font-extrabold ml-2 border border-rose-200">
+                                            <span className="text-[13px] text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded font-extrabold ml-2 border border-rose-200">
                                                 {totals.scrapPercentage.toFixed(2).replace('.', ',')}%
                                             </span>
                                         </td>
@@ -670,12 +719,12 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                         {/* Box de Assinatura */}
                         <div className="col-span-12 md:col-span-7 flex flex-col justify-end">
                             <div className="flex items-center p-2 border border-[#002060] rounded bg-slate-50">
-                                <span className="text-[9px] font-black text-[#002060] uppercase tracking-tight shrink-0 mr-1.5">Responsável:</span>
+                                <span className="text-[11px] font-black text-[#002060] uppercase tracking-tight shrink-0 mr-1.5">Responsável:</span>
                                 <input 
                                     type="text" 
                                     value={responsavel} 
                                     onChange={e => setResponsavel(e.target.value)} 
-                                    className="op-editable-input text-center font-black text-xs w-full" 
+                                    className="op-editable-input text-center font-black text-sm w-full" 
                                     placeholder="Assinatura ou nome do responsável..." 
                                 />
                             </div>
