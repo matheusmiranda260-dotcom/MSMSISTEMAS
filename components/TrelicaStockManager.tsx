@@ -46,7 +46,7 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
     users = []
 }) => {
     const [activeTab, setActiveTab] = useState<'floor' | 'production' | 'ca60' | 'history'>('floor');
-    const [movingItem, setMovingItem] = useState<{ model: string; size: string; type: 'transfer' | 'audit' | 'virtual_audit' | 'add_virtual' | 'dispatch' } | null>(null);
+    const [movingItem, setMovingItem] = useState<{ model: string; size: string; type: 'transfer' | 'audit' | 'virtual_audit' | 'add_virtual' | 'dispatch' | 'view_history' } | null>(null);
     const [movementQty, setMovementQty] = useState(0);
     const [obs, setObs] = useState('');
 
@@ -405,205 +405,342 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
     }, [movingItem, currentItemForModal]);
 
     return (
-        <div className="p-4 sm:p-6 md:p-8 space-y-8 animate-fade-in">
+        <>
             {/* Modal de Movimentação */}
             {movingItem && (
                 <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[70] flex items-center justify-center p-4">
                     <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden border border-white/20 animate-modal-in">
-                        <div className={`p-8 ${movingItem.type === 'transfer' ? 'bg-indigo-600' : movingItem.type === 'virtual_audit' ? 'bg-slate-700' : movingItem.type === 'add_virtual' ? 'bg-emerald-500' : movingItem.type === 'dispatch' ? 'bg-amber-600' : 'bg-emerald-600'} text-white`}>
+                        <div className={`p-8 ${movingItem.type === 'transfer' ? 'bg-indigo-600' : movingItem.type === 'virtual_audit' ? 'bg-slate-700' : movingItem.type === 'add_virtual' ? 'bg-emerald-500' : movingItem.type === 'dispatch' ? 'bg-amber-600' : 'bg-slate-600'} text-white`}>
                             <h3 className="text-2xl font-black flex items-center gap-3">
-                                {movingItem.type === 'transfer' ? <SwitchHorizontalIcon className="h-7 w-7" /> : movingItem.type === 'add_virtual' ? <PlusIcon className="h-7 w-7" /> : movingItem.type === 'dispatch' ? <ArrowLeftIcon className="h-7 w-7" /> : <CalculatorIcon className="h-7 w-7" />}
-                                {movingItem.type === 'transfer' ? 'Transferir para Setor (Aguardando Retirada)' : movingItem.type === 'add_virtual' ? 'Adicionar Estoque' : movingItem.type === 'virtual_audit' ? 'Ajustar Saldo Virtual' : movingItem.type === 'dispatch' ? 'Realizar Retirada (Baixa do Reservado)' : 'Ajustar Contagem Física'}
+                                {movingItem.type === 'transfer' ? <SwitchHorizontalIcon className="h-7 w-7" /> : movingItem.type === 'add_virtual' ? <PlusIcon className="h-7 w-7" /> : movingItem.type === 'dispatch' ? <ArrowLeftIcon className="h-7 w-7" /> : movingItem.type === 'view_history' ? <ClockIcon className="h-7 w-7" /> : <CalculatorIcon className="h-7 w-7" />}
+                                {movingItem.type === 'transfer' ? 'Transferir para Setor (Aguardando Retirada)' : movingItem.type === 'add_virtual' ? 'Adicionar Estoque' : movingItem.type === 'virtual_audit' ? 'Ajustar Saldo Virtual' : movingItem.type === 'dispatch' ? 'Realizar Retirada (Baixa do Reservado)' : movingItem.type === 'view_history' ? 'Histórico do Lote' : 'Ajustar Contagem Física'}
                             </h3>
                             <p className="text-white/70 font-bold uppercase text-xs tracking-widest mt-2">{movingItem.model} - {movingItem.size}m</p>
                         </div>
                         <div className="p-8 space-y-6 max-h-[80vh] overflow-y-auto">
-                            {movingItem.type === 'dispatch' && currentItemForModal && (
-                                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs font-semibold text-amber-800 flex justify-between">
-                                    <span>Pendente Retirada: <strong>{currentItemForModal.pendingTransferQuantity || 0} pçs</strong></span>
-                                    <span>Disponível no Físico: <strong>{currentItemForModal.physicalQuantity || 0} pçs</strong></span>
-                                </div>
-                            )}
+                            {movingItem.type === 'view_history' ? (
+                                <div className="space-y-4">
+                                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center justify-between">
+                                        <span>Histórico de Movimentações</span>
+                                        <span className="text-[10px] text-slate-400 font-bold lowercase">({currentItemForModal?.movementHistory?.length || 0} registros)</span>
+                                    </h4>
+                                    {currentItemForModal && currentItemForModal.movementHistory && currentItemForModal.movementHistory.length > 0 ? (
+                                        <div className="space-y-3 max-h-[45vh] overflow-y-auto custom-scrollbar pr-1">
+                                            {[...currentItemForModal.movementHistory].reverse().map((m, idx) => {
+                                                const parsed = parseObservationSector(m.observations || '');
+                                                let typeLabel = '';
+                                                let badgeColor = '';
+                                                if (m.type === 'transfer') {
+                                                    typeLabel = 'Transferência Setor (Reservado)';
+                                                    badgeColor = 'bg-indigo-50 text-indigo-700 border-indigo-100';
+                                                } else if (m.type === 'addition') {
+                                                    typeLabel = 'Adição Virtual (Entrada)';
+                                                    badgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+                                                } else if (m.type === 'out') {
+                                                    typeLabel = 'Retirada Física (Carregado)';
+                                                    badgeColor = 'bg-amber-50 text-amber-700 border-amber-100';
+                                                } else {
+                                                    typeLabel = m.from === 'system' ? 'Ajuste Virtual' : 'Ajuste Físico';
+                                                    badgeColor = 'bg-slate-50 text-slate-700 border-slate-200';
+                                                }
 
-                            {movingItem.type === 'transfer' && currentItemForModal && (
-                                <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-2xl text-xs font-semibold text-indigo-800 flex justify-between animate-fade-in">
-                                    <span>Disponível Físico (Galpão): <strong>{formatPiecesAndPacksShort((currentItemForModal.physicalQuantity || 0) - (currentItemForModal.pendingTransferQuantity || 0))}</strong></span>
-                                    {currentItemForModal.pendingTransferQuantity > 0 && (
-                                        <span className="text-[10px] text-amber-600 font-bold uppercase">(Aguardando: {currentItemForModal.pendingTransferQuantity} pçs)</span>
+                                                return (
+                                                    <div key={idx} className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs space-y-2">
+                                                        <div className="flex justify-between items-start gap-2 flex-wrap">
+                                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${badgeColor}`}>
+                                                                    {typeLabel}
+                                                                </span>
+                                                                {parsed.sector && (
+                                                                    <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-blue-50 text-blue-700 border border-blue-100">
+                                                                        Setor: {parsed.sector}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <span className="text-[10px] text-slate-400 font-medium">
+                                                                {new Date(m.date).toLocaleString('pt-BR')}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-sm font-bold text-slate-800">
+                                                            Quantidade: <span className="text-indigo-600">{formatPiecesAndPacksShort(m.quantity)}</span>
+                                                        </p>
+                                                        {parsed.cleanObs && (
+                                                            <p className="text-slate-600 font-medium italic bg-white p-2.5 rounded-xl border border-slate-100">
+                                                                "{parsed.cleanObs}"
+                                                            </p>
+                                                        )}
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wide">
+                                                            Operador: <span className="text-slate-600">{m.operator || 'Sistema'}</span>
+                                                        </p>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-slate-400 font-bold text-center py-6">
+                                            Nenhum histórico registrado para este item.
+                                        </p>
                                     )}
-                                </div>
-                            )}
-                            
-                            {/* Synced quantity inputs */}
-                            <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                    {movingItem.type === 'transfer' ? 'Quantidade a Transferir' : movingItem.type === 'add_virtual' ? 'Quantidade a Adicionar' : movingItem.type === 'virtual_audit' ? 'Novo Saldo Virtual (Sistema)' : movingItem.type === 'dispatch' ? 'Quantidade a Retirar' : 'Nova Contagem Física Real (Galpão)'}
-                                </label>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Pacotes (200 pçs)</label>
-                                        <input 
-                                            type="number"
-                                            value={Math.floor(movementQty / 200)}
-                                            onChange={(e) => {
-                                                const packs = parseInt(e.target.value) || 0;
-                                                const rem = movementQty % 200;
-                                                const newQty = Math.min(packs * 200 + rem, maxQtyForModal);
-                                                setMovementQty(newQty);
-                                            }}
-                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-black text-slate-800 focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Peças Avulsas</label>
-                                        <input 
-                                            type="number"
-                                            value={movementQty % 200}
-                                            onChange={(e) => {
-                                                const rem = parseInt(e.target.value) || 0;
-                                                const packs = Math.floor(movementQty / 200);
-                                                const newQty = Math.min(packs * 200 + rem, maxQtyForModal);
-                                                setMovementQty(newQty);
-                                            }}
-                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-black text-slate-800 focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                                        />
+                                    <div className="pt-4 flex">
+                                        <button 
+                                            onClick={() => setMovingItem(null)} 
+                                            className="flex-1 py-4 font-black text-white bg-slate-600 hover:bg-slate-700 rounded-2xl shadow-lg transition-all uppercase text-xs"
+                                        >
+                                            Fechar
+                                        </button>
                                     </div>
                                 </div>
-                                <span className="text-xs font-bold text-indigo-600 block mt-1">
-                                    Total: <strong>{movementQty} peças</strong>
-                                </span>
-                            </div>
+                            ) : (
+                                <>
+                                    {movingItem.type === 'dispatch' && currentItemForModal && (
+                                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs font-semibold text-amber-800 flex justify-between">
+                                            <span>Pendente Retirada: <strong>{currentItemForModal.pendingTransferQuantity || 0} pçs</strong></span>
+                                            <span>Disponível no Físico: <strong>{currentItemForModal.physicalQuantity || 0} pçs</strong></span>
+                                        </div>
+                                    )}
 
-                            {/* Additional fields for manual virtual stock entry */}
-                            {movingItem.type === 'add_virtual' && (
-                                <div className="space-y-4 border-t border-slate-100 pt-4">
-                                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Dados da Ordem de Produção (OP)</h4>
-                                    <div>
-                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Nº da Ordem de Produção (OP)</label>
-                                        <input 
-                                            type="text"
-                                            value={opNumber}
-                                            onChange={(e) => setOpNumber(e.target.value)}
-                                            placeholder="Ex: OP-1234"
-                                            className="w-full p-3 bg-slate-50 rounded-xl font-bold text-slate-800 border border-slate-200 outline-none"
-                                        />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Data/Hora Início</label>
-                                            <input 
-                                                type="datetime-local"
-                                                value={opStartTime}
-                                                onChange={(e) => setOpStartTime(e.target.value)}
-                                                className="w-full p-3 bg-slate-50 rounded-xl font-semibold text-slate-700 border border-slate-200 outline-none text-xs"
-                                            />
+                                    {movingItem.type === 'transfer' && currentItemForModal && (
+                                        <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-2xl text-xs font-semibold text-indigo-800 flex justify-between animate-fade-in">
+                                            <span>Disponível Físico (Galpão): <strong>{formatPiecesAndPacksShort((currentItemForModal.physicalQuantity || 0) - (currentItemForModal.pendingTransferQuantity || 0))}</strong></span>
+                                            {currentItemForModal.pendingTransferQuantity > 0 && (
+                                                <span className="text-[10px] text-amber-600 font-bold uppercase">(Aguardando: {currentItemForModal.pendingTransferQuantity} pçs)</span>
+                                            )}
                                         </div>
-                                        <div>
-                                            <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Data/Hora Término</label>
-                                            <input 
-                                                type="datetime-local"
-                                                value={opEndTime}
-                                                onChange={(e) => setOpEndTime(e.target.value)}
-                                                className="w-full p-3 bg-slate-50 rounded-xl font-semibold text-slate-700 border border-slate-200 outline-none text-xs"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="border-t border-slate-100 pt-4">
-                                        <label className="block text-[9px] font-black text-red-500 uppercase tracking-widest mb-1">Senha de Gestor (Requerido)</label>
-                                        <input 
-                                            type="password"
-                                            value={managerPassword}
-                                            onChange={(e) => {
-                                                setManagerPassword(e.target.value);
-                                                setPwdError('');
-                                            }}
-                                            placeholder="Digite a senha..."
-                                            className={`w-full p-3 bg-slate-50 rounded-xl font-black text-slate-800 border outline-none ${pwdError ? 'border-red-500' : 'border-slate-200'}`}
-                                        />
-                                        {pwdError && <p className="text-[10px] font-bold text-red-500 mt-1 uppercase">{pwdError}</p>}
-                                    </div>
-                                </div>
-                            )}
-
-                            {(movingItem.type === 'transfer' || movingItem.type === 'dispatch') && (
-                                <div className="space-y-4 border-t border-slate-100 pt-4">
-                                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Setor de Destino</h4>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Setor</label>
-                                            <select 
-                                                value={destSector} 
-                                                onChange={e => setDestSector(e.target.value)} 
-                                                className="w-full p-3 bg-slate-50 rounded-xl font-semibold text-slate-700 border border-slate-200 outline-none text-xs"
-                                            >
-                                                <option value="CAA60">CAA60</option>
-                                                <option value="CA50">CA50</option>
-                                                <option value="Outros">Outros</option>
-                                            </select>
-                                        </div>
-                                        {destSector === 'Outros' && (
+                                    )}
+                                    
+                                    {/* Synced quantity inputs */}
+                                    <div className="space-y-2">
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                            {movingItem.type === 'transfer' ? 'Quantidade a Transferir' : movingItem.type === 'add_virtual' ? 'Quantidade a Adicionar' : movingItem.type === 'virtual_audit' ? 'Novo Saldo Virtual (Sistema)' : movingItem.type === 'dispatch' ? 'Quantidade a Retirar' : 'Nova Contagem Física Real (Galpão)'}
+                                        </label>
+                                        <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Especificar Setor</label>
+                                                <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Pacotes (200 pçs)</label>
                                                 <input 
-                                                    type="text" 
-                                                    value={otherDestSector} 
-                                                    onChange={e => setOtherDestSector(e.target.value)} 
-                                                    placeholder="Ex: CAA30"
-                                                    className="w-full p-3 bg-slate-50 rounded-xl font-bold text-slate-800 border border-slate-200 outline-none text-xs"
-                                                    required
+                                                    type="number"
+                                                    value={Math.floor(movementQty / 200)}
+                                                    onChange={(e) => {
+                                                        const packs = parseInt(e.target.value) || 0;
+                                                        const rem = movementQty % 200;
+                                                        const newQty = Math.min(packs * 200 + rem, maxQtyForModal);
+                                                        setMovementQty(newQty);
+                                                    }}
+                                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-black text-slate-800 focus:ring-2 focus:ring-indigo-500/20 outline-none"
                                                 />
                                             </div>
-                                        )}
+                                            <div>
+                                                <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Peças Avulsas</label>
+                                                <input 
+                                                    type="number"
+                                                    value={movementQty % 200}
+                                                    onChange={(e) => {
+                                                        const rem = parseInt(e.target.value) || 0;
+                                                        const packs = Math.floor(movementQty / 200);
+                                                        const newQty = Math.min(packs * 200 + rem, maxQtyForModal);
+                                                        setMovementQty(newQty);
+                                                    }}
+                                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-black text-slate-800 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                                                />
+                                            </div>
+                                        </div>
+                                        <span className="text-xs font-bold text-indigo-600 block mt-1">
+                                            Total: <strong>{movementQty} peças</strong>
+                                        </span>
                                     </div>
-                                </div>
-                            )}
 
-                            {movingItem.type !== 'add_virtual' && (
-                                <div>
-                                    <div className="flex justify-between items-center mb-2">
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Observações / Motivo</label>
-                                        <span className="text-[9px] font-black text-red-500 uppercase tracking-widest leading-none">Obrigatório</span>
+                                    {/* Additional fields for manual virtual stock entry */}
+                                    {movingItem.type === 'add_virtual' && (
+                                        <div className="space-y-4 border-t border-slate-100 pt-4">
+                                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Dados da Ordem de Produção (OP)</h4>
+                                            <div>
+                                                <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Nº da Ordem de Produção (OP)</label>
+                                                <input 
+                                                    type="text"
+                                                    value={opNumber}
+                                                    onChange={(e) => setOpNumber(e.target.value)}
+                                                    placeholder="Ex: OP-1234"
+                                                    className="w-full p-3 bg-slate-50 rounded-xl font-bold text-slate-800 border border-slate-200 outline-none"
+                                                />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Data/Hora Início</label>
+                                                    <input 
+                                                        type="datetime-local"
+                                                        value={opStartTime}
+                                                        onChange={(e) => setOpStartTime(e.target.value)}
+                                                        className="w-full p-3 bg-slate-50 rounded-xl font-semibold text-slate-700 border border-slate-200 outline-none text-xs"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Data/Hora Término</label>
+                                                    <input 
+                                                        type="datetime-local"
+                                                        value={opEndTime}
+                                                        onChange={(e) => setOpEndTime(e.target.value)}
+                                                        className="w-full p-3 bg-slate-50 rounded-xl font-semibold text-slate-700 border border-slate-200 outline-none text-xs"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="border-t border-slate-100 pt-4">
+                                                <label className="block text-[9px] font-black text-red-500 uppercase tracking-widest mb-1">Senha de Gestor (Requerido)</label>
+                                                <input 
+                                                    type="password"
+                                                    value={managerPassword}
+                                                    onChange={(e) => {
+                                                        setManagerPassword(e.target.value);
+                                                        setPwdError('');
+                                                    }}
+                                                    placeholder="Digite a senha..."
+                                                    className={`w-full p-3 bg-slate-50 rounded-xl font-black text-slate-800 border outline-none ${pwdError ? 'border-red-500' : 'border-slate-200'}`}
+                                                />
+                                                {pwdError && <p className="text-[10px] font-bold text-red-500 mt-1 uppercase">{pwdError}</p>}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {(movingItem.type === 'transfer' || movingItem.type === 'dispatch') && (
+                                        <div className="space-y-4 border-t border-slate-100 pt-4">
+                                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Setor de Destino</h4>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Setor</label>
+                                                    <select 
+                                                        value={destSector} 
+                                                        onChange={e => setDestSector(e.target.value)} 
+                                                        className="w-full p-3 bg-slate-50 rounded-xl font-semibold text-slate-700 border border-slate-200 outline-none text-xs"
+                                                    >
+                                                        <option value="CAA60">CAA60</option>
+                                                        <option value="CA50">CA50</option>
+                                                        <option value="Outros">Outros</option>
+                                                    </select>
+                                                </div>
+                                                {destSector === 'Outros' && (
+                                                    <div>
+                                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Especificar Setor</label>
+                                                        <input 
+                                                            type="text" 
+                                                            value={otherDestSector} 
+                                                            onChange={e => setOtherDestSector(e.target.value)} 
+                                                            placeholder="Ex: CAA30"
+                                                            className="w-full p-3 bg-slate-50 rounded-xl font-bold text-slate-800 border border-slate-200 outline-none text-xs"
+                                                            required
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {movingItem.type !== 'add_virtual' && (
+                                        <div>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Observações / Motivo</label>
+                                                <span className="text-[9px] font-black text-red-500 uppercase tracking-widest leading-none">Obrigatório</span>
+                                            </div>
+                                            <textarea 
+                                                value={obs} 
+                                                required
+                                                onChange={(e) => setObs(e.target.value)}
+                                                placeholder="Ex: Auditoria mensal, erro de lançamento, quebra..."
+                                                className={`w-full p-4 bg-slate-50 rounded-2xl font-medium text-slate-600 outline-none transition-all border-2 ${!obs.trim() ? 'border-red-100 focus:border-red-200' : 'border-emerald-100 focus:border-emerald-200'}`}
+                                            />
+                                            {!obs.trim() && <p className="text-[9px] font-bold text-red-400 mt-2 uppercase">Descreva o motivo para liberar a gravação</p>}
+                                        </div>
+                                    )}
+
+                                    {/* Histórico Recente do Lote */}
+                                    {currentItemForModal && currentItemForModal.movementHistory && currentItemForModal.movementHistory.length > 0 && (
+                                        <div className="space-y-3 border-t border-slate-100 pt-4">
+                                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center justify-between">
+                                                <span>Histórico Recente</span>
+                                                <span className="text-[10px] text-slate-400 font-bold lowercase">({currentItemForModal.movementHistory.length} registros)</span>
+                                            </h4>
+                                            <div className="space-y-2 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
+                                                {[...currentItemForModal.movementHistory].reverse().slice(0, 5).map((m, idx) => {
+                                                    const parsed = parseObservationSector(m.observations || '');
+                                                    let typeLabel = '';
+                                                    let badgeColor = '';
+                                                    if (m.type === 'transfer') {
+                                                        typeLabel = 'Transf.';
+                                                        badgeColor = 'bg-indigo-50 text-indigo-700 border-indigo-100';
+                                                    } else if (m.type === 'addition') {
+                                                        typeLabel = 'Adição';
+                                                        badgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+                                                    } else if (m.type === 'out') {
+                                                        typeLabel = 'Retirada';
+                                                        badgeColor = 'bg-amber-50 text-amber-700 border-amber-100';
+                                                    } else {
+                                                        typeLabel = m.from === 'system' ? 'Aj. Virt.' : 'Aj. Fís.';
+                                                        badgeColor = 'bg-slate-50 text-slate-700 border-slate-200';
+                                                    }
+
+                                                    return (
+                                                        <div key={idx} className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-[11px] space-y-1">
+                                                            <div className="flex justify-between items-center">
+                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase border ${badgeColor}`}>
+                                                                        {typeLabel}
+                                                                    </span>
+                                                                    {parsed.sector && (
+                                                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-blue-50 text-blue-700 border border-blue-100">
+                                                                            Setor: {parsed.sector}
+                                                                        </span>
+                                                                    )}
+                                                                    <span className="font-bold text-slate-800">
+                                                                        {formatPiecesAndPacksShort(m.quantity)}
+                                                                    </span>
+                                                                </div>
+                                                                <span className="text-[9px] text-slate-400 font-medium">
+                                                                    {new Date(m.date).toLocaleDateString('pt-BR')} {new Date(m.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                </span>
+                                                            </div>
+                                                            {parsed.cleanObs && (
+                                                                <p className="text-slate-500 font-medium italic mt-0.5">
+                                                                    "{parsed.cleanObs}"
+                                                                </p>
+                                                            )}
+                                                            <p className="text-[9px] text-slate-400 font-bold uppercase">
+                                                                Op: {m.operator || 'Sistema'}
+                                                            </p>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="flex gap-4 pt-4">
+                                        <button 
+                                            onClick={() => { 
+                                                setMovingItem(null); 
+                                                setObs(''); 
+                                                setOpNumber('');
+                                                setOpStartTime('');
+                                                setOpEndTime('');
+                                                setManagerPassword('');
+                                                setPwdError('');
+                                                setDestSector('CAA60');
+                                                setOtherDestSector('');
+                                            }} 
+                                            className="flex-1 py-4 font-black text-slate-400 hover:bg-slate-50 rounded-2xl transition-all uppercase text-xs"
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button 
+                                            onClick={handleAction} 
+                                            disabled={
+                                                movingItem.type === 'add_virtual' 
+                                                    ? (!managerPassword.trim() || !opNumber.trim() || !opStartTime || !opEndTime)
+                                                    : (!obs.trim() || ((movingItem.type === 'transfer' || movingItem.type === 'dispatch') && destSector === 'Outros' && !otherDestSector.trim()))
+                                            }
+                                            className={`flex-1 py-4 font-black text-white rounded-2xl shadow-lg transition-all uppercase text-xs disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none ${movingItem.type === 'transfer' || movingItem.type === 'dispatch' ? 'bg-indigo-600' : movingItem.type === 'virtual_audit' ? 'bg-slate-700' : 'bg-emerald-600'}`}
+                                        >
+                                            Confirmar
+                                        </button>
                                     </div>
-                                    <textarea 
-                                        value={obs} 
-                                        required
-                                        onChange={(e) => setObs(e.target.value)}
-                                        placeholder="Ex: Auditoria mensal, erro de lançamento, quebra..."
-                                        className={`w-full p-4 bg-slate-50 rounded-2xl font-medium text-slate-600 outline-none transition-all border-2 ${!obs.trim() ? 'border-red-100 focus:border-red-200' : 'border-emerald-100 focus:border-emerald-200'}`}
-                                    />
-                                    {!obs.trim() && <p className="text-[9px] font-bold text-red-400 mt-2 uppercase">Descreva o motivo para liberar a gravação</p>}
-                                </div>
+                                </>
                             )}
-
-                            <div className="flex gap-4 pt-4">
-                                <button 
-                                    onClick={() => { 
-                                        setMovingItem(null); 
-                                        setObs(''); 
-                                        setOpNumber('');
-                                        setOpStartTime('');
-                                        setOpEndTime('');
-                                        setManagerPassword('');
-                                        setPwdError('');
-                                        setDestSector('CAA60');
-                                        setOtherDestSector('');
-                                    }} 
-                                    className="flex-1 py-4 font-black text-slate-400 hover:bg-slate-50 rounded-2xl transition-all uppercase text-xs"
-                                >
-                                    Cancelar
-                                </button>
-                                <button 
-                                    onClick={handleAction} 
-                                    disabled={
-                                        movingItem.type === 'add_virtual' 
-                                            ? (!managerPassword.trim() || !opNumber.trim() || !opStartTime || !opEndTime)
-                                            : (!obs.trim() || ((movingItem.type === 'transfer' || movingItem.type === 'dispatch') && destSector === 'Outros' && !otherDestSector.trim()))
-                                    }
-                                    className={`flex-1 py-4 font-black text-white rounded-2xl shadow-lg transition-all uppercase text-xs disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none ${movingItem.type === 'transfer' || movingItem.type === 'dispatch' ? 'bg-indigo-600' : movingItem.type === 'virtual_audit' ? 'bg-slate-700' : 'bg-emerald-600'}`}
-                                >
-                                    Confirmar
-                                </button>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -791,8 +928,9 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                 </div>
             )}
 
-            {/* Cabeçalho */}
-            <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="p-4 sm:p-6 md:p-8 space-y-8 animate-fade-in">
+                {/* Cabeçalho */}
+                <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
                     <h1 className="text-4xl font-black text-slate-800 tracking-tight flex items-center gap-3">
                         <div className="w-12 h-12 rounded-2xl bg-[#0A2A3D] flex items-center justify-center shadow-lg shadow-slate-200">
@@ -978,6 +1116,16 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                                                         title="Ajustar Contagem Física"
                                                     >
                                                         Ajustar
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => {
+                                                            setMovingItem({ model: item.model, size: item.size, type: 'view_history' });
+                                                            setMovementQty(0);
+                                                        }}
+                                                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-[10px] font-black uppercase transition-all"
+                                                        title="Ver histórico de movimentações deste lote"
+                                                    >
+                                                        ⏱️ Hist.
                                                     </button>
                                                     <button 
                                                         onClick={() => {
@@ -1351,7 +1499,8 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                 </div>
             )}
         </div>
-    );
+    </>
+);
 };
 
 export default TrelicaStockManager;
