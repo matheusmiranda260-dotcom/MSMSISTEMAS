@@ -11,6 +11,17 @@ const formatPiecesAndPacksShort = (pieces: number): string => {
     return `${pieces} pçs (${packs} ${packs === 1 ? 'pacote' : 'pacotes'} + ${rem} pçs)`;
 };
 
+const parseObservationSector = (obsText: string) => {
+    const match = obsText.match(/^\[Setor:\s*([^\]]+)\]\s*(.*)$/);
+    if (match) {
+        return {
+            sector: match[1],
+            cleanObs: match[2]
+        };
+    }
+    return { sector: null, cleanObs: obsText };
+};
+
 interface TrelicaStockManagerProps {
     finishedGoods: FinishedProductItem[];
     setPage: (page: Page) => void;
@@ -45,6 +56,11 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
     const [opEndTime, setOpEndTime] = useState('');
     const [managerPassword, setManagerPassword] = useState('');
     const [pwdError, setPwdError] = useState('');
+    const [destSector, setDestSector] = useState('CAA60');
+    const [otherDestSector, setOtherDestSector] = useState('');
+    const [historySearch, setHistorySearch] = useState('');
+    const [historyTypeFilter, setHistoryTypeFilter] = useState<'all' | 'addition' | 'transfer' | 'out' | 'adjustment'>('all');
+    const [historyModelFilter, setHistoryModelFilter] = useState('all');
 
     const [selectedConferModel, setSelectedConferModel] = useState<{ model: string; size: string; list: FinishedProductItem[] } | null>(null);
     const [conferringItem, setConferringItem] = useState<FinishedProductItem | null>(null);
@@ -176,8 +192,29 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                 });
             }
         });
-        return list.sort((a, b) => new Date(b.movement.date).getTime() - new Date(a.movement.date).getTime());
-    }, [finishedGoods]);
+        
+        let filtered = list;
+        
+        if (historyTypeFilter !== 'all') {
+            filtered = filtered.filter(item => item.movement.type === historyTypeFilter);
+        }
+        
+        if (historyModelFilter !== 'all') {
+            filtered = filtered.filter(item => `${item.model} (${item.size.trim()}m)` === historyModelFilter);
+        }
+        
+        if (historySearch.trim() !== '') {
+            const query = historySearch.toLowerCase();
+            filtered = filtered.filter(item => 
+                item.model.toLowerCase().includes(query) ||
+                item.size.toLowerCase().includes(query) ||
+                (item.movement.observations || '').toLowerCase().includes(query) ||
+                (item.movement.operator || '').toLowerCase().includes(query)
+            );
+        }
+        
+        return filtered.sort((a, b) => new Date(b.movement.date).getTime() - new Date(a.movement.date).getTime());
+    }, [finishedGoods, historySearch, historyTypeFilter, historyModelFilter]);
 
     // --- HANDLER PARA EXECUÇÃO DE AJUSTES/TRANSFERÊNCIAS ---
     const handleAction = () => {
@@ -288,6 +325,27 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
         }
 
         const currentItem = relevantItems[0];
+        const finalSector = (movingItem.type === 'transfer' || movingItem.type === 'dispatch')
+            ? (destSector === 'Outros' ? otherDestSector.trim() : destSector)
+            : '';
+
+        if ((movingItem.type === 'transfer' || movingItem.type === 'dispatch') && !finalSector) {
+            alert('O setor de destino é obrigatório.');
+            return;
+        }
+
+        const sectorPrefix = (movingItem.type === 'transfer' || movingItem.type === 'dispatch') ? `[Setor: ${finalSector}] ` : '';
+        const defaultObs = movingItem.type === 'audit' 
+            ? 'Ajuste de estoque físico' 
+            : movingItem.type === 'add_virtual' 
+                ? 'Entrada de estoque' 
+                : movingItem.type === 'virtual_audit' 
+                    ? 'Ajuste de estoque virtual' 
+                    : movingItem.type === 'dispatch' 
+                        ? 'Retirada física realizada' 
+                        : 'Transferência reservada (Aguardando Retirada)';
+        const finalObs = `${sectorPrefix}${obs.trim() || defaultObs}`;
+
         const movement: StockMovement = {
             id: Math.random().toString(36).substring(2, 11),
             date: new Date().toISOString(),
@@ -296,7 +354,7 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
             to: movingItem.type === 'transfer' ? 'physical' : (movingItem.type === 'virtual_audit' || movingItem.type === 'add_virtual') ? 'virtual' : 'out',
             quantity: movementQty,
             operator: currentUser?.username || 'Sistema',
-            observations: obs || (movingItem.type === 'audit' ? 'Ajuste de estoque físico' : movingItem.type === 'add_virtual' ? 'Entrada de estoque' : movingItem.type === 'virtual_audit' ? 'Ajuste de estoque virtual' : movingItem.type === 'dispatch' ? 'Despacho físico de treliça' : 'Transferência para outro setor (Aguardando Retirada)')
+            observations: finalObs
         };
 
         const updates: Partial<FinishedProductItem> = {};
@@ -317,6 +375,8 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
         setMovingItem(null);
         setMovementQty(0);
         setObs('');
+        setDestSector('CAA60');
+        setOtherDestSector('');
     };
 
     const currentItemForModal = useMemo(() => {
@@ -465,6 +525,39 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                                 </div>
                             )}
 
+                            {(movingItem.type === 'transfer' || movingItem.type === 'dispatch') && (
+                                <div className="space-y-4 border-t border-slate-100 pt-4">
+                                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Setor de Destino</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Setor</label>
+                                            <select 
+                                                value={destSector} 
+                                                onChange={e => setDestSector(e.target.value)} 
+                                                className="w-full p-3 bg-slate-50 rounded-xl font-semibold text-slate-700 border border-slate-200 outline-none text-xs"
+                                            >
+                                                <option value="CAA60">CAA60</option>
+                                                <option value="CA50">CA50</option>
+                                                <option value="Outros">Outros</option>
+                                            </select>
+                                        </div>
+                                        {destSector === 'Outros' && (
+                                            <div>
+                                                <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Especificar Setor</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={otherDestSector} 
+                                                    onChange={e => setOtherDestSector(e.target.value)} 
+                                                    placeholder="Ex: CAA30"
+                                                    className="w-full p-3 bg-slate-50 rounded-xl font-bold text-slate-800 border border-slate-200 outline-none text-xs"
+                                                    required
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                             {movingItem.type !== 'add_virtual' && (
                                 <div>
                                     <div className="flex justify-between items-center mb-2">
@@ -492,6 +585,8 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                                         setOpEndTime('');
                                         setManagerPassword('');
                                         setPwdError('');
+                                        setDestSector('CAA60');
+                                        setOtherDestSector('');
                                     }} 
                                     className="flex-1 py-4 font-black text-slate-400 hover:bg-slate-50 rounded-2xl transition-all uppercase text-xs"
                                 >
@@ -499,8 +594,12 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                                 </button>
                                 <button 
                                     onClick={handleAction} 
-                                    disabled={movingItem.type !== 'add_virtual' ? !obs.trim() : (!managerPassword.trim() || !opNumber.trim() || !opStartTime || !opEndTime)}
-                                    className={`flex-1 py-4 font-black text-white rounded-2xl shadow-lg transition-all uppercase text-xs disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none ${movingItem.type === 'transfer' ? 'bg-indigo-600' : movingItem.type === 'virtual_audit' ? 'bg-slate-700' : movingItem.type === 'dispatch' ? 'bg-amber-600' : 'bg-emerald-600'}`}
+                                    disabled={
+                                        movingItem.type === 'add_virtual' 
+                                            ? (!managerPassword.trim() || !opNumber.trim() || !opStartTime || !opEndTime)
+                                            : (!obs.trim() || ((movingItem.type === 'transfer' || movingItem.type === 'dispatch') && destSector === 'Outros' && !otherDestSector.trim()))
+                                    }
+                                    className={`flex-1 py-4 font-black text-white rounded-2xl shadow-lg transition-all uppercase text-xs disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none ${movingItem.type === 'transfer' || movingItem.type === 'dispatch' ? 'bg-indigo-600' : movingItem.type === 'virtual_audit' ? 'bg-slate-700' : 'bg-emerald-600'}`}
                                 >
                                     Confirmar
                                 </button>
@@ -1107,65 +1206,145 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                             <p className="text-slate-500 text-xs font-bold mt-1">Registros consolidados de auditorias, adições e transferências de todas as treliças.</p>
                         </div>
                     </div>
+
+                    {/* Painel de Filtros e Busca */}
+                    <div className="p-6 sm:p-8 bg-slate-50 border-b border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                Buscar por Texto
+                            </label>
+                            <input 
+                                type="text"
+                                value={historySearch}
+                                onChange={(e) => setHistorySearch(e.target.value)}
+                                placeholder="Buscar modelo, observações ou operador..."
+                                className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 outline-none text-xs shadow-sm transition-all placeholder-slate-400"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                Tipo de Movimentação
+                            </label>
+                            <select 
+                                value={historyTypeFilter}
+                                onChange={(e) => setHistoryTypeFilter(e.target.value as any)}
+                                className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 outline-none text-xs shadow-sm transition-all"
+                            >
+                                <option value="all">Todos os Tipos</option>
+                                <option value="addition">Adição Virtual</option>
+                                <option value="transfer">Transferência de Setor</option>
+                                <option value="out">Retirada Física</option>
+                                <option value="adjustment">Ajuste de Saldo</option>
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                Modelo de Treliça
+                            </label>
+                            <select 
+                                value={historyModelFilter}
+                                onChange={(e) => setHistoryModelFilter(e.target.value)}
+                                className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 outline-none text-xs shadow-sm transition-all"
+                            >
+                                <option value="all">Todos os Modelos</option>
+                                {trelicaModels.map((m, idx) => {
+                                    const value = `${m.modelo} (${m.tamanho.trim()}m)`;
+                                    return (
+                                        <option key={idx} value={value}>
+                                            {m.modelo} ({m.tamanho.trim()}m)
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                        </div>
+                    </div>
                     
                     <div className="p-6 sm:p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
                         {globalHistory.length > 0 ? (
                             <div className="space-y-4">
-                                {globalHistory.map((m, idx) => (
-                                    <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-slate-100/50 transition-colors">
-                                        <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-sm">
-                                            {m.movement.type === 'transfer' ? (
-                                                <SwitchHorizontalIcon className="h-6 w-6 text-indigo-600" />
-                                            ) : m.movement.type === 'addition' ? (
-                                                <PlusIcon className="h-6 w-6 text-emerald-500" />
-                                            ) : m.movement.type === 'out' ? (
-                                                <ArrowLeftIcon className="h-6 w-6 text-amber-500" />
-                                            ) : (
-                                                <CalculatorIcon className="h-6 w-6 text-slate-500" />
-                                            )}
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-                                                <div>
-                                                    <p className="font-black text-slate-800 uppercase text-xs">
-                                                        Treliça {m.model} ({m.size}m) &mdash; {
-                                                            m.movement.type === 'transfer' ? 'Virtual → Físico' : 
-                                                            m.movement.type === 'addition' ? 'Adição de Estoque' : 
-                                                            m.movement.type === 'out' ? 'Despacho Físico (Retirada)' :
-                                                            m.movement.from === 'system' ? 'Ajuste de Saldo Virtual' : 'Ajuste de Saldo Físico'
-                                                        }
-                                                    </p>
-                                                    <p className="text-sm font-bold text-slate-700 mt-1">
-                                                        Quantidade: <span className={
-                                                            m.movement.type === 'transfer' ? 'text-indigo-600' : 
-                                                            m.movement.type === 'addition' ? 'text-emerald-600' : 
-                                                            m.movement.type === 'out' ? 'text-amber-600' : 'text-slate-600'
-                                                        }>{m.movement.quantity} pçs</span>
-                                                    </p>
-                                                </div>
-                                                <div className="text-left sm:text-right">
-                                                    <span className="text-xs font-bold text-slate-400 bg-white px-3 py-1 rounded-lg border border-slate-200 block w-fit sm:ml-auto">
-                                                        {new Date(m.movement.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
-                                                    </span>
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase mt-2 tracking-widest">
-                                                        Operador: <span className="text-slate-600">{m.movement.operator}</span>
-                                                    </p>
-                                                </div>
+                                {globalHistory.map((m, idx) => {
+                                    const parsed = parseObservationSector(m.movement.observations || '');
+                                    
+                                    // Determinação do label do tipo e cores correspondentes
+                                    let typeLabel = '';
+                                    let badgeColor = '';
+                                    if (m.movement.type === 'transfer') {
+                                        typeLabel = 'Transferência Setor (Reservado)';
+                                        badgeColor = 'bg-indigo-50 border border-indigo-100 text-indigo-700';
+                                    } else if (m.movement.type === 'addition') {
+                                        typeLabel = 'Adição Virtual (Entrada)';
+                                        badgeColor = 'bg-emerald-50 border border-emerald-100 text-emerald-700';
+                                    } else if (m.movement.type === 'out') {
+                                        typeLabel = 'Retirada Física (Carregado)';
+                                        badgeColor = 'bg-amber-50 border border-amber-100 text-amber-700';
+                                    } else {
+                                        typeLabel = m.movement.from === 'system' ? 'Ajuste de Saldo Virtual' : 'Ajuste de Saldo Físico';
+                                        badgeColor = 'bg-slate-50 border border-slate-200 text-slate-700';
+                                    }
+
+                                    return (
+                                        <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-slate-100/50 transition-colors">
+                                            <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-sm">
+                                                {m.movement.type === 'transfer' ? (
+                                                    <SwitchHorizontalIcon className="h-6 w-6 text-indigo-600" />
+                                                ) : m.movement.type === 'addition' ? (
+                                                    <PlusIcon className="h-6 w-6 text-emerald-500" />
+                                                ) : m.movement.type === 'out' ? (
+                                                    <ArrowLeftIcon className="h-6 w-6 text-amber-500" />
+                                                ) : (
+                                                    <CalculatorIcon className="h-6 w-6 text-slate-500" />
+                                                )}
                                             </div>
-                                            {m.movement.observations && (
-                                                <p className="text-sm text-slate-600 mt-3 p-3 bg-white rounded-xl border border-slate-100 font-medium">
-                                                    "{m.movement.observations}"
-                                                </p>
-                                            )}
+                                            <div className="flex-1">
+                                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                                                    <div className="space-y-1.5">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <span className="font-black text-slate-800 uppercase text-xs">
+                                                                Treliça {m.model} ({m.size}m)
+                                                            </span>
+                                                            <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase ${badgeColor}`}>
+                                                                {typeLabel}
+                                                            </span>
+                                                            {parsed.sector && (
+                                                                <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase bg-blue-50 border border-blue-100 text-blue-700">
+                                                                    Setor: {parsed.sector}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-sm font-bold text-slate-700 mt-1">
+                                                            Quantidade: <span className={
+                                                                m.movement.type === 'transfer' ? 'text-indigo-600' : 
+                                                                m.movement.type === 'addition' ? 'text-emerald-600' : 
+                                                                m.movement.type === 'out' ? 'text-amber-600' : 'text-slate-600'
+                                                            }>
+                                                                {formatPiecesAndPacksShort(m.movement.quantity)}
+                                                            </span>
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-left sm:text-right">
+                                                        <span className="text-xs font-bold text-slate-400 bg-white px-3 py-1 rounded-lg border border-slate-200 block w-fit sm:ml-auto">
+                                                            {new Date(m.movement.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                                                        </span>
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase mt-2 tracking-widest">
+                                                            Operador: <span className="text-slate-600">{m.movement.operator}</span>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                {parsed.cleanObs && (
+                                                    <p className="text-sm text-slate-600 mt-3 p-3 bg-white rounded-xl border border-slate-100 font-medium">
+                                                        "{parsed.cleanObs}"
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className="text-center py-16 px-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                                 <ArchiveIcon className="h-16 w-16 text-slate-300 mx-auto mb-4" />
-                                <h4 className="text-lg font-black text-slate-700 mb-2">Nenhum histórico registrado</h4>
-                                <p className="text-slate-500 font-medium max-w-md mx-auto text-sm">Ainda não existem logs de movimentações de treliças gravados no sistema.</p>
+                                <h4 className="text-lg font-black text-slate-700 mb-2">Nenhuma movimentação encontrada</h4>
+                                <p className="text-slate-500 font-medium max-w-md mx-auto text-sm">Não há registros correspondentes aos filtros selecionados.</p>
                             </div>
                         )}
                     </div>

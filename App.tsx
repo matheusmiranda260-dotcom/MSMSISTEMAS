@@ -858,6 +858,20 @@ const App: React.FC = () => {
                 });
 
                 const newQuantity = item.quantity - transferQty;
+                const movement: StockMovement = {
+                    id: Math.random().toString(36).substring(2, 11),
+                    date: new Date().toISOString(),
+                    type: data.withdrawPhysicalNow ? 'out' : 'transfer',
+                    from: 'virtual',
+                    to: data.withdrawPhysicalNow ? 'out' : 'physical',
+                    quantity: transferQty,
+                    operator: currentUser.username,
+                    observations: data.withdrawPhysicalNow 
+                        ? `[Setor: ${data.destinationSector}] Transferência e retirada imediata`
+                        : `[Setor: ${data.destinationSector}] Transferência reservada (Aguardando Retirada)`
+                };
+                const newHistory = [...(item.movementHistory || []), movement];
+
                 if (data.withdrawPhysicalNow) {
                     const newPhysical = Math.max(0, (item.physicalQuantity || 0) - transferQty);
                     finishedGoodsUpdates.push({
@@ -866,7 +880,8 @@ const App: React.FC = () => {
                             quantity: newQuantity > 0 ? newQuantity : 0,
                             totalWeight: newQuantity > 0 ? item.totalWeight - transferredWeight : 0,
                             status: newQuantity > 0 ? item.status : 'Transferido',
-                            physicalQuantity: newPhysical
+                            physicalQuantity: newPhysical,
+                            movementHistory: newHistory
                         }
                     });
                 } else {
@@ -877,7 +892,8 @@ const App: React.FC = () => {
                             quantity: newQuantity > 0 ? newQuantity : 0,
                             totalWeight: newQuantity > 0 ? item.totalWeight - transferredWeight : 0,
                             status: newQuantity > 0 ? item.status : 'Transferido',
-                            pendingTransferQuantity: newPending
+                            pendingTransferQuantity: newPending,
+                            movementHistory: newHistory
                         }
                     });
                 }
@@ -909,6 +925,20 @@ const App: React.FC = () => {
                 });
 
                 const newQuantity = item.quantity - transferQty;
+                const movement: StockMovement = {
+                    id: Math.random().toString(36).substring(2, 11),
+                    date: new Date().toISOString(),
+                    type: data.withdrawPhysicalNow ? 'out' : 'transfer',
+                    from: 'virtual',
+                    to: data.withdrawPhysicalNow ? 'out' : 'physical',
+                    quantity: transferQty,
+                    operator: currentUser.username,
+                    observations: data.withdrawPhysicalNow 
+                        ? `[Setor: ${data.destinationSector}] Transferência e retirada imediata`
+                        : `[Setor: ${data.destinationSector}] Transferência reservada (Aguardando Retirada)`
+                };
+                const newHistory = [...(item.movementHistory || []), movement];
+
                 if (data.withdrawPhysicalNow) {
                     const newPhysical = Math.max(0, (item.physicalQuantity || 0) - transferQty);
                     pontasUpdates.push({
@@ -917,7 +947,8 @@ const App: React.FC = () => {
                             quantity: newQuantity > 0 ? newQuantity : 0,
                             totalWeight: newQuantity > 0 ? item.totalWeight - transferredWeight : 0,
                             status: newQuantity > 0 ? item.status : 'Transferido',
-                            physicalQuantity: newPhysical
+                            physicalQuantity: newPhysical,
+                            movementHistory: newHistory
                         }
                     });
                 } else {
@@ -928,7 +959,8 @@ const App: React.FC = () => {
                             quantity: newQuantity > 0 ? newQuantity : 0,
                             totalWeight: newQuantity > 0 ? item.totalWeight - transferredWeight : 0,
                             status: newQuantity > 0 ? item.status : 'Transferido',
-                            pendingTransferQuantity: newPending
+                            pendingTransferQuantity: newPending,
+                            movementHistory: newHistory
                         }
                     });
                 }
