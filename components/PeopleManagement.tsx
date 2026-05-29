@@ -198,7 +198,42 @@ const MobileFriendlyDateInput: React.FC<{
 };
 
 // --- DASHBOARD COMPONENT ---
-const DashboardRH: React.FC<{ employees: Employee[], absences: EmployeeAbsence[], vacations: EmployeeVacation[] }> = ({ employees, absences, vacations }) => {
+const DashboardRH: React.FC<{
+    employees: Employee[];
+    absences: EmployeeAbsence[];
+    vacations: EmployeeVacation[];
+    onSelectEmployee?: (emp: Employee, tab?: any) => void;
+    onReloadData?: () => void;
+}> = ({ employees, absences, vacations, onSelectEmployee, onReloadData }) => {
+    const handleSettlePeriod = async (employee: Employee, periodStr: string, daysRemaining: number) => {
+        if (!confirm(`Deseja marcar o período ${periodStr} como QUITADO para ${employee.name}? Isso registrará férias gozadas de ${daysRemaining} dias.`)) {
+            return;
+        }
+        try {
+            const startYear = parseInt(periodStr);
+            const start = new Date(startYear, 0, 1);
+            const end = new Date(start);
+            end.setDate(start.getDate() + daysRemaining - 1);
+
+            const startDateStr = start.toISOString().split('T')[0];
+            const endDateStr = end.toISOString().split('T')[0];
+
+            await insertItem('employee_vacations', {
+                employeeId: employee.id,
+                period: periodStr,
+                startDate: startDateStr,
+                endDate: endDateStr,
+                status: 'Gozada'
+            } as any);
+
+            alert(`Férias do período ${periodStr} quitadas com sucesso!`);
+            if (onReloadData) onReloadData();
+        } catch (e) {
+            console.error(e);
+            alert('Erro ao quitar período de férias.');
+        }
+    };
+
     const totalEmployees = employees.length;
     const activeEmployees = employees.filter(e => e.active).length;
     const inactiveEmployees = totalEmployees - activeEmployees;
@@ -422,6 +457,20 @@ const DashboardRH: React.FC<{ employees: Employee[], absences: EmployeeAbsence[]
                                             <div className="mt-2 text-xs flex justify-between text-slate-600 border-t pt-1.5 border-dashed">
                                                 <span>Dias em haver: <strong>{daysRemaining} dias</strong></span>
                                                 <span>Prazo: {deadlineStr}</span>
+                                            </div>
+                                            <div className="mt-2.5 pt-2 border-t border-dashed border-slate-100 flex gap-2 justify-end">
+                                                <button
+                                                    onClick={() => onSelectEmployee?.(employee, 'hr')}
+                                                    className="px-2.5 py-1 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded text-xs font-bold transition border border-slate-200"
+                                                >
+                                                    Ver Detalhes
+                                                </button>
+                                                <button
+                                                    onClick={() => handleSettlePeriod(employee, periodStr, daysRemaining)}
+                                                    className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded text-xs font-bold transition border border-emerald-200"
+                                                >
+                                                    Quitar Período
+                                                </button>
                                             </div>
                                         </li>
                                     ))}
@@ -653,6 +702,36 @@ const EmployeeDetailModal: React.FC<{
         if (!confirm('Excluir registro?')) return;
         await deleteItem('employee_vacations', id);
         loadDetails();
+    };
+
+    const handleQuickSettleVacation = async (period: string, balance: number) => {
+        if (!confirm(`Deseja marcar o saldo restante de ${balance} dias do período ${period} como QUITADO? Isso registrará férias gozadas de ${balance} dias.`)) {
+            return;
+        }
+        try {
+            const startYear = parseInt(period);
+            const start = new Date(startYear, 0, 1);
+            const end = new Date(start);
+            end.setDate(start.getDate() + balance - 1);
+
+            const startDateStr = start.toISOString().split('T')[0];
+            const endDateStr = end.toISOString().split('T')[0];
+
+            await insertItem('employee_vacations', {
+                employeeId: employee.id,
+                period: period,
+                startDate: startDateStr,
+                endDate: endDateStr,
+                status: 'Gozada'
+            } as any);
+
+            alert('Férias quitadas com sucesso!');
+            loadDetails();
+            onSave();
+        } catch (e) {
+            console.error(e);
+            alert('Erro ao quitar férias.');
+        }
     };
 
     // Document Handlers
@@ -1354,7 +1433,8 @@ const EmployeeDetailModal: React.FC<{
                                                     }
                                                     return acc;
                                                 }, {} as Record<string, { gozados: number; agendados: number; vendidos: number }>)
-                                            ).map(([period, stats]) => {
+                                            ).map(([period, statsVal]) => {
+                                                const stats = statsVal as { gozados: number; agendados: number; vendidos: number };
                                                 const totalUsed = stats.gozados + stats.agendados + stats.vendidos;
                                                 const balance = 30 - totalUsed;
                                                 
@@ -1431,6 +1511,12 @@ const EmployeeDetailModal: React.FC<{
                                                                     className="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-[10px] font-bold py-1.5 px-2 rounded-lg border border-amber-100 transition text-center"
                                                                 >
                                                                     Vender Restante
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleQuickSettleVacation(period, balance)}
+                                                                    className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold py-1.5 px-2 rounded-lg border border-emerald-200 transition text-center"
+                                                                >
+                                                                    Quitar Restante
                                                                 </button>
                                                             </div>
                                                         )}
@@ -2258,7 +2344,13 @@ const PeopleManagement: React.FC<PeopleManagementProps> = ({ setPage, currentUse
                     triggerEditEmployee={(emp) => setSelectedEmployee({ emp })}
                 />
             ) : (
-                <DashboardRH employees={employees} absences={absences} vacations={vacations} />
+                <DashboardRH
+                    employees={employees}
+                    absences={absences}
+                    vacations={vacations}
+                    onSelectEmployee={(emp, tab) => setSelectedEmployee({ emp, tab })}
+                    onReloadData={loadData}
+                />
             )}
             {selectedEmployee && (
                 <EmployeeDetailModal
