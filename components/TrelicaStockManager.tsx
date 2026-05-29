@@ -931,575 +931,148 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
             <div className="p-4 sm:p-6 md:p-8 space-y-8 animate-fade-in">
                 {/* Cabeçalho */}
                 <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                    <h1 className="text-4xl font-black text-slate-800 tracking-tight flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-[#0A2A3D] flex items-center justify-center shadow-lg shadow-slate-200">
-                            <ArchiveIcon className="h-6 w-6 text-white" />
-                        </div>
-                        Gestão de Treliças
-                    </h1>
-                    <p className="text-slate-500 font-medium mt-1 ml-15">Controle de produto acabado, ordens em andamento e estoque de CA-60.</p>
-                </div>
-                <button onClick={() => setPage('productionOrderTrelica')} className="bg-[#0F3F5C] hover:bg-[#0A2A3D] text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 transition-all shadow-md">
-                    <PlusIcon className="h-5 w-5" /> Criar Ordem
-                </button>
-            </header>
-
-            {/* Menu de Abas */}
-            <div className="flex border-b border-slate-200 overflow-x-auto whitespace-nowrap scrollbar-thin">
-                <button
-                    onClick={() => setActiveTab('floor')}
-                    className={`pb-4 px-6 font-bold text-sm border-b-2 transition-all ${
-                        activeTab === 'floor'
-                            ? 'border-indigo-600 text-indigo-600'
-                            : 'border-transparent text-slate-400 hover:text-slate-600'
-                    }`}
-                >
-                    📦 Estoque Chão (Galpão)
-                </button>
-                <button
-                    onClick={() => setActiveTab('production')}
-                    className={`pb-4 px-6 font-bold text-sm border-b-2 transition-all ${
-                        activeTab === 'production'
-                            ? 'border-indigo-600 text-indigo-600'
-                            : 'border-transparent text-slate-400 hover:text-slate-600'
-                    }`}
-                >
-                    🏭 Ordens em Produção
-                </button>
-                <button
-                    onClick={() => setActiveTab('ca60')}
-                    className={`pb-4 px-6 font-bold text-sm border-b-2 transition-all ${
-                        activeTab === 'ca60'
-                            ? 'border-indigo-600 text-indigo-600'
-                            : 'border-transparent text-slate-400 hover:text-slate-600'
-                    }`}
-                >
-                    ⚙️ Estoque CA-60 Conosco
-                </button>
-                <button
-                    onClick={() => setActiveTab('history')}
-                    className={`pb-4 px-6 font-bold text-sm border-b-2 transition-all ${
-                        activeTab === 'history'
-                            ? 'border-indigo-600 text-indigo-600'
-                            : 'border-transparent text-slate-400 hover:text-slate-600'
-                    }`}
-                >
-                    ⏱️ Histórico de Movimentações
-                </button>
-            </div>
-
-            {/* --- CONTEÚDO DAS ABAS --- */}
-
-            {/* ABA 1: ESTOQUE CHÃO */}
-            {activeTab === 'floor' && (
-                <div className="space-y-6">
-                    {/* Cards Resumo Geral */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-                        <div className="bg-slate-800 p-6 rounded-[2rem] text-white flex flex-col justify-between shadow-sm">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Estoque Virtual Total</p>
-                            <p className="text-4xl font-black">{overallStats.totalVirtual} <span className="text-sm opacity-50 uppercase">pçs</span></p>
-                            <span className="text-[11px] font-bold text-slate-400 block mt-1">
-                                {Math.floor(overallStats.totalVirtual / 200)} pac. {overallStats.totalVirtual % 200 > 0 ? `+ ${overallStats.totalVirtual % 200} pçs` : ''}
-                            </span>
-                        </div>
-                        <div className="bg-indigo-600 p-6 rounded-[2rem] text-white shadow-xl shadow-indigo-100 flex flex-col justify-between">
-                            <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest mb-1">Estoque Físico Total</p>
-                            <p className="text-4xl font-black">{overallStats.totalPhysical} <span className="text-sm opacity-50 uppercase">pçs</span></p>
-                            <span className="text-[11px] font-bold text-indigo-200 block mt-1">
-                                {Math.floor(overallStats.totalPhysical / 200)} pac. {overallStats.totalPhysical % 200 > 0 ? `+ ${overallStats.totalPhysical % 200} pçs` : ''}
-                            </span>
-                        </div>
-                        <div className="bg-amber-600 p-6 rounded-[2rem] text-white flex flex-col justify-between shadow-sm">
-                            <p className="text-[10px] font-black text-amber-200 uppercase tracking-widest mb-1">Aguardando Retirada</p>
-                            <p className="text-4xl font-black">{overallStats.totalPending} <span className="text-sm opacity-50 uppercase">pçs</span></p>
-                            <span className="text-[11px] font-bold text-amber-200 block mt-1">
-                                {Math.floor(overallStats.totalPending / 200)} pac. {overallStats.totalPending % 200 > 0 ? `+ ${overallStats.totalPending % 200} pçs` : ''}
-                            </span>
-                        </div>
-                        <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-100 flex flex-col justify-between shadow-sm">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Diferença Geral</p>
-                            <p className={`text-4xl font-black ${overallStats.totalDiff < 0 ? 'text-red-500' : overallStats.totalDiff > 0 ? 'text-emerald-500' : 'text-slate-300'}`}>
-                                {overallStats.totalDiff > 0 ? `+${overallStats.totalDiff}` : overallStats.totalDiff}
-                            </p>
-                        </div>
-                        <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-100 flex flex-col justify-between shadow-sm">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Peso Total Estimado</p>
-                            <p className="text-4xl font-black text-slate-800">{(overallStats.totalWeight).toFixed(0)} <span className="text-sm opacity-50 uppercase">kg</span></p>
-                        </div>
+                    <div>
+                        <h1 className="text-4xl font-black text-slate-800 tracking-tight flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-2xl bg-[#0A2A3D] flex items-center justify-center shadow-lg shadow-slate-200">
+                                <ArchiveIcon className="h-6 w-6 text-white" />
+                            </div>
+                            Gestão de Treliças
+                        </h1>
+                        <p className="text-slate-500 font-medium mt-1 ml-15">Controle de estoque de produto acabado.</p>
                     </div>
+                </header>
 
-                    {/* Tabela Geral de Modelos */}
-                    <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
-                        <div className="p-6 border-b border-slate-100">
-                            <h3 className="text-lg font-bold text-slate-800">Modelos de Treliça em Estoque</h3>
-                            <p className="text-xs text-slate-400 mt-1">Saldo atual e conciliação por modelo e tamanho.</p>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left text-slate-500">
-                                <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b">
-                                    <tr>
-                                        <th scope="col" className="px-6 py-4">Treliça (Modelo/Tamanho)</th>
-                                        <th scope="col" className="px-6 py-4 text-center">Virtual (Sistema)</th>
-                                        <th scope="col" className="px-6 py-4 text-center">Físico (Galpão)</th>
-                                        <th scope="col" className="px-6 py-4 text-center">Diferença</th>
-                                        <th scope="col" className="px-6 py-4 text-center">Aguardando Retirada</th>
-                                        <th scope="col" className="px-6 py-4 text-right">Peso Est. (kg)</th>
-                                        <th scope="col" className="px-6 py-4 text-center">Ações de Estoque</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {modelsSummary.map((item, idx) => (
-                                        <tr key={idx} className="bg-white border-b hover:bg-slate-50/50">
-                                            <td className="px-6 py-4 font-black text-slate-800">
-                                                {item.model} <span className="text-slate-400 text-xs font-semibold">({item.size}m)</span>
-                                            </td>
-                                            <td className="px-6 py-4 text-center font-bold text-slate-700">{formatPiecesAndPacksShort(item.virtualQty)}</td>
-                                            <td className="px-6 py-4 text-center font-bold text-slate-800">
-                                                {formatPiecesAndPacksShort(item.physicalQty)}
+                {/* Tabela Geral de Modelos */}
+                <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
+                    <div className="p-6 border-b border-slate-100">
+                        <h3 className="text-lg font-bold text-slate-800">Modelos de Treliça em Estoque</h3>
+                        <p className="text-xs text-slate-400 mt-1">Saldo atual e conciliação por modelo e tamanho.</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left text-slate-500">
+                            <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b">
+                                <tr>
+                                    <th scope="col" className="px-6 py-4">Treliça (Modelo/Tamanho)</th>
+                                    <th scope="col" className="px-6 py-4 text-center">Virtual (Sistema)</th>
+                                    <th scope="col" className="px-6 py-4 text-center">Físico (Galpão)</th>
+                                    <th scope="col" className="px-6 py-4 text-center">Diferença</th>
+                                    <th scope="col" className="px-6 py-4 text-center">Aguardando Retirada</th>
+                                    <th scope="col" className="px-6 py-4 text-right">Peso Est. (kg)</th>
+                                    <th scope="col" className="px-6 py-4 text-center">Ações de Estoque</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {modelsSummary.map((item, idx) => (
+                                    <tr key={idx} className="bg-white border-b hover:bg-slate-50/50">
+                                        <td className="px-6 py-4 font-black text-slate-800">
+                                            {item.model} <span className="text-slate-400 text-xs font-semibold">({item.size}m)</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-center font-bold text-slate-700">{formatPiecesAndPacksShort(item.virtualQty)}</td>
+                                        <td className="px-6 py-4 text-center font-bold text-slate-800">
+                                            {formatPiecesAndPacksShort(item.physicalQty)}
+                                            {item.hasUnconferred && (
+                                                <span className="block mt-1 text-[10px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded w-fit mx-auto animate-pulse">
+                                                    ⚠️ {formatPiecesAndPacksShort(item.unconferredQty)} aguardando conferência
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-center font-bold">
+                                            <span className={`px-2 py-0.5 rounded text-xs ${
+                                                item.diff < 0 
+                                                    ? 'bg-red-50 text-red-600' 
+                                                    : item.diff > 0 
+                                                        ? 'bg-emerald-50 text-emerald-600' 
+                                                        : 'text-slate-400'
+                                            }`}>
+                                                {item.diff > 0 ? `+${item.diff}` : item.diff}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-center font-bold">
+                                            {item.pendingTransferQty > 0 ? (
+                                                <span className="px-2.5 py-1 rounded-full text-xs bg-amber-50 text-amber-700 font-bold border border-amber-200">
+                                                    {formatPiecesAndPacksShort(item.pendingTransferQty)}
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-300 font-medium">-</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-semibold text-slate-600">{(item.totalWeight).toFixed(0)} kg</td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
                                                 {item.hasUnconferred && (
-                                                    <span className="block mt-1 text-[10px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded w-fit mx-auto animate-pulse">
-                                                        ⚠️ {formatPiecesAndPacksShort(item.unconferredQty)} aguardando conferência
-                                                    </span>
+                                                    <button 
+                                                        onClick={() => {
+                                                            setSelectedConferModel({ model: item.model, size: item.size, list: item.unconferredList });
+                                                        }}
+                                                        className="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase transition-all shadow-md"
+                                                        title="Conferir lotes pendentes"
+                                                    >
+                                                        Conferir
+                                                    </button>
                                                 )}
-                                            </td>
-                                            <td className="px-6 py-4 text-center font-bold">
-                                                <span className={`px-2 py-0.5 rounded text-xs ${
-                                                    item.diff < 0 
-                                                        ? 'bg-red-50 text-red-600' 
-                                                        : item.diff > 0 
-                                                            ? 'bg-emerald-50 text-emerald-600' 
-                                                            : 'text-slate-400'
-                                                }`}>
-                                                    {item.diff > 0 ? `+${item.diff}` : item.diff}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 text-center font-bold">
-                                                {item.pendingTransferQty > 0 ? (
-                                                    <span className="px-2.5 py-1 rounded-full text-xs bg-amber-50 text-amber-700 font-bold border border-amber-200">
-                                                        {formatPiecesAndPacksShort(item.pendingTransferQty)}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-slate-300 font-medium">-</span>
+                                                <button 
+                                                    onClick={() => {
+                                                        setMovingItem({ model: item.model, size: item.size, type: 'add_virtual' });
+                                                        setMovementQty(0);
+                                                    }}
+                                                    className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-black uppercase transition-all"
+                                                    title="Adicionar ao Estoque Virtual (Sistema)"
+                                                >
+                                                    Virtual
+                                                </button>
+                                                <button 
+                                                    onClick={() => {
+                                                        setMovingItem({ model: item.model, size: item.size, type: 'audit' });
+                                                        setMovementQty(item.physicalQty);
+                                                    }}
+                                                    className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black uppercase transition-all"
+                                                    title="Ajustar Contagem Física"
+                                                >
+                                                    Ajustar
+                                                </button>
+                                                <button 
+                                                    onClick={() => {
+                                                        setMovingItem({ model: item.model, size: item.size, type: 'view_history' });
+                                                        setMovementQty(0);
+                                                    }}
+                                                    className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-[10px] font-black uppercase transition-all"
+                                                    title="Ver histórico de movimentações deste lote"
+                                                >
+                                                    ⏱️ Hist.
+                                                </button>
+                                                <button 
+                                                    onClick={() => {
+                                                        setMovingItem({ model: item.model, size: item.size, type: 'transfer' });
+                                                        setMovementQty(0);
+                                                    }}
+                                                    disabled={item.availablePhysForTransf <= 0}
+                                                    className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-[10px] font-black uppercase transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                                                    title={item.availablePhysForTransf <= 0 ? "Sem estoque físico disponível para transferência" : "Transferir estoque físico para outro setor (Aguardando Retirada)"}
+                                                >
+                                                    Transf. Setor
+                                                </button>
+                                                {item.pendingTransferQty > 0 && (
+                                                    <button 
+                                                        onClick={() => {
+                                                            setMovingItem({ model: item.model, size: item.size, type: 'dispatch' });
+                                                            setMovementQty(0);
+                                                        }}
+                                                        className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black uppercase transition-all shadow-md animate-pulse"
+                                                        title="Confirmar a retirada física (dar baixa no saldo aguardando retirada)"
+                                                    >
+                                                        Retirada
+                                                    </button>
                                                 )}
-                                            </td>
-                                            <td className="px-6 py-4 text-right font-semibold text-slate-600">{(item.totalWeight).toFixed(0)} kg</td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                                                    {item.hasUnconferred && (
-                                                        <button 
-                                                            onClick={() => {
-                                                                setSelectedConferModel({ model: item.model, size: item.size, list: item.unconferredList });
-                                                            }}
-                                                            className="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase transition-all shadow-md"
-                                                            title="Conferir lotes pendentes"
-                                                        >
-                                                            Conferir
-                                                        </button>
-                                                    )}
-                                                    <button 
-                                                        onClick={() => {
-                                                            setMovingItem({ model: item.model, size: item.size, type: 'add_virtual' });
-                                                            setMovementQty(0);
-                                                        }}
-                                                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-black uppercase transition-all"
-                                                        title="Adicionar ao Estoque Virtual (Sistema)"
-                                                    >
-                                                        Virtual
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => {
-                                                            setMovingItem({ model: item.model, size: item.size, type: 'audit' });
-                                                            setMovementQty(item.physicalQty);
-                                                        }}
-                                                        className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black uppercase transition-all"
-                                                        title="Ajustar Contagem Física"
-                                                    >
-                                                        Ajustar
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => {
-                                                            setMovingItem({ model: item.model, size: item.size, type: 'view_history' });
-                                                            setMovementQty(0);
-                                                        }}
-                                                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-[10px] font-black uppercase transition-all"
-                                                        title="Ver histórico de movimentações deste lote"
-                                                    >
-                                                        ⏱️ Hist.
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => {
-                                                            setMovingItem({ model: item.model, size: item.size, type: 'transfer' });
-                                                            setMovementQty(0);
-                                                        }}
-                                                        disabled={item.availablePhysForTransf <= 0}
-                                                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-[10px] font-black uppercase transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                                                        title={item.availablePhysForTransf <= 0 ? "Sem estoque físico disponível para transferência" : "Transferir estoque físico para outro setor (Aguardando Retirada)"}
-                                                    >
-                                                        Transf. Setor
-                                                    </button>
-                                                    {item.pendingTransferQty > 0 && (
-                                                        <button 
-                                                            onClick={() => {
-                                                                setMovingItem({ model: item.model, size: item.size, type: 'dispatch' });
-                                                                setMovementQty(0);
-                                                            }}
-                                                            className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black uppercase transition-all shadow-md animate-pulse"
-                                                            title="Confirmar a retirada física (dar baixa no saldo aguardando retirada)"
-                                                        >
-                                                            Retirada
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ABA 2: ORDENS EM PRODUÇÃO */}
-            {activeTab === 'production' && (
-                <div className="space-y-8">
-                    {/* Ordens Ativas */}
-                    <div className="bg-white p-6 sm:p-8 rounded-[2rem] shadow-sm border border-slate-100">
-                        <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                            Ordens em Processo Ativo
-                        </h3>
-                        {activeOrders.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {activeOrders.map(order => {
-                                    const progress = order.quantityToProduce > 0 
-                                        ? Math.min(100, Math.round(((order.actualProducedQuantity || 0) / order.quantityToProduce) * 100))
-                                        : 0;
-
-                                    return (
-                                        <div key={order.id} className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-4 hover:shadow-md transition-all">
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-md uppercase border border-emerald-200">
-                                                        {order.machine}
-                                                    </span>
-                                                    <h4 className="text-lg font-black text-slate-800 mt-2">OP #{order.orderNumber}</h4>
-                                                    <p className="text-xs text-slate-400 font-bold uppercase mt-1">Operador: {order.operator || 'Sem registro'}</p>
-                                                </div>
-                                                <span className="text-sm font-black text-[#0F3F5C] bg-white border border-slate-200 px-3 py-1 rounded-xl shadow-sm">
-                                                    {order.trelicaModel}
-                                                </span>
                                             </div>
-
-                                            <div className="space-y-2">
-                                                <div className="flex justify-between text-xs font-black text-slate-400 uppercase tracking-widest">
-                                                    <span>Progresso da Produção</span>
-                                                    <span>{order.actualProducedQuantity || 0} / {order.quantityToProduce} pçs ({progress}%)</span>
-                                                </div>
-                                                <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
-                                                    <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
-                                                </div>
-                                            </div>
-
-                                            <div className="flex justify-between items-center text-xs font-semibold text-slate-500 pt-2 border-t border-slate-200/50">
-                                                <span>Iniciado em:</span>
-                                                <span>{order.startTime ? new Date(order.startTime).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'N/A'}</span>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed">
-                                <PlayIcon className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-                                <p className="text-slate-500 font-bold">Nenhuma ordem de Treliça em produção no momento.</p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Ordens Pendentes / Pausadas */}
-                    <div className="bg-white p-6 sm:p-8 rounded-[2rem] shadow-sm border border-slate-100">
-                        <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
-                            <PauseIcon className="h-5 w-5 text-amber-500" />
-                            Fila de Espera / Pausadas
-                        </h3>
-                        {pendingOrders.length > 0 ? (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left text-slate-500">
-                                    <thead className="text-xs text-slate-700 uppercase bg-slate-50">
-                                        <tr>
-                                            <th className="px-6 py-4">Status</th>
-                                            <th className="px-6 py-4">Nº Ordem</th>
-                                            <th className="px-6 py-4">Máquina</th>
-                                            <th className="px-6 py-4">Modelo Solicitado</th>
-                                            <th className="px-6 py-4 text-right">Planejado (pçs)</th>
-                                            <th className="px-6 py-4 text-center">Criada em</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {pendingOrders.map(order => (
-                                            <tr key={order.id} className="border-b hover:bg-slate-50/50 bg-white">
-                                                <td className="px-6 py-4">
-                                                    {order.status === 'paused' ? (
-                                                        <span className="bg-amber-100 text-amber-800 text-[10px] font-black px-2 py-0.5 rounded border border-amber-200 uppercase">Pausada</span>
-                                                    ) : (
-                                                        <span className="bg-slate-100 text-slate-600 text-[10px] font-black px-2 py-0.5 rounded border border-slate-200 uppercase">Fila</span>
-                                                    )}
-                                                </td>
-                                                <td className="px-6 py-4 font-black text-slate-900">#{order.orderNumber}</td>
-                                                <td className="px-6 py-4 font-bold">{order.machine}</td>
-                                                <td className="px-6 py-4 font-semibold text-slate-700">{order.trelicaModel} ({order.tamanho}m)</td>
-                                                <td className="px-6 py-4 text-right font-black">{order.quantityToProduce} pçs</td>
-                                                <td className="px-6 py-4 text-center text-xs">
-                                                    {order.creationDate ? new Date(order.creationDate).toLocaleDateString('pt-BR') : '-'}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed">
-                                <PauseIcon className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-                                <p className="text-slate-500 font-bold">Nenhuma ordem pendente ou pausada na fila.</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* ABA 3: ESTOQUE CA-60 CONOSCO */}
-            {activeTab === 'ca60' && (
-                <div className="space-y-6">
-                    {/* Card Resumo do Aço */}
-                    <div className="bg-gradient-to-r from-[#0F3F5C] to-slate-800 p-8 rounded-[2rem] text-white shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div>
-                            <h3 className="text-2xl font-black flex items-center gap-3">
-                                <div className="p-2 bg-white/10 rounded-xl">
-                                    <CalculatorIcon className="h-6 w-6 text-indigo-300" />
-                                </div>
-                                Matéria-Prima CA-60 em Estoque
-                            </h3>
-                            <p className="text-white/60 text-xs font-bold uppercase tracking-widest mt-1">Bobinas e rolos disponíveis para fabricação de treliça</p>
-                        </div>
-                        <div className="bg-white/10 px-6 py-4 rounded-2xl border border-white/10 text-right">
-                            <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest leading-none mb-1">Peso Total CA-60</p>
-                            <p className="text-4xl font-black text-white">{(totalCa60Weight).toLocaleString('pt-BR')} <span className="text-sm font-bold uppercase">kg</span></p>
-                        </div>
-                    </div>
-
-                    {/* Tabela de Lotes de CA-60 */}
-                    <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
-                        <div className="p-6 border-b border-slate-100">
-                            <h3 className="text-lg font-bold text-slate-800">Lotes de Matéria-Prima Disponíveis</h3>
-                            <p className="text-xs text-slate-400 mt-1">Lotes de aço CA-60 atualmente na empresa.</p>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left text-slate-500">
-                                <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b">
-                                    <tr>
-                                        <th className="px-6 py-4">Lote Interno</th>
-                                        <th className="px-6 py-4">Fornecedor</th>
-                                        <th className="px-6 py-4">Corrida / Lote Fornecedor</th>
-                                        <th className="px-6 py-4 text-center">Bitola (Fio)</th>
-                                        <th className="px-6 py-4 text-right">Peso Restante (kg)</th>
-                                        <th className="px-6 py-4 text-center">Data de Entrada</th>
-                                        <th className="px-6 py-4 text-center">Setor / Local</th>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    {ca60Stock.map(lot => (
-                                        <tr key={lot.id} className="bg-white border-b hover:bg-slate-50/50">
-                                            <td className="px-6 py-4 font-black text-slate-900">{lot.internalLot}</td>
-                                            <td className="px-6 py-4 font-semibold">{lot.supplier || 'Não informado'}</td>
-                                            <td className="px-6 py-4 text-xs font-semibold text-slate-500">
-                                                {lot.runNumber || lot.supplierLot || 'N/A'}
-                                            </td>
-                                            <td className="px-6 py-4 text-center font-black text-indigo-600">{lot.bitola} mm</td>
-                                            <td className="px-6 py-4 text-right font-black text-slate-800">{(lot.remainingQuantity || 0).toLocaleString('pt-BR')} kg</td>
-                                            <td className="px-6 py-4 text-center text-xs">
-                                                {lot.entryDate ? new Date(lot.entryDate).toLocaleDateString('pt-BR') : '-'}
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <span className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] font-black px-2 py-0.5 rounded-md uppercase">
-                                                    {lot.sector || 'Geral'}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {ca60Stock.length === 0 && (
-                                        <tr>
-                                            <td colSpan={7} className="text-center py-12 text-slate-400 font-semibold">
-                                                Nenhum lote de CA-60 disponível em estoque no momento.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            )}
-
-            {/* ABA 4: HISTÓRICO GERAL */}
-            {activeTab === 'history' && (
-                <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
-                    <div className="p-6 sm:p-8 border-b border-slate-100 flex items-center gap-3">
-                        <div className="p-3 bg-slate-100 rounded-xl text-slate-500">
-                            <ClockIcon className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-black tracking-tight text-slate-800">Histórico Geral de Movimentações</h3>
-                            <p className="text-slate-500 text-xs font-bold mt-1">Registros consolidados de auditorias, adições e transferências de todas as treliças.</p>
-                        </div>
-                    </div>
-
-                    {/* Painel de Filtros e Busca */}
-                    <div className="p-6 sm:p-8 bg-slate-50 border-b border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="space-y-2">
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                Buscar por Texto
-                            </label>
-                            <input 
-                                type="text"
-                                value={historySearch}
-                                onChange={(e) => setHistorySearch(e.target.value)}
-                                placeholder="Buscar modelo, observações ou operador..."
-                                className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 outline-none text-xs shadow-sm transition-all placeholder-slate-400"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                Tipo de Movimentação
-                            </label>
-                            <select 
-                                value={historyTypeFilter}
-                                onChange={(e) => setHistoryTypeFilter(e.target.value as any)}
-                                className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 outline-none text-xs shadow-sm transition-all"
-                            >
-                                <option value="all">Todos os Tipos</option>
-                                <option value="addition">Adição Virtual</option>
-                                <option value="transfer">Transferência de Setor</option>
-                                <option value="out">Retirada Física</option>
-                                <option value="adjustment">Ajuste de Saldo</option>
-                            </select>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                Modelo de Treliça
-                            </label>
-                            <select 
-                                value={historyModelFilter}
-                                onChange={(e) => setHistoryModelFilter(e.target.value)}
-                                className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 outline-none text-xs shadow-sm transition-all"
-                            >
-                                <option value="all">Todos os Modelos</option>
-                                {trelicaModels.map((m, idx) => {
-                                    const value = `${m.modelo} (${m.tamanho.trim()}m)`;
-                                    return (
-                                        <option key={idx} value={value}>
-                                            {m.modelo} ({m.tamanho.trim()}m)
-                                        </option>
-                                    );
-                                })}
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div className="p-6 sm:p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                        {globalHistory.length > 0 ? (
-                            <div className="space-y-4">
-                                {globalHistory.map((m, idx) => {
-                                    const parsed = parseObservationSector(m.movement.observations || '');
-                                    
-                                    // Determinação do label do tipo e cores correspondentes
-                                    let typeLabel = '';
-                                    let badgeColor = '';
-                                    if (m.movement.type === 'transfer') {
-                                        typeLabel = 'Transferência Setor (Reservado)';
-                                        badgeColor = 'bg-indigo-50 border border-indigo-100 text-indigo-700';
-                                    } else if (m.movement.type === 'addition') {
-                                        typeLabel = 'Adição Virtual (Entrada)';
-                                        badgeColor = 'bg-emerald-50 border border-emerald-100 text-emerald-700';
-                                    } else if (m.movement.type === 'out') {
-                                        typeLabel = 'Retirada Física (Carregado)';
-                                        badgeColor = 'bg-amber-50 border border-amber-100 text-amber-700';
-                                    } else {
-                                        typeLabel = m.movement.from === 'system' ? 'Ajuste de Saldo Virtual' : 'Ajuste de Saldo Físico';
-                                        badgeColor = 'bg-slate-50 border border-slate-200 text-slate-700';
-                                    }
-
-                                    return (
-                                        <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-slate-100/50 transition-colors">
-                                            <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-sm">
-                                                {m.movement.type === 'transfer' ? (
-                                                    <SwitchHorizontalIcon className="h-6 w-6 text-indigo-600" />
-                                                ) : m.movement.type === 'addition' ? (
-                                                    <PlusIcon className="h-6 w-6 text-emerald-500" />
-                                                ) : m.movement.type === 'out' ? (
-                                                    <ArrowLeftIcon className="h-6 w-6 text-amber-500" />
-                                                ) : (
-                                                    <CalculatorIcon className="h-6 w-6 text-slate-500" />
-                                                )}
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-                                                    <div className="space-y-1.5">
-                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                            <span className="font-black text-slate-800 uppercase text-xs">
-                                                                Treliça {m.model} ({m.size}m)
-                                                            </span>
-                                                            <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase ${badgeColor}`}>
-                                                                {typeLabel}
-                                                            </span>
-                                                            {parsed.sector && (
-                                                                <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase bg-blue-50 border border-blue-100 text-blue-700">
-                                                                    Setor: {parsed.sector}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-sm font-bold text-slate-700 mt-1">
-                                                            Quantidade: <span className={
-                                                                m.movement.type === 'transfer' ? 'text-indigo-600' : 
-                                                                m.movement.type === 'addition' ? 'text-emerald-600' : 
-                                                                m.movement.type === 'out' ? 'text-amber-600' : 'text-slate-600'
-                                                            }>
-                                                                {formatPiecesAndPacksShort(m.movement.quantity)}
-                                                            </span>
-                                                        </p>
-                                                    </div>
-                                                    <div className="text-left sm:text-right">
-                                                        <span className="text-xs font-bold text-slate-400 bg-white px-3 py-1 rounded-lg border border-slate-200 block w-fit sm:ml-auto">
-                                                            {new Date(m.movement.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
-                                                        </span>
-                                                        <p className="text-[10px] font-black text-slate-400 uppercase mt-2 tracking-widest">
-                                                            Operador: <span className="text-slate-600">{m.movement.operator}</span>
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                {parsed.cleanObs && (
-                                                    <p className="text-sm text-slate-600 mt-3 p-3 bg-white rounded-xl border border-slate-100 font-medium">
-                                                        "{parsed.cleanObs}"
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div className="text-center py-16 px-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                                <ArchiveIcon className="h-16 w-16 text-slate-300 mx-auto mb-4" />
-                                <h4 className="text-lg font-black text-slate-700 mb-2">Nenhuma movimentação encontrada</h4>
-                                <p className="text-slate-500 font-medium max-w-md mx-auto text-sm">Não há registros correspondentes aos filtros selecionados.</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-        </div>
-    </>
+            </div>
+        </>
 );
 };
 
