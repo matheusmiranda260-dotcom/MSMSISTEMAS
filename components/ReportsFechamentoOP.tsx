@@ -462,6 +462,10 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                         color: #002060 !important;
                         border-bottom: 2px solid #002060 !important;
                     }
+                    .border-slate-300,
+                    .border-slate-200 {
+                        border-color: #002060 !important;
+                    }
                     .op-number-input {
                         color: #002060 !important;
                         background: transparent !important;
