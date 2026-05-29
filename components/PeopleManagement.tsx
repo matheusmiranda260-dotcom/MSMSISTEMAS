@@ -1799,65 +1799,116 @@ const OrgChart: React.FC<{
     const col: React.CSSProperties = { display: 'flex', flexDirection: 'column', alignItems: 'center' };
 
     return (
-        <div className="org-scroll-wrapper" style={{ overflow: 'auto', padding: 40, background: '#f8fafc', minHeight: 600 }}>
+        <div className="org-scroll-wrapper" style={{ overflow: 'auto', padding: '24px', background: '#f8fafc', minHeight: '600px' }}>
             
-            <style>{`
+            <style dangerouslySetInnerHTML={{ __html: `
                 @media print {
                     .no-print { display: none !important; }
-                    html, body { background: white !important; padding: 0 !important; margin: 0 !important; }
-                    .print-header { display: flex !important; margin-bottom: 20px; border-bottom: 2px solid #0F3F5C; padding: 10px 0; width: 100%; }
+                    html, body { 
+                        background: white !important; 
+                        padding: 0 !important; 
+                        margin: 0 !important; 
+                    }
+                    /* Reset wrappers for print to ensure full width and no margins */
+                    .app-container,
+                    .main-content,
+                    .main-content > div,
+                    .app-container > main,
+                    div.p-4,
+                    div.p-8,
+                    .min-h-screen {
+                        display: block !important;
+                        width: 100% !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        position: static !important;
+                        border: none !important;
+                        box-shadow: none !important;
+                    }
+                    .org-scroll-wrapper { 
+                        overflow: visible !important; 
+                        padding: 0 !important; 
+                        background: white !important;
+                        width: 100% !important;
+                        height: auto !important;
+                    }
+                    .org-sheet-container {
+                        border: none !important;
+                        box-shadow: none !important;
+                        padding: 0 !important;
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        margin: 0 !important;
+                    }
                     .org-container { 
                         display: flex !important;
                         padding: 0 !important; 
                         background: white !important; 
                         width: 100% !important;
                     }
-                    .stats-container { margin-bottom: 15px !important; }
-                    .org-scroll-wrapper { overflow: visible !important; width: 100% !important; height: auto !important; padding: 10mm !important; }
-                    @page { size: landscape; margin: 1cm; }
+                    @page { 
+                        size: A4 landscape; 
+                        margin: 5mm; 
+                    }
                     * { 
                         -webkit-print-color-adjust: exact !important; 
                         print-color-adjust: exact !important; 
                         box-shadow: none !important; 
                     }
                 }
-                .print-header { display: none; }
-            `}</style>
+            `}} />
             
-            <div className="print-header flex items-center justify-between w-full relative">
-                <div style={{ fontSize: 18, fontWeight: 900, color: '#64748b', opacity: 0.4 }}>
-                    <span style={{ color: '#94a3b8' }}>MSM</span> GESTÃO
-                </div>
-                <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', textAlign: 'center' }}>
-                    <h2 style={{ fontSize: 20, fontWeight: 800, color: '#0F3F5C', textTransform: 'uppercase', letterSpacing: 1 }}>Organograma do setor - LAMINAÇÃO</h2>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                    <p style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>{new Date().toLocaleDateString('pt-BR')}</p>
-                </div>
-            </div>
-
-            <div className="flex flex-col md:flex-row justify-between items-start mb-10 gap-6">
-                <div className="flex gap-4 stats-container">
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 min-w-[180px]">
-                        <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">Colaboradores</p>
-                        <p className="text-3xl font-black text-[#0F3F5C]">{assignedCount}</p>
+            <div className="max-w-[1240px] mx-auto bg-white border-2 border-[#002060] rounded-xl shadow-lg p-6 org-sheet-container relative">
+                
+                {/* CABEÇALHO PADRÃO ITA */}
+                <div className="grid grid-cols-12 border border-[#002060]">
+                    <div className="col-span-3 bg-white p-3 flex items-center justify-center border-r border-[#002060]">
+                        <img src="/ita-acos-logo.png" alt="Logo Grupo Ita Aços" className="h-14 md:h-16 object-contain" style={{ maxHeight: '60px' }} />
                     </div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 min-w-[180px]">
-                        <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">Vagas Disponíveis</p>
-                        <p className="text-3xl font-black text-blue-600">{vacanciesCount}</p>
+
+                    <div className="col-span-6 bg-white p-3 flex flex-col justify-center text-center gap-1">
+                        <h2 className="text-xl md:text-2xl font-black uppercase tracking-wider text-[#002060] leading-none">
+                            Organograma Setorial
+                        </h2>
+                        <p className="text-[13px] font-extrabold text-slate-500 uppercase mt-0.5">
+                            Setor Laminação e Trefilação
+                        </p>
+                    </div>
+
+                    <div className="col-span-3 bg-[#002060] text-white p-3 flex flex-col justify-center text-center font-bold">
+                        <div className="text-[10px] font-black text-slate-300 uppercase">Data de Emissão</div>
+                        <div className="text-lg font-black mt-0.5">{new Date().toLocaleDateString('pt-BR')}</div>
                     </div>
                 </div>
 
-                <button 
-                    onClick={handlePrint}
-                    className="no-print bg-[#0F3F5C] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#1a5f8a] transition shadow-lg flex items-center gap-2"
-                >
-                    <PrinterIcon className="h-5 w-5" />
-                    Imprimir Organograma
-                </button>
-            </div>
+                {/* METADATA BLOCK CONECTADO */}
+                <div className="grid grid-cols-3 border-x border-b border-[#002060] mb-6 text-center font-bold text-xs uppercase text-[#002060]">
+                    <div className="p-2 border-r border-[#002060] bg-slate-50/50">
+                        <span className="text-[10px] text-slate-500 font-extrabold block">Colaboradores Ativos</span>
+                        <span className="text-sm font-black">{assignedCount}</span>
+                    </div>
+                    <div className="p-2 border-r border-[#002060] bg-slate-50/50">
+                        <span className="text-[10px] text-slate-500 font-extrabold block">Vagas Disponíveis</span>
+                        <span className="text-sm font-black text-blue-600">{vacanciesCount}</span>
+                    </div>
+                    <div className="p-2 bg-slate-50/50">
+                        <span className="text-[10px] text-slate-500 font-extrabold block">Status</span>
+                        <span className="text-sm font-black text-emerald-600">Atualizado</span>
+                    </div>
+                </div>
 
-            <div className="org-container" style={col}>
+                {/* Botão sob a tabela (Apenas na tela) */}
+                <div className="flex justify-end mb-6 no-print">
+                    <button 
+                        onClick={handlePrint}
+                        className="bg-[#002060] hover:bg-[#0A2A3D] text-white px-5 py-2 rounded-lg font-bold transition shadow flex items-center gap-2 text-xs uppercase tracking-wider"
+                    >
+                        <PrinterIcon className="h-4 w-4" />
+                        Imprimir Organograma
+                    </button>
+                </div>
+
+                <div className="org-container" style={col}>
 
                 <BlueLabelBox label="SETOR LAMINAÇÃO" />
                 <VLine />
@@ -2012,6 +2063,7 @@ const OrgChart: React.FC<{
                 </div>
             )}
         </div>
+    </div>
     </div>
     );
 };
