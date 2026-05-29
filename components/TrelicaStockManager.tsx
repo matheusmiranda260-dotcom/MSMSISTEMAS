@@ -67,6 +67,10 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
     const [conferQty, setConferQty] = useState(0);
     const [conferJustification, setConferJustification] = useState('');
 
+    // Filtros rápidos
+    const [filterModel, setFilterModel] = useState<string>('all');
+    const [filterPendingWithdrawal, setFilterPendingWithdrawal] = useState<boolean>(false);
+
     // --- CÁLCULO DE RESUMO GERAL DAS TRELIÇAS ---
     const overallStats = useMemo(() => {
         let totalVirtual = 0;
@@ -145,6 +149,23 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
             };
         });
     }, [finishedGoods]);
+
+    const uniqueModels = useMemo(() => {
+        const set = new Set<string>();
+        trelicaModels.forEach(m => set.add(m.modelo));
+        return Array.from(set).sort();
+    }, []);
+
+    const filteredModels = useMemo(() => {
+        let result = modelsSummary;
+        if (filterModel !== 'all') {
+            result = result.filter(m => m.model === filterModel);
+        }
+        if (filterPendingWithdrawal) {
+            result = result.filter(m => m.pendingTransferQty > 0);
+        }
+        return result;
+    }, [modelsSummary, filterModel, filterPendingWithdrawal]);
 
     // --- FILTRAGEM DE ORDENS EM PRODUÇÃO (TRELIÇA) ---
     const trelicaOrders = useMemo(() => {
@@ -942,6 +963,45 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                     </div>
                 </header>
 
+                {/* Painel de Filtros Rápidos */}
+                <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 flex-1">
+                        <div className="space-y-1.5 flex-1 max-w-sm">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                Filtrar por Modelo
+                            </label>
+                            <select 
+                                value={filterModel}
+                                onChange={(e) => setFilterModel(e.target.value)}
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 outline-none text-xs shadow-sm transition-all"
+                            >
+                                <option value="all">Todos os Modelos</option>
+                                {uniqueModels.map((model, idx) => (
+                                    <option key={idx} value={model}>{model}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex items-center gap-3 pt-6 sm:pt-0">
+                            <label className="flex items-center gap-3 cursor-pointer p-3 bg-slate-50 hover:bg-slate-100/50 rounded-xl border border-slate-200 transition-all select-none">
+                                <input 
+                                    type="checkbox"
+                                    checked={filterPendingWithdrawal}
+                                    onChange={(e) => setFilterPendingWithdrawal(e.target.checked)}
+                                    className="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                />
+                                <div>
+                                    <span className="font-bold text-slate-700 text-xs">Apenas Aguardando Retirada</span>
+                                    <p className="text-[8px] text-slate-400 uppercase font-black tracking-widest mt-0.5">Filtra itens com saldo reservado</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                    {/* Indicador de resultados */}
+                    <div className="text-right text-xs font-black text-slate-400 uppercase tracking-widest">
+                        Exibindo <span className="text-indigo-600 font-extrabold">{filteredModels.length}</span> modelos
+                    </div>
+                </div>
+
                 {/* Tabela Geral de Modelos */}
                 <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
                     <div className="p-6 border-b border-slate-100">
@@ -962,7 +1022,8 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                                 </tr>
                             </thead>
                             <tbody>
-                                {modelsSummary.map((item, idx) => (
+                                {filteredModels.length > 0 ? (
+                                    filteredModels.map((item, idx) => (
                                     <tr key={idx} className="bg-white border-b hover:bg-slate-50/50">
                                         <td className="px-6 py-4 font-black text-slate-800">
                                             {item.model} <span className="text-slate-400 text-xs font-semibold">({item.size}m)</span>
@@ -1066,7 +1127,14 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                                             </div>
                                         </td>
                                     </tr>
-                                ))}
+                                ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={7} className="text-center py-16 text-slate-400 font-bold bg-slate-50/30">
+                                            Nenhum modelo encontrado com os filtros selecionados.
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
