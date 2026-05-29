@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import html2canvas from 'html2canvas';
 import { ArrowLeftIcon, PlusIcon, StarIcon, ChartBarIcon, TrophyIcon, SearchIcon, FilterIcon, UserIcon, BookOpenIcon, ClockIcon, DocumentTextIcon, PencilIcon, TrashIcon, UserGroupIcon, ExclamationIcon, SaveIcon, XIcon, DownloadIcon, PrinterIcon, CheckCircleIcon } from './icons';
 import type { Page, Employee, Evaluation, Achievement, User, EmployeeCourse, EmployeeAbsence, EmployeeVacation, EmployeeResponsibility, OrgUnit, OrgPosition, EmployeeDocument, KaizenProblem } from '../types';
 import { fetchTable, insertItem, updateItem, deleteItem, deleteItemByColumn, fetchByColumn, uploadFile } from '../services/supabaseService';
@@ -1691,6 +1692,63 @@ const OrgChart: React.FC<{
         window.print();
     };
 
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+    const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 3000);
+    };
+
+    const copyToClipboard = async () => {
+        try {
+            const element = document.getElementById('org-chart-sheet');
+            if (!element) return;
+
+            showToast('Gerando imagem de alta resolução...', 'info');
+
+            element.classList.add('is-capturing');
+            // Wait a tiny bit for render updates
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                onclone: (clonedDoc) => {
+                    const clonedElement = clonedDoc.getElementById('org-chart-sheet');
+                    if (clonedElement) {
+                        clonedElement.style.overflow = 'visible';
+                    }
+                }
+            });
+
+            element.classList.remove('is-capturing');
+
+            canvas.toBlob(async (blob) => {
+                if (blob) {
+                    try {
+                        await navigator.clipboard.write([
+                            new ClipboardItem({ [blob.type]: blob })
+                        ]);
+                        showToast('Imagem copiada! Cole (Ctrl+V) no WhatsApp.', 'success');
+                    } catch (err) {
+                        // Fallback: Download file
+                        const link = document.createElement('a');
+                        link.download = `Organograma_Setorial_${new Date().toISOString().split('T')[0]}.png`;
+                        link.href = canvas.toDataURL();
+                        link.click();
+                        showToast('Imagem baixada! Envie o arquivo no WhatsApp.', 'info');
+                    }
+                }
+            }, 'image/png');
+        } catch (e) {
+            console.error(e);
+            const element = document.getElementById('org-chart-sheet');
+            if (element) element.classList.remove('is-capturing');
+            showToast('Erro ao gerar imagem.', 'error');
+        }
+    };
+
     const handleEditShiftTime = (key: string, cur: string) => {
         const v = prompt('Editar horário (ex: TURNO 7:45 AS 17:30):', cur);
         if (v && v !== cur) {
@@ -1801,6 +1859,13 @@ const OrgChart: React.FC<{
     return (
         <div className="org-scroll-wrapper" style={{ overflow: 'auto', padding: '24px', background: '#f8fafc', minHeight: '600px' }}>
             
+            {/* Local Toast System */}
+            {toast && (
+                <div className="fixed top-4 right-4 z-[9999] bg-[#002060] text-white px-4 py-3 rounded-lg shadow-xl border border-blue-500 font-bold text-xs animate-fadeIn pointer-events-auto">
+                    {toast.message}
+                </div>
+            )}
+
             <style dangerouslySetInnerHTML={{ __html: `
                 @media print {
                     .no-print { display: none !important; }
@@ -1856,9 +1921,22 @@ const OrgChart: React.FC<{
                         box-shadow: none !important; 
                     }
                 }
+
+                .is-capturing .no-print {
+                    display: none !important;
+                }
+                .is-capturing {
+                    padding: 24px !important;
+                    margin: 0 auto !important;
+                    box-shadow: none !important;
+                    border: 2px solid #002060 !important;
+                    border-radius: 8px !important;
+                    width: 1240px !important;
+                    max-width: 1240px !important;
+                }
             `}} />
             
-            <div className="max-w-[1240px] mx-auto bg-white border-2 border-[#002060] rounded-xl shadow-lg p-6 org-sheet-container relative">
+            <div id="org-chart-sheet" className="max-w-[1240px] mx-auto bg-white border-2 border-[#002060] rounded-xl shadow-lg p-6 org-sheet-container relative">
                 
                 {/* CABEÇALHO PADRÃO ITA */}
                 <div className="grid grid-cols-12 border border-[#002060]">
@@ -1898,10 +1976,17 @@ const OrgChart: React.FC<{
                 </div>
 
                 {/* Botão sob a tabela (Apenas na tela) */}
-                <div className="flex justify-end mb-6 no-print">
+                <div className="flex justify-end mb-6 no-print gap-2">
+                    <button 
+                        onClick={copyToClipboard}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg font-bold transition shadow flex items-center gap-2 text-xs uppercase tracking-wider"
+                    >
+                        <CheckCircleIcon className="h-4 w-4" />
+                        Copiar Imagem (Zap)
+                    </button>
                     <button 
                         onClick={handlePrint}
-                        className="bg-[#002060] hover:bg-[#0A2A3D] text-white px-5 py-2 rounded-lg font-bold transition shadow flex items-center gap-2 text-xs uppercase tracking-wider"
+                        className="bg-[#002060] hover:bg-[#0A2A3D] text-white px-5 py-2.5 rounded-lg font-bold transition shadow flex items-center gap-2 text-xs uppercase tracking-wider"
                     >
                         <PrinterIcon className="h-4 w-4" />
                         Imprimir Organograma
