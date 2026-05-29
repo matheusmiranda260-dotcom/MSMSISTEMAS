@@ -1979,7 +1979,9 @@ const App: React.FC = () => {
                 if (finalData.pontas) {
                     const pontasItems: PontaItem[] = finalData.pontas.map(p => ({
                         id: generateId('ponta'), productionDate: now, productionOrderId: orderId, orderNumber: orderToComplete.orderNumber,
-                        productType: 'Ponta de Treliça', model: orderToComplete.trelicaModel!, size: `${p.size} `, quantity: p.quantity, physicalQuantity: 0, pendingTransferQuantity: 0, totalWeight: p.totalWeight, status: 'Disponível'
+                        productType: 'Ponta de Treliça', model: orderToComplete.trelicaModel!, size: `${p.size} `, quantity: p.quantity, 
+                        physicalQuantity: p.quantity, pendingTransferQuantity: 0, totalWeight: p.totalWeight, status: 'Disponível',
+                        isConferred: false, opStartTime: orderToComplete.startTime, opEndTime: now
                     }));
 
                     for (const pi of pontasItems) await insertItem('pontas_stock', pi);
@@ -1990,8 +1992,10 @@ const App: React.FC = () => {
                 if (weight > 0) {
                     const fg: FinishedProductItem = {
                         id: generateId('fg'), productionDate: now, productionOrderId: orderId, orderNumber: orderToComplete.orderNumber,
-                        productType: 'Treliça', model: orderToComplete.trelicaModel!, size: `${orderToComplete.tamanho!} `, quantity: finalData.actualProducedQuantity || 0,
-                        physicalQuantity: 0, pendingTransferQuantity: 0, totalWeight: weight, status: 'Disponível'
+                        productType: 'Treliça', model: orderToComplete.trelicaModel!, size: `${orderToComplete.tamanho!} `, 
+                        quantity: finalData.actualProducedQuantity || 0, physicalQuantity: finalData.actualProducedQuantity || 0, 
+                        pendingTransferQuantity: 0, totalWeight: weight, status: 'Disponível',
+                        isConferred: false, opStartTime: orderToComplete.startTime, opEndTime: now
                     };
 
                     await insertItem('finished_goods', fg);
@@ -2254,6 +2258,10 @@ const App: React.FC = () => {
             if (updates.physicalQuantity !== undefined) dbUpdates.physical_quantity = updates.physicalQuantity;
             if (updates.pendingTransferQuantity !== undefined) dbUpdates.pending_transfer_quantity = updates.pendingTransferQuantity;
             if (updates.movementHistory !== undefined) dbUpdates.movement_history = updates.movementHistory;
+            if (updates.isConferred !== undefined) dbUpdates.is_conferred = updates.isConferred;
+            if (updates.conferralJustification !== undefined) dbUpdates.conferral_justification = updates.conferralJustification;
+            if (updates.opStartTime !== undefined) dbUpdates.op_start_time = updates.opStartTime;
+            if (updates.opEndTime !== undefined) dbUpdates.op_end_time = updates.opEndTime;
             
             // Re-calcula peso se a quantidade virtual mudar
             if (updates.quantity !== undefined) {
@@ -2271,13 +2279,44 @@ const App: React.FC = () => {
         } catch (error) { showNotification('Erro ao atualizar.', 'error'); }
     };
 
+    const updatePonta = async (id: string, updates: Partial<PontaItem>, movement?: StockMovement) => {
+        try {
+            const item = pontasStock.find(i => i.id === id);
+            if (!item) return;
+
+            const dbUpdates: any = {};
+            if (updates.quantity !== undefined) dbUpdates.quantity = updates.quantity;
+            if (updates.physicalQuantity !== undefined) dbUpdates.physical_quantity = updates.physicalQuantity;
+            if (updates.pendingTransferQuantity !== undefined) dbUpdates.pending_transfer_quantity = updates.pendingTransferQuantity;
+            if (updates.movementHistory !== undefined) dbUpdates.movement_history = updates.movementHistory;
+            if (updates.isConferred !== undefined) dbUpdates.is_conferred = updates.isConferred;
+            if (updates.conferralJustification !== undefined) dbUpdates.conferral_justification = updates.conferralJustification;
+            if (updates.opStartTime !== undefined) dbUpdates.op_start_time = updates.opStartTime;
+            if (updates.opEndTime !== undefined) dbUpdates.op_end_time = updates.opEndTime;
+            
+            if (updates.quantity !== undefined) {
+                const weightPerPiece = item.totalWeight / item.quantity;
+                dbUpdates.total_weight = weightPerPiece * updates.quantity;
+                updates.totalWeight = dbUpdates.total_weight;
+            }
+
+            await updateItem('pontas_stock', id, dbUpdates);
+            setPontasStock(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
+            
+            if (movement) {
+                showNotification(`Movimentação de ${movement.quantity} realizada.`, 'success');
+            }
+        } catch (error) { showNotification('Erro ao atualizar ponta.', 'error'); }
+    };
+
 
     const addManualFinishedGood = async (itemData: Omit<FinishedProductItem, 'id' | 'status' | 'productionDate'>) => {
         const newItem: FinishedProductItem = {
             ...itemData,
             id: generateId('fg'),
-            physicalQuantity: 0,
+            physicalQuantity: itemData.quantity, // Espelha o virtual imediatamente
             pendingTransferQuantity: 0,
+            isConferred: false, // Inicia não conferido (Aguardando)
             status: 'Disponível',
             productionDate: new Date().toISOString()
         };
@@ -2340,8 +2379,8 @@ const App: React.FC = () => {
             case 'productionDashboard': return <ProductionDashboard setPage={setPage} productionOrders={productionOrders} stock={stock} currentUser={currentUser} downtimeConfigs={downtimeConfigs} />;
             case 'reports': return <Reports setPage={setPage} stock={stock} trefilaProduction={trefilaProduction} trelicaProduction={trelicaProduction} />;
             case 'userManagement': return <UserManagement users={users} employees={employees} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} setPage={setPage} accessLogs={accessLogs} />;
-            case 'finishedGoods': return <FinishedGoods finishedGoods={finishedGoods} pontasStock={pontasStock} setPage={setPage} finishedGoodsTransfers={finishedGoodsTransfers} createFinishedGoodsTransfer={createFinishedGoodsTransfer} onDelete={deleteFinishedGoods} />;
-            case 'trelicaStock': return <TrelicaStockManager finishedGoods={finishedGoods} setPage={setPage} createFinishedGoodsTransfer={createFinishedGoodsTransfer} onDelete={deleteFinishedGoods} onUpdateQuantity={updateFinishedGood} onAddManual={addManualFinishedGood} currentUser={currentUser} productionOrders={productionOrders} stock={stock} />;
+            case 'finishedGoods': return <FinishedGoods finishedGoods={finishedGoods} pontasStock={pontasStock} setPage={setPage} finishedGoodsTransfers={finishedGoodsTransfers} createFinishedGoodsTransfer={createFinishedGoodsTransfer} onDelete={deleteFinishedGoods} onUpdateFinishedGood={updateFinishedGood} onUpdatePonta={updatePonta} currentUser={currentUser} users={users} />;
+            case 'trelicaStock': return <TrelicaStockManager finishedGoods={finishedGoods} setPage={setPage} createFinishedGoodsTransfer={createFinishedGoodsTransfer} onDelete={deleteFinishedGoods} onUpdateQuantity={updateFinishedGood} onAddManual={addManualFinishedGood} currentUser={currentUser} productionOrders={productionOrders} stock={stock} users={users} onUpdateFinishedGood={updateFinishedGood} />;
 
 
             case 'partsManager': return <SparePartsManager />;

@@ -282,6 +282,10 @@ export interface FinishedProductItem {
     totalWeight: number;
     status: 'Disponível' | 'Vendido' | 'Transferido';
     movementHistory?: StockMovement[];
+    isConferred?: boolean;
+    conferralJustification?: string;
+    opStartTime?: string;
+    opEndTime?: string;
 }
 
 
@@ -306,6 +310,10 @@ export interface PontaItem {
     totalWeight: number;
     status: 'Disponível' | 'Vendido' | 'Transferido';
     movementHistory?: StockMovement[];
+    isConferred?: boolean;
+    conferralJustification?: string;
+    opStartTime?: string;
+    opEndTime?: string;
 }
 
 

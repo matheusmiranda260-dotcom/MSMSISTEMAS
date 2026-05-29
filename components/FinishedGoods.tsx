@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { Page, FinishedProductItem, PontaItem, FinishedGoodsTransferRecord } from '../types';
+import type { Page, FinishedProductItem, PontaItem, FinishedGoodsTransferRecord, User, StockMovement } from '../types';
 import { ArrowLeftIcon, ArchiveIcon, TruckIcon, PrinterIcon, TrashIcon } from './icons';
 import { LogoIcon } from './Logo';
 
@@ -265,15 +265,60 @@ interface FinishedGoodsProps {
     setPage: (page: Page) => void;
     createFinishedGoodsTransfer: (data: { destinationSector: string; otherDestination?: string; items: Map<string, number>; withdrawPhysicalNow?: boolean }) => FinishedGoodsTransferRecord | null;
     onDelete?: (ids: string[]) => void;
+    onUpdateFinishedGood?: (id: string, updates: Partial<FinishedProductItem>, movement?: StockMovement) => void;
+    onUpdatePonta?: (id: string, updates: Partial<PontaItem>, movement?: StockMovement) => void;
+    currentUser?: User | null;
+    users?: User[];
 }
 
-const FinishedGoods: React.FC<FinishedGoodsProps> = ({ finishedGoods, pontasStock, setPage, finishedGoodsTransfers, createFinishedGoodsTransfer, onDelete }) => {
+const FinishedGoods: React.FC<FinishedGoodsProps> = ({ finishedGoods, pontasStock, setPage, finishedGoodsTransfers, createFinishedGoodsTransfer, onDelete, onUpdateFinishedGood, onUpdatePonta, currentUser, users }) => {
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
     const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [reportData, setReportData] = useState<FinishedGoodsTransferRecord | null>(null);
 
+    // Novos estados para conferência
+    const [conferringItem, setConferringItem] = useState<FinishedProductItem | PontaItem | null>(null);
+    const [conferQty, setConferQty] = useState(0);
+    const [conferJustification, setConferJustification] = useState('');
+    const [isConferringPonta, setIsConferringPonta] = useState(false);
+
     const allItems = [...finishedGoods, ...pontasStock];
+
+    const handleConferSubmit = () => {
+        if (!conferringItem || !conferJustification.trim()) return;
+
+        const movement = {
+            id: Math.random().toString(36).substring(2, 11),
+            date: new Date().toISOString(),
+            type: 'adjustment' as const,
+            from: 'physical' as const,
+            to: 'physical' as const,
+            quantity: conferQty,
+            operator: currentUser?.username || 'Sistema',
+            observations: `Conferência: ${conferJustification}. (Virtual: ${conferringItem.quantity} pçs, Físico: ${conferQty} pçs)`
+        };
+
+        if (isConferringPonta) {
+            onUpdatePonta?.(conferringItem.id, {
+                physicalQuantity: conferQty,
+                isConferred: true,
+                conferralJustification: conferJustification,
+                movementHistory: [...(conferringItem.movementHistory || []), movement]
+            }, movement);
+        } else {
+            onUpdateFinishedGood?.(conferringItem.id, {
+                physicalQuantity: conferQty,
+                isConferred: true,
+                conferralJustification: conferJustification,
+                movementHistory: [...(conferringItem.movementHistory || []), movement]
+            }, movement);
+        }
+
+        setConferringItem(null);
+        setConferQty(0);
+        setConferJustification('');
+    };
 
     const handleSelectItem = (itemId: string) => {
         setSelectedItems(prev => {
@@ -358,7 +403,7 @@ const FinishedGoods: React.FC<FinishedGoodsProps> = ({ finishedGoods, pontasStoc
                     <table className="w-full text-sm text-left">
                         <thead className="text-xs text-slate-600 uppercase bg-slate-50">
                             <tr>
-                                <th className="p-4 w-12"><input type="checkbox" onChange={() => handleSelectAll(finishedGoods.filter(i => i.physicalQuantity > 0), 'trelica')} className="h-4 w-4 rounded" /></th>
+                                <th className="p-4 w-12"><input type="checkbox" onChange={() => handleSelectAll(finishedGoods.filter(i => i.physicalQuantity > 0 && i.isConferred !== false), 'trelica')} className="h-4 w-4 rounded" /></th>
                                 <th className="px-6 py-3">Data Produção</th>
                                 <th className="px-6 py-3">Nº Ordem</th>
                                 <th className="px-6 py-3">Modelo</th>
@@ -366,6 +411,7 @@ const FinishedGoods: React.FC<FinishedGoodsProps> = ({ finishedGoods, pontasStoc
                                 <th className="px-6 py-3 text-right">Virtual (Sistema)</th>
                                 <th className="px-6 py-3 text-right">Físico (Galpão)</th>
                                 <th className="px-6 py-3 text-right">Peso Total (kg)</th>
+                                <th className="px-6 py-3 text-center">Conferência</th>
                                 <th className="px-6 py-3 text-center">Status</th>
                             </tr>
                         </thead>
@@ -375,11 +421,11 @@ const FinishedGoods: React.FC<FinishedGoodsProps> = ({ finishedGoods, pontasStoc
                                     <td className="p-4">
                                         <input 
                                             type="checkbox" 
-                                            disabled={item.physicalQuantity <= 0}
+                                            disabled={item.physicalQuantity <= 0 || item.isConferred === false}
                                             checked={selectedItems.has(item.id)} 
                                             onChange={() => handleSelectItem(item.id)} 
                                             className="h-4 w-4 rounded disabled:opacity-30 disabled:cursor-not-allowed" 
-                                            title={item.physicalQuantity <= 0 ? "Sem estoque físico no chão" : ""}
+                                            title={item.physicalQuantity <= 0 ? "Sem estoque físico no chão" : item.isConferred === false ? "Aguardando conferência de estoque" : ""}
                                         />
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">{new Date(item.productionDate).toLocaleDateString('pt-BR')}</td>
@@ -389,6 +435,30 @@ const FinishedGoods: React.FC<FinishedGoodsProps> = ({ finishedGoods, pontasStoc
                                     <td className="px-6 py-4 text-right font-medium text-slate-500 whitespace-nowrap">{formatPiecesAndPackages(item.quantity)}</td>
                                     <td className="px-6 py-4 text-right font-bold text-slate-900 whitespace-nowrap">{formatPiecesAndPackages(item.physicalQuantity)}</td>
                                     <td className="px-6 py-4 text-right font-bold text-slate-900 whitespace-nowrap">{item.totalWeight.toFixed(2)}</td>
+                                    <td className="px-6 py-4 text-center whitespace-nowrap">
+                                        {item.isConferred === false ? (
+                                            <div className="flex items-center justify-center gap-2">
+                                                <span className="px-2 py-0.5 text-[10px] font-black rounded-full bg-amber-100 text-amber-800 animate-pulse border border-amber-200">
+                                                    ⚠️ Aguardando
+                                                </span>
+                                                <button
+                                                    onClick={() => {
+                                                        setConferringItem(item);
+                                                        setConferQty(item.quantity);
+                                                        setConferJustification('');
+                                                        setIsConferringPonta(false);
+                                                    }}
+                                                    className="px-2 py-0.5 bg-amber-500 hover:bg-amber-600 text-white rounded text-[9px] font-black uppercase transition-all shadow"
+                                                >
+                                                    Conferir
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                ✅ Conferido
+                                            </span>
+                                        )}
+                                    </td>
                                     <td className="px-6 py-4 text-center">{getStatusBadge(item.status)}</td>
                                 </tr>
                             ))}
@@ -413,7 +483,7 @@ const FinishedGoods: React.FC<FinishedGoodsProps> = ({ finishedGoods, pontasStoc
                     <table className="w-full text-sm text-left">
                         <thead className="text-xs text-slate-600 uppercase bg-slate-50">
                             <tr>
-                                <th className="p-4 w-12"><input type="checkbox" onChange={() => handleSelectAll(pontasStock.filter(i => i.physicalQuantity > 0), 'ponta')} className="h-4 w-4 rounded" /></th>
+                                <th className="p-4 w-12"><input type="checkbox" onChange={() => handleSelectAll(pontasStock.filter(i => i.physicalQuantity > 0 && i.isConferred !== false), 'ponta')} className="h-4 w-4 rounded" /></th>
                                 <th className="px-6 py-3">Data Produção</th>
                                 <th className="px-6 py-3">Nº Ordem Origem</th>
                                 <th className="px-6 py-3">Modelo</th>
@@ -421,6 +491,7 @@ const FinishedGoods: React.FC<FinishedGoodsProps> = ({ finishedGoods, pontasStoc
                                 <th className="px-6 py-3 text-right">Virtual (Sistema)</th>
                                 <th className="px-6 py-3 text-right">Físico (Galpão)</th>
                                 <th className="px-6 py-3 text-right">Peso Total (kg)</th>
+                                <th className="px-6 py-3 text-center">Conferência</th>
                                 <th className="px-6 py-3 text-center">Status</th>
                             </tr>
                         </thead>
@@ -430,11 +501,11 @@ const FinishedGoods: React.FC<FinishedGoodsProps> = ({ finishedGoods, pontasStoc
                                     <td className="p-4">
                                         <input 
                                             type="checkbox" 
-                                            disabled={item.physicalQuantity <= 0}
+                                            disabled={item.physicalQuantity <= 0 || item.isConferred === false}
                                             checked={selectedItems.has(item.id)} 
                                             onChange={() => handleSelectItem(item.id)} 
                                             className="h-4 w-4 rounded disabled:opacity-30 disabled:cursor-not-allowed" 
-                                            title={item.physicalQuantity <= 0 ? "Sem estoque físico no chão" : ""}
+                                            title={item.physicalQuantity <= 0 ? "Sem estoque físico no chão" : item.isConferred === false ? "Aguardando conferência de estoque" : ""}
                                         />
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">{new Date(item.productionDate).toLocaleDateString('pt-BR')}</td>
@@ -444,6 +515,30 @@ const FinishedGoods: React.FC<FinishedGoodsProps> = ({ finishedGoods, pontasStoc
                                     <td className="px-6 py-4 text-right font-medium text-slate-500 whitespace-nowrap">{formatPiecesAndPackages(item.quantity)}</td>
                                     <td className="px-6 py-4 text-right font-bold text-slate-900 whitespace-nowrap">{formatPiecesAndPackages(item.physicalQuantity)}</td>
                                     <td className="px-6 py-4 text-right font-bold text-slate-900 whitespace-nowrap">{item.totalWeight.toFixed(2)}</td>
+                                    <td className="px-6 py-4 text-center whitespace-nowrap">
+                                        {item.isConferred === false ? (
+                                            <div className="flex items-center justify-center gap-2">
+                                                <span className="px-2 py-0.5 text-[10px] font-black rounded-full bg-amber-100 text-amber-800 animate-pulse border border-amber-200">
+                                                    ⚠️ Aguardando
+                                                </span>
+                                                <button
+                                                    onClick={() => {
+                                                        setConferringItem(item);
+                                                        setConferQty(item.quantity);
+                                                        setConferJustification('');
+                                                        setIsConferringPonta(true);
+                                                    }}
+                                                    className="px-2 py-0.5 bg-amber-500 hover:bg-amber-600 text-white rounded text-[9px] font-black uppercase transition-all shadow"
+                                                >
+                                                    Conferir
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                ✅ Conferido
+                                            </span>
+                                        )}
+                                    </td>
                                     <td className="px-6 py-4 text-center">{getStatusBadge(item.status)}</td>
                                 </tr>
                             ))}
@@ -458,6 +553,107 @@ const FinishedGoods: React.FC<FinishedGoodsProps> = ({ finishedGoods, pontasStoc
                     )}
                 </div>
             </div>
+
+            {/* Modal de Conferência de Lote */}
+            {conferringItem && (
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[70] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden border border-white/20">
+                        <div className="p-8 bg-amber-500 text-white">
+                            <h3 className="text-2xl font-black flex items-center gap-3">
+                                Conferir Estoque
+                            </h3>
+                            <p className="text-white/70 font-bold uppercase text-xs tracking-widest mt-2">
+                                OP #{conferringItem.orderNumber} &mdash; {conferringItem.model} - {conferringItem.size}m
+                            </p>
+                        </div>
+                        <div className="p-8 space-y-6 max-h-[80vh] overflow-y-auto text-left">
+                            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs font-bold text-amber-800 space-y-1">
+                                <p>Data Produção: {new Date(conferringItem.productionDate).toLocaleString('pt-BR')}</p>
+                                {conferringItem.opStartTime && <p>Início OP: {new Date(conferringItem.opStartTime).toLocaleString('pt-BR')}</p>}
+                                {conferringItem.opEndTime && <p>Término OP: {new Date(conferringItem.opEndTime).toLocaleString('pt-BR')}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                    Quantidade Virtual no Sistema
+                                </label>
+                                <div className="p-4 bg-slate-100 rounded-2xl font-black text-slate-700 text-lg">
+                                    {formatPiecesAndPackages(conferringItem.quantity)}
+                                </div>
+                            </div>
+
+                            {/* Synced Inputs for Physical Quantity */}
+                            <div className="space-y-2">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    Quantidade Física Real (No Galpão)
+                                </label>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Pacotes (200 pçs)</label>
+                                        <input 
+                                            type="number"
+                                            value={Math.floor(conferQty / 200)}
+                                            onChange={(e) => {
+                                                const packs = parseInt(e.target.value) || 0;
+                                                const rem = conferQty % 200;
+                                                setConferQty(packs * 200 + rem);
+                                            }}
+                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-black text-slate-800 focus:ring-2 focus:ring-amber-500/20 outline-none text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Peças Avulsas</label>
+                                        <input 
+                                            type="number"
+                                            value={conferQty % 200}
+                                            onChange={(e) => {
+                                                const rem = parseInt(e.target.value) || 0;
+                                                const packs = Math.floor(conferQty / 200);
+                                                setConferQty(packs * 200 + rem);
+                                            }}
+                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-black text-slate-800 focus:ring-2 focus:ring-amber-500/20 outline-none text-sm"
+                                        />
+                                    </div>
+                                </div>
+                                <span className="text-xs font-bold text-indigo-600 block mt-1">
+                                    Total: <strong>{conferQty} peças</strong>
+                                </span>
+                            </div>
+
+                            <div>
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Justificativa / Observações</label>
+                                    <span className="text-[9px] font-black text-red-500 uppercase tracking-widest leading-none">Obrigatório</span>
+                                </div>
+                                <textarea 
+                                    value={conferJustification} 
+                                    required
+                                    onChange={(e) => setConferJustification(e.target.value)}
+                                    placeholder="Justifique o resultado da conferência (ex: Contagem correta, divergência de saldo, etc.)"
+                                    className={`w-full p-4 bg-slate-50 rounded-2xl font-medium text-slate-600 outline-none transition-all border-2 ${!conferJustification.trim() ? 'border-red-100 focus:border-red-200' : 'border-amber-100 focus:border-amber-200'} text-sm`}
+                                />
+                                {!conferJustification.trim() && <p className="text-[9px] font-bold text-red-400 mt-2 uppercase">Forneça uma justificativa para confirmar</p>}
+                            </div>
+
+                            <div className="flex gap-4 pt-4">
+                                <button 
+                                    onClick={() => { setConferringItem(null); setConferJustification(''); }} 
+                                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all uppercase text-xs"
+                                >
+                                    Cancelar
+                                </button>
+                                <button 
+                                    onClick={handleConferSubmit} 
+                                    disabled={!conferJustification.trim()}
+                                    className="flex-1 py-3 font-bold text-white bg-amber-500 rounded-xl shadow-lg hover:bg-amber-600 transition-all uppercase text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+                                >
+                                    Confirmar Conferência
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

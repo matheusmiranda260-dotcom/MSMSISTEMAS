@@ -21,6 +21,7 @@ interface TrelicaStockManagerProps {
     currentUser: User | null;
     productionOrders: ProductionOrderData[];
     stock: StockItem[];
+    users?: User[];
 }
 
 const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({ 
@@ -30,12 +31,25 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
     onAddManual,
     currentUser,
     productionOrders = [],
-    stock = []
+    stock = [],
+    users = []
 }) => {
     const [activeTab, setActiveTab] = useState<'floor' | 'production' | 'ca60' | 'history'>('floor');
     const [movingItem, setMovingItem] = useState<{ model: string; size: string; type: 'transfer' | 'audit' | 'virtual_audit' | 'add_virtual' | 'dispatch' } | null>(null);
     const [movementQty, setMovementQty] = useState(0);
     const [obs, setObs] = useState('');
+
+    // Novos estados para criação de estoque manual e conferência
+    const [opNumber, setOpNumber] = useState('');
+    const [opStartTime, setOpStartTime] = useState('');
+    const [opEndTime, setOpEndTime] = useState('');
+    const [managerPassword, setManagerPassword] = useState('');
+    const [pwdError, setPwdError] = useState('');
+
+    const [selectedConferModel, setSelectedConferModel] = useState<{ model: string; size: string; list: FinishedProductItem[] } | null>(null);
+    const [conferringItem, setConferringItem] = useState<FinishedProductItem | null>(null);
+    const [conferQty, setConferQty] = useState(0);
+    const [conferJustification, setConferJustification] = useState('');
 
     // --- CÁLCULO DE RESUMO GERAL DAS TRELIÇAS ---
     const overallStats = useMemo(() => {
@@ -75,6 +89,8 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                 i.size.trim() === m.tamanho.trim()
             );
 
+            const unconferredList = relevantItems.filter(i => i.isConferred === false);
+
             if (relevantItems.length > 0) {
                 id = relevantItems[0].id;
                 relevantItems.forEach(item => {
@@ -94,7 +110,10 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                 pendingTransferQty,
                 totalWeight,
                 diff: physicalQty - virtualQty - pendingTransferQty,
-                theoreticalWeightPerPiece: parseFloat(m.pesoFinal.replace(',', '.'))
+                theoreticalWeightPerPiece: parseFloat(m.pesoFinal.replace(',', '.')),
+                unconferredList,
+                hasUnconferred: unconferredList.length > 0,
+                unconferredQty: unconferredList.reduce((acc, curr) => acc + curr.quantity, 0)
             };
         });
     }, [finishedGoods]);
@@ -157,6 +176,68 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
         );
         let targetId = relevantItems[0]?.id;
 
+        // Validação de segurança de senha de gestor e OP para adicionar estoque virtual
+        if (movingItem.type === 'add_virtual') {
+            const manager = users?.find(u => (u.role === 'gestor' || u.role === 'admin') && u.password === managerPassword);
+            if (!manager) {
+                setPwdError('Senha do gestor incorreta ou inválida.');
+                return;
+            }
+            if (!opNumber.trim()) {
+                alert('O número da ordem de produção é obrigatório.');
+                return;
+            }
+            if (!opStartTime || !opEndTime) {
+                alert('As datas de início e término são obrigatórias.');
+                return;
+            }
+            
+            const modelConfig = trelicaModels.find(m => m.modelo === movingItem.model && m.tamanho.trim() === movingItem.size.trim());
+            const weightPerPiece = modelConfig ? parseFloat(modelConfig.pesoFinal.replace(',', '.')) : 1.0;
+
+            onAddManual({
+                productType: 'Treliça',
+                model: movingItem.model,
+                size: movingItem.size,
+                quantity: movementQty,
+                physicalQuantity: movementQty, // Espelhado imediatamente
+                totalWeight: weightPerPiece * movementQty,
+                orderNumber: opNumber,
+                productionOrderId: 'MANUAL',
+                opStartTime: new Date(opStartTime).toISOString(),
+                opEndTime: new Date(opEndTime).toISOString(),
+                isConferred: false,
+                conferralJustification: ''
+            });
+
+            setMovingItem(null);
+            setMovementQty(0);
+            setObs('');
+            setOpNumber('');
+            setOpStartTime('');
+            setOpEndTime('');
+            setManagerPassword('');
+            setPwdError('');
+            return;
+        }
+
+        // Validação no despacho
+        if (movingItem.type === 'dispatch') {
+            const currentItem = relevantItems[0];
+            if (currentItem) {
+                const pendingQty = currentItem.pendingTransferQuantity || 0;
+                const physicalQty = currentItem.physicalQuantity || 0;
+                if (movementQty > pendingQty) {
+                    alert(`Não é possível despachar mais do que o saldo aguardando retirada (${pendingQty} pçs).`);
+                    return;
+                }
+                if (movementQty > physicalQty) {
+                    alert(`Não é possível despachar mais do que o saldo físico em pátio (${physicalQty} pçs).`);
+                    return;
+                }
+            }
+        }
+
         if (!targetId) {
             onAddManual({
                 productType: 'Treliça',
@@ -190,8 +271,6 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
             updates.physicalQuantity = (currentItem.physicalQuantity || 0) + movementQty;
         } else if (movingItem.type === 'virtual_audit') {
             updates.quantity = movementQty;
-        } else if (movingItem.type === 'add_virtual') {
-            updates.quantity = (currentItem.quantity || 0) + movementQty;
         } else if (movingItem.type === 'dispatch') {
             updates.physicalQuantity = Math.max(0, (currentItem.physicalQuantity || 0) - movementQty);
             updates.pendingTransferQuantity = Math.max(0, (currentItem.pendingTransferQuantity || 0) - movementQty);
@@ -223,52 +302,323 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                             </h3>
                             <p className="text-white/70 font-bold uppercase text-xs tracking-widest mt-2">{movingItem.model} - {movingItem.size}m</p>
                         </div>
-                        <div className="p-8 space-y-6">
+                        <div className="p-8 space-y-6 max-h-[80vh] overflow-y-auto">
                             {movingItem.type === 'dispatch' && currentItemForModal && (
                                 <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs font-semibold text-amber-800 flex justify-between">
                                     <span>Pendente Retirada: <strong>{currentItemForModal.pendingTransferQuantity || 0} pçs</strong></span>
                                     <span>Disponível no Físico: <strong>{currentItemForModal.physicalQuantity || 0} pçs</strong></span>
                                 </div>
                             )}
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                            
+                            {/* Synced quantity inputs */}
+                            <div className="space-y-2">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                     {movingItem.type === 'transfer' ? 'Quantidade a Transferir' : movingItem.type === 'add_virtual' ? 'Quantidade a Adicionar' : movingItem.type === 'virtual_audit' ? 'Novo Saldo Virtual (Sistema)' : movingItem.type === 'dispatch' ? 'Quantidade a Despachar Fisicamente' : 'Nova Contagem Física Real (Galpão)'}
                                 </label>
-                                <input 
-                                    type="number" 
-                                    autoFocus
-                                    value={movementQty} 
-                                    onChange={(e) => setMovementQty(parseInt(e.target.value) || 0)}
-                                    className="w-full p-5 bg-slate-50 rounded-2xl text-4xl font-black text-slate-800 focus:ring-4 focus:ring-indigo-500/20 outline-none transition-all"
-                                />
-                                {movementQty ? (
-                                    <span className="text-xs font-bold text-indigo-600 block mt-2">
-                                        Equivalente a: <strong>{Math.floor(movementQty / 200)} {Math.floor(movementQty / 200) === 1 ? 'pacote' : 'pacotes'}</strong> {movementQty % 200 > 0 ? ` e ${movementQty % 200} peças avulsas` : ''}
-                                    </span>
-                                ) : null}
-                            </div>
-                            <div>
-                                <div className="flex justify-between items-center mb-2">
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Observações / Motivo</label>
-                                    <span className="text-[9px] font-black text-red-500 uppercase tracking-widest leading-none">Obrigatório</span>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Pacotes (200 pçs)</label>
+                                        <input 
+                                            type="number"
+                                            value={Math.floor(movementQty / 200)}
+                                            onChange={(e) => {
+                                                const packs = parseInt(e.target.value) || 0;
+                                                const rem = movementQty % 200;
+                                                setMovementQty(packs * 200 + rem);
+                                            }}
+                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-black text-slate-800 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Peças Avulsas</label>
+                                        <input 
+                                            type="number"
+                                            value={movementQty % 200}
+                                            onChange={(e) => {
+                                                const rem = parseInt(e.target.value) || 0;
+                                                const packs = Math.floor(movementQty / 200);
+                                                setMovementQty(packs * 200 + rem);
+                                            }}
+                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-black text-slate-800 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                                        />
+                                    </div>
                                 </div>
-                                <textarea 
-                                    value={obs} 
-                                    required
-                                    onChange={(e) => setObs(e.target.value)}
-                                    placeholder="Ex: Auditoria mensal, erro de lançamento, quebra..."
-                                    className={`w-full p-4 bg-slate-50 rounded-2xl font-medium text-slate-600 outline-none transition-all border-2 ${!obs.trim() ? 'border-red-100 focus:border-red-200' : 'border-emerald-100 focus:border-emerald-200'}`}
-                                />
-                                {!obs.trim() && <p className="text-[9px] font-bold text-red-400 mt-2 uppercase">Descreva o motivo para liberar a gravação</p>}
+                                <span className="text-xs font-bold text-indigo-600 block mt-1">
+                                    Total: <strong>{movementQty} peças</strong>
+                                </span>
                             </div>
+
+                            {/* Additional fields for manual virtual stock entry */}
+                            {movingItem.type === 'add_virtual' && (
+                                <div className="space-y-4 border-t border-slate-100 pt-4">
+                                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Dados da Ordem de Produção (OP)</h4>
+                                    <div>
+                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Nº da Ordem de Produção (OP)</label>
+                                        <input 
+                                            type="text"
+                                            value={opNumber}
+                                            onChange={(e) => setOpNumber(e.target.value)}
+                                            placeholder="Ex: OP-1234"
+                                            className="w-full p-3 bg-slate-50 rounded-xl font-bold text-slate-800 border border-slate-200 outline-none"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Data/Hora Início</label>
+                                            <input 
+                                                type="datetime-local"
+                                                value={opStartTime}
+                                                onChange={(e) => setOpStartTime(e.target.value)}
+                                                className="w-full p-3 bg-slate-50 rounded-xl font-semibold text-slate-700 border border-slate-200 outline-none text-xs"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Data/Hora Término</label>
+                                            <input 
+                                                type="datetime-local"
+                                                value={opEndTime}
+                                                onChange={(e) => setOpEndTime(e.target.value)}
+                                                className="w-full p-3 bg-slate-50 rounded-xl font-semibold text-slate-700 border border-slate-200 outline-none text-xs"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="border-t border-slate-100 pt-4">
+                                        <label className="block text-[9px] font-black text-red-500 uppercase tracking-widest mb-1">Senha de Gestor (Requerido)</label>
+                                        <input 
+                                            type="password"
+                                            value={managerPassword}
+                                            onChange={(e) => {
+                                                setManagerPassword(e.target.value);
+                                                setPwdError('');
+                                            }}
+                                            placeholder="Digite a senha..."
+                                            className={`w-full p-3 bg-slate-50 rounded-xl font-black text-slate-800 border outline-none ${pwdError ? 'border-red-500' : 'border-slate-200'}`}
+                                        />
+                                        {pwdError && <p className="text-[10px] font-bold text-red-500 mt-1 uppercase">{pwdError}</p>}
+                                    </div>
+                                </div>
+                            )}
+
+                            {movingItem.type !== 'add_virtual' && (
+                                <div>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Observações / Motivo</label>
+                                        <span className="text-[9px] font-black text-red-500 uppercase tracking-widest leading-none">Obrigatório</span>
+                                    </div>
+                                    <textarea 
+                                        value={obs} 
+                                        required
+                                        onChange={(e) => setObs(e.target.value)}
+                                        placeholder="Ex: Auditoria mensal, erro de lançamento, quebra..."
+                                        className={`w-full p-4 bg-slate-50 rounded-2xl font-medium text-slate-600 outline-none transition-all border-2 ${!obs.trim() ? 'border-red-100 focus:border-red-200' : 'border-emerald-100 focus:border-emerald-200'}`}
+                                    />
+                                    {!obs.trim() && <p className="text-[9px] font-bold text-red-400 mt-2 uppercase">Descreva o motivo para liberar a gravação</p>}
+                                </div>
+                            )}
+
                             <div className="flex gap-4 pt-4">
-                                <button onClick={() => { setMovingItem(null); setObs(''); }} className="flex-1 py-4 font-black text-slate-400 hover:bg-slate-50 rounded-2xl transition-all uppercase text-xs">Cancelar</button>
+                                <button 
+                                    onClick={() => { 
+                                        setMovingItem(null); 
+                                        setObs(''); 
+                                        setOpNumber('');
+                                        setOpStartTime('');
+                                        setOpEndTime('');
+                                        setManagerPassword('');
+                                        setPwdError('');
+                                    }} 
+                                    className="flex-1 py-4 font-black text-slate-400 hover:bg-slate-50 rounded-2xl transition-all uppercase text-xs"
+                                >
+                                    Cancelar
+                                </button>
                                 <button 
                                     onClick={handleAction} 
-                                    disabled={!obs.trim()}
+                                    disabled={movingItem.type !== 'add_virtual' ? !obs.trim() : (!managerPassword.trim() || !opNumber.trim() || !opStartTime || !opEndTime)}
                                     className={`flex-1 py-4 font-black text-white rounded-2xl shadow-lg transition-all uppercase text-xs disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none ${movingItem.type === 'transfer' ? 'bg-indigo-600' : movingItem.type === 'virtual_audit' ? 'bg-slate-700' : movingItem.type === 'dispatch' ? 'bg-amber-600' : 'bg-emerald-600'}`}
                                 >
                                     Confirmar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Seleção de Lote para Conferência */}
+            {selectedConferModel && (
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[70] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-white/20 animate-modal-in">
+                        <div className="p-8 bg-amber-500 text-white">
+                            <h3 className="text-2xl font-black flex items-center gap-3">
+                                <ClockIcon className="h-7 w-7" />
+                                Lotes Pendentes de Conferência
+                            </h3>
+                            <p className="text-white/70 font-bold uppercase text-xs tracking-widest mt-2">
+                                {selectedConferModel.model} &mdash; {selectedConferModel.size}m
+                            </p>
+                        </div>
+                        <div className="p-8 space-y-6">
+                            <p className="text-sm font-semibold text-slate-500">
+                                Selecione um lote de produção para realizar a contagem física e confirmar o estoque:
+                            </p>
+                            <div className="max-h-[40vh] overflow-y-auto border border-slate-100 rounded-2xl divide-y">
+                                {selectedConferModel.list.map(item => (
+                                    <div key={item.id} className="p-4 hover:bg-slate-50 flex justify-between items-center transition-colors">
+                                        <div>
+                                            <p className="font-black text-slate-800 text-sm">OP #{item.orderNumber}</p>
+                                            <p className="text-xs text-slate-400 font-bold mt-1">
+                                                Produção: {new Date(item.productionDate).toLocaleDateString('pt-BR')}
+                                            </p>
+                                            <p className="text-xs text-indigo-600 font-bold mt-0.5">
+                                                Qtd Virtual: {formatPiecesAndPacksShort(item.quantity)}
+                                            </p>
+                                        </div>
+                                        <button 
+                                            onClick={() => {
+                                                setConferringItem(item);
+                                                setConferQty(item.quantity); // default to virtual quantity
+                                                setConferJustification('');
+                                                setSelectedConferModel(null);
+                                            }}
+                                            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase transition-all shadow-md"
+                                        >
+                                            Conferir
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex justify-end">
+                                <button 
+                                    onClick={() => setSelectedConferModel(null)} 
+                                    className="py-3 px-6 font-black text-slate-400 hover:bg-slate-50 rounded-2xl transition-all uppercase text-xs"
+                                >
+                                    Fechar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Conferência de Lote */}
+            {conferringItem && (
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[70] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden border border-white/20 animate-modal-in">
+                        <div className="p-8 bg-amber-500 text-white">
+                            <h3 className="text-2xl font-black flex items-center gap-3">
+                                <CheckCircleIcon className="h-7 w-7" />
+                                Conferir Estoque
+                            </h3>
+                            <p className="text-white/70 font-bold uppercase text-xs tracking-widest mt-2">
+                                OP #{conferringItem.orderNumber} &mdash; {conferringItem.model} - {conferringItem.size}m
+                            </p>
+                        </div>
+                        <div className="p-8 space-y-6 max-h-[80vh] overflow-y-auto">
+                            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs font-bold text-amber-800 space-y-1">
+                                <p>Data Produção: {new Date(conferringItem.productionDate).toLocaleString('pt-BR')}</p>
+                                {conferringItem.opStartTime && <p>Início OP: {new Date(conferringItem.opStartTime).toLocaleString('pt-BR')}</p>}
+                                {conferringItem.opEndTime && <p>Término OP: {new Date(conferringItem.opEndTime).toLocaleString('pt-BR')}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                    Quantidade Virtual no Sistema
+                                </label>
+                                <div className="p-4 bg-slate-100 rounded-2xl font-black text-slate-700 text-lg">
+                                    {formatPiecesAndPacksShort(conferringItem.quantity)}
+                                </div>
+                            </div>
+
+                            {/* Synced Inputs for Physical Quantity */}
+                            <div className="space-y-2">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    Quantidade Física Real (No Galpão)
+                                </label>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Pacotes (200 pçs)</label>
+                                        <input 
+                                            type="number"
+                                            value={Math.floor(conferQty / 200)}
+                                            onChange={(e) => {
+                                                const packs = parseInt(e.target.value) || 0;
+                                                const rem = conferQty % 200;
+                                                setConferQty(packs * 200 + rem);
+                                            }}
+                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-black text-slate-800 focus:ring-2 focus:ring-amber-500/20 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Peças Avulsas</label>
+                                        <input 
+                                            type="number"
+                                            value={conferQty % 200}
+                                            onChange={(e) => {
+                                                const rem = parseInt(e.target.value) || 0;
+                                                const packs = Math.floor(conferQty / 200);
+                                                setConferQty(packs * 200 + rem);
+                                            }}
+                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-black text-slate-800 focus:ring-2 focus:ring-amber-500/20 outline-none"
+                                        />
+                                    </div>
+                                </div>
+                                <span className="text-xs font-bold text-indigo-600 block mt-1">
+                                    Total: <strong>{conferQty} peças</strong>
+                                </span>
+                            </div>
+
+                            <div>
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Justificativa / Observações</label>
+                                    <span className="text-[9px] font-black text-red-500 uppercase tracking-widest leading-none">Obrigatório</span>
+                                </div>
+                                <textarea 
+                                    value={conferJustification} 
+                                    required
+                                    onChange={(e) => setConferJustification(e.target.value)}
+                                    placeholder="Justifique o resultado da conferência (ex: Contagem correta, divergência de saldo, etc.)"
+                                    className={`w-full p-4 bg-slate-50 rounded-2xl font-medium text-slate-600 outline-none transition-all border-2 ${!conferJustification.trim() ? 'border-red-100 focus:border-red-200' : 'border-amber-100 focus:border-amber-200'}`}
+                                />
+                                {!conferJustification.trim() && <p className="text-[9px] font-bold text-red-400 mt-2 uppercase">Forneça uma justificativa para confirmar</p>}
+                            </div>
+
+                            <div className="flex gap-4 pt-4">
+                                <button 
+                                    onClick={() => { setConferringItem(null); setConferJustification(''); }} 
+                                    className="flex-1 py-4 font-black text-slate-400 hover:bg-slate-50 rounded-2xl transition-all uppercase text-xs"
+                                >
+                                    Cancelar
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        if (!conferJustification.trim()) return;
+                                        
+                                        const movement: StockMovement = {
+                                            id: Math.random().toString(36).substring(2, 11),
+                                            date: new Date().toISOString(),
+                                            type: 'adjustment',
+                                            from: 'physical',
+                                            to: 'physical',
+                                            quantity: conferQty,
+                                            operator: currentUser?.username || 'Sistema',
+                                            observations: `Conferência: ${conferJustification}. (Virtual: ${conferringItem.quantity} pçs, Físico: ${conferQty} pçs)`
+                                        };
+                                        
+                                        onUpdateQuantity(conferringItem.id, {
+                                            physicalQuantity: conferQty,
+                                            isConferred: true,
+                                            conferralJustification: conferJustification,
+                                            movementHistory: [...(conferringItem.movementHistory || []), movement]
+                                        }, movement);
+                                        
+                                        setConferringItem(null);
+                                        setConferQty(0);
+                                        setConferJustification('');
+                                    }} 
+                                    disabled={!conferJustification.trim()}
+                                    className="flex-1 py-4 font-black text-white bg-amber-500 rounded-2xl shadow-lg hover:bg-amber-600 transition-all uppercase text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+                                >
+                                    Confirmar Conferência
                                 </button>
                             </div>
                         </div>
@@ -402,7 +752,14 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                                                 {item.model} <span className="text-slate-400 text-xs font-semibold">({item.size}m)</span>
                                             </td>
                                             <td className="px-6 py-4 text-center font-bold text-slate-700">{formatPiecesAndPacksShort(item.virtualQty)}</td>
-                                            <td className="px-6 py-4 text-center font-bold text-slate-800">{formatPiecesAndPacksShort(item.physicalQty)}</td>
+                                            <td className="px-6 py-4 text-center font-bold text-slate-800">
+                                                {formatPiecesAndPacksShort(item.physicalQty)}
+                                                {item.hasUnconferred && (
+                                                    <span className="block mt-1 text-[10px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded w-fit mx-auto animate-pulse">
+                                                        ⚠️ {formatPiecesAndPacksShort(item.unconferredQty)} aguardando conferência
+                                                    </span>
+                                                )}
+                                            </td>
                                             <td className="px-6 py-4 text-center font-bold">
                                                 <span className={`px-2 py-0.5 rounded text-xs ${
                                                     item.diff < 0 
@@ -426,6 +783,17 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                                             <td className="px-6 py-4 text-right font-semibold text-slate-600">{(item.totalWeight).toFixed(0)} kg</td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                                    {item.hasUnconferred && (
+                                                        <button 
+                                                            onClick={() => {
+                                                                setSelectedConferModel({ model: item.model, size: item.size, list: item.unconferredList });
+                                                            }}
+                                                            className="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase transition-all shadow-md"
+                                                            title="Conferir lotes pendentes"
+                                                        >
+                                                            Conferir
+                                                        </button>
+                                                    )}
                                                     <button 
                                                         onClick={() => {
                                                             setMovingItem({ model: item.model, size: item.size, type: 'add_virtual' });
