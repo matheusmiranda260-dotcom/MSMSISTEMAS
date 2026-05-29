@@ -826,7 +826,7 @@ const App: React.FC = () => {
         }
     };
 
-    const createFinishedGoodsTransfer = async (data: { destinationSector: string; otherDestination?: string; items: Map<string, number> }): Promise<FinishedGoodsTransferRecord | null> => {
+    const createFinishedGoodsTransfer = async (data: { destinationSector: string; otherDestination?: string; items: Map<string, number>; withdrawPhysicalNow?: boolean }): Promise<FinishedGoodsTransferRecord | null> => {
         if (!currentUser) return null;
 
         const transferredItems: TransferredFinishedGoodInfo[] = [];
@@ -850,23 +850,25 @@ const App: React.FC = () => {
                 });
 
                 const newQuantity = item.quantity - transferQty;
-                const newPending = (item.pendingTransferQuantity || 0) + transferQty;
-                if (newQuantity > 0) {
+                if (data.withdrawPhysicalNow) {
+                    const newPhysical = Math.max(0, (item.physicalQuantity || 0) - transferQty);
                     finishedGoodsUpdates.push({
                         id: item.id,
                         changes: {
-                            quantity: newQuantity,
-                            totalWeight: item.totalWeight - transferredWeight,
-                            pendingTransferQuantity: newPending
+                            quantity: newQuantity > 0 ? newQuantity : 0,
+                            totalWeight: newQuantity > 0 ? item.totalWeight - transferredWeight : 0,
+                            status: newQuantity > 0 ? item.status : 'Transferido',
+                            physicalQuantity: newPhysical
                         }
                     });
                 } else {
+                    const newPending = (item.pendingTransferQuantity || 0) + transferQty;
                     finishedGoodsUpdates.push({
                         id: item.id,
                         changes: {
-                            quantity: 0,
-                            totalWeight: 0,
-                            status: 'Transferido',
+                            quantity: newQuantity > 0 ? newQuantity : 0,
+                            totalWeight: newQuantity > 0 ? item.totalWeight - transferredWeight : 0,
+                            status: newQuantity > 0 ? item.status : 'Transferido',
                             pendingTransferQuantity: newPending
                         }
                     });
@@ -891,23 +893,25 @@ const App: React.FC = () => {
                 });
 
                 const newQuantity = item.quantity - transferQty;
-                const newPending = (item.pendingTransferQuantity || 0) + transferQty;
-                if (newQuantity > 0) {
+                if (data.withdrawPhysicalNow) {
+                    const newPhysical = Math.max(0, (item.physicalQuantity || 0) - transferQty);
                     pontasUpdates.push({
                         id: item.id,
                         changes: {
-                            quantity: newQuantity,
-                            totalWeight: item.totalWeight - transferredWeight,
-                            pendingTransferQuantity: newPending
+                            quantity: newQuantity > 0 ? newQuantity : 0,
+                            totalWeight: newQuantity > 0 ? item.totalWeight - transferredWeight : 0,
+                            status: newQuantity > 0 ? item.status : 'Transferido',
+                            physicalQuantity: newPhysical
                         }
                     });
                 } else {
+                    const newPending = (item.pendingTransferQuantity || 0) + transferQty;
                     pontasUpdates.push({
                         id: item.id,
                         changes: {
-                            quantity: 0,
-                            totalWeight: 0,
-                            status: 'Transferido',
+                            quantity: newQuantity > 0 ? newQuantity : 0,
+                            totalWeight: newQuantity > 0 ? item.totalWeight - transferredWeight : 0,
+                            status: newQuantity > 0 ? item.status : 'Transferido',
                             pendingTransferQuantity: newPending
                         }
                     });

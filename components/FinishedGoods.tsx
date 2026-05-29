@@ -19,10 +19,11 @@ const getStatusBadge = (status: FinishedProductItem['status'] | PontaItem['statu
 const TransferFinishedGoodsModal: React.FC<{
     itemsToTransfer: (FinishedProductItem | PontaItem)[];
     onClose: () => void;
-    onSubmit: (data: { destinationSector: string; otherDestination?: string; items: Map<string, number> }) => void;
+    onSubmit: (data: { destinationSector: string; otherDestination?: string; items: Map<string, number>; withdrawPhysicalNow: boolean }) => void;
 }> = ({ itemsToTransfer, onClose, onSubmit }) => {
     const [destinationSector, setDestinationSector] = useState('CAA60');
     const [otherDestination, setOtherDestination] = useState('');
+    const [withdrawPhysicalNow, setWithdrawPhysicalNow] = useState(false);
     const [quantities, setQuantities] = useState<Map<string, number>>(() => new Map(itemsToTransfer.map(item => [item.id, item.quantity])));
 
     const handleQuantityChange = (itemId: string, newQuantity: number, maxQuantity: number) => {
@@ -50,7 +51,12 @@ const TransferFinishedGoodsModal: React.FC<{
             return;
         }
 
-        onSubmit({ destinationSector, otherDestination: destinationSector === 'Outros' ? otherDestination : undefined, items: itemsWithQuantity });
+        onSubmit({ 
+            destinationSector, 
+            otherDestination: destinationSector === 'Outros' ? otherDestination : undefined, 
+            items: itemsWithQuantity,
+            withdrawPhysicalNow 
+        });
     };
 
     return (
@@ -65,12 +71,32 @@ const TransferFinishedGoodsModal: React.FC<{
                             <option value="Outros">Outros</option>
                         </select>
                     </div>
-                    {destinationSector === 'Outros' && (
+                    {destinationSector === 'Outros' ? (
                         <div>
                             <label className="block text-sm font-medium text-slate-700">Especifique o Setor</label>
                             <input type="text" value={otherDestination} onChange={e => setOtherDestination(e.target.value)} className="mt-1 p-2 w-full border border-slate-300 rounded" required />
                         </div>
+                    ) : (
+                        <div />
                     )}
+                </div>
+
+                {/* Pergunta sobre Retirada Física */}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 flex flex-col gap-2">
+                    <span className="text-xs font-black text-slate-500 uppercase tracking-wider">Movimentação Física do Galpão (Físico)</span>
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mt-1">
+                        <span className="text-sm font-bold text-slate-700">
+                            Já vai retirar todas as peças físicas do barracão agora?
+                        </span>
+                        <select 
+                            value={withdrawPhysicalNow ? 'yes' : 'no'} 
+                            onChange={e => setWithdrawPhysicalNow(e.target.value === 'yes')} 
+                            className="p-2 border border-slate-300 rounded-lg bg-white text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                        >
+                            <option value="no">Não, deixar como "Aguardando Retirada"</option>
+                            <option value="yes">Sim, dar baixa no estoque físico agora</option>
+                        </select>
+                    </div>
                 </div>
                 <div className="flex-grow overflow-y-auto border rounded-md">
                     <table className="w-full text-sm">
@@ -221,7 +247,7 @@ interface FinishedGoodsProps {
     pontasStock: PontaItem[];
     finishedGoodsTransfers: FinishedGoodsTransferRecord[];
     setPage: (page: Page) => void;
-    createFinishedGoodsTransfer: (data: { destinationSector: string; otherDestination?: string; items: Map<string, number> }) => FinishedGoodsTransferRecord | null;
+    createFinishedGoodsTransfer: (data: { destinationSector: string; otherDestination?: string; items: Map<string, number>; withdrawPhysicalNow?: boolean }) => FinishedGoodsTransferRecord | null;
     onDelete?: (ids: string[]) => void;
 }
 
@@ -260,7 +286,7 @@ const FinishedGoods: React.FC<FinishedGoodsProps> = ({ finishedGoods, pontasStoc
         });
     };
 
-    const handleTransferSubmit = (data: { destinationSector: string; otherDestination?: string; items: Map<string, number> }) => {
+    const handleTransferSubmit = (data: { destinationSector: string; otherDestination?: string; items: Map<string, number>; withdrawPhysicalNow?: boolean }) => {
         const result = createFinishedGoodsTransfer(data);
         if (result) {
             setIsTransferModalOpen(false);
