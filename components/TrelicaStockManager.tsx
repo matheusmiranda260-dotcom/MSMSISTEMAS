@@ -3,6 +3,14 @@ import type { Page, FinishedProductItem, User, FinishedGoodsTransferRecord, Stoc
 import { ArchiveIcon, SwitchHorizontalIcon, ClockIcon, CalculatorIcon, PlusIcon, PlayIcon, PauseIcon, CheckCircleIcon, ArrowLeftIcon } from './icons';
 import { trelicaModels } from './ProductionOrderTrelica';
 
+const formatPiecesAndPacksShort = (pieces: number): string => {
+    const packs = Math.floor(pieces / 200);
+    const rem = pieces % 200;
+    if (packs === 0) return `${pieces} pçs`;
+    if (rem === 0) return `${pieces} pçs (${packs} ${packs === 1 ? 'pacote' : 'pacotes'})`;
+    return `${pieces} pçs (${packs} ${packs === 1 ? 'pacote' : 'pacotes'} + ${rem} pçs)`;
+};
+
 interface TrelicaStockManagerProps {
     finishedGoods: FinishedProductItem[];
     setPage: (page: Page) => void;
@@ -233,6 +241,11 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                                     onChange={(e) => setMovementQty(parseInt(e.target.value) || 0)}
                                     className="w-full p-5 bg-slate-50 rounded-2xl text-4xl font-black text-slate-800 focus:ring-4 focus:ring-indigo-500/20 outline-none transition-all"
                                 />
+                                {movementQty ? (
+                                    <span className="text-xs font-bold text-indigo-600 block mt-2">
+                                        Equivalente a: <strong>{Math.floor(movementQty / 200)} {Math.floor(movementQty / 200) === 1 ? 'pacote' : 'pacotes'}</strong> {movementQty % 200 > 0 ? ` e ${movementQty % 200} peças avulsas` : ''}
+                                    </span>
+                                ) : null}
                             </div>
                             <div>
                                 <div className="flex justify-between items-center mb-2">
@@ -333,14 +346,23 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                         <div className="bg-slate-800 p-6 rounded-[2rem] text-white flex flex-col justify-between shadow-sm">
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Estoque Virtual Total</p>
                             <p className="text-4xl font-black">{overallStats.totalVirtual} <span className="text-sm opacity-50 uppercase">pçs</span></p>
+                            <span className="text-[11px] font-bold text-slate-400 block mt-1">
+                                {Math.floor(overallStats.totalVirtual / 200)} pac. {overallStats.totalVirtual % 200 > 0 ? `+ ${overallStats.totalVirtual % 200} pçs` : ''}
+                            </span>
                         </div>
                         <div className="bg-indigo-600 p-6 rounded-[2rem] text-white shadow-xl shadow-indigo-100 flex flex-col justify-between">
                             <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest mb-1">Estoque Físico Total</p>
                             <p className="text-4xl font-black">{overallStats.totalPhysical} <span className="text-sm opacity-50 uppercase">pçs</span></p>
+                            <span className="text-[11px] font-bold text-indigo-200 block mt-1">
+                                {Math.floor(overallStats.totalPhysical / 200)} pac. {overallStats.totalPhysical % 200 > 0 ? `+ ${overallStats.totalPhysical % 200} pçs` : ''}
+                            </span>
                         </div>
                         <div className="bg-amber-600 p-6 rounded-[2rem] text-white flex flex-col justify-between shadow-sm">
                             <p className="text-[10px] font-black text-amber-200 uppercase tracking-widest mb-1">Aguardando Retirada</p>
                             <p className="text-4xl font-black">{overallStats.totalPending} <span className="text-sm opacity-50 uppercase">pçs</span></p>
+                            <span className="text-[11px] font-bold text-amber-200 block mt-1">
+                                {Math.floor(overallStats.totalPending / 200)} pac. {overallStats.totalPending % 200 > 0 ? `+ ${overallStats.totalPending % 200} pçs` : ''}
+                            </span>
                         </div>
                         <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-100 flex flex-col justify-between shadow-sm">
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Diferença Geral</p>
@@ -379,8 +401,8 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                                             <td className="px-6 py-4 font-black text-slate-800">
                                                 {item.model} <span className="text-slate-400 text-xs font-semibold">({item.size}m)</span>
                                             </td>
-                                            <td className="px-6 py-4 text-center font-bold text-slate-700">{item.virtualQty} pçs</td>
-                                            <td className="px-6 py-4 text-center font-bold text-slate-800">{item.physicalQty} pçs</td>
+                                            <td className="px-6 py-4 text-center font-bold text-slate-700">{formatPiecesAndPacksShort(item.virtualQty)}</td>
+                                            <td className="px-6 py-4 text-center font-bold text-slate-800">{formatPiecesAndPacksShort(item.physicalQty)}</td>
                                             <td className="px-6 py-4 text-center font-bold">
                                                 <span className={`px-2 py-0.5 rounded text-xs ${
                                                     item.diff < 0 
@@ -395,7 +417,7 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                                             <td className="px-6 py-4 text-center font-bold">
                                                 {item.pendingTransferQty > 0 ? (
                                                     <span className="px-2.5 py-1 rounded-full text-xs bg-amber-50 text-amber-700 font-bold border border-amber-200">
-                                                        {item.pendingTransferQty} pçs
+                                                        {formatPiecesAndPacksShort(item.pendingTransferQty)}
                                                     </span>
                                                 ) : (
                                                     <span className="text-slate-300 font-medium">-</span>

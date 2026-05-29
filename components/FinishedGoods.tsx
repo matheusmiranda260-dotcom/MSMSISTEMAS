@@ -3,6 +3,14 @@ import type { Page, FinishedProductItem, PontaItem, FinishedGoodsTransferRecord 
 import { ArrowLeftIcon, ArchiveIcon, TruckIcon, PrinterIcon, TrashIcon } from './icons';
 import { LogoIcon } from './Logo';
 
+const formatPiecesAndPackages = (pieces: number): string => {
+    const packs = Math.floor(pieces / 200);
+    const rem = pieces % 200;
+    if (packs === 0) return `${pieces} pçs`;
+    if (rem === 0) return `${pieces} pçs (${packs} ${packs === 1 ? 'pacote' : 'pacotes'})`;
+    return `${pieces} pçs (${packs} ${packs === 1 ? 'pacote' : 'pacotes'} + ${rem} pçs)`;
+};
+
 const getStatusBadge = (status: FinishedProductItem['status'] | PontaItem['status']) => {
     const styles = {
         'Disponível': 'bg-emerald-100 text-emerald-800',
@@ -24,7 +32,7 @@ const TransferFinishedGoodsModal: React.FC<{
     const [destinationSector, setDestinationSector] = useState('CAA60');
     const [otherDestination, setOtherDestination] = useState('');
     const [withdrawPhysicalNow, setWithdrawPhysicalNow] = useState(false);
-    const [quantities, setQuantities] = useState<Map<string, number>>(() => new Map(itemsToTransfer.map(item => [item.id, item.quantity])));
+    const [quantities, setQuantities] = useState<Map<string, number>>(() => new Map(itemsToTransfer.map(item => [item.id, item.physicalQuantity])));
 
     const handleQuantityChange = (itemId: string, newQuantity: number, maxQuantity: number) => {
         const validatedQuantity = Math.max(0, Math.min(newQuantity, maxQuantity));
@@ -110,16 +118,24 @@ const TransferFinishedGoodsModal: React.FC<{
                         <tbody>
                             {itemsToTransfer.map(item => (
                                 <tr key={item.id} className="border-b">
-                                    <td className="p-2">{item.model} ({item.size}m)</td>
-                                    <td className="p-2">{item.quantity}</td>
+                                    <td className="p-2 font-medium text-slate-800">{item.model} ({item.size}m)</td>
+                                    <td className="p-2 font-bold text-slate-700">{formatPiecesAndPackages(item.physicalQuantity)}</td>
                                     <td className="p-2">
-                                        <input
-                                            type="number"
-                                            value={quantities.get(item.id) || ''}
-                                            onChange={e => handleQuantityChange(item.id, parseInt(e.target.value) || 0, item.quantity)}
-                                            max={item.quantity}
-                                            className="w-full p-1 border border-slate-300 rounded"
-                                        />
+                                        <div className="flex flex-col">
+                                            <input
+                                                type="number"
+                                                value={quantities.get(item.id) !== undefined ? quantities.get(item.id) : ''}
+                                                onChange={e => handleQuantityChange(item.id, parseInt(e.target.value) || 0, item.physicalQuantity)}
+                                                max={item.physicalQuantity}
+                                                className="w-full p-1.5 border border-slate-300 rounded text-slate-800 font-bold"
+                                            />
+                                            {quantities.get(item.id) ? (
+                                                <span className="text-[11px] font-bold text-indigo-600 block mt-1">
+                                                    = {Math.floor((quantities.get(item.id) || 0) / 200)} pac. 
+                                                    {(quantities.get(item.id) || 0) % 200 > 0 ? ` + ${(quantities.get(item.id) || 0) % 200} pçs` : ''}
+                                                </span>
+                                            ) : null}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -342,25 +358,36 @@ const FinishedGoods: React.FC<FinishedGoodsProps> = ({ finishedGoods, pontasStoc
                     <table className="w-full text-sm text-left">
                         <thead className="text-xs text-slate-600 uppercase bg-slate-50">
                             <tr>
-                                <th className="p-4 w-12"><input type="checkbox" onChange={() => handleSelectAll(finishedGoods, 'trelica')} className="h-4 w-4 rounded" /></th>
+                                <th className="p-4 w-12"><input type="checkbox" onChange={() => handleSelectAll(finishedGoods.filter(i => i.physicalQuantity > 0), 'trelica')} className="h-4 w-4 rounded" /></th>
                                 <th className="px-6 py-3">Data Produção</th>
                                 <th className="px-6 py-3">Nº Ordem</th>
                                 <th className="px-6 py-3">Modelo</th>
                                 <th className="px-6 py-3">Tamanho (m)</th>
-                                <th className="px-6 py-3 text-right">Quantidade (pçs)</th>
+                                <th className="px-6 py-3 text-right">Virtual (Sistema)</th>
+                                <th className="px-6 py-3 text-right">Físico (Galpão)</th>
                                 <th className="px-6 py-3 text-right">Peso Total (kg)</th>
                                 <th className="px-6 py-3 text-center">Status</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
                             {finishedGoods.map(item => (
-                                <tr key={item.id} className="bg-white hover:bg-slate-50">
-                                    <td className="p-4"><input type="checkbox" checked={selectedItems.has(item.id)} onChange={() => handleSelectItem(item.id)} className="h-4 w-4 rounded" /></td>
+                                <tr key={item.id} className={`bg-white hover:bg-slate-50 ${item.physicalQuantity <= 0 ? 'opacity-65' : ''}`}>
+                                    <td className="p-4">
+                                        <input 
+                                            type="checkbox" 
+                                            disabled={item.physicalQuantity <= 0}
+                                            checked={selectedItems.has(item.id)} 
+                                            onChange={() => handleSelectItem(item.id)} 
+                                            className="h-4 w-4 rounded disabled:opacity-30 disabled:cursor-not-allowed" 
+                                            title={item.physicalQuantity <= 0 ? "Sem estoque físico no chão" : ""}
+                                        />
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap">{new Date(item.productionDate).toLocaleDateString('pt-BR')}</td>
                                     <td className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{item.orderNumber}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">{item.model}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">{item.size}</td>
-                                    <td className="px-6 py-4 text-right font-medium text-slate-900 whitespace-nowrap">{item.quantity}</td>
+                                    <td className="px-6 py-4 text-right font-medium text-slate-500 whitespace-nowrap">{formatPiecesAndPackages(item.quantity)}</td>
+                                    <td className="px-6 py-4 text-right font-bold text-slate-900 whitespace-nowrap">{formatPiecesAndPackages(item.physicalQuantity)}</td>
                                     <td className="px-6 py-4 text-right font-bold text-slate-900 whitespace-nowrap">{item.totalWeight.toFixed(2)}</td>
                                     <td className="px-6 py-4 text-center">{getStatusBadge(item.status)}</td>
                                 </tr>
@@ -386,25 +413,36 @@ const FinishedGoods: React.FC<FinishedGoodsProps> = ({ finishedGoods, pontasStoc
                     <table className="w-full text-sm text-left">
                         <thead className="text-xs text-slate-600 uppercase bg-slate-50">
                             <tr>
-                                <th className="p-4 w-12"><input type="checkbox" onChange={() => handleSelectAll(pontasStock, 'ponta')} className="h-4 w-4 rounded" /></th>
+                                <th className="p-4 w-12"><input type="checkbox" onChange={() => handleSelectAll(pontasStock.filter(i => i.physicalQuantity > 0), 'ponta')} className="h-4 w-4 rounded" /></th>
                                 <th className="px-6 py-3">Data Produção</th>
                                 <th className="px-6 py-3">Nº Ordem Origem</th>
                                 <th className="px-6 py-3">Modelo</th>
                                 <th className="px-6 py-3">Tamanho (m)</th>
-                                <th className="px-6 py-3 text-right">Quantidade (pçs)</th>
+                                <th className="px-6 py-3 text-right">Virtual (Sistema)</th>
+                                <th className="px-6 py-3 text-right">Físico (Galpão)</th>
                                 <th className="px-6 py-3 text-right">Peso Total (kg)</th>
                                 <th className="px-6 py-3 text-center">Status</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
-                            {pontasStock.filter(i => i.quantity > 0).map(item => (
-                                <tr key={item.id} className="bg-white hover:bg-slate-50">
-                                    <td className="p-4"><input type="checkbox" checked={selectedItems.has(item.id)} onChange={() => handleSelectItem(item.id)} className="h-4 w-4 rounded" /></td>
+                            {pontasStock.filter(i => i.quantity > 0 || i.physicalQuantity > 0).map(item => (
+                                <tr key={item.id} className={`bg-white hover:bg-slate-50 ${item.physicalQuantity <= 0 ? 'opacity-65' : ''}`}>
+                                    <td className="p-4">
+                                        <input 
+                                            type="checkbox" 
+                                            disabled={item.physicalQuantity <= 0}
+                                            checked={selectedItems.has(item.id)} 
+                                            onChange={() => handleSelectItem(item.id)} 
+                                            className="h-4 w-4 rounded disabled:opacity-30 disabled:cursor-not-allowed" 
+                                            title={item.physicalQuantity <= 0 ? "Sem estoque físico no chão" : ""}
+                                        />
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap">{new Date(item.productionDate).toLocaleDateString('pt-BR')}</td>
                                     <td className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{item.orderNumber}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">{item.model}</td>
                                     <td className="px-6 py-4 whitespace-nowrap font-semibold">{item.size}</td>
-                                    <td className="px-6 py-4 text-right font-medium text-slate-900 whitespace-nowrap">{item.quantity}</td>
+                                    <td className="px-6 py-4 text-right font-medium text-slate-500 whitespace-nowrap">{formatPiecesAndPackages(item.quantity)}</td>
+                                    <td className="px-6 py-4 text-right font-bold text-slate-900 whitespace-nowrap">{formatPiecesAndPackages(item.physicalQuantity)}</td>
                                     <td className="px-6 py-4 text-right font-bold text-slate-900 whitespace-nowrap">{item.totalWeight.toFixed(2)}</td>
                                     <td className="px-6 py-4 text-center">{getStatusBadge(item.status)}</td>
                                 </tr>
