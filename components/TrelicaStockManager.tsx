@@ -866,17 +866,7 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                                                             setMovementQty(0);
                                                         }}
                                                         className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-black uppercase transition-all"
-                                                        title="Adicionar Saldo"
-                                                    >
-                                                        + Add
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => {
-                                                            setMovingItem({ model: item.model, size: item.size, type: 'virtual_audit' });
-                                                            setMovementQty(item.virtualQty);
-                                                        }}
-                                                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-black uppercase transition-all"
-                                                        title="Ajustar Virtual"
+                                                        title="Adicionar ao Estoque Virtual (Sistema)"
                                                     >
                                                         Virtual
                                                     </button>
@@ -886,9 +876,20 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                                                             setMovementQty(item.physicalQty);
                                                         }}
                                                         className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black uppercase transition-all"
-                                                        title="Ajustar Físico"
+                                                        title="Ajustar Contagem Física"
                                                     >
-                                                        Físico
+                                                        Ajustar
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => {
+                                                            setMovingItem({ model: item.model, size: item.size, type: 'transfer' });
+                                                            setMovementQty(0);
+                                                        }}
+                                                        disabled={item.availablePhysForTransf <= 0}
+                                                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-[10px] font-black uppercase transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                                                        title={item.availablePhysForTransf <= 0 ? "Sem estoque físico disponível para transferência" : "Transferir estoque físico para outro setor (Aguardando Retirada)"}
+                                                    >
+                                                        Transf. Setor
                                                     </button>
                                                     {item.pendingTransferQty > 0 && (
                                                         <button 
@@ -896,23 +897,12 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                                                                 setMovingItem({ model: item.model, size: item.size, type: 'dispatch' });
                                                                 setMovementQty(0);
                                                             }}
-                                                            className="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase transition-all"
-                                                            title="Despachar fisicamente as peças transferidas"
+                                                            className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black uppercase transition-all shadow-md animate-pulse"
+                                                            title="Dar baixa no estoque transferido (Aguardando Retirada)"
                                                         >
-                                                            Despachar
+                                                            Transferir
                                                         </button>
                                                     )}
-                                                    <button 
-                                                        onClick={() => {
-                                                            setMovingItem({ model: item.model, size: item.size, type: 'transfer' });
-                                                            setMovementQty(0);
-                                                        }}
-                                                        disabled={item.availablePhysForTransf <= 0}
-                                                        className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black uppercase transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                                                        title={item.availablePhysForTransf <= 0 ? "Sem estoque físico disponível para transferência" : "Transferir para outro setor (Aguardando Retirada)"}
-                                                    >
-                                                        Transferir
-                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
