@@ -505,17 +505,26 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
                     // Add spacing and styling adjustments to cloned gauge blocks
                     const clonedGaugeBlocks = clonedElement.querySelectorAll('.trelica-gauge-block');
                     clonedGaugeBlocks.forEach((el: any) => {
-                        el.style.setProperty('margin-top', '55px', 'important');
+                        el.style.setProperty('margin-top', '80px', 'important');
                         el.style.setProperty('margin-bottom', '0px', 'important');
                         el.style.setProperty('border', 'none', 'important');
                         el.style.setProperty('background', 'transparent', 'important');
                         el.style.setProperty('padding', '0', 'important');
+                        
+                        // Force tight gap between title and table
+                        const innerContainer = el.querySelector('.print-full-width');
+                        if (innerContainer) {
+                            const children = innerContainer.children;
+                            if (children.length > 1) {
+                                (children[1] as HTMLElement).style.setProperty('margin-top', '8px', 'important');
+                            }
+                        }
                     });
 
                     // Add spacing to totals section in cloned element
                     const clonedTotals = clonedElement.querySelectorAll('.trelica-totals-section');
                     clonedTotals.forEach((el: any) => {
-                        el.style.setProperty('margin-top', '55px', 'important');
+                        el.style.setProperty('margin-top', '80px', 'important');
                     });
                 }
             });
@@ -799,12 +808,15 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
                             .trelica-gauge-block {
                                 border: none !important;
                                 background: transparent !important;
-                                margin-top: 55px !important;
+                                margin-top: 80px !important;
                                 margin-bottom: 0px !important;
                                 padding: 0 !important;
                             }
+                            .trelica-gauge-block .print-full-width > * + * {
+                                margin-top: 8px !important;
+                            }
                             .trelica-totals-section {
-                                margin-top: 55px !important;
+                                margin-top: 80px !important;
                             }
                         }
 
@@ -833,12 +845,15 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
                         .is-capturing .trelica-gauge-block {
                             border: none !important;
                             background: transparent !important;
-                            margin-top: 55px !important;
+                            margin-top: 80px !important;
                             margin-bottom: 0px !important;
                             padding: 0 !important;
                         }
+                        .is-capturing .trelica-gauge-block .print-full-width > * + * {
+                            margin-top: 8px !important;
+                        }
                         .is-capturing .trelica-totals-section {
-                            margin-top: 55px !important;
+                            margin-top: 80px !important;
                         }
 
                         .print-only-capturing {
@@ -1022,8 +1037,8 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
                             return (
                                 <div key={gBlock.type} className="trelica-gauge-block grid grid-cols-12 gap-6 items-start border border-slate-200 p-4 rounded-xl bg-[#fafbfc]">
                                     {/* Tabela do Lado Esquerdo */}
-                                    <div className="col-span-12 md:col-span-9 print-full-width space-y-3">
-                                        <div className="flex items-center justify-between pb-2">
+                                    <div className="col-span-12 md:col-span-9 print-full-width space-y-2">
+                                        <div className="flex items-center justify-between pb-1">
                                             <div className="flex items-center gap-3">
                                                 <select
                                                     value={gBlock.type === '6mm' ? bitolaBlock1 : gBlock.type === '3_8mm' ? bitolaBlock2 : bitolaBlock3}
