@@ -2327,6 +2327,76 @@ const App: React.FC = () => {
         } catch (error) { showNotification('Erro ao atualizar.', 'error'); }
     };
 
+    const resetTrelicaStock = async (operatorName: string) => {
+        try {
+            const trelicaItems = finishedGoods.filter(i => 
+                i.productType === 'Treliça' && 
+                (i.quantity > 0 || i.physicalQuantity > 0 || (i.pendingTransferQuantity || 0) > 0)
+            );
+            
+            if (trelicaItems.length === 0) {
+                showNotification('Nenhum item com estoque ativo para zerar.', 'warning');
+                return;
+            }
+
+            const now = new Date().toISOString();
+            
+            for (const item of trelicaItems) {
+                const movement: StockMovement = {
+                    id: Math.random().toString(36).substring(2, 11),
+                    date: now,
+                    type: 'adjustment',
+                    from: 'system',
+                    to: 'out',
+                    quantity: item.quantity,
+                    operator: operatorName,
+                    observations: 'Zerar Estoque Geral (Senha do Gestor)'
+                };
+
+                const dbUpdates: any = {
+                    quantity: 0,
+                    physical_quantity: 0,
+                    pending_transfer_quantity: 0,
+                    total_weight: 0,
+                    is_conferred: true,
+                    movement_history: [...(item.movementHistory || []), movement]
+                };
+
+                await updateItem('finished_goods', item.id, dbUpdates);
+            }
+
+            setFinishedGoods(prev => prev.map(item => {
+                if (item.productType === 'Treliça' && (item.quantity > 0 || item.physicalQuantity > 0 || (item.pendingTransferQuantity || 0) > 0)) {
+                    const movement: StockMovement = {
+                        id: Math.random().toString(36).substring(2, 11),
+                        date: now,
+                        type: 'adjustment',
+                        from: 'system',
+                        to: 'out',
+                        quantity: item.quantity,
+                        operator: operatorName,
+                        observations: 'Zerar Estoque Geral (Senha do Gestor)'
+                    };
+                    return {
+                        ...item,
+                        quantity: 0,
+                        physicalQuantity: 0,
+                        pendingTransferQuantity: 0,
+                        totalWeight: 0,
+                        isConferred: true,
+                        movementHistory: [...(item.movementHistory || []), movement]
+                    };
+                }
+                return item;
+            }));
+
+            showNotification('Estoque de treliças zerado com sucesso.', 'success');
+        } catch (error) {
+            console.error('Erro ao zerar estoque de treliças:', error);
+            showNotification('Erro ao zerar o estoque no banco de dados.', 'error');
+        }
+    };
+
     const updatePonta = async (id: string, updates: Partial<PontaItem>, movement?: StockMovement) => {
         try {
             const item = pontasStock.find(i => i.id === id);
@@ -2428,7 +2498,7 @@ const App: React.FC = () => {
             case 'reports': return <Reports setPage={setPage} stock={stock} trefilaProduction={trefilaProduction} trelicaProduction={trelicaProduction} />;
             case 'userManagement': return <UserManagement users={users} employees={employees} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} setPage={setPage} accessLogs={accessLogs} />;
             case 'finishedGoods': return <FinishedGoods finishedGoods={finishedGoods} pontasStock={pontasStock} setPage={setPage} finishedGoodsTransfers={finishedGoodsTransfers} createFinishedGoodsTransfer={createFinishedGoodsTransfer} onDelete={deleteFinishedGoods} onUpdateFinishedGood={updateFinishedGood} onUpdatePonta={updatePonta} currentUser={currentUser} users={users} />;
-            case 'trelicaStock': return <TrelicaStockManager finishedGoods={finishedGoods} setPage={setPage} createFinishedGoodsTransfer={createFinishedGoodsTransfer} onDelete={deleteFinishedGoods} onUpdateQuantity={updateFinishedGood} onAddManual={addManualFinishedGood} currentUser={currentUser} productionOrders={productionOrders} stock={stock} users={users} onUpdateFinishedGood={updateFinishedGood} />;
+            case 'trelicaStock': return <TrelicaStockManager finishedGoods={finishedGoods} setPage={setPage} createFinishedGoodsTransfer={createFinishedGoodsTransfer} onDelete={deleteFinishedGoods} onUpdateQuantity={updateFinishedGood} onAddManual={addManualFinishedGood} currentUser={currentUser} productionOrders={productionOrders} stock={stock} users={users} onUpdateFinishedGood={updateFinishedGood} onResetStock={resetTrelicaStock} />;
 
 
             case 'partsManager': return <SparePartsManager />;

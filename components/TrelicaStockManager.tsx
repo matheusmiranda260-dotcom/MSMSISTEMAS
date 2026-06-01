@@ -33,6 +33,7 @@ interface TrelicaStockManagerProps {
     productionOrders: ProductionOrderData[];
     stock: StockItem[];
     users?: User[];
+    onResetStock?: (operatorName: string) => Promise<void>;
 }
 
 const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({ 
@@ -43,7 +44,8 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
     currentUser,
     productionOrders = [],
     stock = [],
-    users = []
+    users = [],
+    onResetStock
 }) => {
     const [activeTab, setActiveTab] = useState<'floor' | 'production' | 'ca60' | 'history'>('floor');
     const [movingItem, setMovingItem] = useState<{ model: string; size: string; type: 'transfer' | 'audit' | 'virtual_audit' | 'add_virtual' | 'dispatch' | 'view_history' } | null>(null);
@@ -61,6 +63,11 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
     const [historySearch, setHistorySearch] = useState('');
     const [historyTypeFilter, setHistoryTypeFilter] = useState<'all' | 'addition' | 'transfer' | 'out' | 'adjustment'>('all');
     const [historyModelFilter, setHistoryModelFilter] = useState('all');
+
+    // Estados para Zerar Estoque
+    const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+    const [resetManagerPassword, setResetManagerPassword] = useState('');
+    const [resetPwdError, setResetPwdError] = useState('');
 
     const [selectedConferModel, setSelectedConferModel] = useState<{ model: string; size: string; list: FinishedProductItem[] } | null>(null);
     const [conferringItem, setConferringItem] = useState<FinishedProductItem | null>(null);
@@ -398,6 +405,22 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
         setObs('');
         setDestSector('CAA60');
         setOtherDestSector('');
+    };
+
+    const handleResetStock = async () => {
+        const manager = users?.find(u => (u.role === 'gestor' || u.role === 'admin') && u.password === resetManagerPassword);
+        if (!manager) {
+            setResetPwdError('Senha do gestor incorreta ou inválida.');
+            return;
+        }
+
+        if (onResetStock) {
+            await onResetStock(manager.username);
+        }
+
+        setIsResetModalOpen(false);
+        setResetManagerPassword('');
+        setResetPwdError('');
     };
 
     const currentItemForModal = useMemo(() => {
@@ -949,6 +972,65 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                 </div>
             )}
 
+            {/* Modal de Zerar Estoque */}
+            {isResetModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[70] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden border border-white/20 animate-modal-in">
+                        <div className="p-8 bg-red-600 text-white">
+                            <h3 className="text-2xl font-black flex items-center gap-3">
+                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Zerar Estoque Geral
+                            </h3>
+                            <p className="text-white/70 font-bold uppercase text-xs tracking-widest mt-2">
+                                Ação Irreversível &bull; Requer Senha de Gestor
+                            </p>
+                        </div>
+                        <div className="p-8 space-y-6 max-h-[80vh] overflow-y-auto">
+                            <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-xs font-bold text-red-800 space-y-2">
+                                <p className="uppercase tracking-wide">⚠️ Atenção:</p>
+                                <p>Esta ação irá redefinir para <strong>zero (0)</strong> o estoque virtual, estoque físico e aguardando retirada de todos os modelos de Treliça cadastrados no sistema.</p>
+                                <p>A ação ficará registrada no histórico com o nome do gestor responsável.</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-black text-red-500 uppercase tracking-widest mb-1">
+                                    Senha do Gestor (Requerido)
+                                </label>
+                                <input 
+                                    type="password"
+                                    value={resetManagerPassword}
+                                    onChange={(e) => {
+                                        setResetManagerPassword(e.target.value);
+                                        setResetPwdError('');
+                                    }}
+                                    placeholder="Digite a senha do gestor..."
+                                    className={`w-full p-4 bg-slate-50 rounded-2xl font-black text-slate-800 border outline-none ${resetPwdError ? 'border-red-500' : 'border-slate-200'}`}
+                                />
+                                {resetPwdError && <p className="text-[10px] font-bold text-red-500 mt-1 uppercase">{resetPwdError}</p>}
+                            </div>
+
+                            <div className="flex gap-4 pt-4">
+                                <button 
+                                    onClick={() => { setIsResetModalOpen(false); setResetManagerPassword(''); setResetPwdError(''); }} 
+                                    className="flex-1 py-4 font-black text-slate-400 hover:bg-slate-50 rounded-2xl transition-all uppercase text-xs"
+                                >
+                                    Cancelar
+                                </button>
+                                <button 
+                                    onClick={handleResetStock} 
+                                    disabled={!resetManagerPassword.trim()}
+                                    className="flex-1 py-4 font-black text-white bg-red-600 rounded-2xl shadow-lg hover:bg-red-700 transition-all uppercase text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+                                >
+                                    Confirmar Reset
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="p-4 sm:p-6 md:p-8 space-y-8 animate-fade-in">
                 {/* Cabeçalho */}
                 <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -960,6 +1042,21 @@ const TrelicaStockManager: React.FC<TrelicaStockManagerProps> = ({
                             Gestão de Treliças
                         </h1>
                         <p className="text-slate-500 font-medium mt-1 ml-15">Controle de estoque de produto acabado.</p>
+                    </div>
+                    <div>
+                        <button
+                            onClick={() => {
+                                setIsResetModalOpen(true);
+                                setResetManagerPassword('');
+                                setResetPwdError('');
+                            }}
+                            className="w-full md:w-auto py-3 px-6 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black shadow-lg shadow-red-100 transition-all uppercase text-xs flex items-center justify-center gap-2"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Zerar Estoque
+                        </button>
                     </div>
                 </header>
 
