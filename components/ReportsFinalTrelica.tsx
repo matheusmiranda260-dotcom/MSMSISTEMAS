@@ -501,6 +501,16 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
                         el.style.setProperty('grid-column', 'span 12 / span 12', 'important');
                         el.style.setProperty('width', '100%', 'important');
                     });
+
+                    // Add spacing and styling adjustments to cloned gauge blocks
+                    const clonedGaugeBlocks = clonedElement.querySelectorAll('.trelica-gauge-block');
+                    clonedGaugeBlocks.forEach((el: any) => {
+                        el.style.setProperty('margin-top', '35px', 'important');
+                        el.style.setProperty('margin-bottom', '0px', 'important');
+                        el.style.setProperty('border', 'none', 'important');
+                        el.style.setProperty('background', 'transparent', 'important');
+                        el.style.setProperty('padding', '0', 'important');
+                    });
                 }
             });
 
@@ -739,6 +749,13 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
                             .op-label-print {
                                 color: #475569 !important;
                             }
+                            .trelica-gauge-block {
+                                border: none !important;
+                                background: transparent !important;
+                                margin-top: 35px !important;
+                                margin-bottom: 0px !important;
+                                padding: 0 !important;
+                            }
                         }
 
                         .is-capturing .no-print {
@@ -762,6 +779,13 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
                             background: transparent !important;
                             pointer-events: none !important;
                             line-height: 1.2 !important;
+                        }
+                        .is-capturing .trelica-gauge-block {
+                            border: none !important;
+                            background: transparent !important;
+                            margin-top: 35px !important;
+                            margin-bottom: 0px !important;
+                            padding: 0 !important;
                         }
 
                         .print-only-capturing {
@@ -943,7 +967,7 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
                                 : '';
 
                             return (
-                                <div key={gBlock.type} className="grid grid-cols-12 gap-6 items-start border border-slate-200 p-4 rounded-xl bg-[#fafbfc]">
+                                <div key={gBlock.type} className="trelica-gauge-block grid grid-cols-12 gap-6 items-start border border-slate-200 p-4 rounded-xl bg-[#fafbfc]">
                                     {/* Tabela do Lado Esquerdo */}
                                     <div className="col-span-12 md:col-span-9 print-full-width space-y-3">
                                         <div className="flex items-center justify-between border-b border-slate-200 pb-2">
