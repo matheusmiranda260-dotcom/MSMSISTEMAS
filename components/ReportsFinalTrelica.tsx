@@ -865,6 +865,10 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
                         .is-capturing .no-print-capturing {
                             display: none !important;
                         }
+
+                        .total-row-highlight {
+                            background-color: #d2e2f9 !important;
+                        }
                         
                         @media print {
                             .print-only-capturing {
@@ -1011,11 +1015,11 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
                                     );
                                 })}
                                 {/* Total Row */}
-                                <tr className="bg-slate-100 font-black border-t-2 border-[#002060] text-sm text-[#002060]">
+                                <tr className="total-row-highlight font-black border-t-2 border-[#002060] text-sm text-[#002060]">
                                     <td className="py-2.5 border-r border-[#002060] w-[25%] text-center">{prodTotals.totalQnt || 0}</td>
                                     <td className="py-2.5 border-r border-[#002060] w-[25%] text-center">{prodTotals.totalWeight || 0} kg</td>
                                     <td className="py-2.5 border-r border-[#002060] w-[25%] text-center">{prodTotals.overallAverage > 0 ? prodTotals.overallAverage.toFixed(2).replace('.', ',') : '0,00'} kg/pç</td>
-                                    <td className="py-2.5 w-[25%] text-center text-xs uppercase tracking-wider font-extrabold text-slate-500">TOTAL / MÉDIA</td>
+                                    <td className="py-2.5 w-[25%] text-center text-xs uppercase tracking-wider font-black text-[#002060]">TOTAL / MÉDIA</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1156,8 +1160,8 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
                                                          );
                                                      })}
                                                      {/* Totais do Bloco */}
-                                                     <tr className="bg-slate-50 font-black text-[13px] text-slate-800 border-t border-slate-200">
-                                                         <td className="py-2 border-r border-slate-200 uppercase font-extrabold text-[10px] text-slate-500 w-[30%] text-center">Total</td>
+                                                     <tr className="total-row-highlight font-black text-[13px] text-[#002060] border-t border-slate-200">
+                                                         <td className="py-2 border-r border-slate-200 uppercase font-black text-[11px] text-[#002060] w-[30%] text-center">Total</td>
                                                          <td className="py-2 border-r border-slate-200 w-[23%] text-center">{gBlock.stats.totalWeight}</td>
                                                          <td className="py-2 border-r border-slate-200 font-black text-[#002060] w-[23%] text-center">{gBlock.stats.totalUsed}</td>
                                                          <td className="py-2 w-[24%] text-center">{gBlock.stats.totalRemaining}</td>
