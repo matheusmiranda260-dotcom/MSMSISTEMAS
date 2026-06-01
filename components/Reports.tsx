@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Page, StockItem, ProductionRecord } from '../types';
+import type { Page, StockItem, ProductionRecord, StockGauge } from '../types';
 import ReportsTrelica from './ReportsTrelica';
 import ReportsTrefila from './ReportsTrefila';
 import ReportsOPTrefila from './ReportsOPTrefila';
@@ -12,9 +12,10 @@ interface ReportsProps {
     trefilaProduction: ProductionRecord[];
     trelicaProduction: ProductionRecord[];
     setPage: (page: Page) => void;
+    gauges: StockGauge[];
 }
 
-const Reports: React.FC<ReportsProps> = ({ stock, trefilaProduction, trelicaProduction, setPage }) => {
+const Reports: React.FC<ReportsProps> = ({ stock, trefilaProduction, trelicaProduction, setPage, gauges }) => {
     const [activeTab, setActiveTab] = useState<'trelica' | 'trefila' | 'op_trefila' | 'fechamento_op' | 'requisicao_transferencia' | 'final_trelica'>('trelica');
 
     return (
@@ -109,6 +110,7 @@ const Reports: React.FC<ReportsProps> = ({ stock, trefilaProduction, trelicaProd
                     <ReportsFinalTrelica 
                         stock={stock}
                         setPage={setPage}
+                        gauges={gauges}
                     />
                 ) : (
                     <ReportsFechamentoOP

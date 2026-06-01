@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import type { Page, StockItem } from '../types';
+import type { Page, StockItem, StockGauge } from '../types';
 import html2canvas from 'html2canvas';
 
 interface ReportsFinalTrelicaProps {
     stock: StockItem[];
     setPage: (page: Page) => void;
+    gauges?: StockGauge[];
 }
 
 interface ProductionRow {
@@ -27,7 +28,17 @@ interface Toast {
     id: string;
 }
 
-const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], setPage }) => {
+const matchBitola = (itemBitola: string, selectedBitola: string): boolean => {
+    if (!itemBitola || !selectedBitola) return false;
+    const normalize = (val: string) => val.replace('mm', '').trim().replace(',', '.');
+    try {
+        return parseFloat(normalize(itemBitola)) === parseFloat(normalize(selectedBitola));
+    } catch {
+        return false;
+    }
+};
+
+const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], setPage, gauges = [] }) => {
     const [loading, setLoading] = useState<boolean>(false);
     const [toasts, setToasts] = useState<Toast[]>([]);
     const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toLocaleDateString('sv'));
@@ -36,6 +47,27 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
     
     // Meta de produção
     const [piecesToProduce, setPiecesToProduce] = useState<number | ''>('');
+
+    // Bitolas disponíveis de CA-60 no sistema (combinando padrão + DB + estoque)
+    const CA60Bitolas = useMemo(() => {
+        const defaultOptions = ['3.20', '3.40', '3.80', '4.20', '4.40', '4.90', '5.00', '5.50', '5.60', '5.80', '6.00', '6.35', '7.00'];
+        const dbGauges = gauges
+            ? gauges.filter(g => g.materialType === 'CA-60').map(g => g.gauge)
+            : [];
+        const stockGauges = stock
+            ? stock.filter(i => i.materialType === 'CA-60' && i.bitola).map(i => i.bitola)
+            : [];
+            
+        const all = [...new Set([...defaultOptions, ...dbGauges, ...stockGauges])];
+        return all
+            .filter(Boolean)
+            .sort((a, b) => parseFloat(a.replace(',', '.')) - parseFloat(b.replace(',', '.')));
+    }, [gauges, stock]);
+
+    // Bitolas selecionadas para cada bloco
+    const [bitolaBlock1, setBitolaBlock1] = useState<string>('6.00');
+    const [bitolaBlock2, setBitolaBlock2] = useState<string>('3.80');
+    const [bitolaBlock3, setBitolaBlock3] = useState<string>('4.20');
 
     // Linhas vazias de controle
     const createEmptyProductionRow = (): ProductionRow => ({
@@ -91,15 +123,40 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
 
     // Lógica do autocomplete de Lote
     const suggestions = useMemo(() => {
-        if (!filterText.trim()) return [];
-        const lower = filterText.toLowerCase();
+        if (!activeSuggestion) return [];
+        const lower = filterText.toLowerCase().trim();
+
+        // Determinar a bitola selecionada para o bloco atual
+        let selectedBitola = '';
+        if (activeSuggestion.tableType === '6mm') selectedBitola = bitolaBlock1;
+        else if (activeSuggestion.tableType === '3_8mm') selectedBitola = bitolaBlock2;
+        else selectedBitola = bitolaBlock3;
+
         return stock
-            .filter(item => 
-                (item.internalLot && item.internalLot.toLowerCase().includes(lower)) || 
-                (item.supplierLot && item.supplierLot.toLowerCase().includes(lower))
-            )
+            .filter(item => {
+                // 1. Filtrar pelo tipo de material (CA-60)
+                const isCA60 = item.materialType === 'CA-60';
+                if (!isCA60) return false;
+
+                // 2. Filtrar pelo status e saldo (lotes disponíveis)
+                const isAvailable = item.status && item.status.includes('Disponível') && item.remainingQuantity > 0;
+                if (!isAvailable) return false;
+
+                // 3. Filtrar pela bitola selecionada
+                const isMatchingBitola = matchBitola(item.bitola, selectedBitola);
+                if (!isMatchingBitola) return false;
+
+                // 4. Filtrar pelo lote digitado (busca parcial se houver texto)
+                if (lower) {
+                    const matchesSearch = (item.internalLot && item.internalLot.toLowerCase().includes(lower)) || 
+                                          (item.supplierLot && item.supplierLot.toLowerCase().includes(lower));
+                    if (!matchesSearch) return false;
+                }
+
+                return true;
+            })
             .slice(0, 6);
-    }, [stock, filterText]);
+    }, [stock, filterText, activeSuggestion, bitolaBlock1, bitolaBlock2, bitolaBlock3]);
 
     const handleLoteChange = (tableType: '6mm' | '3_8mm' | '4_2mm', rowId: string, value: string) => {
         const updater = (rows: GaugeRow[]) => rows.map(r => r.id === rowId ? { ...r, lote: value } : r);
@@ -192,6 +249,9 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
                 if (data.previsto6mm !== undefined) setPrevisto6mm(data.previsto6mm);
                 if (data.previsto3_8mm !== undefined) setPrevisto3_8mm(data.previsto3_8mm);
                 if (data.previsto4_2mm !== undefined) setPrevisto4_2mm(data.previsto4_2mm);
+                if (data.bitolaBlock1) setBitolaBlock1(data.bitolaBlock1);
+                if (data.bitolaBlock2) setBitolaBlock2(data.bitolaBlock2);
+                if (data.bitolaBlock3) setBitolaBlock3(data.bitolaBlock3);
                 showToast('Rascunho do Relatório Final carregado.', 'info');
             }
         } catch (e) {
@@ -213,7 +273,10 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
             rows4_2mm,
             previsto6mm,
             previsto3_8mm,
-            previsto4_2mm
+            previsto4_2mm,
+            bitolaBlock1,
+            bitolaBlock2,
+            bitolaBlock3
         };
         try {
             localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
@@ -233,7 +296,7 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
             saveDraft();
         }, 800);
         return () => clearTimeout(timer);
-    }, [selectedDate, ordemProducao, responsavel, piecesToProduce, prodRows, rows6mm, rows3_8mm, rows4_2mm, previsto6mm, previsto3_8mm, previsto4_2mm, loading]);
+    }, [selectedDate, ordemProducao, responsavel, piecesToProduce, prodRows, rows6mm, rows3_8mm, rows4_2mm, previsto6mm, previsto3_8mm, previsto4_2mm, bitolaBlock1, bitolaBlock2, bitolaBlock3, loading]);
 
     // Operações em Linhas
     const updateProdRowField = (rowId: string, field: keyof ProductionRow, value: any) => {
@@ -282,6 +345,9 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
         setPrevisto6mm('');
         setPrevisto3_8mm('');
         setPrevisto4_2mm('');
+        setBitolaBlock1('6.00');
+        setBitolaBlock2('3.80');
+        setBitolaBlock3('4.20');
         localStorage.removeItem(DRAFT_KEY);
         showToast('Planilha redefinida com sucesso.', 'success');
     };
@@ -290,6 +356,9 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
         setOrdemProducao('84536');
         setResponsavel('Matheus Miranda');
         setPiecesToProduce(10000);
+        setBitolaBlock1('6.00');
+        setBitolaBlock2('3.80');
+        setBitolaBlock3('4.20');
 
         setProdRows([
             { id: 'p1', qnt: 803, peso: 3220, data: '22/04/26' },
@@ -566,6 +635,25 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
                     pointer-events: none !important;
                     line-height: 1.2 !important;
                 }
+
+                .print-only-capturing {
+                    display: none;
+                }
+                .is-capturing .print-only-capturing {
+                    display: inline-block !important;
+                }
+                .is-capturing .no-print-capturing {
+                    display: none !important;
+                }
+                
+                @media print {
+                    .print-only-capturing {
+                        display: inline-block !important;
+                    }
+                    .no-print-capturing {
+                        display: none !important;
+                    }
+                }
             `}} />
 
             {/* Toasts */}
@@ -752,21 +840,39 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
                         
                         {/* Bloco Gauge Render Helper */}
                         {([
-                            { label: '6mm', rows: rows6mm, setRows: setRows6mm, previsto: previsto6mm, setPrevisto: setPrevisto6mm, stats: stats6mm, type: '6mm' },
-                            { label: '3,8mm', rows: rows3_8mm, setRows: setRows3_8mm, previsto: previsto3_8mm, setPrevisto: setPrevisto3_8mm, stats: stats3_8mm, type: '3_8mm' },
-                            { label: '4,2mm', rows: rows4_2mm, setRows: setRows4_2mm, previsto: previsto4_2mm, setPrevisto: setPrevisto4_2mm, stats: stats4_2mm, type: '4_2mm' }
+                            { label: bitolaBlock1.replace('.', ',') + 'mm', rows: rows6mm, setRows: setRows6mm, previsto: previsto6mm, setPrevisto: setPrevisto6mm, stats: stats6mm, type: '6mm' },
+                            { label: bitolaBlock2.replace('.', ',') + 'mm', rows: rows3_8mm, setRows: setRows3_8mm, previsto: previsto3_8mm, setPrevisto: setPrevisto3_8mm, stats: stats3_8mm, type: '3_8mm' },
+                            { label: bitolaBlock3.replace('.', ',') + 'mm', rows: rows4_2mm, setRows: setRows4_2mm, previsto: previsto4_2mm, setPrevisto: setPrevisto4_2mm, stats: stats4_2mm, type: '4_2mm' }
                         ] as const).map(gBlock => {
                             const balanco = (typeof gBlock.previsto === 'number')
                                 ? gBlock.stats.totalUsed - gBlock.previsto 
                                 : '';
 
                             return (
-                                <div key={gBlock.label} className="grid grid-cols-12 gap-6 items-start border border-slate-200 p-4 rounded-xl bg-[#fafbfc]">
+                                <div key={gBlock.type} className="grid grid-cols-12 gap-6 items-start border border-slate-200 p-4 rounded-xl bg-[#fafbfc]">
                                     {/* Tabela do Lado Esquerdo */}
                                     <div className="col-span-12 md:col-span-9 space-y-3">
                                         <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                                             <div className="flex items-center gap-3">
-                                                <span className="text-lg font-black text-[#002060] border-l-4 border-[#002060] pl-2 uppercase">{gBlock.label}</span>
+                                                <select
+                                                    value={gBlock.type === '6mm' ? bitolaBlock1 : gBlock.type === '3_8mm' ? bitolaBlock2 : bitolaBlock3}
+                                                    onChange={e => {
+                                                        const val = e.target.value;
+                                                        if (gBlock.type === '6mm') setBitolaBlock1(val);
+                                                        else if (gBlock.type === '3_8mm') setBitolaBlock2(val);
+                                                        else setBitolaBlock3(val);
+                                                    }}
+                                                    className="text-lg font-black text-[#002060] border-l-4 border-[#002060] pl-2 bg-transparent outline-none cursor-pointer hover:bg-slate-100/50 rounded pr-1 no-print-capturing"
+                                                >
+                                                    {CA60Bitolas.map(opt => (
+                                                        <option key={opt} value={opt}>
+                                                            {opt.replace('.', ',')} mm
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <span className="print-only-capturing hidden text-lg font-black text-[#002060] border-l-4 border-[#002060] pl-2 uppercase">
+                                                    {gBlock.label}
+                                                </span>
                                                 <span className="text-[10px] text-slate-400 font-extrabold uppercase">Consumo de Lotes</span>
                                             </div>
                                             <button onClick={() => addGaugeRow(gBlock.type)} className="no-print bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-black text-[9px] px-2.5 py-1 rounded transition-all uppercase">
