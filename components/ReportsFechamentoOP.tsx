@@ -218,34 +218,21 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
     };
 
     const sortRows = () => {
-        // Propaga a data dos cabeçalhos dos blocos para todas as linhas antes de ordenar,
-        // garantindo que nenhuma informação de data seja perdida.
-        let currentStatusDate = '';
-        const rowsWithPropagatedDates = rows.map(row => {
-            if (row.isSeparator) {
-                currentStatusDate = '';
-                return row;
-            }
-            if (row.data) {
-                currentStatusDate = row.data;
-            }
-            return {
-                ...row,
-                data: row.data || currentStatusDate
-            };
-        });
+        // 1. Coleta os dados de todos os lotes preenchidos (lote, pesoEtiqueta, pesoBalanca, bitola)
+        const filledLotsData = rows
+            .filter(r => !r.isSeparator && (r.lote || '').trim() !== '')
+            .map(r => ({
+                lote: r.lote,
+                pesoEtiqueta: r.pesoEtiqueta,
+                pesoBalanca: r.pesoBalanca,
+                bitola: r.bitola
+            }));
 
-        // Filtra todas as linhas preenchidas (não separadoras e com lote)
-        const filled = rowsWithPropagatedDates.filter(r => !r.isSeparator && (r.lote || '').trim() !== '');
-        
-        // Filtra as linhas vazias (não separadoras e sem lote)
-        const empty = rowsWithPropagatedDates.filter(r => !r.isSeparator && (r.lote || '').trim() === '');
-        
-        // Filtra os separadores
-        const separators = rowsWithPropagatedDates.filter(r => r.isSeparator);
+        // Se não houver lotes para ordenar, encerra
+        if (filledLotsData.length === 0) return;
 
-        // Ordena globalmente os lotes preenchidos em ordem crescente
-        filled.sort((a, b) => {
+        // 2. Ordena esses dados de lotes em ordem crescente
+        filledLotsData.sort((a, b) => {
             const aVal = (a.lote || '').trim();
             const bVal = (b.lote || '').trim();
 
@@ -258,9 +245,26 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
             return aVal.localeCompare(bVal, undefined, { numeric: true, sensitivity: 'base' });
         });
 
-        // Coloca os lotes ordenados no topo, seguidos das linhas vazias e depois dos separadores
-        setRows([...filled, ...empty, ...separators]);
-        showToast('Todos os lotes foram ordenados globalmente.', 'success');
+        // 3. Distribui os lotes ordenados de volta nos mesmos slots que estavam preenchidos,
+        // preservando os IDs das linhas, datas, separadores e posições originais.
+        let lotIndex = 0;
+        const newRows = rows.map(row => {
+            if (!row.isSeparator && (row.lote || '').trim() !== '') {
+                const sortedData = filledLotsData[lotIndex];
+                lotIndex++;
+                return {
+                    ...row,
+                    lote: sortedData.lote,
+                    pesoEtiqueta: sortedData.pesoEtiqueta,
+                    pesoBalanca: sortedData.pesoBalanca,
+                    bitola: sortedData.bitola
+                };
+            }
+            return row;
+        });
+
+        setRows(newRows);
+        showToast('Lotes ordenados mantendo a estrutura dos dias.', 'success');
     };
 
     const getRowSpanForData = (rowIndex: number) => {
