@@ -465,46 +465,47 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                         size: A4 portrait;
                         margin: 6mm 5mm 6mm 5mm;
                     }
+                    /* Force color printing */
                     * {
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
-                    /* Reset ALL wrappers for print — force visible overflow everywhere */
-                    html, body, #root,
-                    #fechamento-op-wrapper,
-                    .app-container,
-                    .main-content,
-                    .main-content > div,
-                    .app-container > main,
-                    div.flex-1,
-                    div.overflow-hidden,
-                    div.overflow-x-auto,
-                    div.overflow-y-auto {
+                    /* Basic body/html reset */
+                    html, body {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: white !important;
+                        overflow: visible !important;
+                        height: auto !important;
+                    }
+                    /* HIDE EVERYTHING EXCEPT THE SHEET — high specificity no-print rule.
+                       Must come before the sheet-specific rules so the sheet's children
+                       are still shown. */
+                    html body .no-print,
+                    html body .sidebar,
+                    .no-print,
+                    .sidebar {
+                        display: none !important;
+                        visibility: hidden !important;
+                    }
+                    /* Reset the root and main wrappers WITHOUT touching display of
+                       elements that have .no-print — use only ID/class for the
+                       actual OP sheet wrapper */
+                    #root,
+                    #fechamento-op-wrapper {
                         display: block !important;
                         width: 100% !important;
                         max-width: 100% !important;
-                        min-width: 100% !important;
                         height: auto !important;
                         max-height: none !important;
                         padding: 0 !important;
                         margin: 0 !important;
+                        overflow: visible !important;
                         position: static !important;
                         border: none !important;
                         box-shadow: none !important;
-                        overflow: visible !important;
                     }
-                    body {
-                        background: white !important;
-                        color: black !important;
-                        margin: 0 !important;
-                        padding: 0 !important;
-                        overflow: visible !important;
-                    }
-                    .no-print,
-                    .sidebar {
-                        display: none !important;
-                    }
-                    /* Sheet container — must NOT clip content */
+                    /* Sheet itself */
                     .print-sheet-a4 {
                         padding: 10px !important;
                         margin: 0 !important;
@@ -517,44 +518,60 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                         height: auto !important;
                         max-height: none !important;
                     }
-                    /* Logo fix — ensure it renders correctly */
-                    .print-sheet-a4 img {
+                    /* Force ALL children of the sheet to be overflow visible */
+                    #fechamento-op-sheet,
+                    #fechamento-op-sheet * {
+                        overflow: visible !important;
+                        max-height: none !important;
+                    }
+                    #fechamento-op-sheet {
+                        height: auto !important;
+                    }
+                    /* Logo */
+                    #fechamento-op-sheet img {
                         max-height: 60px !important;
                         height: auto !important;
                         object-fit: contain !important;
                         display: block !important;
                     }
-                    /* Table container — MUST be overflow visible */
-                    .print-sheet-a4 > div {
-                        overflow: visible !important;
-                    }
-                    /* Table itself */
-                    table {
+                    /* Table */
+                    #fechamento-op-sheet table {
                         width: 100% !important;
                         table-layout: fixed !important;
                         border-collapse: collapse !important;
                         overflow: visible !important;
                     }
-                    /* Prevent rows from being cut across pages */
-                    table, thead, tbody, tr, td, th {
+                    /* Prevent rows from being cut mid-page */
+                    #fechamento-op-sheet table,
+                    #fechamento-op-sheet thead,
+                    #fechamento-op-sheet tbody,
+                    #fechamento-op-sheet tr,
+                    #fechamento-op-sheet td,
+                    #fechamento-op-sheet th {
                         page-break-inside: avoid !important;
                         break-inside: avoid !important;
                         overflow: visible !important;
                     }
-                    /* Ensure each row has enough height and visible borders */
-                    tbody tr {
-                        min-height: 24px !important;
-                        height: auto !important;
+                    #fechamento-op-sheet thead {
+                        display: table-header-group !important;
                     }
-                    td, th {
+                    #fechamento-op-sheet tbody {
+                        display: table-row-group !important;
+                    }
+                    #fechamento-op-sheet tbody tr {
+                        height: auto !important;
+                        min-height: 22px !important;
+                    }
+                    #fechamento-op-sheet td,
+                    #fechamento-op-sheet th {
                         padding: 4px 3px !important;
                         height: auto !important;
                         min-height: 20px !important;
                         line-height: 1.3 !important;
-                        overflow: visible !important;
                         white-space: normal !important;
                         word-wrap: break-word !important;
                     }
+                    /* Inputs in print */
                     .op-editable-input {
                         border-bottom: none !important;
                         background: transparent !important;
@@ -566,10 +583,26 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                         display: block !important;
                         padding: 1px 2px !important;
                     }
+                    /* Hide ALL placeholder text in print */
+                    input::placeholder,
+                    .op-editable-input::placeholder {
+                        color: transparent !important;
+                        opacity: 0 !important;
+                    }
+                    /* Hide empty rows */
+                    .print-empty-row {
+                        display: none !important;
+                    }
+                    /* Hide separator rows in print (just show spacing) */
+                    .print-separator-row {
+                        background: white !important;
+                        border-top: 1px solid #002060 !important;
+                        border-bottom: 1px solid #002060 !important;
+                    }
                     .suggestions-dropdown {
                         display: none !important;
                     }
-                    /* Lighten background for print */
+                    /* Light header for print */
                     .print-bg-light {
                         background-color: #eff6ff !important;
                         color: #002060 !important;
@@ -579,40 +612,16 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                         color: #002060 !important;
                         border-bottom: 2px solid #002060 !important;
                     }
-                    .border-slate-300,
-                    .border-slate-200 {
-                        border-color: #002060 !important;
-                    }
                     .op-number-input {
                         color: #002060 !important;
                         background: transparent !important;
                     }
                     .op-number-input::placeholder {
-                        color: rgba(0, 32, 96, 0.5) !important;
+                        color: transparent !important;
+                        opacity: 0 !important;
                     }
                     .op-label-print {
                         color: #475569 !important;
-                    }
-                    /* Keep the whole table together if possible, or allow clean page breaks between rows */
-                    thead {
-                        display: table-header-group !important;
-                    }
-                    tbody {
-                        display: table-row-group !important;
-                    }
-                    /* Ultra-specific: force the main sheet and ALL nested divs to never clip */
-                    #fechamento-op-sheet,
-                    #fechamento-op-sheet * {
-                        overflow: visible !important;
-                        max-height: none !important;
-                    }
-                    #fechamento-op-sheet {
-                        height: auto !important;
-                        overflow: visible !important;
-                    }
-                    /* The rounded table wrapper must not clip */
-                    #fechamento-op-sheet .rounded {
-                        overflow: visible !important;
                     }
                 }
 
@@ -817,9 +826,11 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                             <tbody>
                                 {rows.map((row, index) => {
                                     const dataRowSpan = getRowSpanForData(index);
-                                    return row.isSeparator ? (
-                                        <tr key={row.id} className="bg-slate-200 border-y-2 border-[#002060] print:bg-white print:border-transparent print:border-0">
-                                            <td colSpan={5} className="py-3 text-center text-[13px] font-black text-[#002060] uppercase tracking-widest relative group print:py-4">
+                                    // Row is empty if no lote, peso or bitola filled
+                                const isEmptyRow = !row.isSeparator && !row.lote && row.pesoEtiqueta === '' && row.pesoBalanca === '' && !row.bitola;
+                                return row.isSeparator ? (
+                                        <tr key={row.id} className="print-separator-row bg-slate-200 border-y-2 border-[#002060]">
+                                            <td colSpan={5} className="py-3 text-center text-[13px] font-black text-[#002060] uppercase tracking-widest relative group">
                                                 <span className="no-print">--- NOVO DIA DE PRODUÇÃO ---</span>
                                                 <button 
                                                     onClick={() => removeRow(row.id)} 
@@ -831,7 +842,7 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                                             </td>
                                         </tr>
                                     ) : (
-                                    <tr key={row.id} className="border-b border-slate-300 hover:bg-slate-50/50 text-center font-bold">
+                                    <tr key={row.id} className={`border-b border-slate-300 hover:bg-slate-50/50 text-center font-bold${isEmptyRow ? ' print-empty-row' : ''}`}>
                                         {/* Data */}
                                         {dataRowSpan > 0 && (
                                             <td className="border-r border-slate-300 p-1 bg-white align-middle" rowSpan={dataRowSpan}>
