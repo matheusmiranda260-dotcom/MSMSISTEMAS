@@ -474,7 +474,9 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                     .app-container,
                     .main-content,
                     .main-content > div,
-                    .app-container > main {
+                    .app-container > main,
+                    div.flex-1,
+                    div.overflow-hidden {
                         display: block !important;
                         width: 100% !important;
                         max-width: 100% !important;
