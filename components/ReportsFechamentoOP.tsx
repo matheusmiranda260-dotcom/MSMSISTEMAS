@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { Page, StockItem } from '../types';
+import { FioMaquinaBitolaOptions, CA60BitolaOptions } from '../types';
 import html2canvas from 'html2canvas';
 
 interface ReportsFechamentoOPProps {
@@ -33,6 +34,8 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
     // 2. Report States
     const [ordemProducao, setOrdemProducao] = useState<string>('');
     const [responsavel, setResponsavel] = useState<string>('');
+    const [fioMaquinaEntrada, setFioMaquinaEntrada] = useState<string>('');
+    const [bitolaProduzir, setBitolaProduzir] = useState<string>('');
 
     // Table Rows
     const createEmptyRow = (): FechamentoOPRow => ({
@@ -155,6 +158,8 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                 if (data.selectedDate) setSelectedDate(data.selectedDate);
                 setOrdemProducao(data.ordemProducao || '');
                 setResponsavel(data.responsavel || '');
+                setFioMaquinaEntrada(data.fioMaquinaEntrada || '');
+                setBitolaProduzir(data.bitolaProduzir || '');
                 if (data.rows) setRows(data.rows);
                 showToast('Rascunho do Fechamento de OP carregado.', 'info');
             }
@@ -170,6 +175,8 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
             selectedDate,
             ordemProducao,
             responsavel,
+            fioMaquinaEntrada,
+            bitolaProduzir,
             rows
         };
         try {
@@ -190,7 +197,7 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
             saveDraft();
         }, 800);
         return () => clearTimeout(timer);
-    }, [selectedDate, ordemProducao, responsavel, rows, loading]);
+    }, [selectedDate, ordemProducao, responsavel, fioMaquinaEntrada, bitolaProduzir, rows, loading]);
 
     // Table Operations
     const updateRowField = (rowId: string, field: keyof FechamentoOPRow, value: any) => {
@@ -289,6 +296,8 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
 
         setOrdemProducao('');
         setResponsavel('');
+        setFioMaquinaEntrada('');
+        setBitolaProduzir('');
         setRows(Array.from({ length: 8 }, createEmptyRow));
         localStorage.removeItem(DRAFT_KEY);
         showToast('Formulário redefinido com sucesso.', 'success');
@@ -297,6 +306,8 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
     const loadSampleData = () => {
         setOrdemProducao('84536');
         setResponsavel('Matheus Miranda');
+        setFioMaquinaEntrada('6.50');
+        setBitolaProduzir('6.00');
 
         // Try using some real items from stock if available
         const sampleLots = stock.slice(0, 6);
@@ -546,6 +557,27 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                     pointer-events: none !important;
                     line-height: 1.2 !important;
                 }
+
+                .select-print-hide {
+                    display: inline-block;
+                }
+                .text-print-show {
+                    display: none;
+                }
+                @media print {
+                    .select-print-hide {
+                        display: none !important;
+                    }
+                    .text-print-show {
+                        display: inline-block !important;
+                    }
+                }
+                .is-capturing .select-print-hide {
+                    display: none !important;
+                }
+                .is-capturing .text-print-show {
+                    display: inline-block !important;
+                }
             `}} />
 
             {/* Toasts */}
@@ -636,14 +668,54 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                         </div>
                     </div>
 
-                    {/* Botão de Classificar no topo da tabela (no-print) */}
-                    <div className="mb-3 no-print flex justify-start">
-                        <button 
-                            onClick={sortRows} 
-                            className="bg-indigo-50 hover:bg-indigo-600 border border-indigo-300 hover:border-indigo-600 text-indigo-700 hover:text-white font-black text-[10px] px-3.5 py-1.5 rounded transition-all uppercase flex items-center gap-1 shadow-sm"
-                        >
-                            ⇅ Classificar Lotes
-                        </button>
+                    {/* Controles do Relatório (Classificar + Seletores de Bitola) */}
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+                        {/* Botão de Classificar (no-print) */}
+                        <div className="no-print">
+                            <button 
+                                onClick={sortRows} 
+                                className="bg-indigo-50 hover:bg-indigo-600 border border-indigo-300 hover:border-indigo-600 text-indigo-700 hover:text-white font-black text-[10px] px-3.5 py-1.5 rounded transition-all uppercase flex items-center gap-1 shadow-sm"
+                            >
+                                ⇅ Classificar Lotes
+                            </button>
+                        </div>
+
+                        {/* Seletores Fio Máquina de Entrada e Bitola a Produzir (visíveis na tela como select, no print/captura como texto) */}
+                        <div className="flex flex-wrap items-center gap-6">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-black text-[#002060] uppercase tracking-wider op-label-print">Fio Máquina de Entrada:</span>
+                                <select 
+                                    value={fioMaquinaEntrada}
+                                    onChange={e => setFioMaquinaEntrada(e.target.value)}
+                                    className="border-2 border-[#002060] rounded px-2 py-1 text-[11px] font-extrabold text-[#002060] bg-white outline-none cursor-pointer select-print-hide transition-colors hover:bg-slate-50"
+                                >
+                                    <option value="">Selecione...</option>
+                                    {FioMaquinaBitolaOptions.map(option => (
+                                        <option key={option} value={option}>{option} mm</option>
+                                    ))}
+                                </select>
+                                <span className="text-print-show font-black text-[#002060] text-[13px] border-b border-[#002060] pb-0.5 min-w-[60px] text-center">
+                                    {fioMaquinaEntrada ? `${fioMaquinaEntrada} mm` : '---'}
+                                </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-black text-[#002060] uppercase tracking-wider op-label-print">Bitola a Produzir:</span>
+                                <select 
+                                    value={bitolaProduzir}
+                                    onChange={e => setBitolaProduzir(e.target.value)}
+                                    className="border-2 border-[#002060] rounded px-2 py-1 text-[11px] font-extrabold text-[#002060] bg-white outline-none cursor-pointer select-print-hide transition-colors hover:bg-slate-50"
+                                >
+                                    <option value="">Selecione...</option>
+                                    {CA60BitolaOptions.map(option => (
+                                        <option key={option} value={option}>{option} mm</option>
+                                    ))}
+                                </select>
+                                <span className="text-print-show font-black text-[#002060] text-[13px] border-b border-[#002060] pb-0.5 min-w-[60px] text-center">
+                                    {bitolaProduzir ? `${bitolaProduzir} mm` : '---'}
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
                     {/* TABELA PRINCIPAL DA FICHA */}
