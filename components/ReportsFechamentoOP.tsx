@@ -498,13 +498,13 @@ const ReportsFechamentoOP: React.FC<ReportsFechamentoOPProps> = ({ stock = [], s
                         display: none !important;
                     }
                     .print-sheet-a4 {
-                        padding: 0 !important;
+                        padding: 16px !important;
                         margin: 0 !important;
-                        border: none !important;
+                        border: 2px solid #002060 !important;
                         box-shadow: none !important;
                         max-width: 100% !important;
                         width: 100% !important;
-                        border-radius: 0 !important;
+                        border-radius: 6px !important;
                     }
                     .op-editable-input {
                         border-bottom: none !important;
