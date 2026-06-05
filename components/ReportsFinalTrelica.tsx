@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { Page, StockItem, StockGauge } from '../types';
 import html2canvas from 'html2canvas';
 import { trelicaModels } from './ProductionOrderTrelica';
+import { supabase } from '../services/supabaseService';
 
 interface ReportsFinalTrelicaProps {
     stock: StockItem[];
@@ -41,10 +42,16 @@ const matchBitola = (itemBitola: string, selectedBitola: string): boolean => {
 
 const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], setPage, gauges = [] }) => {
     const [loading, setLoading] = useState<boolean>(false);
+    const [isSaving, setIsSaving] = useState<boolean>(false);
     const [toasts, setToasts] = useState<Toast[]>([]);
     const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toLocaleDateString('sv'));
     const [ordemProducao, setOrdemProducao] = useState<string>('');
     const [responsavel, setResponsavel] = useState<string>('');
+
+    // Estados do modal de salvar relatório
+    const [showSaveModal, setShowSaveModal] = useState<boolean>(false);
+    const [saveModalDate, setSaveModalDate] = useState<string>('');
+    const [saveModalError, setSaveModalError] = useState<string>('');
     
     // Meta de produção
     const [piecesToProduce, setPiecesToProduce] = useState<number | ''>('');
@@ -408,6 +415,101 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
         showToast('Planilha redefinida com sucesso.', 'success');
     };
 
+    // --- SISTEMA DE SALVAMENTO OFICIAL (localStorage + Supabase) ---
+    const SAVED_DATES_KEY = 'daily_report_saved_dates_final_trelica';
+
+    const getSavedDates = (): string[] => {
+        try {
+            const raw = localStorage.getItem(SAVED_DATES_KEY);
+            return raw ? JSON.parse(raw) : [];
+        } catch { return []; }
+    };
+
+    const registerSavedDate = (date: string) => {
+        const existing = getSavedDates();
+        if (!existing.includes(date)) {
+            localStorage.setItem(SAVED_DATES_KEY, JSON.stringify([...existing, date]));
+        }
+    };
+
+    const handleOpenSaveModal = () => {
+        setSaveModalDate(selectedDate);
+        setSaveModalError('');
+        setShowSaveModal(true);
+    };
+
+    const handleConfirmSave = async () => {
+        if (!saveModalDate) {
+            setSaveModalError('Selecione uma data para salvar o relatório.');
+            return;
+        }
+        // Verificar bloqueio local
+        const savedDates = getSavedDates();
+        if (savedDates.includes(saveModalDate)) {
+            const [year, month, day] = saveModalDate.split('-');
+            setSaveModalError(`Já existe um Relatório Final salvo no dia ${day}/${month}/${year}. Só é possível um relatório por dia.`);
+            return;
+        }
+        // Verificar bloqueio no Supabase
+        try {
+            const { data: existingData } = await supabase
+                .from('daily_reports')
+                .select('id')
+                .eq('report_type', 'trelica_final')
+                .eq('machine_key', 'FinalTrelica')
+                .eq('date', saveModalDate)
+                .limit(1);
+            if (existingData && existingData.length > 0) {
+                const [year, month, day] = saveModalDate.split('-');
+                setSaveModalError(`Já existe um Relatório Final na nuvem para o dia ${day}/${month}/${year}.`);
+                return;
+            }
+        } catch { /* offline – continua */ }
+
+        setShowSaveModal(false);
+        setIsSaving(true);
+
+        const reportPayload = {
+            report_type: 'trelica_final',
+            machine_key: 'FinalTrelica',
+            date: saveModalDate,
+            data: {
+                selectedDate: saveModalDate,
+                ordemProducao,
+                responsavel,
+                piecesToProduce,
+                selectedModelCod,
+                prodRows,
+                rows6mm,
+                rows3_8mm,
+                rows4_2mm,
+                previsto6mm,
+                previsto3_8mm,
+                previsto4_2mm,
+                bitolaBlock1,
+                bitolaBlock2,
+                bitolaBlock3,
+            }
+        };
+
+        // 1. Salvar cópia permanente no localStorage
+        localStorage.setItem(`daily_report_final_trelica_${saveModalDate}`, JSON.stringify(reportPayload));
+        registerSavedDate(saveModalDate);
+
+        // 2. Salvar no Supabase
+        try {
+            const { error } = await supabase
+                .from('daily_reports')
+                .upsert(reportPayload, { onConflict: 'report_type,machine_key,date' });
+            if (error) throw error;
+            showToast('✅ Relatório salvo localmente e na nuvem!', 'success');
+        } catch {
+            showToast('⚠️ Salvo localmente. Sem conexão com a nuvem.', 'warning');
+        }
+
+        setIsSaving(false);
+    };
+
     const loadSampleData = () => {
         setOrdemProducao('84536');
         setResponsavel('Matheus Miranda');
@@ -596,6 +698,73 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
     return (
         <div className="p-4 sm:p-6 md:p-8 bg-slate-50 min-h-screen font-mono text-slate-800 relative select-none">
 
+            {/* Modal de Salvar Relatório com Calendário */}
+            {showSaveModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center no-print" style={{ backgroundColor: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden border border-slate-200" style={{ animation: 'modalInFT 0.2s ease-out' }}>
+                        <style dangerouslySetInnerHTML={{ __html: `
+                            @keyframes modalInFT {
+                                from { opacity: 0; transform: scale(0.93) translateY(8px); }
+                                to   { opacity: 1; transform: scale(1) translateY(0); }
+                            }
+                        ` }} />
+                        <div className="bg-[#002060] px-6 py-4 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                <div>
+                                    <div className="text-white font-black text-sm uppercase tracking-wide">Salvar Relatório</div>
+                                    <div className="text-slate-300 text-[10px] font-semibold">Treliça – Relatório Final de Produção</div>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowSaveModal(false)} className="text-slate-300 hover:text-white transition-colors p-1 rounded">
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        <div className="px-6 py-5">
+                            <p className="text-xs text-slate-500 font-semibold mb-4 leading-relaxed">
+                                Selecione o dia para salvar. <strong className="text-slate-800">Só é permitido um Relatório Final por dia.</strong>
+                            </p>
+                            <div className="mb-4">
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Data do Relatório</label>
+                                <input
+                                    type="date"
+                                    value={saveModalDate}
+                                    onChange={e => { setSaveModalDate(e.target.value); setSaveModalError(''); }}
+                                    max={new Date().toLocaleDateString('sv')}
+                                    className="w-full border-2 border-slate-200 focus:border-[#002060] rounded-lg px-4 py-3 text-sm font-bold text-slate-800 outline-none transition-colors cursor-pointer"
+                                    style={{ colorScheme: 'light' }}
+                                />
+                            </div>
+                            {(() => {
+                                const savedDates = getSavedDates();
+                                if (savedDates.length === 0) return null;
+                                return (
+                                    <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                                        <div className="text-[10px] font-black text-amber-700 uppercase tracking-wider mb-1.5">📅 Dias já salvos</div>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {savedDates.slice().sort().map(d => {
+                                                const [y, m, day] = d.split('-');
+                                                return <span key={d} className="bg-amber-200 text-amber-800 font-bold text-[10px] px-2 py-0.5 rounded-full">{day}/{m}/{y}</span>;
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                            {saveModalError && (
+                                <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-lg flex items-start gap-2">
+                                    <svg className="h-4 w-4 text-rose-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    <p className="text-xs font-bold text-rose-700 leading-relaxed">{saveModalError}</p>
+                                </div>
+                            )}
+                            <div className="flex gap-2 mt-2">
+                                <button onClick={() => setShowSaveModal(false)} className="flex-1 py-2.5 px-4 border-2 border-slate-200 text-slate-700 font-bold rounded-lg text-xs hover:bg-slate-50 transition-colors">Cancelar</button>
+                                <button onClick={handleConfirmSave} className="flex-1 py-2.5 px-4 bg-[#002060] hover:bg-[#001545] text-white font-black rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5">💾 Confirmar Salvar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Toasts */}
             <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none no-print">
                 {toasts.map(t => (
@@ -622,6 +791,9 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
                     </button>
                     <button onClick={() => window.print()} className="bg-slate-700 hover:bg-slate-800 text-white font-bold py-1.5 px-3 rounded text-xs shadow">
                         🖨️ Imprimir A4
+                    </button>
+                    <button onClick={handleOpenSaveModal} disabled={isSaving} className="bg-slate-900 hover:bg-black text-white font-bold py-1.5 px-3 rounded text-xs shadow flex items-center gap-1.5">
+                        {isSaving ? 'Salvando...' : '💾 Salvar Relatório'}
                     </button>
                     <button onClick={clearForm} className="bg-slate-200 hover:bg-rose-600 hover:text-white text-slate-700 font-bold py-1.5 px-2 rounded text-xs transition-colors">
                         Limpar
@@ -758,90 +930,75 @@ const ReportsFinalTrelica: React.FC<ReportsFinalTrelicaProps> = ({ stock = [], s
                         }
 
                         @media print {
-                            @page {
-                                size: A4 portrait;
-                                margin: 10mm;
+                            @page { size: A4 portrait; margin: 6mm 5mm 6mm 5mm; }
+                            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                            html, body {
+                                margin: 0 !important; padding: 0 !important;
+                                background: white !important; overflow: visible !important; height: auto !important;
                             }
-                            * {
-                                -webkit-print-color-adjust: exact !important;
-                                print-color-adjust: exact !important;
+                            html body .no-print, html body .sidebar, .no-print, .sidebar {
+                                display: none !important; visibility: hidden !important;
                             }
-                            .app-container,
-                            .main-content,
-                            .main-content > div,
-                            .app-container > main,
-                            div.p-4 {
-                                display: block !important;
-                                width: 100% !important;
-                                padding: 0 !important;
-                                margin: 0 !important;
-                                position: static !important;
-                                border: none !important;
-                                box-shadow: none !important;
-                            }
-                            body {
-                                background: white !important;
-                                color: black !important;
-                                margin: 0 !important;
-                                padding: 0 !important;
-                            }
-                            .no-print {
-                                display: none !important;
-                            }
-                            .print-full-width {
-                                grid-column: span 12 / span 12 !important;
-                                width: 100% !important;
+                            #root {
+                                display: block !important; width: 100% !important; max-width: 100% !important;
+                                height: auto !important; max-height: none !important;
+                                padding: 0 !important; margin: 0 !important;
+                                overflow: visible !important; position: static !important;
+                                border: none !important; box-shadow: none !important;
                             }
                             .print-sheet-a4 {
-                                padding: 0 !important;
-                                margin: 0 !important;
-                                border: none !important;
-                                box-shadow: none !important;
-                                max-width: 100% !important;
-                                width: 100% !important;
-                                border-radius: 0 !important;
+                                padding: 10px !important; margin: 0 !important;
+                                border: 2px solid #002060 !important; box-shadow: none !important;
+                                max-width: 100% !important; width: 100% !important;
+                                border-radius: 4px !important; overflow: visible !important;
+                                height: auto !important; max-height: none !important;
                             }
+                            .print-full-width {
+                                grid-column: span 12 / span 12 !important; width: 100% !important;
+                            }
+                            #relatorio-final-sheet, #relatorio-final-sheet * {
+                                overflow: visible !important; max-height: none !important;
+                            }
+                            #relatorio-final-sheet { height: auto !important; }
+                            #relatorio-final-sheet img {
+                                max-height: 72px !important; height: auto !important;
+                                object-fit: contain !important; display: block !important;
+                            }
+                            #relatorio-final-sheet table, #relatorio-final-sheet thead,
+                            #relatorio-final-sheet tbody, #relatorio-final-sheet tr,
+                            #relatorio-final-sheet td, #relatorio-final-sheet th {
+                                page-break-inside: avoid !important; break-inside: avoid !important;
+                                overflow: visible !important;
+                            }
+                            #relatorio-final-sheet thead { display: table-header-group !important; }
+                            #relatorio-final-sheet tbody { display: table-row-group !important; }
                             .op-editable-input {
-                                border-bottom: none !important;
-                                background: transparent !important;
-                                pointer-events: none !important;
-                                line-height: 1.2 !important;
+                                border-bottom: none !important; background: transparent !important;
+                                pointer-events: none !important; line-height: 1.3 !important;
+                                height: auto !important; overflow: visible !important;
+                                display: block !important; padding: 1px 2px !important;
                             }
-                            .suggestions-dropdown {
-                                display: none !important;
+                            input::placeholder, .op-editable-input::placeholder {
+                                color: transparent !important; opacity: 0 !important;
                             }
-                            tr, td, th {
-                                page-break-inside: avoid !important;
-                            }
+                            .suggestions-dropdown { display: none !important; }
                             .print-bg-light {
-                                background-color: #eff6ff !important;
-                                color: #002060 !important;
+                                background-color: #eff6ff !important; color: #002060 !important;
                             }
                             thead tr.print-bg-light th {
-                                background-color: #eff6ff !important;
-                                color: #002060 !important;
+                                background-color: #eff6ff !important; color: #002060 !important;
                                 border-bottom: 2px solid #002060 !important;
                             }
-                            .border-slate-300,
-                            .border-slate-200 {
-                                border-color: #002060 !important;
-                            }
                             .op-number-input {
-                                color: #002060 !important;
-                                background: transparent !important;
+                                color: #002060 !important; background: transparent !important;
                             }
                             .op-number-input::placeholder {
-                                color: rgba(0, 32, 96, 0.5) !important;
+                                color: transparent !important; opacity: 0 !important;
                             }
-                            .op-label-print {
-                                color: #475569 !important;
-                            }
+                            .op-label-print { color: #475569 !important; }
                             #relatorio-final-sheet .trelica-gauge-block {
-                                border: none !important;
-                                background: transparent !important;
-                                margin-top: 80px !important;
-                                margin-bottom: 0px !important;
-                                padding: 0 !important;
+                                border: none !important; background: transparent !important;
+                                margin-top: 80px !important; margin-bottom: 0px !important; padding: 0 !important;
                             }
                             #relatorio-final-sheet .trelica-gauge-block .print-full-width > * + * {
                                 margin-top: 8px !important;

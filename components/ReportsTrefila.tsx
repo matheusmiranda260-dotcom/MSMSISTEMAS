@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { Page } from '../types';
 import html2canvas from 'html2canvas';
+import { supabase } from '../services/supabaseService';
 
 interface ReportsTrefilaProps {
     setPage: (page: Page) => void;
@@ -96,6 +97,11 @@ const ReportsTrefila: React.FC<ReportsTrefilaProps> = ({ setPage }) => {
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const [toasts, setToasts] = useState<Toast[]>([]);
     const dateInputRef = useRef<HTMLInputElement>(null);
+
+    // Estados do modal de salvar relatório
+    const [showSaveModal, setShowSaveModal] = useState<boolean>(false);
+    const [saveModalDate, setSaveModalDate] = useState<string>('');
+    const [saveModalError, setSaveModalError] = useState<string>('');
 
     // 2. Estados dos Campos do Formulário
     const [productionOrder, setProductionOrder] = useState<string>('');
@@ -357,6 +363,94 @@ const ReportsTrefila: React.FC<ReportsTrefilaProps> = ({ setPage }) => {
         showToast('Formulário limpo com sucesso!', 'success');
     };
 
+    // --- SISTEMA DE SALVAMENTO OFICIAL (localStorage + Supabase) ---
+    const SAVED_DATES_KEY = 'daily_report_saved_dates_trefila';
+
+    const getSavedDates = (): string[] => {
+        try {
+            const raw = localStorage.getItem(SAVED_DATES_KEY);
+            return raw ? JSON.parse(raw) : [];
+        } catch { return []; }
+    };
+
+    const registerSavedDate = (date: string) => {
+        const existing = getSavedDates();
+        if (!existing.includes(date)) {
+            localStorage.setItem(SAVED_DATES_KEY, JSON.stringify([...existing, date]));
+        }
+    };
+
+    const handleOpenSaveModal = () => {
+        setSaveModalDate(selectedDate);
+        setSaveModalError('');
+        setShowSaveModal(true);
+    };
+
+    const handleConfirmSave = async () => {
+        if (!saveModalDate) {
+            setSaveModalError('Selecione uma data para salvar o relatório.');
+            return;
+        }
+        // Verificar bloqueio local
+        const savedDates = getSavedDates();
+        if (savedDates.includes(saveModalDate)) {
+            const [year, month, day] = saveModalDate.split('-');
+            setSaveModalError(`Já existe um relatório salvo para Trefila no dia ${day}/${month}/${year}. Só é possível um relatório por dia.`);
+            return;
+        }
+        // Verificar bloqueio no Supabase
+        try {
+            const { data: existingData } = await supabase
+                .from('daily_reports')
+                .select('id')
+                .eq('report_type', 'trefila_diario')
+                .eq('machine_key', 'Trefila')
+                .eq('date', saveModalDate)
+                .limit(1);
+            if (existingData && existingData.length > 0) {
+                const [year, month, day] = saveModalDate.split('-');
+                setSaveModalError(`Já existe um relatório na nuvem para Trefila no dia ${day}/${month}/${year}.`);
+                return;
+            }
+        } catch { /* offline – continua */ }
+
+        setShowSaveModal(false);
+        setIsSaving(true);
+
+        const reportPayload = {
+            report_type: 'trefila_diario',
+            machine_key: 'Trefila',
+            date: saveModalDate,
+            data: {
+                selectedDate: saveModalDate,
+                productionOrder,
+                operator,
+                productDescriptionIn,
+                productDescriptionOut,
+                stops,
+                stats,
+                productionUpdates,
+            }
+        };
+
+        // 1. Salvar cópia permanente no localStorage
+        localStorage.setItem(`daily_report_trefila_${saveModalDate}`, JSON.stringify(reportPayload));
+        registerSavedDate(saveModalDate);
+
+        // 2. Salvar no Supabase
+        try {
+            const { error } = await supabase
+                .from('daily_reports')
+                .upsert(reportPayload, { onConflict: 'report_type,machine_key,date' });
+            if (error) throw error;
+            showToast('✅ Relatório salvo localmente e na nuvem!', 'success');
+        } catch {
+            showToast('⚠️ Salvo localmente. Sem conexão com a nuvem.', 'warning');
+        }
+
+        setIsSaving(false);
+    };
+
     const handleLoadSampleData = () => {
         setProductionOrder('83583');
         setOperator('Willian / Denis');
@@ -499,26 +593,51 @@ const ReportsTrefila: React.FC<ReportsTrefilaProps> = ({ setPage }) => {
                 }
 
                 @media print {
-                    body {
-                        background: white !important;
-                        color: black !important;
+                    @page { size: A4 portrait; margin: 6mm 5mm 6mm 5mm; }
+                    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    html, body {
+                        margin: 0 !important; padding: 0 !important;
+                        background: white !important; overflow: visible !important; height: auto !important;
                     }
-                    .no-print {
-                        display: none !important;
+                    html body .no-print, html body .sidebar, .no-print, .sidebar {
+                        display: none !important; visibility: hidden !important;
+                    }
+                    #root {
+                        display: block !important; width: 100% !important; max-width: 100% !important;
+                        height: auto !important; max-height: none !important;
+                        padding: 0 !important; margin: 0 !important;
+                        overflow: visible !important; position: static !important;
+                        border: none !important; box-shadow: none !important;
                     }
                     .print-sheet {
-                        padding: 0 !important;
-                        margin: 0 !important;
-                        border: none !important;
+                        max-width: 100% !important; width: 100% !important;
+                        overflow: visible !important; height: auto !important; max-height: none !important;
                         box-shadow: none !important;
                     }
+                    #trefila-report-sheet, #trefila-report-sheet * {
+                        overflow: visible !important; max-height: none !important;
+                    }
+                    #trefila-report-sheet { height: auto !important; }
+                    #trefila-report-sheet img {
+                        max-height: 72px !important; height: auto !important;
+                        object-fit: contain !important; display: block !important;
+                    }
+                    #trefila-report-sheet table, #trefila-report-sheet thead,
+                    #trefila-report-sheet tbody, #trefila-report-sheet tr,
+                    #trefila-report-sheet td, #trefila-report-sheet th {
+                        page-break-inside: avoid !important; break-inside: avoid !important;
+                        overflow: visible !important;
+                    }
+                    #trefila-report-sheet thead { display: table-header-group !important; }
+                    #trefila-report-sheet tbody { display: table-row-group !important; }
                     .modern-editable-input {
-                        border-bottom: none !important;
-                        background: transparent !important;
-                        pointer-events: none !important;
-                        padding-top: 2px !important;
-                        padding-bottom: 4px !important;
-                        line-height: 1.4 !important;
+                        border-bottom: none !important; background: transparent !important;
+                        pointer-events: none !important; line-height: 1.3 !important;
+                        height: auto !important; overflow: visible !important;
+                        display: block !important; padding: 1px 2px !important;
+                    }
+                    input::placeholder, .modern-editable-input::placeholder {
+                        color: transparent !important; opacity: 0 !important;
                     }
                 }
 
@@ -542,6 +661,73 @@ const ReportsTrefila: React.FC<ReportsTrefilaProps> = ({ setPage }) => {
                     line-height: 1.4 !important;
                 }
             `}} />
+
+            {/* Modal de Salvar Relatório com Calendário */}
+            {showSaveModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center no-print" style={{ backgroundColor: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden border border-slate-200" style={{ animation: 'modalIn 0.2s ease-out' }}>
+                        <style dangerouslySetInnerHTML={{ __html: `
+                            @keyframes modalIn {
+                                from { opacity: 0; transform: scale(0.93) translateY(8px); }
+                                to   { opacity: 1; transform: scale(1) translateY(0); }
+                            }
+                        ` }} />
+                        <div className="bg-[#002060] px-6 py-4 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                <div>
+                                    <div className="text-white font-black text-sm uppercase tracking-wide">Salvar Relatório</div>
+                                    <div className="text-slate-300 text-[10px] font-semibold">Trefila – Relatório Diário</div>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowSaveModal(false)} className="text-slate-300 hover:text-white transition-colors p-1 rounded">
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        <div className="px-6 py-5">
+                            <p className="text-xs text-slate-500 font-semibold mb-4 leading-relaxed">
+                                Selecione o dia para salvar. <strong className="text-slate-800">Só é permitido um relatório da Trefila por dia.</strong>
+                            </p>
+                            <div className="mb-4">
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Data do Relatório</label>
+                                <input
+                                    type="date"
+                                    value={saveModalDate}
+                                    onChange={e => { setSaveModalDate(e.target.value); setSaveModalError(''); }}
+                                    max={new Date().toLocaleDateString('sv')}
+                                    className="w-full border-2 border-slate-200 focus:border-[#002060] rounded-lg px-4 py-3 text-sm font-bold text-slate-800 outline-none transition-colors cursor-pointer"
+                                    style={{ colorScheme: 'light' }}
+                                />
+                            </div>
+                            {(() => {
+                                const savedDates = getSavedDates();
+                                if (savedDates.length === 0) return null;
+                                return (
+                                    <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                                        <div className="text-[10px] font-black text-amber-700 uppercase tracking-wider mb-1.5">📅 Dias já salvos</div>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {savedDates.slice().sort().map(d => {
+                                                const [y, m, day] = d.split('-');
+                                                return <span key={d} className="bg-amber-200 text-amber-800 font-bold text-[10px] px-2 py-0.5 rounded-full">{day}/{m}/{y}</span>;
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                            {saveModalError && (
+                                <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-lg flex items-start gap-2">
+                                    <svg className="h-4 w-4 text-rose-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    <p className="text-xs font-bold text-rose-700 leading-relaxed">{saveModalError}</p>
+                                </div>
+                            )}
+                            <div className="flex gap-2 mt-2">
+                                <button onClick={() => setShowSaveModal(false)} className="flex-1 py-2.5 px-4 border-2 border-slate-200 text-slate-700 font-bold rounded-lg text-xs hover:bg-slate-50 transition-colors">Cancelar</button>
+                                <button onClick={handleConfirmSave} className="flex-1 py-2.5 px-4 bg-[#002060] hover:bg-[#001545] text-white font-black rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5">💾 Confirmar Salvar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Toasts */}
             <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none no-print">
@@ -569,6 +755,9 @@ const ReportsTrefila: React.FC<ReportsTrefilaProps> = ({ setPage }) => {
                     </button>
                     <button onClick={() => window.print()} className="bg-slate-700 hover:bg-slate-800 text-white font-bold py-1.5 px-3 rounded text-xs shadow">
                         🖨️ Imprimir Ficha
+                    </button>
+                    <button onClick={handleOpenSaveModal} disabled={isSaving} className="bg-slate-900 hover:bg-black text-white font-bold py-1.5 px-3 rounded text-xs shadow flex items-center gap-1.5">
+                        {isSaving ? 'Salvando...' : '💾 Salvar Relatório'}
                     </button>
                     <button onClick={handleClearReport} className="bg-slate-200 hover:bg-rose-600 hover:text-white text-slate-700 font-bold py-1.5 px-2 rounded text-xs transition-colors">
                         Limpar

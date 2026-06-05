@@ -446,54 +446,55 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                 }
 
                 @media print {
-                    @page {
-                        size: A4 portrait;
-                        margin: 5mm;
+                    @page { size: A4 portrait; margin: 6mm 5mm 6mm 5mm; }
+                    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    html, body {
+                        margin: 0 !important; padding: 0 !important;
+                        background: white !important; overflow: visible !important; height: auto !important;
                     }
-                    /* Reset wrappers for print to ensure full width and no margins */
-                    .app-container,
-                    .main-content,
-                    .main-content > div,
-                    .app-container > main,
-                    div.p-4 {
-                        display: block !important;
-                        width: 100% !important;
-                        padding: 0 !important;
-                        margin: 0 !important;
-                        position: static !important;
-                        border: none !important;
-                        box-shadow: none !important;
+                    html body .no-print, html body .sidebar, .no-print, .sidebar {
+                        display: none !important; visibility: hidden !important;
                     }
-                    body {
-                        background: white !important;
-                        color: black !important;
-                        margin: 0 !important;
-                        padding: 0 !important;
-                    }
-                    .no-print {
-                        display: none !important;
+                    #root {
+                        display: block !important; width: 100% !important; max-width: 100% !important;
+                        height: auto !important; max-height: none !important;
+                        padding: 0 !important; margin: 0 !important;
+                        overflow: visible !important; position: static !important;
+                        border: none !important; box-shadow: none !important;
                     }
                     .print-sheet-a4 {
-                        padding: 0 !important;
-                        margin: 0 !important;
-                        border: none !important;
-                        box-shadow: none !important;
-                        max-width: 100% !important;
-                        width: 100% !important;
-                        border-radius: 0 !important;
+                        padding: 10px !important; margin: 0 !important;
+                        border: 2px solid #002060 !important; box-shadow: none !important;
+                        max-width: 100% !important; width: 100% !important;
+                        border-radius: 4px !important; overflow: visible !important;
+                        height: auto !important; max-height: none !important;
                     }
+                    #trefila-op-sheet, #trefila-op-sheet * {
+                        overflow: visible !important; max-height: none !important;
+                    }
+                    #trefila-op-sheet { height: auto !important; }
+                    #trefila-op-sheet img {
+                        max-height: 52px !important; height: auto !important;
+                        object-fit: contain !important; display: block !important;
+                    }
+                    #trefila-op-sheet table, #trefila-op-sheet thead,
+                    #trefila-op-sheet tbody, #trefila-op-sheet tr,
+                    #trefila-op-sheet td, #trefila-op-sheet th {
+                        page-break-inside: avoid !important; break-inside: avoid !important;
+                        overflow: visible !important;
+                    }
+                    #trefila-op-sheet thead { display: table-header-group !important; }
+                    #trefila-op-sheet tbody { display: table-row-group !important; }
                     .op-editable-input {
-                        border-bottom: none !important;
-                        background: transparent !important;
-                        pointer-events: none !important;
-                        line-height: 1.2 !important;
+                        border-bottom: none !important; background: transparent !important;
+                        pointer-events: none !important; line-height: 1.3 !important;
+                        height: auto !important; overflow: visible !important;
+                        display: block !important; padding: 1px 2px !important;
                     }
-                    .suggestions-dropdown {
-                        display: none !important;
+                    input::placeholder, .op-editable-input::placeholder {
+                        color: transparent !important; opacity: 0 !important;
                     }
-                    tr, td, th {
-                        page-break-inside: avoid !important;
-                    }
+                    .suggestions-dropdown { display: none !important; }
                 }
 
                 .is-capturing .no-print {
