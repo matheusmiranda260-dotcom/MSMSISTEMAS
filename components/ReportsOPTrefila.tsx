@@ -446,7 +446,7 @@ const ReportsOPTrefila: React.FC<ReportsOPTrefilaProps> = ({ stock = [], setPage
                 }
 
                 @media print {
-                    @page { size: A4 portrait; margin: 6mm 5mm 6mm 5mm; }
+                    @page { size: A4 landscape; margin: 6mm 5mm 6mm 5mm; }
                     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                     html, body {
                         margin: 0 !important; padding: 0 !important;
