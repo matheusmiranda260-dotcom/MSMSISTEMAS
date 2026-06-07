@@ -8,6 +8,7 @@ import MachineControl from './components/MachineControl';
 import ProductionOrder from './components/ProductionOrder';
 import ProductionOrderTrelica from './components/ProductionOrderTrelica';
 import ProductionOrderDesbobinadeira from './components/ProductionOrderDesbobinadeira';
+import DesbobinadeiraDashboard from './components/DesbobinadeiraDashboard';
 import Reports from './components/Reports';
 import UserManagement from './components/UserManagement';
 import Notification from './components/Notification';
@@ -1763,7 +1764,7 @@ const App: React.FC = () => {
 
         updates.operatorLogs = newLogs;
 
-        if (orderToComplete.machine === 'Trefila') {
+        if (orderToComplete.machine.startsWith('Trefila') || orderToComplete.machine.startsWith('Desbobinadeira')) {
             const actualProducedWeight = (orderToComplete.processedLots || []).reduce((sum, lot) => sum + (lot.finalWeight || 0), 0);
             const totalInputWeight = (orderToComplete.processedLots || []).reduce((sum, processedLot) => {
                 const originalLot = stock.find(s => s.id === processedLot.lotId);
@@ -2502,6 +2503,7 @@ const App: React.FC = () => {
             case 'trelicaReports': return <MachineControl machineType="Treliça" {...mcProps} initialView="dashboard" initialModal="reports" />;
             case 'trelicaParts': return <MachineControl machineType="Treliça" {...mcProps} initialView="dashboard" initialModal="parts" />;
 
+            case 'desbobinadeiraDashboard': return <DesbobinadeiraDashboard productionOrders={productionOrders} />;
             case 'desbobinadeira': return <MachineControl machineType="Desbobinadeira 1" {...mcProps} initialView="dashboard" initialModal={null} />;
             case 'desbobinadeiraInProgress': return <MachineControl machineType="Desbobinadeira 1" {...mcProps} initialView="in_progress" initialModal={null} />;
             case 'desbobinadeiraPending': return <MachineControl machineType="Desbobinadeira 1" {...mcProps} initialView="pending" initialModal={null} />;

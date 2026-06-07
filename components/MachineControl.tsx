@@ -2758,7 +2758,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                                     : null;
                                             
                                                 const searchedOsIndex = searchedOsObj 
-                                                    ? osItems.findIndex((item: any, idx: number) => (item.os || `OS ${idx + 1}`) === (searchedOsObj.os || `OS ${idx + 1}`)) 
+                                                    ? osItems.indexOf(searchedOsObj)
                                                     : -1;
                                             
                                                 // Check if searched OS is already completed or in progress
@@ -2777,18 +2777,21 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                                                     <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Digite apenas o número ou nome da OS</p>
                                                                 </div>
                                                                 {osProgress.currentOs && (
-                                                                    <div className="flex items-center w-full sm:w-auto justify-between sm:justify-start gap-3 bg-indigo-50 border border-indigo-200 p-2 sm:px-4 rounded-xl shadow-sm">
-                                                                        <div className="flex flex-col">
-                                                                            <span className="text-[8px] sm:text-[9px] font-black text-indigo-500 uppercase tracking-widest">Em Corte</span>
-                                                                            <span className="text-xs sm:text-sm font-black text-indigo-900">{osProgress.currentOs}</span>
+                                                                    <div className="flex flex-col sm:flex-row items-center w-full sm:w-auto justify-between sm:justify-start gap-3 bg-indigo-50 border border-indigo-200 p-3 sm:px-4 rounded-xl shadow-sm mt-3 sm:mt-0">
+                                                                        <div className="flex justify-between items-center w-full sm:w-auto">
+                                                                            <div className="flex flex-col">
+                                                                                <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Em Corte</span>
+                                                                                <span className="text-sm font-black text-indigo-900">{osProgress.currentOs}</span>
+                                                                            </div>
+                                                                            <span className="font-mono font-black text-xl text-indigo-600 px-2 sm:hidden">{formatDuration(osElapsed * 1000)}</span>
                                                                         </div>
                                                                         <div className="w-px h-6 bg-indigo-200 hidden sm:block"></div>
-                                                                        <span className="font-mono font-black text-lg sm:text-xl text-indigo-600 px-1 sm:px-2">{formatDuration(osElapsed * 1000)}</span>
+                                                                        <span className="font-mono font-black text-xl text-indigo-600 px-1 sm:px-2 hidden sm:block">{formatDuration(osElapsed * 1000)}</span>
                                                                         <button
                                                                             onClick={handleFinishOs}
-                                                                            className="ml-auto sm:ml-1 bg-rose-500 hover:bg-rose-600 text-white text-[9px] sm:text-[10px] font-black py-2 px-3 sm:px-4 rounded-lg transition active:scale-95 shadow-sm uppercase tracking-wider whitespace-nowrap"
+                                                                            className="w-full sm:w-auto bg-rose-500 hover:bg-rose-600 text-white text-xs sm:text-[10px] font-black py-3 sm:py-2 px-3 sm:px-4 rounded-lg transition active:scale-95 shadow-md uppercase tracking-widest"
                                                                         >
-                                                                            Finalizar
+                                                                            Finalizar OS
                                                                         </button>
                                                                     </div>
                                                                 )}
@@ -2818,22 +2821,22 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                                                     </div>
                                                                     <h4 className="text-xs sm:text-sm font-black text-indigo-800 uppercase tracking-widest mb-3 sm:mb-4 relative z-10">Confirmar Dados da OS</h4>
                                                                     
-                                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6 relative z-10">
-                                                                        <div className="bg-white p-2.5 sm:p-3 rounded-xl shadow-sm border border-indigo-50 flex flex-col justify-center">
-                                                                            <span className="block text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5 sm:mb-1">Número</span>
-                                                                            <span className="text-base sm:text-lg font-black text-slate-800 truncate">{searchedOsObj.os}</span>
+                                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6 relative z-10">
+                                                                        <div className="bg-white p-3 rounded-xl shadow-sm border border-indigo-50 flex flex-col justify-center text-center sm:text-left">
+                                                                            <span className="block text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Número</span>
+                                                                            <span className="text-lg sm:text-xl font-black text-slate-800 truncate">{searchedOsObj.os || `OS ${searchedOsIndex + 1}`}</span>
                                                                         </div>
-                                                                        <div className="bg-white p-2.5 sm:p-3 rounded-xl shadow-sm border border-indigo-50 flex flex-col justify-center">
-                                                                            <span className="block text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5 sm:mb-1">Bitola</span>
-                                                                            <span className="text-base sm:text-lg font-black text-slate-800">{searchedOsObj.bitola || '-'} <span className="text-[9px] sm:text-[10px] text-slate-400">mm</span></span>
+                                                                        <div className="bg-white p-3 rounded-xl shadow-sm border border-indigo-50 flex flex-col justify-center text-center sm:text-left">
+                                                                            <span className="block text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Bitola</span>
+                                                                            <span className="text-lg sm:text-xl font-black text-slate-800">{searchedOsObj.bitola || '-'} <span className="text-[10px] text-slate-400">mm</span></span>
                                                                         </div>
-                                                                        <div className="bg-white p-2.5 sm:p-3 rounded-xl shadow-sm border border-indigo-50 flex flex-col justify-center">
-                                                                            <span className="block text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5 sm:mb-1">Formato</span>
-                                                                            <span className="text-base sm:text-lg font-black text-slate-800 truncate">{searchedOsObj.drawingType || '-'}</span>
+                                                                        <div className="bg-white p-3 rounded-xl shadow-sm border border-indigo-50 flex flex-col justify-center text-center sm:text-left">
+                                                                            <span className="block text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Formato</span>
+                                                                            <span className="text-lg sm:text-xl font-black text-slate-800 truncate">{searchedOsObj.drawingType || '-'}</span>
                                                                         </div>
-                                                                        <div className="bg-white p-2.5 sm:p-3 rounded-xl shadow-sm border border-indigo-50 flex flex-col justify-center">
-                                                                            <span className="block text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5 sm:mb-1">Quantidade</span>
-                                                                            <span className="text-base sm:text-lg font-black text-indigo-600">{searchedOsObj.quantity || '-'} <span className="text-[9px] sm:text-[10px] text-indigo-400">pçs</span></span>
+                                                                        <div className="bg-white p-3 rounded-xl shadow-sm border border-indigo-50 flex flex-col justify-center text-center sm:text-left">
+                                                                            <span className="block text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Quantidade</span>
+                                                                            <span className="text-lg sm:text-xl font-black text-indigo-600">{searchedOsObj.quantity || '-'} <span className="text-[10px] text-indigo-400">pçs</span></span>
                                                                         </div>
                                                                     </div>
                                             
@@ -2861,7 +2864,6 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                                                     </div>
                                                                 </div>
                                                             )}
-                                                        </div>
                                                         </div>
                                             
                                                         {/* Tabelas de Acompanhamento */}
