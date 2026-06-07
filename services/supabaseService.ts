@@ -165,10 +165,21 @@ export const insertItem = async <T extends { id?: string }>(
 ): Promise<T> => {
     // Ensure an id exists – the DB column is NOT NULL.
     if (!item.id || item.id === '') {
-        const generatedId =
-            typeof crypto !== 'undefined' && typeof (crypto as any).randomUUID === 'function'
-                ? (crypto as any).randomUUID()
-                : Math.random().toString(36).substring(2, 15);
+        let generatedId = '';
+        if (typeof crypto !== 'undefined' && typeof (crypto as any).randomUUID === 'function') {
+            generatedId = (crypto as any).randomUUID();
+        } else if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+            // Browser compliant UUID v4 generator
+            generatedId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, (c: any) =>
+                (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+            );
+        } else {
+            // Pure JS fallback
+            generatedId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
         // @ts-ignore – we know T has an optional id field.
         (item as any).id = generatedId;
     }

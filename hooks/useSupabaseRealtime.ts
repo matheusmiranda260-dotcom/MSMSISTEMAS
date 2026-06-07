@@ -217,7 +217,7 @@ export function useAllRealtimeSubscriptions(setters: RealtimeSetters, enabled: b
                     console.log(`[Realtime] production_records - ${payload.eventType}:`, payload);
                     const record = mapToCamelCase(payload.eventType === 'DELETE' ? payload.old : payload.new) as ProductionRecord;
 
-                    if (record.machine === 'Trefila') {
+                    if (record.machine === 'Trefila' || record.machine.startsWith('Desbobinadeira')) {
                         switch (payload.eventType) {
                             case 'INSERT':
                                 setters.setTrefilaProduction(prev => [...prev, record]);

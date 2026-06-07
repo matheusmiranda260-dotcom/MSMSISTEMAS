@@ -58,6 +58,8 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
             setExpandedMenus(prev => prev.includes('trefila') ? prev : [...prev, 'trefila']);
         } else if (['trelicaInProgress', 'trelicaPending', 'trelicaCompleted', 'trelicaReports'].includes(page)) {
             setExpandedMenus(prev => prev.includes('trelica') ? prev : [...prev, 'trelica']);
+        } else if (['desbobinadeiraInProgress', 'desbobinadeiraPending', 'desbobinadeiraCompleted', 'desbobinadeiraReports'].includes(page)) {
+            setExpandedMenus(prev => prev.includes('desbobinadeira') ? prev : [...prev, 'desbobinadeira']);
         } else if (['peopleManagement', 'continuousImprovement'].includes(page)) {
             setExpandedMenus(prev => prev.includes('people') ? prev : [...prev, 'people']);
         }
@@ -368,6 +370,45 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                         <MenuItem target="userManagement" label="Usuários" icon={UserGroupIcon} />
                         <MenuItem target="gaugesManager" label="Bitolas" icon={AdjustmentsIcon} />
                         <MenuItem target="downtimeConfigs" label="Paradas" icon={AdjustmentsIcon} />
+
+                        {/* Projetos Novos (Laboratório) */}
+                        <>
+                            <button
+                                onClick={() => toggleMenu('desbobinadeira')}
+                                className={`sidebar-item ${['desbobinadeiraInProgress', 'desbobinadeiraPending', 'desbobinadeiraCompleted', 'desbobinadeiraReports'].includes(page) ? 'active' : ''} justify-between group mt-2`}
+                                title={isCollapsed ? 'Projetos Novos' : ''}
+                            >
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    <div className="sidebar-item-icon shrink-0">
+                                        <CogIcon className="w-full h-full text-slate-400 group-hover:text-[#00E5FF] transition-colors" />
+                                    </div>
+                                    {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap text-slate-300 font-bold group-hover:text-white transition-colors">🔬 Projetos Novos</span>}
+                                </div>
+                                {!isCollapsed && (
+                                    <ChevronRightIcon className={`w-3 h-3 text-slate-500 transition-transform duration-200 ${expandedMenus.includes('desbobinadeira') ? 'rotate-90' : ''}`} />
+                                )}
+                            </button>
+
+                            {!isCollapsed && expandedMenus.includes('desbobinadeira') && (
+                                <div className="ml-4 pl-4 border-l border-slate-700/50 flex flex-col gap-0.5 mt-1 mb-2 animate-in slide-in-from-left-2 duration-200">
+                                    <button onClick={() => setPage('desbobinadeiraInProgress')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'desbobinadeiraInProgress' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                        ⚙️ Em Produção
+                                    </button>
+                                    <button onClick={() => setPage('desbobinadeiraPending')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'desbobinadeiraPending' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                        📋 Próximas Produções
+                                    </button>
+                                    <button onClick={() => setPage('desbobinadeiraCompleted')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'desbobinadeiraCompleted' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                        📦 Produções Finalizadas
+                                    </button>
+                                    <button onClick={() => setPage('desbobinadeiraReports')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'desbobinadeiraReports' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                        📑 Relatórios de Turno
+                                    </button>
+                                    <button onClick={() => setPage('productionOrderDesbobinadeira')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'productionOrderDesbobinadeira' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                        📋 Criar Ordem
+                                    </button>
+                                </div>
+                            )}
+                        </>
                     </div>
                 )}
             </div>

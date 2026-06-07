@@ -1117,7 +1117,21 @@ const MachineControl: React.FC<MachineControlProps> = ({
         return !!currentUser.permissions?.[targetPage];
     };
 
-    const machinePrefix = (activeMachine && typeof activeMachine === 'string' && activeMachine.startsWith('Trefila')) ? 'trefila' : 'trelica';
+    const machinePrefix = (activeMachine && typeof activeMachine === 'string') 
+        ? (activeMachine.startsWith('Trefila') 
+            ? 'trefila' 
+            : activeMachine.startsWith('Desbobinadeira') 
+                ? 'desbobinadeira' 
+                : 'trelica')
+        : 'trelica';
+
+    const getPermissionPage = (suffix: 'InProgress' | 'Pending' | 'Completed' | 'Reports'): Page => {
+        if (activeMachine && typeof activeMachine === 'string') {
+            if (activeMachine.startsWith('Trefila')) return `trefila${suffix}` as Page;
+            if (activeMachine.startsWith('Desbobinadeira')) return `desbobinadeira${suffix}` as Page;
+        }
+        return `trelica${suffix}` as Page;
+    };
 
     const [productionReportData, setProductionReportData] = useState<ProductionOrderData | null>(null);
 
@@ -1278,7 +1292,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
     }, [activeOrder, isAnyActiveShift]);
 
     // Derived state for pulsing effects (must come AFTER currentMachineStatus declaration)
-    const isActiveProcess = currentMachineStatus === 'Produzindo' && (activeMachine.startsWith('Trefila') ? !!activeLotProcessingData : true);
+    const isActiveProcess = currentMachineStatus === 'Produzindo' && ((activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira')) ? !!activeLotProcessingData : true);
     const isUnderStopAlerta = currentMachineStatus === 'Parada' || currentMachineStatus === 'Preparacao';
 
     const isMachineStopped = currentMachineStatus === 'Parada' || currentMachineStatus === 'Preparacao';
@@ -1518,7 +1532,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
 
 
     const { waitingLots, completedLots } = useMemo(() => {
-        if (!activeOrder || !activeOrder.machine.startsWith('Trefila')) return { waitingLots: [], completedLots: [] };
+        if (!activeOrder || (!activeOrder.machine.startsWith('Trefila') && !activeOrder.machine.startsWith('Desbobinadeira'))) return { waitingLots: [], completedLots: [] };
 
         const processedLotIds = new Set(activeOrder.processedLots?.map(p => p.lotId) || []);
 
@@ -1564,7 +1578,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
     }, [activeOrder]);
 
     const allTrefilaLotsProcessed = useMemo(() => {
-        if (!activeOrder || !activeOrder.machine.startsWith('Trefila')) return false;
+        if (!activeOrder || (!activeOrder.machine.startsWith('Trefila') && !activeOrder.machine.startsWith('Desbobinadeira'))) return false;
 
         // Para ordens fantasma sem lotes selecionados inicialmente:
         // Permite fechar se ao menos 1 lote foi processado e pesado, OU se não há lotes em nenhum estado
@@ -1589,7 +1603,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
     const isCompletionDisabled = useMemo(() => {
         if (isEmergencyStopped || !hasActiveShift) return true;
         if (activeMachine.startsWith('Treliça')) return !allPackagesWeighed;
-        if (activeMachine.startsWith('Trefila')) return !allTrefilaLotsProcessed;
+        if (activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira')) return !allTrefilaLotsProcessed;
         return true;
     }, [isEmergencyStopped, hasActiveShift, machineType, allPackagesWeighed, allTrefilaLotsProcessed]);
 
@@ -1714,7 +1728,11 @@ const MachineControl: React.FC<MachineControlProps> = ({
         completed: 'Produções Finalizadas',
     };
 
-    const machineHeader = activeMachine.startsWith('Trefila') ? "Produção maquina DHTRF (TREFILA)" : "Produção maquina DHSTR (TRELIÇA)";
+    const machineHeader = activeMachine.startsWith('Trefila') 
+        ? "Produção maquina DHTRF (TREFILA)" 
+        : activeMachine.startsWith('Desbobinadeira') 
+            ? "Produção maquina DESB (DESBOBINADEIRA 1)" 
+            : "Produção maquina DHSTR (TRELIÇA)";
 
     const promptOrder = pendingShiftEnd ? (productionOrders.find(o => o.id === pendingShiftEnd)) : activeOrder;
 
@@ -1923,13 +1941,13 @@ const MachineControl: React.FC<MachineControlProps> = ({
                     onClose={() => setShowDowntimeModal(false)} 
                     onSubmit={handleStopMachine} 
                     onEndShift={activeOrder ? () => handleShiftEndRequest(activeOrder.id) : undefined}
-                    onPauseOrder={activeOrder && (!activeMachine.startsWith('Trefila')) && pauseProductionOrder ? () => {
+                    onPauseOrder={activeOrder && (!activeMachine.startsWith('Trefila') && !activeMachine.startsWith('Desbobinadeira')) && pauseProductionOrder ? () => {
                         if (window.confirm('Tem certeza que deseja arquivar/pausar esta ordem para iniciar outra? Seu turno atual será encerrado e a ordem voltará para a fila de pendentes.')) {
                             pauseProductionOrder(activeOrder.id);
                             setView('pending');
                         }
                     } : undefined}
-                    canPause={(!activeMachine.startsWith('Trefila'))}
+                    canPause={(!activeMachine.startsWith('Trefila') && !activeMachine.startsWith('Desbobinadeira'))}
                     downtimeEvents={activeOrder?.downtimeEvents || []}
                     downtimeConfigs={downtimeConfigs}
                     machineType={activeMachine}
@@ -1952,7 +1970,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
             )}
             {showShiftReportsModal && (
                 <ShiftReportsModal
-                    reports={(shiftReports || []).filter(r => (r.machine === activeMachine || (activeMachine.startsWith('Trefila') && r.machine === 'Trefila') || (activeMachine.startsWith('Treliça') && r.machine === 'Treliça')))}
+                    reports={(shiftReports || []).filter(r => (r.machine === activeMachine || (activeMachine.startsWith('Trefila') && r.machine === 'Trefila') || (activeMachine.startsWith('Treliça') && r.machine === 'Treliça') || (activeMachine.startsWith('Desbobinadeira') && r.machine.startsWith('Desbobinadeira'))))}
                     stock={stock}
                     onClose={() => setShowShiftReportsModal(false)}
                     onDelete={deleteShiftReport}
@@ -2152,7 +2170,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
                         </div>
                     )}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-                        {hasPermission(machinePrefix === 'trefila' ? 'trefilaInProgress' : 'trelicaInProgress') && (
+                        {hasPermission(getPermissionPage('InProgress')) && (
                             <MachineMenuButton
                                 onClick={() => setView('in_progress')}
                                 label={postProductionOrder ? "Acompanhar" : "Painel"}
@@ -2160,7 +2178,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                 icon={<CogIcon className={`h-6 w-6 ${activeOrder ? 'animate-spin' : ''}`} />}
                             />
                         )}
-                        {hasPermission(machinePrefix === 'trefila' ? 'trefilaPending' : 'trelicaPending') && (
+                        {hasPermission(getPermissionPage('Pending')) && (
                             <MachineMenuButton
                                 onClick={() => setView('pending')}
                                 label="Fila"
@@ -2168,7 +2186,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                 icon={<ClipboardListIcon className="h-6 w-6" />}
                             />
                         )}
-                        {hasPermission(machinePrefix === 'trefila' ? 'trefilaCompleted' : 'trelicaCompleted') && (
+                        {hasPermission(getPermissionPage('Completed')) && (
                             <MachineMenuButton
                                 onClick={() => setView('completed')}
                                 label="Histórico"
@@ -2176,7 +2194,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                 icon={<ArchiveIcon className="h-6 w-6" />}
                             />
                         )}
-                        {hasPermission(machinePrefix === 'trefila' ? 'trefilaReports' : 'trelicaReports') && (
+                        {hasPermission(getPermissionPage('Reports')) && (
                             <MachineMenuButton
                                 onClick={() => setShowShiftReportsModal(true)}
                                 label="Turnos"
@@ -2215,7 +2233,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                 <ChartBarIcon className={`h-3.5 w-3.5 ${mobileTab === 'monitor' ? 'text-indigo-500' : 'text-slate-400'}`} />
                                 PAINEL
                             </button>
-                            {activeMachine.startsWith('Trefila') ? (
+                            {activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira') ? (
                                 <>
                                     <button
                                         onClick={() => setMobileTab('process')}
@@ -2257,7 +2275,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                 {/* Coluna Esquerda: Visão Geral e Indicadores */}
                                 <div className={`lg:col-span-1 space-y-6 ${mobileTab !== 'monitor' ? 'hidden lg:block' : 'animate-fade-in'}`}>
                                     {/* Trefila Mobile: Optimized Panel (Enchuto) */}
-                                    {activeMachine.startsWith('Trefila') ? (
+                                    {activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira') ? (
                                         <div className="md:hidden animate-fade-in space-y-4">
                                             {/* Status Hero - Hidden on mobile as per user request (will move info to bottom button) */}
                                             <div className={`hidden md:relative overflow-hidden p-6 rounded-[2rem] transition-all duration-700 ${
@@ -2371,7 +2389,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                         </div>
                                     )}
                                             {/* Card OP Mini */}
-                                            <div className={`bg-white p-6 rounded-2xl shadow-sm border border-slate-100 ${activeMachine.startsWith('Trefila') ? 'hidden md:block' : ''}`}>
+                                            <div className={`bg-white p-6 rounded-2xl shadow-sm border border-slate-100 ${activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira') ? 'hidden md:block' : ''}`}>
                                                 <div className="flex justify-between items-center">
                                                     <div>
                                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Ordem de Produção</p>
@@ -2386,7 +2404,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
 
                                 {/* Coluna Direita: Métricas e Controles de Produção */}
                                     <div className={`lg:col-span-2 space-y-4 md:space-y-6 ${(mobileTab !== 'monitor' && mobileTab !== 'performance') ? 'hidden lg:block' : 'animate-fade-in'}`}>
-                                        <div className={`grid grid-cols-1 gap-6 ${activeMachine.startsWith('Trefila') ? 'hidden md:grid' : 'grid'}`}>
+                                        <div className={`grid grid-cols-1 gap-6 ${activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira') ? 'hidden md:grid' : 'grid'}`}>
                                                 {/* Header Info - Simplified for Mobile */}
                                                 <div className="col-span-2">
                                                     <p className="text-[10px] md:text-xs text-slate-500 mb-2 uppercase tracking-widest font-bold">Produção do Turno</p>
@@ -2399,7 +2417,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                                                 {shiftStatus.shiftName}
                                                             </span>
                                                             <span className="md:hidden text-lg font-black text-slate-800 bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">
-                                                                {activeMachine.startsWith('Trefila') ? `${activeOrder.targetBitola} mm` : activeOrder.trelicaModel}
+                                                                {activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira') ? `${activeOrder.targetBitola} mm` : activeOrder.trelicaModel}
                                                             </span>
                                                         </div>
                                                     ) : (
@@ -2412,7 +2430,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                                 </div>
                                                 <div className="hidden md:block">
                                                     <p className="text-[10px] md:text-xs text-slate-500 mb-1">Meta</p>
-                                                    <p className="text-sm md:text-base font-semibold text-slate-700">{activeMachine.startsWith('Trefila') ? '20.000' : activeOrder.totalWeight?.toFixed(0) || 0} kg</p>
+                                                    <p className="text-sm md:text-base font-semibold text-slate-700">{activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira') ? '20.000' : activeOrder.totalWeight?.toFixed(0) || 0} kg</p>
                                                 </div>
                                             </div>
 
@@ -2550,7 +2568,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                                                         <span className="text-lg font-black text-slate-600">
                                                                             {(activeOrder.processedLots || []).reduce((acc, lot) => acc + (lot.finalWeight || 0), 0).toFixed(0)}
                                                                         </span>
-                                                                        <span className="text-xs font-bold text-slate-300">/ {activeMachine.startsWith('Trefila') ? '20.000' : activeOrder.totalWeight?.toFixed(0) || 0} kg</span>
+                                                                        <span className="text-xs font-bold text-slate-300">/ {activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira') ? '20.000' : activeOrder.totalWeight?.toFixed(0) || 0} kg</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -2592,7 +2610,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                     </div>
 
                                     {/* Mobile Collapsible Details */}
-                                    {activeMachine.startsWith('Trefila') && (
+                                    {(activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira')) && (
                                         <div className="md:hidden">
                                             <details className="group bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden transition-all">
                                                 <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
@@ -2649,14 +2667,14 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                     )}
 
                                     {/* Progresso visível apenas em desktop ou se não for Trefila Mobile */}
-                                    <div className={`${activeMachine.startsWith('Trefila') ? 'hidden md:block' : 'block'}`}>
+                                    <div className={`${activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira') ? 'hidden md:block' : 'block'}`}>
                                         {/* Performance Section contents... kept for desktop */}
                                     </div>
                                     </div>
                                 {/* Coluna Direita: Área de Trabalho (Lotes/Pacotes) */}
                                 <div className={`lg:col-span-2 space-y-6 relative ${mobileTab === 'monitor' ? 'hidden lg:block' : 'animate-fade-in'}`}>
 
-                                    {activeMachine.startsWith('Trefila') ? (
+                                    {activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira') ? (
                                         <>
                                             <div className={`bg-white p-6 rounded-2xl shadow-sm ${mobileTab !== 'process' ? 'hidden lg:block' : 'animate-fade-in'}`}>
                                                 <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -3092,7 +3110,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                                         <button
                                                             onClick={() => {
                                                                 setShowMobileActions(false);
-                                                                if (activeMachine.startsWith('Trefila')) handleTrefilaComplete();
+                                                                if (activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira')) handleTrefilaComplete();
                                                                 else setShowCompletionModal(true);
                                                             }}
                                                             disabled={isCompletionDisabled}
@@ -3137,7 +3155,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
 
                                         <button
                                             onClick={() => {
-                                                if (activeMachine.startsWith('Trefila')) handleTrefilaComplete();
+                                                if (activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira')) handleTrefilaComplete();
                                                 else setShowCompletionModal(true);
                                             }}
                                             disabled={isCompletionDisabled}
@@ -3158,7 +3176,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                             </button>
                                         )}
 
-                                        {(!activeMachine.startsWith('Trefila')) && pauseProductionOrder && (
+                                        {(!activeMachine.startsWith('Trefila') && !activeMachine.startsWith('Desbobinadeira')) && pauseProductionOrder && (
                                             <button
                                                 onClick={() => {
                                                     if (window.confirm('Tem certeza que deseja arquivar/pausar esta ordem para iniciar outra? Seu turno atual será encerrado e a ordem voltará para a fila de pendentes.')) {
@@ -3247,7 +3265,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                             <th className="px-6 py-3">Status</th>
                                             <th className="px-6 py-3">Data Criação</th>
                                             <th className="px-6 py-3">Nº Ordem</th>
-                                            <th className="px-6 py-3">{activeMachine.startsWith('Trefila') ? 'Bitola Saída' : 'Modelo'}</th>
+                                            <th className="px-6 py-3">{activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira') ? 'Bitola Saída' : 'Modelo'}</th>
                                             <th className="px-6 py-3 text-right">Peso Total (kg)</th>
                                             <th className="px-6 py-3 text-center">Ação</th>
                                         </tr>
@@ -3269,7 +3287,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                                         <span className="block text-[10px] text-amber-600 mt-0.5 font-bold">Já produzido: {order.actualProducedQuantity}</span>
                                                     ) : null}
                                                 </td>
-                                                <td className="px-6 py-4">{activeMachine.startsWith('Trefila') ? order.targetBitola : `${order.trelicaModel} (${order.quantityToProduce} pçs)`}</td>
+                                                <td className="px-6 py-4">{activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira') ? order.targetBitola : `${order.trelicaModel} (${order.quantityToProduce} pçs)`}</td>
                                                 <td className="px-6 py-4 text-right">{order.totalWeight?.toFixed(2) || 0}</td>
                                                 <td className="px-6 py-4 text-center">
                                                     <button onClick={() => {
@@ -3304,7 +3322,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                         <tr>
                                             <th className="px-6 py-3">Data Finalização</th>
                                             <th className="px-6 py-3">Nº Ordem</th>
-                                            <th className="px-6 py-3">{activeMachine.startsWith('Trefila') ? 'Bitola Saída' : 'Modelo'}</th>
+                                            <th className="px-6 py-3">{activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira') ? 'Bitola Saída' : 'Modelo'}</th>
                                             <th className="px-6 py-3 text-right">Peso Planejado (kg)</th>
                                             <th className="px-6 py-3 text-right">Peso Produzido (kg)</th>
                                             <th className="px-6 py-3 text-center">Ações</th>
@@ -3315,8 +3333,8 @@ const MachineControl: React.FC<MachineControlProps> = ({
                                             <tr key={order.id} className="bg-white border-b hover:bg-slate-50">
                                                 <td className="px-6 py-4">{order.endTime ? new Date(order.endTime).toLocaleDateString('pt-BR') : '-'}</td>
                                                 <td className="px-6 py-4 font-medium text-slate-900">{order.orderNumber}</td>
-                                                <td className="px-6 py-4">{activeMachine.startsWith('Trefila') ? order.targetBitola : `${order.trelicaModel} (${order.actualProducedQuantity} pçs)`}</td>
-                                                <td className="px-6 py-4 text-right">{activeMachine.startsWith('Trefila') ? (order.totalWeight?.toFixed(2) || 0) : (order.plannedOutputWeight?.toFixed(2) || 'N/A')}</td>
+                                                <td className="px-6 py-4">{activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira') ? order.targetBitola : `${order.trelicaModel} (${order.actualProducedQuantity} pçs)`}</td>
+                                                <td className="px-6 py-4 text-right">{activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira') ? (order.totalWeight?.toFixed(2) || 0) : (order.plannedOutputWeight?.toFixed(2) || 'N/A')}</td>
                                                 <td className="px-6 py-4 text-right font-bold text-emerald-700">{order.actualProducedWeight?.toFixed(2) || 'N/A'}</td>
                                                 <td className="px-6 py-4 text-center">
                                                     <button onClick={() => setProductionReportData(order)} className="text-emerald-600 hover:text-emerald-800 font-semibold py-1 px-3 rounded-md text-xs bg-emerald-50 border border-emerald-200">

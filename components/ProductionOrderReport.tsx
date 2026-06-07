@@ -563,6 +563,177 @@ const ProductionOrderReport: React.FC<ProductionOrderReportProps> = ({ reportDat
         );
     }
 
+    // Desbobinadeira Specific Layout
+    if (reportData.machine.startsWith('Desbobinadeira')) {
+        const velocity = effectiveTimeMs > 0 ? totalMetersProduced / (effectiveTimeMs / 1000) : 0;
+        const osItems = (reportData.summary?.items || []) as Array<{
+            os: string | null;
+            bitola: string | null;
+            steelType: string | null;
+            length: number | null;
+            quantity: number | null;
+            weight: number | null;
+            drawingType: string | null;
+        }>;
+
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 print-modal-container">
+                <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-5xl max-h-[95vh] flex flex-col print-modal-content">
+                    <div className="flex justify-between items-center mb-4 pb-4 border-b border-[#0F3F5C]/20 no-print">
+                        <h2 className="text-2xl font-bold text-[#0F3F5C]">Relatório de Produção - Desbobinadeira 1</h2>
+                        <div className="flex gap-3">
+                            <button onClick={() => window.print()} className="bg-gradient-to-r from-[#FF8C00] to-[#FFA333] hover:from-[#E67E00] hover:to-[#FF8C00] text-white font-bold py-2 px-4 rounded-lg transition-all shadow-md flex items-center justify-center gap-2">
+                                <PrinterIcon className="h-5 w-5" /> Imprimir
+                            </button>
+                            <button onClick={onClose} className="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-4 rounded-lg transition">Fechar</button>
+                        </div>
+                    </div>
+
+                    <div className="overflow-y-auto print-section bg-white p-2 font-sans text-sm text-black">
+                        {/* Header */}
+                        <div className="border-2 border-black mb-1 p-2 text-center">
+                            <h1 className="text-xl font-bold uppercase">Controle de Produção Diária - Setor Laminação</h1>
+                            <h2 className="text-lg font-bold uppercase">Desbobinadeira 1 (Projetos Novos)</h2>
+                        </div>
+
+                        {/* Order Info Table */}
+                        <table className="w-full border-collapse border-2 border-black mb-1 text-center font-bold">
+                            <tbody>
+                                <tr className="border-b border-black">
+                                    <td className="p-1">
+                                        Ordem de produção : {reportData.orderNumber}
+                                    </td>
+                                </tr>
+                                <tr className="border-b border-black">
+                                    <td className="p-1">
+                                        Data da produção: {reportData.startTime ? new Date(reportData.startTime).toLocaleDateString('pt-BR', { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td className="p-1">Operador/auxiliar: {operatorNames}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        {/* Product Desc Table */}
+                        <div className="border-2 border-black mb-4 font-bold">
+                            <div className="border-b border-black p-1 pl-2">
+                                Diâmetro Entrada (Fio Máquina): <span className="text-red-600">
+                                    {reportData.inputBitola ? `${reportData.inputBitola} mm` : 'N/A'}
+                                </span>
+                            </div>
+                            <div className="p-1 pl-2">
+                                Diâmetro Saída (CA-60): <span className="text-green-600">
+                                    {reportData.targetBitola} mm
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Paradas */}
+                        <div className="mb-4">
+                            <h3 className="text-center font-bold italic underline mb-1">PARADAS E SEUS MOTIVOS:</h3>
+                            <table className="w-full border-collapse border border-black text-xs text-center font-bold">
+                                <thead>
+                                    <tr className="bg-gray-200">
+                                        <th className="border border-black p-1 w-20">INÍCIO</th>
+                                        <th className="border border-black p-1 w-20">FIM</th>
+                                        <th className="border border-black p-1">MOTIVO</th>
+                                        <th className="border border-black p-1 w-20">DURAÇÃO</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(reportData.downtimeEvents || []).map((event, idx) => {
+                                        if (!event.resumeTime) return null;
+                                        const duration = new Date(event.resumeTime).getTime() - new Date(event.stopTime).getTime();
+                                        return (
+                                            <tr key={idx}>
+                                                <td className="border border-black p-1 text-red-600">
+                                                    {new Date(event.stopTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                </td>
+                                                <td className="border border-black p-1 text-green-600">
+                                                    {new Date(event.resumeTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                </td>
+                                                <td className="border border-black p-1 uppercase italic">
+                                                    {event.reason}
+                                                    {event.justification && <div className="text-[10px] lowercase text-red-500 mt-1 normal-case font-medium">Justificativa: {event.justification}</div>}
+                                                </td>
+                                                <td className="border border-black p-1 text-red-600 font-mono">{formatDuration(duration)}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {(!reportData.downtimeEvents || reportData.downtimeEvents.length === 0) && (
+                                        <tr><td colSpan={4} className="border border-black p-1 text-center italic">Nenhuma parada registrada.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Estatística do Dia */}
+                        <div className="mb-4 border border-black p-2">
+                            <h3 className="text-center font-bold italic underline mb-2">ESTATÍSTICA DO DIA:</h3>
+                            <div className="grid grid-cols-[2fr_1fr_1fr] gap-x-2 gap-y-1 w-full max-w-lg mx-auto font-bold text-sm">
+                                <div className="text-right">Horas (Turno trabalhados):</div>
+                                <div className="text-center font-mono">{formatDuration(totalDurationMs)}</div>
+                                <div></div>
+
+                                <div className="text-right">Tempo de maquina (parada) :</div>
+                                <div className="text-center text-red-600 font-mono">{formatDuration(totalDowntimeMs)}</div>
+                                <div className="text-red-600">{totalDurationMs > 0 ? ((totalDowntimeMs / totalDurationMs) * 100).toFixed(1) : 0}%</div>
+
+                                <div className="text-right">Tempo de maquina (Efetivo) :</div>
+                                <div className="text-center text-green-600 font-mono">{formatDuration(effectiveTimeMs)}</div>
+                                <div className="text-green-600">{totalDurationMs > 0 ? ((effectiveTimeMs / totalDurationMs) * 100).toFixed(1) : 0}%</div>
+
+                                <div className="text-right">Peso Planejado total:</div>
+                                <div className="text-center">{reportData.totalWeight?.toFixed(0)} kg</div>
+                                <div></div>
+
+                                <div className="text-right">Peso Produzido:</div>
+                                <div className="text-center">{reportData.actualProducedWeight?.toFixed(0) || 0} kg</div>
+                                <div></div>
+
+                                <div className="text-right">Velocidade média:</div>
+                                <div className="text-center">{velocity.toFixed(2)} m/s</div>
+                                <div></div>
+                            </div>
+                        </div>
+
+                        {/* Sequência de OS do Desenho */}
+                        {osItems.length > 0 && (
+                            <div>
+                                <h3 className="text-center font-bold italic underline mb-1">RELAÇÃO DE POSIÇÕES (OS) DO DESENHO:</h3>
+                                <table className="w-full border-collapse border border-black text-xs text-center font-bold mx-auto max-w-3xl">
+                                    <thead>
+                                        <tr className="bg-gray-100 border-b-2 border-black">
+                                            <th className="border border-black p-1.5">OS</th>
+                                            <th className="border border-black p-1.5">Bitola / Aço</th>
+                                            <th className="border border-black p-1.5">Cortes (Qtde)</th>
+                                            <th className="border border-black p-1.5">Comprimento Desenho (cm)</th>
+                                            <th className="border border-black p-1.5">Formato</th>
+                                            <th className="border border-black p-1.5">Peso Estimado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {osItems.map((item, idx) => (
+                                            <tr key={idx} className="border-b border-black">
+                                                <td className="border border-black p-1.5">{item.os || `OS - ${idx + 1}`}</td>
+                                                <td className="border border-black p-1.5">{item.bitola ? `${item.bitola.replace('.', ',')} mm` : 'N/A'} {item.steelType}</td>
+                                                <td className="border border-black p-1.5 text-[#0F3F5C] font-black">{item.quantity}</td>
+                                                <td className="border border-black p-1.5 font-bold text-slate-800">{item.length ? `${item.length} cm` : 'N/A'}</td>
+                                                <td className="border border-black p-1.5 italic font-bold">{item.drawingType || 'N/A'}</td>
+                                                <td className="border border-black p-1.5 text-gray-600">{item.weight ? `${item.weight.toFixed(3)} kg` : 'N/A'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     // Default Layout (Treliça and others)
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 print-modal-container">

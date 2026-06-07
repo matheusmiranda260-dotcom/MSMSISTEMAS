@@ -7,6 +7,7 @@ import StockControl from './components/StockControl';
 import MachineControl from './components/MachineControl';
 import ProductionOrder from './components/ProductionOrder';
 import ProductionOrderTrelica from './components/ProductionOrderTrelica';
+import ProductionOrderDesbobinadeira from './components/ProductionOrderDesbobinadeira';
 import Reports from './components/Reports';
 import UserManagement from './components/UserManagement';
 import Notification from './components/Notification';
@@ -1018,14 +1019,14 @@ const App: React.FC = () => {
 
             // Update stock items status
             if (!orderData.isGhostOrder) {
-                if (savedOrder.machine.startsWith('Trefila')) {
+                if (savedOrder.machine.startsWith('Trefila') || savedOrder.machine.startsWith('Desbobinadeira')) {
                     const lotIds = savedOrder.selectedLotIds as string[];
                     if (Array.isArray(lotIds)) {
                         for (const lotId of lotIds) {
                             const stockItem = stock.find(s => s.id === lotId);
                             if (stockItem) {
                                 await updateItem<StockItem>('stock_items', lotId, {
-                                    status: 'Em Produção - Trefila',
+                                    status: `Em Produção - ${savedOrder.machine}`,
                                     productionOrderIds: [...(stockItem.productionOrderIds || []), savedOrder.id]
                                 });
                             }
@@ -2492,8 +2493,15 @@ const App: React.FC = () => {
             case 'trelicaReports': return <MachineControl machineType="Treliça" {...mcProps} initialView="dashboard" initialModal="reports" />;
             case 'trelicaParts': return <MachineControl machineType="Treliça" {...mcProps} initialView="dashboard" initialModal="parts" />;
 
+            case 'desbobinadeira': return <MachineControl machineType="Desbobinadeira 1" {...mcProps} initialView="dashboard" initialModal={null} />;
+            case 'desbobinadeiraInProgress': return <MachineControl machineType="Desbobinadeira 1" {...mcProps} initialView="in_progress" initialModal={null} />;
+            case 'desbobinadeiraPending': return <MachineControl machineType="Desbobinadeira 1" {...mcProps} initialView="pending" initialModal={null} />;
+            case 'desbobinadeiraCompleted': return <MachineControl machineType="Desbobinadeira 1" {...mcProps} initialView="completed" initialModal={null} />;
+            case 'desbobinadeiraReports': return <MachineControl machineType="Desbobinadeira 1" {...mcProps} initialView="dashboard" initialModal="reports" />;
+
             case 'productionOrder': return <ProductionOrder setPage={setPage} stock={stock} productionOrders={productionOrders} addProductionOrder={addProductionOrder} showNotification={showNotification} updateProductionOrder={updateProductionOrder} deleteProductionOrder={deleteProductionOrder} gauges={gauges} currentUser={currentUser} />;
             case 'productionOrderTrelica': return <ProductionOrderTrelica setPage={setPage} stock={stock} productionOrders={productionOrders} addProductionOrder={addProductionOrder} showNotification={showNotification} updateProductionOrder={updateProductionOrder} deleteProductionOrder={deleteProductionOrder} gauges={gauges} currentUser={currentUser} />;
+            case 'productionOrderDesbobinadeira': return <ProductionOrderDesbobinadeira setPage={setPage} stock={stock} productionOrders={productionOrders} addProductionOrder={addProductionOrder} showNotification={showNotification} updateProductionOrder={updateProductionOrder} deleteProductionOrder={deleteProductionOrder} gauges={gauges} currentUser={currentUser} />;
             case 'productionDashboard': return <ProductionDashboard setPage={setPage} productionOrders={productionOrders} stock={stock} currentUser={currentUser} downtimeConfigs={downtimeConfigs} />;
             case 'reports': return <Reports setPage={setPage} stock={stock} trefilaProduction={trefilaProduction} trelicaProduction={trelicaProduction} gauges={gauges} />;
             case 'userManagement': return <UserManagement users={users} employees={employees} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} setPage={setPage} accessLogs={accessLogs} />;
