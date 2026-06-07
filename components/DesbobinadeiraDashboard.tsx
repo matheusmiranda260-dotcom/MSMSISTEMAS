@@ -250,7 +250,7 @@ const DesbobinadeiraDashboard: React.FC<DesbobinadeiraDashboardProps> = ({ produ
                                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pl-11">
                                                 <div className="bg-black/20 p-2 rounded-lg border border-white/5">
                                                     <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Quantidade</span>
-                                                    <span className="text-sm font-black text-slate-200">{item.quantidade || '-'} <span className="text-[10px] text-slate-500">pçs</span></span>
+                                                    <span className="text-sm font-black text-slate-200">{item.quantity || item.quantidade || '-'} <span className="text-[10px] text-slate-500">pçs</span></span>
                                                 </div>
                                                 <div className="bg-black/20 p-2 rounded-lg border border-white/5">
                                                     <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Bitola</span>
@@ -258,7 +258,7 @@ const DesbobinadeiraDashboard: React.FC<DesbobinadeiraDashboardProps> = ({ produ
                                                 </div>
                                                 <div className="bg-black/20 p-2 rounded-lg border border-white/5">
                                                     <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Comprimento</span>
-                                                    <span className="text-sm font-black text-slate-200">{item.length || item.comprimento || '-'} <span className="text-[10px] text-slate-500">m</span></span>
+                                                    <span className="text-sm font-black text-slate-200">{item.length || item.comprimento || item.tamanho || '-'} <span className="text-[10px] text-slate-500">m</span></span>
                                                 </div>
                                                 <div className="bg-black/20 p-2 rounded-lg border border-white/5">
                                                     <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Formato</span>
