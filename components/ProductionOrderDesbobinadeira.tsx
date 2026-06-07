@@ -201,12 +201,11 @@ const ProductionOrderDesbobinadeira: React.FC<ProductionOrderDesbobinadeiraProps
                 showNotification('Ordem de Produção PDF lida com sucesso! Você pode editar a lista de OS abaixo.', 'success');
             })
             .catch(err => {
-                clearInterval(clockInterval);
                 clearTimeout(stepTimer1);
                 clearTimeout(stepTimer2);
                 clearTimeout(stepTimer3);
-                console.error(err);
-                const errMsg = err?.message || 'Erro desconhecido';
+                console.error('[Desbobinadeira] Erro ao processar PDF:', err);
+                const errMsg = err?.message || JSON.stringify(err) || 'Erro desconhecido';
                 showNotification(`Falha ao processar o PDF: ${errMsg}`, 'error');
             })
             .finally(() => {
@@ -225,17 +224,23 @@ const ProductionOrderDesbobinadeira: React.FC<ProductionOrderDesbobinadeiraProps
         setIsDragging(false);
     };
 
+    const MAX_PDF_SIZE = 15 * 1024 * 1024; // 15 MB
+
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
         const files = e.dataTransfer.files;
         if (files && files.length > 0) {
             const file = files[0];
-            if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-                runAISteps(file);
-            } else {
+            if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
                 showNotification('Por favor, envie apenas arquivos em formato PDF.', 'error');
+                return;
             }
+            if (file.size > MAX_PDF_SIZE) {
+                showNotification(`Arquivo muito grande (${(file.size / 1024 / 1024).toFixed(1)} MB). Máximo permitido: 15 MB.`, 'error');
+                return;
+            }
+            runAISteps(file);
         }
     };
 
@@ -243,6 +248,10 @@ const ProductionOrderDesbobinadeira: React.FC<ProductionOrderDesbobinadeiraProps
         const files = e.target.files;
         if (files && files.length > 0) {
             const file = files[0];
+            if (file.size > MAX_PDF_SIZE) {
+                showNotification(`Arquivo muito grande (${(file.size / 1024 / 1024).toFixed(1)} MB). Máximo permitido: 15 MB.`, 'error');
+                return;
+            }
             runAISteps(file);
         }
     };

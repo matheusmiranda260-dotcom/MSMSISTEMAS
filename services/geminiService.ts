@@ -1,51 +1,131 @@
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
+const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-// Helper to call Gemini API, trying models in priority order
+// Quick connectivity test before calling the full API
+async function checkApiConnectivity(): Promise<string | null> {
+    try {
+        const testUrl = `${API_BASE}/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+        const testBody = { contents: [{ parts: [{ text: "Say OK" }] }] };
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        const response = await fetch(testUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(testBody),
+            signal: controller.signal
+        });
+        clearTimeout(timeout);
+        if (response.ok) return null;
+        const data = await response.json().catch(() => ({}));
+        return `API respondeu com HTTP ${response.status}: ${data?.error?.message || 'sem detalhes'}`;
+    } catch (err: any) {
+        if (err.name === 'AbortError') return 'Timeout: API não respondeu em 10s (verifique firewall/antivírus)';
+        return `Falha na conexão: ${err.message || 'erro desconhecido'}`;
+    }
+}
+
+// Helper to call Gemini API, trying models in priority order with retry
 async function callGeminiAPI(requestBody: object): Promise<string> {
-    const models = ['gemini-2.5-flash', 'gemini-3.5-flash', 'gemini-2.0-flash'];
-    let lastError: Error | null = null;
+    if (!API_KEY) {
+        throw new Error("Chave de API (VITE_GEMINI_API_KEY) não configurada no arquivo .env.");
+    }
+
+    // First, do a quick connectivity check
+    const connectivityIssue = await checkApiConnectivity();
+    if (connectivityIssue) {
+        console.error('[Gemini] Connectivity check failed:', connectivityIssue);
+        throw new Error(
+            `Não foi possível conectar ao servidor da Google Gemini.\n\n` +
+            `Detalhe: ${connectivityIssue}\n\n` +
+            `Verifique:\n` +
+            `1. Sua conexão com a internet\n` +
+            `2. Firewall / Antivírus (pode estar bloqueando generativelanguage.googleapis.com)\n` +
+            `3. VPN / Proxy (tente desativar temporariamente)\n` +
+            `4. Extensões do navegador (tente desativar ad blockers)`
+        );
+    }
+
+    const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    const attempts: string[] = [];
 
     for (const model of models) {
-        try {
-            const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(requestBody)
+        for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 55000);
+                const response = await fetch(
+                    `${API_BASE}/${model}:generateContent?key=${API_KEY}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody),
+                        signal: controller.signal
+                    }
+                );
+                clearTimeout(timeout);
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    const msg = errorData?.error?.message || `HTTP ${response.status}`;
+
+                    if (response.status === 403 || response.status === 401) {
+                        throw new Error(
+                            `Chave de API inválida ou sem permissão (${response.status}). ` +
+                            `Gere uma nova chave em https://aistudio.google.com/app/apikey e atualize o arquivo .env. ` +
+                            `Detalhe: ${msg}`
+                        );
+                    }
+
+                    if ((response.status === 429 || response.status >= 500) && attempt === 0) {
+                        attempts.push(`${model} tentativa ${attempt + 1}: ${response.status}`);
+                        await new Promise(r => setTimeout(r, 1500));
+                        continue;
+                    }
+
+                    attempts.push(`${model}: ${response.status} - ${msg}`);
+                    break;
                 }
-            );
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                const msg = errorData?.error?.message || `HTTP ${response.status}`;
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-                // 403 = API key issue (don't retry other models, it won't help)
-                if (response.status === 403 || response.status === 401) {
-                    throw new Error(
-                        `Chave de API inválida ou sem permissão (${response.status}). ` +
-                        `Gere uma nova chave em https://aistudio.google.com/app/apikey e atualize o arquivo .env. ` +
-                        `Detalhe: ${msg}`
-                    );
+                if (!text) {
+                    attempts.push(`${model}: resposta vazia`);
+                    break;
                 }
 
-                lastError = new Error(`Modelo ${model} falhou: ${msg}`);
-                continue;
-            }
+                return text;
+            } catch (err: any) {
+                if (err.message?.includes('inválida') || err.message?.includes('permissão')) {
+                    throw err;
+                }
 
-            const result = await response.json();
-            const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            return text;
-        } catch (err: any) {
-            // Re-throw auth errors immediately
-            if (err.message?.includes('inválida') || err.message?.includes('permissão')) {
-                throw err;
+                const isNetworkError = err.name === 'AbortError' || err.name === 'TypeError' || 
+                    err.message?.includes('Failed to fetch') || err.message?.includes('timed out') ||
+                    err.message?.includes('NetworkError');
+
+                if (attempt === 0 && isNetworkError) {
+                    attempts.push(`${model} tentativa ${attempt + 1}: ${err.name || 'erro'} - ${err.message?.substring(0, 80) || 'sem detalhes'}`);
+                    await new Promise(r => setTimeout(r, 1500));
+                    continue;
+                }
+
+                attempts.push(`${model}: ${err.name || 'erro'} - ${err.message?.substring(0, 80) || 'sem detalhes'}`);
+                break;
             }
-            lastError = err;
         }
     }
 
-    throw lastError || new Error('Todos os modelos Gemini falharam.');
+    const errorLog = attempts.join(' | ');
+    console.error('[Gemini] All models failed. Attempts:', errorLog);
+    throw new Error(
+        `Todos os modelos falharam após ${models.length * 2} tentativas.\n\n` +
+        `Histórico: ${errorLog}\n\n` +
+        `Isso indica um problema de rede/firewall. Verifique:\n` +
+        `• Firewall / Antivírus desbloqueando generativelanguage.googleapis.com\n` +
+        `• VPN / Proxy desativado\n` +
+        `• Conexão com internet estável`
+    );
 }
 
 // Helper to extract JSON from raw text response
@@ -188,7 +268,18 @@ Formato EXATO esperado (SEMPRE UM ÚNICO OBJETO JSON com a propriedade "lots" se
 }
 
 export async function extractOrderDataFromPDF(file: File) {
+    if (!API_KEY) {
+        throw new Error("Chave de API (VITE_GEMINI_API_KEY) não configurada no arquivo .env.");
+    }
+
+    const fileSizeMB = file.size / (1024 * 1024);
+    if (fileSizeMB > 20) {
+        throw new Error(`Arquivo muito grande (${fileSizeMB.toFixed(1)} MB). O limite para processamento é 20 MB.`);
+    }
+
     try {
+        console.log(`[Gemini] Iniciando leitura do PDF: "${file.name}" (${fileSizeMB.toFixed(1)} MB)`);
+
         const base64EncodedDataPromise = new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onloadend = () => {
@@ -204,6 +295,7 @@ export async function extractOrderDataFromPDF(file: File) {
         });
 
         const base64Data = await base64EncodedDataPromise;
+        console.log(`[Gemini] PDF lido em base64 (${(base64Data.length * 3 / 4 / 1024 / 1024).toFixed(1)} MB encoded). Enviando para API...`);
 
         const prompt = `You are a professional industrial engineering parser. 
 CRITICAL REQUIREMENT: Analyze the entire metallurgical/civil engineering PDF drawing and extract EVERY SINGLE position/item (OS) listed in the document. Do not skip any item. Do not truncate the list. If there are many pages or items, you must list all of them.
@@ -275,15 +367,19 @@ Example Format:
             drawingType: item.drawingType || null
         })) : [];
 
-        return {
+        const result = {
             orderNumber: data.orderNumber || null,
             inputBitola: typeof data.inputBitola === 'number' ? data.inputBitola.toString() : (data.inputBitola || null),
             targetBitola: typeof data.targetBitola === 'number' ? data.targetBitola.toString() : (data.targetBitola || null),
             totalWeight: typeof data.totalWeight === 'number' ? data.totalWeight : (parseFloat(data.totalWeight) || null),
             items
         };
+
+        console.log(`[Gemini] PDF processado com sucesso: ${items.length} OS extraídas, peso total: ${result.totalWeight || 'N/A'} kg`);
+        return result;
     } catch (error) {
-        console.error("Erro na leitura do PDF:", error);
+        const errMsg = error instanceof Error ? error.message : 'Erro desconhecido';
+        console.error(`[Gemini] Erro na leitura do PDF: ${errMsg}`, error);
         throw error;
     }
 }

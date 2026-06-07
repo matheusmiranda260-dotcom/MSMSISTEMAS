@@ -765,6 +765,7 @@ interface MachineControlProps {
     gauges?: StockGauge[];
     addLotToOrder?: (orderId: string, lotId: string) => void;
     downtimeConfigs?: DowntimeConfig[];
+    updateProductionOrder?: (orderId: string, updates: Partial<ProductionOrderData>) => void;
 }
 
 const formatDuration = (ms: number) => {
@@ -808,7 +809,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
     recordLotWeight, recordPackageWeight, completeProduction, addPartsRequest,
     logPostProductionActivity, updateProducedQuantity, deleteShiftReport,
     cancelProductionOrder, pauseProductionOrder, addLotToOrder, initialView, initialModal, gauges = [],
-    downtimeConfigs = []
+    downtimeConfigs = [], updateProductionOrder
 }) => {
     const isGestor = currentUser?.role === 'admin' || currentUser?.role === 'gestor' || currentUser?.username === 'admin';
     const [activeMachine, setActiveMachine] = useState<MachineType>(() => {
@@ -893,6 +894,9 @@ const MachineControl: React.FC<MachineControlProps> = ({
 
     const now = useMemo(() => new Date(timer.getTime() + stableDrift), [timer, stableDrift]);
 
+    // OS Tracking state (declaration only, useEffect will be after activeOrder)
+    const [osElapsed, setOsElapsed] = useState(0);
+    const [osSearchTerm, setOsSearchTerm] = useState('');
 
     const handlePendingWeightChange = (lotId: string, value: string) => {
         setPendingWeights(prev => new Map(prev).set(lotId, value));
@@ -1140,6 +1144,22 @@ const MachineControl: React.FC<MachineControlProps> = ({
         if (active.length === 0) return undefined;
         return active.sort((a, b) => new Date(b.creationDate).getTime() - new Date(a.creationDate).getTime())[0];
     }, [productionOrders, activeMachine]);
+
+    // Update OS elapsed time every second when an OS is active
+    useEffect(() => {
+        if (!activeOrder || !activeMachine.startsWith('Desbobinadeira')) {
+            setOsElapsed(0);
+            return;
+        }
+        const osProgress = (activeOrder as any).osProgress;
+        if (osProgress?.currentOs && osProgress?.startTime) {
+            const start = new Date(osProgress.startTime).getTime();
+            setOsElapsed(Math.floor((timer.getTime() - start) / 1000));
+        } else {
+            setOsElapsed(0);
+        }
+    }, [timer, activeOrder, activeMachine]);
+
     const pendingOrders = useMemo(() => productionOrders.filter(o => (o.machine === activeMachine || (activeMachine === 'Trefila 1' && o.machine === 'Trefila') || (activeMachine === 'Treliça 1' && o.machine === 'Treliça')) && (o.status === 'pending' || o.status === 'paused')).sort((a, b) => new Date(a.creationDate || 0).getTime() - new Date(b.creationDate || 0).getTime()), [productionOrders, activeMachine]);
     const completedOrders = useMemo(() => productionOrders.filter(o => (o.machine === activeMachine || (activeMachine === 'Trefila 1' && o.machine === 'Trefila') || (activeMachine === 'Treliça 1' && o.machine === 'Treliça')) && o.status === 'completed').sort((a, b) => new Date(b.endTime || 0).getTime() - new Date(a.endTime || 0).getTime()), [productionOrders, activeMachine]);
 
@@ -1624,6 +1644,48 @@ const MachineControl: React.FC<MachineControlProps> = ({
         }
     };
 
+
+    // OS Tracking for Desbobinadeira
+    const handleStartOs = (osIndex: number) => {
+        if (!activeOrder || !updateProductionOrder) return;
+        const osItems = (activeOrder as any).osItems || [];
+        const osItem = osItems[osIndex];
+        if (!osItem) return;
+
+        const osProgress = (activeOrder as any).osProgress || { logs: [] };
+        const newProgress = {
+            currentOs: osItem.os || `OS ${osIndex + 1}`,
+            startTime: new Date().toISOString(),
+            logs: osProgress.logs || []
+        };
+
+        updateProductionOrder(activeOrder.id, { osProgress: newProgress } as any);
+    };
+
+    const handleFinishOs = () => {
+        if (!activeOrder || !updateProductionOrder) return;
+        const osProgress = (activeOrder as any).osProgress;
+        if (!osProgress?.currentOs || !osProgress?.startTime) return;
+
+        const nowTime = new Date();
+        const startMs = new Date(osProgress.startTime).getTime();
+        const durationSeconds = Math.floor((nowTime.getTime() - startMs) / 1000);
+
+        const newLog = {
+            os: osProgress.currentOs,
+            startTime: osProgress.startTime,
+            endTime: nowTime.toISOString(),
+            durationSeconds
+        };
+
+        const newProgress = {
+            currentOs: null,
+            startTime: null,
+            logs: [...(osProgress.logs || []), newLog]
+        };
+
+        updateProductionOrder(activeOrder.id, { osProgress: newProgress } as any);
+    };
 
     const handleStartProcessingLot = (lotId: string) => {
         if (activeOrder && startLotProcessing) {
@@ -2676,6 +2738,216 @@ const MachineControl: React.FC<MachineControlProps> = ({
 
                                     {activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira') ? (
                                         <>
+                                            {/* OS Tracking - Desbobinadeira */}
+                                            {activeMachine.startsWith('Desbobinadeira') && (() => {
+                                                const osItems = (activeOrder as any)?.osItems || [];
+                                                const osProgress = (activeOrder as any)?.osProgress || { logs: [] };
+                                                const osLogs = osProgress.logs || [];
+                                                const completedOsLabels = new Set(osLogs.map((l: any) => l.os));
+                                            
+                                                const pendingOsItems = osItems.filter((item: any, idx: number) => !completedOsLabels.has(item.os) && !completedOsLabels.has(`OS ${idx + 1}`));
+                                                const completedOsItems = osItems.filter((item: any, idx: number) => completedOsLabels.has(item.os) || completedOsLabels.has(`OS ${idx + 1}`));
+                                            
+                                                // Find the searched OS
+                                                const searchedOsObj = osSearchTerm.trim() 
+                                                    ? osItems.find((item: any, idx: number) => {
+                                                        const term = osSearchTerm.trim().toLowerCase();
+                                                        const itemName = (item.os || `OS ${idx + 1}`).toLowerCase();
+                                                        return itemName === term || itemName.replace(/^os\s*/, '') === term;
+                                                      })
+                                                    : null;
+                                            
+                                                const searchedOsIndex = searchedOsObj 
+                                                    ? osItems.findIndex((item: any, idx: number) => (item.os || `OS ${idx + 1}`) === (searchedOsObj.os || `OS ${idx + 1}`)) 
+                                                    : -1;
+                                            
+                                                // Check if searched OS is already completed or in progress
+                                                const isSearchedCompleted = searchedOsObj ? completedOsLabels.has(searchedOsObj.os) : false;
+                                                const isSearchedActive = searchedOsObj && osProgress.currentOs === (searchedOsObj.os);
+                                            
+                                                return (
+                                                    <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'process' ? 'hidden lg:block' : 'animate-fade-in'}`}>
+                                                        {/* Buscador de OS */}
+                                                        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
+                                                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
+                                                                <div>
+                                                                    <h3 className="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2 tracking-tight">
+                                                                        <span className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg">🔍</span> Buscar OS
+                                                                    </h3>
+                                                                    <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Digite apenas o número ou nome da OS</p>
+                                                                </div>
+                                                                {osProgress.currentOs && (
+                                                                    <div className="flex items-center w-full sm:w-auto justify-between sm:justify-start gap-3 bg-indigo-50 border border-indigo-200 p-2 sm:px-4 rounded-xl shadow-sm">
+                                                                        <div className="flex flex-col">
+                                                                            <span className="text-[8px] sm:text-[9px] font-black text-indigo-500 uppercase tracking-widest">Em Corte</span>
+                                                                            <span className="text-xs sm:text-sm font-black text-indigo-900">{osProgress.currentOs}</span>
+                                                                        </div>
+                                                                        <div className="w-px h-6 bg-indigo-200 hidden sm:block"></div>
+                                                                        <span className="font-mono font-black text-lg sm:text-xl text-indigo-600 px-1 sm:px-2">{formatDuration(osElapsed * 1000)}</span>
+                                                                        <button
+                                                                            onClick={handleFinishOs}
+                                                                            className="ml-auto sm:ml-1 bg-rose-500 hover:bg-rose-600 text-white text-[9px] sm:text-[10px] font-black py-2 px-3 sm:px-4 rounded-lg transition active:scale-95 shadow-sm uppercase tracking-wider whitespace-nowrap"
+                                                                        >
+                                                                            Finalizar
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                            
+                                                            <div className="flex gap-2 sm:gap-4 mb-2">
+                                                                <input
+                                                                    type="text"
+                                                                    inputMode="numeric"
+                                                                    value={osSearchTerm}
+                                                                    onChange={(e) => setOsSearchTerm(e.target.value)}
+                                                                    placeholder="Ex: 1"
+                                                                    className="flex-1 p-3 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl text-base sm:text-lg font-black text-slate-700 placeholder:text-slate-300 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 outline-none transition-all uppercase"
+                                                                />
+                                                            </div>
+                                                            {osSearchTerm && !searchedOsObj && (
+                                                                <div className="mb-2 sm:mb-4 inline-flex items-center text-rose-500 text-[10px] sm:text-[11px] font-black tracking-widest uppercase bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-100">
+                                                                    ⚠ OS Não Encontrada
+                                                                </div>
+                                                            )}
+                                            
+                                                            {/* Card de Confirmação */}
+                                                            {searchedOsObj && (
+                                                                <div className="mt-4 bg-gradient-to-br from-indigo-50 to-blue-50 border-2 border-indigo-100 rounded-2xl p-4 sm:p-6 shadow-sm relative overflow-hidden">
+                                                                    <div className="absolute -right-4 -top-4 opacity-5 sm:opacity-10 text-indigo-600">
+                                                                        <ClipboardListIcon className="h-24 w-24 sm:h-32 sm:w-32" />
+                                                                    </div>
+                                                                    <h4 className="text-xs sm:text-sm font-black text-indigo-800 uppercase tracking-widest mb-3 sm:mb-4 relative z-10">Confirmar Dados da OS</h4>
+                                                                    
+                                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6 relative z-10">
+                                                                        <div className="bg-white p-2.5 sm:p-3 rounded-xl shadow-sm border border-indigo-50 flex flex-col justify-center">
+                                                                            <span className="block text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5 sm:mb-1">Número</span>
+                                                                            <span className="text-base sm:text-lg font-black text-slate-800 truncate">{searchedOsObj.os}</span>
+                                                                        </div>
+                                                                        <div className="bg-white p-2.5 sm:p-3 rounded-xl shadow-sm border border-indigo-50 flex flex-col justify-center">
+                                                                            <span className="block text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5 sm:mb-1">Bitola</span>
+                                                                            <span className="text-base sm:text-lg font-black text-slate-800">{searchedOsObj.bitola || '-'} <span className="text-[9px] sm:text-[10px] text-slate-400">mm</span></span>
+                                                                        </div>
+                                                                        <div className="bg-white p-2.5 sm:p-3 rounded-xl shadow-sm border border-indigo-50 flex flex-col justify-center">
+                                                                            <span className="block text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5 sm:mb-1">Formato</span>
+                                                                            <span className="text-base sm:text-lg font-black text-slate-800 truncate">{searchedOsObj.drawingType || '-'}</span>
+                                                                        </div>
+                                                                        <div className="bg-white p-2.5 sm:p-3 rounded-xl shadow-sm border border-indigo-50 flex flex-col justify-center">
+                                                                            <span className="block text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5 sm:mb-1">Quantidade</span>
+                                                                            <span className="text-base sm:text-lg font-black text-indigo-600">{searchedOsObj.quantity || '-'} <span className="text-[9px] sm:text-[10px] text-indigo-400">pçs</span></span>
+                                                                        </div>
+                                                                    </div>
+                                            
+                                                                    <div className="relative z-10">
+                                                                        {isSearchedCompleted ? (
+                                                                            <div className="w-full text-center py-2.5 sm:py-3 bg-emerald-100 text-emerald-700 font-black rounded-xl border border-emerald-200 uppercase tracking-widest text-xs sm:text-sm shadow-sm">
+                                                                                ✓ Concluída
+                                                                            </div>
+                                                                        ) : isSearchedActive ? (
+                                                                            <div className="w-full text-center py-2.5 sm:py-3 bg-indigo-100 text-indigo-700 font-black rounded-xl border border-indigo-200 uppercase tracking-widest text-xs sm:text-sm shadow-sm animate-pulse">
+                                                                                ⏳ Em Corte
+                                                                            </div>
+                                                                        ) : (
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    handleStartOs(searchedOsIndex);
+                                                                                    setOsSearchTerm(''); // Limpar ao iniciar
+                                                                                }}
+                                                                                disabled={!!osProgress.currentOs}
+                                                                                className="w-full bg-[#0F3F5C] hover:bg-[#0A2A3D] text-white font-black py-3 sm:py-4 px-4 sm:px-6 rounded-xl shadow-lg shadow-slate-300 transition active:scale-[0.99] uppercase tracking-widest disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none flex items-center justify-center gap-2 text-xs sm:text-sm"
+                                                                            >
+                                                                                <PlayIcon className="h-4 w-4 sm:h-5 sm:w-5" /> Aceitar e Iniciar
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        </div>
+                                            
+                                                        {/* Tabelas de Acompanhamento */}
+                                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                                            {/* OS Pendentes */}
+                                                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col h-full max-h-[500px]">
+                                                                <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                                                                    <h4 className="text-sm font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                                                                        <span className="w-2 h-2 rounded-full bg-amber-400"></span> Pendentes
+                                                                    </h4>
+                                                                    <span className="bg-slate-100 text-slate-600 text-[10px] font-black px-2 py-1 rounded-lg">{pendingOsItems.length} OS</span>
+                                                                </div>
+                                                                <div className="overflow-y-auto custom-scrollbar flex-1 pr-2">
+                                                                    {pendingOsItems.length === 0 ? (
+                                                                        <div className="text-center text-slate-400 py-10 italic text-sm font-semibold">Nenhuma OS pendente.</div>
+                                                                    ) : (
+                                                                        <div className="space-y-2">
+                                                                            {pendingOsItems.map((item: any, idx: number) => {
+                                                                                const isCurrent = osProgress.currentOs === item.os;
+                                                                                return (
+                                                                                    <div key={idx} className={`flex items-center justify-between p-3 rounded-xl border ${isCurrent ? 'bg-indigo-50 border-indigo-200 shadow-sm' : 'bg-slate-50 border-slate-100'} hover:bg-slate-100 transition-colors`}>
+                                                                                        <div className="flex items-center gap-3">
+                                                                                            <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
+                                                                                                <ClipboardListIcon className={`h-4 w-4 ${isCurrent ? 'text-indigo-500' : 'text-slate-400'}`} />
+                                                                                            </div>
+                                                                                            <div>
+                                                                                                <span className="block font-black text-slate-800 text-xs">{item.os}</span>
+                                                                                                <span className="text-[10px] font-bold text-slate-400">{item.quantity} pçs • {item.bitola}mm</span>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        {isCurrent && <span className="text-[9px] font-black bg-indigo-100 text-indigo-600 px-2 py-1 rounded-lg uppercase tracking-widest animate-pulse">Em Corte</span>}
+                                                                                    </div>
+                                                                                )
+                                                                            })}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                            
+                                                            {/* OS Concluídas */}
+                                                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col h-full max-h-[500px]">
+                                                                <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                                                                    <h4 className="text-sm font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                                                                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Concluídas
+                                                                    </h4>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-[10px] font-black text-slate-400 uppercase">{completedOsItems.reduce((acc: number, i: any) => acc + (i.weight || 0), 0).toFixed(1).replace('.', ',')} kg</span>
+                                                                        <span className="bg-emerald-50 text-emerald-600 text-[10px] font-black px-2 py-1 rounded-lg border border-emerald-100">{completedOsItems.length} OS</span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="overflow-y-auto custom-scrollbar flex-1 pr-2">
+                                                                    {completedOsItems.length === 0 ? (
+                                                                        <div className="text-center text-slate-400 py-10 italic text-sm font-semibold">Nenhuma OS concluída ainda.</div>
+                                                                    ) : (
+                                                                        <div className="space-y-2">
+                                                                            {completedOsItems.map((item: any, idx: number) => {
+                                                                                const logEntry = osLogs.find((l: any) => l.os === item.os || l.os === `OS ${idx + 1}`);
+                                                                                return (
+                                                                                    <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-emerald-50/30 border border-emerald-100/50 hover:bg-emerald-50 transition-colors">
+                                                                                        <div className="flex items-center gap-3">
+                                                                                            <div className="w-8 h-8 rounded-lg bg-white border border-emerald-100 flex items-center justify-center">
+                                                                                                <span className="text-emerald-500 font-black text-[10px]">✓</span>
+                                                                                            </div>
+                                                                                            <div>
+                                                                                                <span className="block font-black text-slate-800 text-xs">{item.os}</span>
+                                                                                                <span className="text-[10px] font-bold text-slate-400">{item.quantity} pçs • {item.bitola}mm</span>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        {logEntry && (
+                                                                                            <div className="text-right">
+                                                                                                <span className="block text-xs font-mono font-black text-emerald-600">{formatDuration(logEntry.durationSeconds * 1000)}</span>
+                                                                                                <span className="text-[9px] font-bold text-slate-400 uppercase">Tempo</span>
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                )
+                                                                            })}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+
                                             <div className={`bg-white p-6 rounded-2xl shadow-sm ${mobileTab !== 'process' ? 'hidden lg:block' : 'animate-fade-in'}`}>
                                                 <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                                                     <CogIcon className="h-6 w-6 text-slate-400" /> Lote em Processamento
