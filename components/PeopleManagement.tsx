@@ -766,6 +766,14 @@ const EmployeeDetailModal: React.FC<{
     const [techEvalAttitudes, setTechEvalAttitudes] = useState<Record<string, number>>({ a1: 0, a2: 0, a3: 0, a4: 0 });
     const [techEvalNote, setTechEvalNote] = useState('');
 
+    const shuffledTechQuestions = useMemo(() => {
+        const questions = techEvalMachineType === 'Trefila' ? TREFILA_QUESTIONS : TRELICA_QUESTIONS;
+        return questions.map(q => ({
+            ...q,
+            options: [...q.options].sort(() => Math.random() - 0.5)
+        }));
+    }, [techEvalMachineType, isEvaluatingTechnical]);
+
     // Documents State
     const [documents, setDocuments] = useState<EmployeeDocument[]>([]);
 
@@ -1153,8 +1161,8 @@ const EmployeeDetailModal: React.FC<{
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-0 md:p-4">
-            <div className="bg-white md:rounded-2xl shadow-2xl w-full md:max-w-4xl h-full md:h-[90vh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-0">
+            <div className="bg-white w-full h-full shadow-2xl flex flex-col overflow-hidden">
                 <div className="bg-slate-50 p-6 border-b border-slate-200 flex justify-between items-start no-print">
                     <div className="flex items-center space-x-4">
                         <div className="h-20 w-20 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden border-4 border-white shadow-sm relative group">
@@ -1607,7 +1615,7 @@ const EmployeeDetailModal: React.FC<{
                                                     <h3 className="text-base font-black text-[#0F3F5C] uppercase tracking-wider">Avaliação de Conhecimento (Perguntas)</h3>
                                                 </div>
                                                 
-                                                {(techEvalMachineType === 'Trefila' ? TREFILA_QUESTIONS : TRELICA_QUESTIONS).map((q, idx) => (
+                                                {shuffledTechQuestions.map((q, idx) => (
                                                     <div key={q.id} className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 space-y-4">
                                                         <div>
                                                             <span className="text-[9px] font-black uppercase text-blue-700 tracking-wider block">{q.section}</span>
