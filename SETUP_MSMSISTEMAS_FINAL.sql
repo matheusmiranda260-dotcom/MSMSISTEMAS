@@ -10,7 +10,9 @@
 -- create_stock_and_receiving_tables.sql
 -- Tabelas centrais do estoque, recebimento e apontamento de produção
 
+-- ==========================================
 -- 1. Tabela de Conferência (Recebimento)
+-- ==========================================
 CREATE TABLE IF NOT EXISTS public.conferences (
     id TEXT PRIMARY KEY,
     date TIMESTAMPTZ DEFAULT NOW(),
@@ -22,7 +24,13 @@ CREATE TABLE IF NOT EXISTS public.conferences (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.conferences ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable all access for all users" ON public.conferences;
+CREATE POLICY "Enable all access for all users" ON public.conferences FOR ALL USING (true) WITH CHECK (true);
+
+-- ==========================================
 -- 2. Tabela de Lotes no Estoque (Matéria-Prima)
+-- ==========================================
 CREATE TABLE IF NOT EXISTS public.stock_items (
     id TEXT PRIMARY KEY,
     internal_lot TEXT,
@@ -53,7 +61,13 @@ CREATE TABLE IF NOT EXISTS public.stock_items (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.stock_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable all access for all users" ON public.stock_items;
+CREATE POLICY "Enable all access for all users" ON public.stock_items FOR ALL USING (true) WITH CHECK (true);
+
+-- ==========================================
 -- 3. Tabela de Transferências de Aço (FIFO)
+-- ==========================================
 CREATE TABLE IF NOT EXISTS public.transfers (
     id TEXT PRIMARY KEY,
     date TIMESTAMPTZ DEFAULT NOW(),
@@ -63,7 +77,13 @@ CREATE TABLE IF NOT EXISTS public.transfers (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.transfers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable all access for all users" ON public.transfers;
+CREATE POLICY "Enable all access for all users" ON public.transfers FOR ALL USING (true) WITH CHECK (true);
+
+-- ==========================================
 -- 4. Tabela de Movimentação de Produtos Acabados
+-- ==========================================
 CREATE TABLE IF NOT EXISTS public.finished_goods_transfers (
     id TEXT PRIMARY KEY,
     date TIMESTAMPTZ DEFAULT NOW(),
@@ -75,7 +95,13 @@ CREATE TABLE IF NOT EXISTS public.finished_goods_transfers (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.finished_goods_transfers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable all access for all users" ON public.finished_goods_transfers;
+CREATE POLICY "Enable all access for all users" ON public.finished_goods_transfers FOR ALL USING (true) WITH CHECK (true);
+
+-- ==========================================
 -- 5. Tabela de Requisições de Peças de Reposição
+-- ==========================================
 CREATE TABLE IF NOT EXISTS public.parts_requests (
     id TEXT PRIMARY KEY,
     date TIMESTAMPTZ DEFAULT NOW(),
@@ -89,7 +115,13 @@ CREATE TABLE IF NOT EXISTS public.parts_requests (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.parts_requests ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable all access for all users" ON public.parts_requests;
+CREATE POLICY "Enable all access for all users" ON public.parts_requests FOR ALL USING (true) WITH CHECK (true);
+
+-- ==========================================
 -- 6. Tabela de Relatórios de Turno
+-- ==========================================
 CREATE TABLE IF NOT EXISTS public.shift_reports (
     id TEXT PRIMARY KEY,
     machine TEXT,
@@ -113,7 +145,13 @@ CREATE TABLE IF NOT EXISTS public.shift_reports (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.shift_reports ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable all access for all users" ON public.shift_reports;
+CREATE POLICY "Enable all access for all users" ON public.shift_reports FOR ALL USING (true) WITH CHECK (true);
+
+-- ==========================================
 -- 7. Tabela de Apontamento de Produção Realizada
+-- ==========================================
 CREATE TABLE IF NOT EXISTS public.production_records (
     id TEXT PRIMARY KEY,
     production_order_id TEXT,
@@ -128,7 +166,13 @@ CREATE TABLE IF NOT EXISTS public.production_records (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.production_records ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable all access for all users" ON public.production_records;
+CREATE POLICY "Enable all access for all users" ON public.production_records FOR ALL USING (true) WITH CHECK (true);
+
+-- ==========================================
 -- 8. Tabela de Quadro de Avisos / Notas Adesivas
+-- ==========================================
 CREATE TABLE IF NOT EXISTS public.sticky_notes (
     id TEXT PRIMARY KEY,
     content TEXT,
@@ -138,6 +182,10 @@ CREATE TABLE IF NOT EXISTS public.sticky_notes (
     completed BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.sticky_notes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable all access for all users" ON public.sticky_notes;
+CREATE POLICY "Enable all access for all users" ON public.sticky_notes FOR ALL USING (true) WITH CHECK (true);
 
 
 -- Arquivo: setup_users_table.sql
