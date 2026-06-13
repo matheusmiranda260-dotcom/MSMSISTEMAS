@@ -28,12 +28,12 @@ interface OSItem {
     drawingType: string | null;
 }
 
-const ProductionOrderDesbobinadeira: React.FC<ProductionOrderDesbobinadeiraProps> = ({ 
-    setPage, stock, productionOrders, addProductionOrder, showNotification, 
-    updateProductionOrder, deleteProductionOrder, gauges, currentUser 
+const ProductionOrderDesbobinadeira: React.FC<ProductionOrderDesbobinadeiraProps> = ({
+    setPage, stock, productionOrders, addProductionOrder, showNotification,
+    updateProductionOrder, deleteProductionOrder, gauges, currentUser
 }) => {
     const isGestor = currentUser?.role === 'admin' || currentUser?.role === 'gestor';
-    
+
     // States for Form
     const [orderNumber, setOrderNumber] = useState('');
     const [ghostTargetWeight, setGhostTargetWeight] = useState('');
@@ -145,7 +145,7 @@ const ProductionOrderDesbobinadeira: React.FC<ProductionOrderDesbobinadeiraProps
         setIsAnalyzing(true);
         setAnalysisStep('Carregando arquivo PDF...');
         setElapsedTime(0);
-        
+
         const stepTimer1 = setTimeout(() => setAnalysisStep('Lendo documento com Inteligência Artificial (Gemini)...'), 500);
         const stepTimer2 = setTimeout(() => setAnalysisStep('Analisando posições (OS) e cortes...'), 1200);
         const stepTimer3 = setTimeout(() => setAnalysisStep('Processando dados da tabela de ferros...'), 2200);
@@ -162,7 +162,7 @@ const ProductionOrderDesbobinadeira: React.FC<ProductionOrderDesbobinadeiraProps
                 clearTimeout(stepTimer3);
 
                 setAnalysisStep('Exibindo dados na lista...');
-                
+
                 const newExtractedFields: Record<string, boolean> = {};
 
                 if (result.orderNumber) {
@@ -449,9 +449,8 @@ const ProductionOrderDesbobinadeira: React.FC<ProductionOrderDesbobinadeiraProps
                                     value={orderNumber}
                                     onChange={(e) => handleInputChange('orderNumber', e.target.value, setOrderNumber)}
                                     placeholder="Ex: OP-10492"
-                                    className={`p-3 w-full border rounded-xl text-sm font-semibold transition focus:ring-2 focus:ring-[#0F3F5C]/20 outline-none ${
-                                        aiExtractedFields.orderNumber ? 'border-violet-300 bg-violet-50/20' : 'border-slate-200'
-                                    }`}
+                                    className={`p-3 w-full border rounded-xl text-sm font-semibold transition focus:ring-2 focus:ring-[#0F3F5C]/20 outline-none ${aiExtractedFields.orderNumber ? 'border-violet-300 bg-violet-50/20' : 'border-slate-200'
+                                        }`}
                                     required
                                 />
                             </div>
@@ -471,9 +470,8 @@ const ProductionOrderDesbobinadeira: React.FC<ProductionOrderDesbobinadeiraProps
                                     value={ghostTargetWeight}
                                     onChange={(e) => handleInputChange('ghostTargetWeight', e.target.value, setGhostTargetWeight)}
                                     placeholder="Ex: 1500,00"
-                                    className={`p-3 w-full border rounded-xl text-sm font-bold transition focus:ring-2 focus:ring-[#0F3F5C]/20 outline-none ${
-                                        aiExtractedFields.ghostTargetWeight ? 'border-violet-300 bg-violet-50/20' : 'border-slate-200'
-                                    }`}
+                                    className={`p-3 w-full border rounded-xl text-sm font-bold transition focus:ring-2 focus:ring-[#0F3F5C]/20 outline-none ${aiExtractedFields.ghostTargetWeight ? 'border-violet-300 bg-violet-50/20' : 'border-slate-200'
+                                        }`}
                                     required
                                 />
                             </div>
@@ -513,7 +511,7 @@ const ProductionOrderDesbobinadeira: React.FC<ProductionOrderDesbobinadeiraProps
                                 /* AI Scanning Animation */
                                 <div className="w-full max-w-md p-8 bg-violet-50/35 border-2 border-violet-200 rounded-3xl text-center space-y-6 animate-pulse relative overflow-hidden shadow-inner">
                                     <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-violet-500 to-transparent top-0 animate-bounce" style={{ animationDuration: '3s' }} />
-                                    
+
                                     <div className="relative inline-flex items-center justify-center">
                                         <div className="w-20 h-20 bg-violet-100 text-violet-700 rounded-full flex items-center justify-center animate-ping absolute opacity-25" />
                                         <div className="w-20 h-20 bg-violet-200/50 text-violet-700 rounded-full flex items-center justify-center relative shadow">
@@ -523,7 +521,7 @@ const ProductionOrderDesbobinadeira: React.FC<ProductionOrderDesbobinadeiraProps
                                             </svg>
                                         </div>
                                     </div>
-                                    
+
                                     <div>
                                         <h3 className="text-base font-black text-slate-800 uppercase tracking-wider">Lendo e Processando o PDF...</h3>
                                         <p className="text-sm font-bold text-violet-700 italic mt-2 animate-bounce">{analysisStep}</p>
@@ -729,11 +727,10 @@ const ProductionOrderDesbobinadeira: React.FC<ProductionOrderDesbobinadeiraProps
                                     onDragLeave={handleDragLeave}
                                     onDrop={handleDrop}
                                     onClick={triggerFileSelect}
-                                    className={`w-full max-w-lg p-10 border-2 border-dashed rounded-3xl text-center cursor-pointer transition-all duration-300 flex flex-col items-center justify-center space-y-4 hover:shadow-lg active:scale-[0.99] select-none ${
-                                        isDragging
+                                    className={`w-full max-w-lg p-10 border-2 border-dashed rounded-3xl text-center cursor-pointer transition-all duration-300 flex flex-col items-center justify-center space-y-4 hover:shadow-lg active:scale-[0.99] select-none ${isDragging
                                             ? 'border-violet-500 bg-violet-50/50 shadow-md shadow-violet-100'
                                             : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
-                                    }`}
+                                        }`}
                                 >
                                     <input
                                         type="file"
@@ -742,13 +739,13 @@ const ProductionOrderDesbobinadeira: React.FC<ProductionOrderDesbobinadeiraProps
                                         accept="application/pdf"
                                         className="hidden"
                                     />
-                                    
+
                                     <div className={`p-4 rounded-2xl transition-all duration-300 ${isDragging ? 'bg-violet-100 text-violet-700' : 'bg-white text-slate-400 shadow-sm border'}`}>
                                         <svg className="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                                         </svg>
                                     </div>
-                                    
+
                                     <div>
                                         <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider">
                                             Arraste e solte o PDF da Ordem
@@ -757,7 +754,7 @@ const ProductionOrderDesbobinadeira: React.FC<ProductionOrderDesbobinadeiraProps
                                             Ou clique para navegar no computador
                                         </p>
                                     </div>
-                                    
+
                                     <div className="bg-slate-200/50 px-3 py-1.5 rounded-lg text-[10px] text-slate-500 font-bold uppercase tracking-wider">
                                         Somente arquivos PDF
                                     </div>

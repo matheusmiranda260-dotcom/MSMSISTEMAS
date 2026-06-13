@@ -54,7 +54,7 @@ const AddConferencePage: React.FC<{
     const [duplicateErrors, setDuplicateErrors] = useState<Record<number, string>>({});
     const [historyOpen, setHistoryOpen] = useState(false);
     const [conferenceNumberError, setConferenceNumberError] = useState<string>('');
-    const [submitResult, setSubmitResult] = useState<{type: 'success' | 'error', message: string} | null>(null);
+    const [submitResult, setSubmitResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
     useEffect(() => {
         if (!conferenceData.conferenceNumber) {
@@ -94,7 +94,7 @@ const AddConferencePage: React.FC<{
 
         if (field === 'materialType') {
             const all = gauges.filter(g => g.materialType === value).map(g => g.gauge);
-            
+
             if (!all.includes(newLots[index].bitola || '')) {
                 newLots[index].bitola = all[0] || '';
             }
@@ -121,7 +121,7 @@ const AddConferencePage: React.FC<{
 
     const handleFinalSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (isSubmitting) return;
 
         if (Object.keys(duplicateErrors).length > 0) {
@@ -143,10 +143,10 @@ const AddConferencePage: React.FC<{
         setIsSubmitting(true);
         try {
             const final = { ...conferenceData, lots: validLots } as ConferenceData;
-            await onSubmit(final); 
+            await onSubmit(final);
             setSubmitResult({ type: 'success', message: 'Conferência registrada no sistema com sucesso!' });
-        } catch (error: any) { 
-            setIsSubmitting(false); 
+        } catch (error: any) {
+            setIsSubmitting(false);
             setSubmitResult({ type: 'error', message: error.message || 'Erro ao registrar conferência.' });
         }
     };
@@ -168,7 +168,7 @@ const AddConferencePage: React.FC<{
                             {submitResult.message}
                         </p>
                         {submitResult.type === 'success' ? (
-                            <button 
+                            <button
                                 type="button"
                                 onClick={() => {
                                     setSubmitResult(null);
@@ -182,7 +182,7 @@ const AddConferencePage: React.FC<{
                                 OK
                             </button>
                         ) : (
-                            <button 
+                            <button
                                 type="button"
                                 onClick={() => setSubmitResult(null)}
                                 className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl transition-colors mb-2"
@@ -193,17 +193,17 @@ const AddConferencePage: React.FC<{
                     </div>
                 </div>
             )}
-            {historyOpen && <FinishedConferencesModal 
-                conferences={conferences} 
-                stock={stock} 
-                onClose={() => setHistoryOpen(false)} 
+            {historyOpen && <FinishedConferencesModal
+                conferences={conferences}
+                stock={stock}
+                onClose={() => setHistoryOpen(false)}
                 onShowReport={(conf) => {
                     onShowReport(conf);
                     setHistoryOpen(false);
                     onClose();
-                }} 
-                onEditConference={onEditConference} 
-                onDeleteConference={onDeleteConference} 
+                }}
+                onEditConference={onEditConference}
+                onDeleteConference={onDeleteConference}
                 gauges={gauges}
             />}
             <div className="max-w-7xl mx-auto space-y-6">
@@ -217,7 +217,7 @@ const AddConferencePage: React.FC<{
                         <div className="text-center"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Fornecedor</label><input type="text" value={conferenceData.supplier} onChange={e => setConferenceData({ ...conferenceData, supplier: e.target.value })} className="w-full p-2 border rounded text-center" required /></div>
                         <div className="text-center"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">NFe</label><input type="text" value={conferenceData.nfe} onChange={e => setConferenceData({ ...conferenceData, nfe: e.target.value })} className="w-full p-2 border rounded text-center" required /></div>
                         <div className="text-center relative"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nº Conf.</label><input type="text" value={conferenceData.conferenceNumber} onChange={e => setConferenceData({ ...conferenceData, conferenceNumber: e.target.value })} className={`w-full p-2 border rounded text-center ${conferenceNumberError ? 'border-red-500 bg-red-50' : ''}`} required />
-                        {conferenceNumberError && <p className="text-red-500 text-[10px] font-bold absolute -bottom-5 w-full left-0">{conferenceNumberError}</p>}
+                            {conferenceNumberError && <p className="text-red-500 text-[10px] font-bold absolute -bottom-5 w-full left-0">{conferenceNumberError}</p>}
                         </div>
                     </div>
                     <div className="p-4 flex justify-end">
@@ -247,7 +247,7 @@ const AddConferencePage: React.FC<{
                                             <select value={lot.bitola} onChange={e => handleLotChange(index, 'bitola', e.target.value)} className="w-full p-2 border rounded text-center">
                                                 {(() => {
                                                     const customGauges = gauges.filter(g => g.materialType === lot.materialType);
-                                                    
+
                                                     const allOptions = customGauges.map(g => ({ gauge: g.gauge, code: g.productCode }));
 
                                                     const map = new Map();
@@ -319,12 +319,12 @@ const StockControl: React.FC<{
     const [isStatusOpen, setIsStatusOpen] = useState(false);
     const [isMobileStatusOpen, setIsMobileStatusOpen] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
-    
+
     const dynamicMaterialOptions = useMemo(() => {
         const list = Array.from(new Set(gauges.map(g => g.materialType))).filter(Boolean) as string[];
         return list.sort();
     }, [gauges]);
-    
+
     const statusDesktopRef = useRef<HTMLDivElement>(null);
     const statusMobileRef = useRef<HTMLDivElement>(null);
 
@@ -353,11 +353,11 @@ const StockControl: React.FC<{
         } else {
             options = gauges.map(g => g.gauge);
         }
-        
+
         const stockBitolas = stock
             .filter(i => i.status !== 'Consumido' && (materialFilter === '' || i.materialType === materialFilter))
             .map(i => i.bitola);
-            
+
         return [...new Set([...options, ...stockBitolas])]
             .filter(Boolean)
             .sort((a, b) => parseFloat(a.replace(',', '.')) - parseFloat(b.replace(',', '.')));
@@ -377,7 +377,7 @@ const StockControl: React.FC<{
 
         const passesMaterial = materialFilter === '' || i.materialType === materialFilter;
         const passesBitola = bitolaFilter === '' || i.bitola === bitolaFilter;
-        
+
         if (statusFilter.length > 0) {
             return passesSearch && passesMaterial && passesBitola && statusFilter.includes(i.status);
         } else {
@@ -386,7 +386,7 @@ const StockControl: React.FC<{
     }).sort((a, b) => {
         const lotA = parseInt(a.internalLot.replace(/\D/g, '')) || 0;
         const lotB = parseInt(b.internalLot.replace(/\D/g, '')) || 0;
-        
+
         if (isPrinting) {
             // Ordem Crescente para impressão
             if (lotA !== lotB) return lotA - lotB;
@@ -527,7 +527,7 @@ const StockControl: React.FC<{
                         </div>
                         <div className="bg-white p-2 rounded-xl shadow border flex items-center gap-2 px-4 shrink-0 relative" ref={statusDesktopRef}>
                             <label className="text-[10px] font-bold text-slate-500 uppercase">Status</label>
-                            <button 
+                            <button
                                 onClick={() => setIsStatusOpen(!isStatusOpen)}
                                 className="bg-transparent outline-none font-bold text-sm min-w-[80px] text-left flex justify-between items-center"
                             >
@@ -547,13 +547,13 @@ const StockControl: React.FC<{
                                         { val: 'Consumido', label: 'Consumido' }
                                     ].map(s => (
                                         <label key={s.val} className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer hover:text-slate-900 transition-colors py-1">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={statusFilter.includes(s.val)} 
+                                            <input
+                                                type="checkbox"
+                                                checked={statusFilter.includes(s.val)}
                                                 onChange={e => {
                                                     if (e.target.checked) setStatusFilter([...statusFilter, s.val]);
                                                     else setStatusFilter(statusFilter.filter(x => x !== s.val));
-                                                }} 
+                                                }}
                                                 className="form-checkbox h-4 w-4 text-[#0F3F5C] rounded border-slate-300 focus:ring-[#0F3F5C]"
                                             />
                                             {s.label}
@@ -602,7 +602,7 @@ const StockControl: React.FC<{
                 </div>
                 <div className="bg-white p-2 rounded-lg shadow border flex items-center gap-2 px-4 shadow-sm relative" ref={statusMobileRef}>
                     <label className="text-[10px] font-bold text-slate-500">ST:</label>
-                    <button 
+                    <button
                         onClick={() => setIsMobileStatusOpen(!isMobileStatusOpen)}
                         className="bg-transparent outline-none font-bold text-xs text-left"
                     >
@@ -621,13 +621,13 @@ const StockControl: React.FC<{
                                 { val: 'Consumido', label: 'Consumido' }
                             ].map(s => (
                                 <label key={s.val} className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer hover:text-slate-900 transition-colors py-1">
-                                    <input 
-                                        type="checkbox" 
-                                        checked={statusFilter.includes(s.val)} 
+                                    <input
+                                        type="checkbox"
+                                        checked={statusFilter.includes(s.val)}
                                         onChange={e => {
                                             if (e.target.checked) setStatusFilter([...statusFilter, s.val]);
                                             else setStatusFilter(statusFilter.filter(x => x !== s.val));
-                                        }} 
+                                        }}
                                         className="form-checkbox h-4 w-4 text-[#0F3F5C] rounded border-slate-300 focus:ring-[#0F3F5C]"
                                     />
                                     {s.label}
@@ -724,7 +724,7 @@ const EditStockItemModal: React.FC<{ item: StockItem; onClose: () => void; onSav
 
     const materialGauges = useMemo(() => {
         const customOptions = gauges.filter(g => g.materialType === formData.materialType).map(g => g.gauge);
-        
+
         return [...new Set(customOptions)]
             .filter(Boolean)
             .sort((a, b) => {
@@ -778,7 +778,7 @@ const EditStockItemModal: React.FC<{ item: StockItem; onClose: () => void; onSav
                                 onChange={e => {
                                     const val = e.target.value as any;
                                     const all = gauges.filter(g => g.materialType === val).map(g => g.gauge);
-                                    
+
                                     setFormData(p => ({
                                         ...p,
                                         materialType: val,
@@ -795,7 +795,7 @@ const EditStockItemModal: React.FC<{ item: StockItem; onClose: () => void; onSav
                             <select value={formData.bitola} onChange={e => setFormData({ ...formData, bitola: e.target.value })} className="w-full px-3 py-2 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                                 {(() => {
                                     const customGauges = gauges.filter(g => g.materialType === formData.materialType);
-                                    
+
                                     const allOptions = customGauges.map(g => ({ gauge: g.gauge, code: g.productCode }));
 
                                     const map = new Map();
@@ -864,9 +864,9 @@ const ConsumeLotModal: React.FC<{ item: StockItem; onClose: () => void; onSave: 
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         const newWeight = Math.max(0, item.remainingQuantity - formData.weight);
-        
+
         const updated: StockItem = {
             ...item,
             remainingQuantity: newWeight,
@@ -904,22 +904,22 @@ const ConsumeLotModal: React.FC<{ item: StockItem; onClose: () => void; onSave: 
 
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-slate-500 uppercase">Quantidade para Baixar (kg)</label>
-                        <input 
-                            type="number" 
+                        <input
+                            type="number"
                             step="0.01"
-                            value={formData.weight} 
-                            onChange={e => setFormData({ ...formData, weight: parseFloat(e.target.value) || 0 })} 
+                            value={formData.weight}
+                            onChange={e => setFormData({ ...formData, weight: parseFloat(e.target.value) || 0 })}
                             max={item.remainingQuantity}
-                            className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-lg" 
-                            required 
+                            className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-lg"
+                            required
                         />
                     </div>
 
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-slate-500 uppercase">Motivo / Destino</label>
-                        <select 
-                            value={formData.reason} 
-                            onChange={e => setFormData({ ...formData, reason: e.target.value })} 
+                        <select
+                            value={formData.reason}
+                            onChange={e => setFormData({ ...formData, reason: e.target.value })}
                             className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold"
                         >
                             <option value="Uso na Produção">Uso na Produção</option>
@@ -933,9 +933,9 @@ const ConsumeLotModal: React.FC<{ item: StockItem; onClose: () => void; onSave: 
 
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-slate-500 uppercase">Observações Extras</label>
-                        <textarea 
-                            value={formData.observation} 
-                            onChange={e => setFormData({ ...formData, observation: e.target.value })} 
+                        <textarea
+                            value={formData.observation}
+                            onChange={e => setFormData({ ...formData, observation: e.target.value })}
                             placeholder="Ex: Utilizado para fazer treliça H12..."
                             className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none min-h-[100px]"
                         />
