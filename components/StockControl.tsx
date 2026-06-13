@@ -227,7 +227,7 @@ const AddConferencePage: React.FC<{
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead className="bg-slate-50 border-y">
-                                <tr>{['Lote Interno', 'Tipo de Aço', 'Corrida', 'Material', 'Bitola', 'Peso Etiqueta', ''].map(h => <th key={h} className="p-3 text-center font-bold text-slate-600 uppercase text-[10px]">{h}</th>)}</tr>
+                                <tr>{['Lote Interno', 'Tipo de Aço', 'Corrida', 'Material', 'Descrição', 'Peso Etiqueta', ''].map(h => <th key={h} className="p-3 text-center font-bold text-slate-600 uppercase text-[10px]">{h}</th>)}</tr>
                             </thead>
                             <tbody>
                                 {lots.map((lot, index) => (
@@ -463,7 +463,7 @@ const StockControl: React.FC<{
                             <p className="text-base font-black text-slate-800">{materialFilter || 'Todos'}</p>
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Filtro Bitola</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Filtro Descrição</p>
                             <p className="text-base font-black text-slate-800">{bitolaFilter || 'Todas'}</p>
                         </div>
                         {bitolaFilter && gauges.find(g => g.gauge === bitolaFilter && (materialFilter === '' || g.materialType === materialFilter))?.productCode && (
@@ -517,7 +517,7 @@ const StockControl: React.FC<{
                             </select>
                         </div>
                         <div className="bg-white p-2 rounded-xl shadow border flex items-center gap-2 px-4 shrink-0">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">Bitola</label>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Descrição</label>
                             <select value={bitolaFilter} onChange={e => setBitolaFilter(e.target.value)} className="bg-transparent outline-none font-bold text-sm min-w-[80px]">
                                 <option value="">Todas</option>
                                 {availableBitolas.map(b => (
@@ -650,7 +650,7 @@ const StockControl: React.FC<{
                                 <th className="p-3 text-center">Lote Interno</th>
                                 <th className="p-3 text-center">Tipo Aço</th>
                                 <th className="p-3 text-center">Mat.</th>
-                                <th className="p-3 text-center">Bitola</th>
+                                <th className="p-3 text-center">Descrição</th>
                                 <th className="p-3 text-center">Peso (kg)</th>
                                 <th className="p-3 text-center">Status</th>
                                 <th className="p-3 text-center no-print">Ações</th>
@@ -791,7 +791,7 @@ const EditStockItemModal: React.FC<{ item: StockItem; onClose: () => void; onSav
                             </select>
                         </div>
                         <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-500 uppercase">Bitola</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase">Descrição</label>
                             <select value={formData.bitola} onChange={e => setFormData({ ...formData, bitola: e.target.value })} className="w-full px-3 py-2 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                                 {(() => {
                                     const customGauges = gauges.filter(g => g.materialType === formData.materialType);

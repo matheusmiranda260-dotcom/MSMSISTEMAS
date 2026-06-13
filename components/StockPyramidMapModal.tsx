@@ -128,7 +128,7 @@ const StockPyramidMapModal: React.FC<StockPyramidMapModalProps> = ({ stock, onCl
                             </div>
 
                             <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Bitola</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Descrição</label>
                                 <select
                                     value={selectedBitola}
                                     onChange={e => setSelectedBitola(e.target.value as Bitola)}

@@ -95,7 +95,7 @@ const TransferReport: React.FC<TransferReportProps> = ({ reportData, onClose }) 
                     <tr>
                       <th scope="col" className="px-6 py-4">Lote Interno</th>
                       <th scope="col" className="px-6 py-4 text-center">Tipo de Material</th>
-                      <th scope="col" className="px-6 py-4 text-center">Bitola</th>
+                      <th scope="col" className="px-6 py-4 text-center">Descrição</th>
                       <th scope="col" className="px-6 py-4 text-right">Quantidade Transferida (kg)</th>
                     </tr>
                   </thead>

@@ -346,14 +346,14 @@ const StockTransfer: React.FC<StockTransferProps> = ({ stock, transfers, setPage
                                         </div>
                                         <div className="grid grid-cols-2 gap-3">
                                             <div>
-                                                <label className="block text-xs font-semibold text-slate-600 mb-1">Bitola</label>
+                                                <label className="block text-xs font-semibold text-slate-600 mb-1">Descrição</label>
                                                 <select
                                                     value={req.bitola}
                                                     onChange={e => updateRequest(index, 'bitola', e.target.value)}
                                                     className="w-full p-2 border border-slate-300 rounded-md focus:ring-1 focus:ring-[#0F3F5C] outline-none bg-white text-sm"
                                                     disabled={!req.materialType}
                                                 >
-                                                    <option value="">Bitola...</option>
+                                                    <option value="">Descrição...</option>
                                                     {(() => {
                                                         const materialGaugesFromDB = gauges.filter(g => g.materialType === req.materialType).map(g => g.gauge);
                                                         const combinedOptions = [...new Set(materialGaugesFromDB)].sort((a, b) => parseFloat(a.replace(',', '.')) - parseFloat(b.replace(',', '.')));

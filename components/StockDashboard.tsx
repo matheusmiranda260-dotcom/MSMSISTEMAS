@@ -109,7 +109,7 @@ const StockDashboard: React.FC<StockDashboardProps> = ({ stock }) => {
                 <div className="card p-6">
                     <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
                         <span className="w-2 h-6 bg-[#FF8C00] rounded-sm shadow-[0_0_10px_#FF8C00]"></span>
-                        Peso por Bitola
+                        Peso por Descrição
                     </h3>
                     <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">

@@ -586,7 +586,7 @@ const App: React.FC = () => {
             localStorage.setItem('msm_local_gauges', JSON.stringify(updated));
             return updated;
         });
-        showNotification('Bitola cadastrada com sucesso!', 'success');
+        showNotification('Descrição cadastrada com sucesso!', 'success');
 
         try {
             const saved = await insertItem<StockGauge>('stock_gauges', data as StockGauge);
@@ -620,7 +620,7 @@ const App: React.FC = () => {
             localStorage.setItem('msm_local_gauges', JSON.stringify(updated));
             return updated;
         });
-        showNotification('Bitola removida com sucesso!', 'success');
+        showNotification('Descrição removida com sucesso!', 'success');
 
         try {
             await deleteItem('stock_gauges', id);
@@ -635,7 +635,7 @@ const App: React.FC = () => {
             localStorage.setItem('msm_local_gauges', JSON.stringify(updated));
             return updated;
         });
-        showNotification('Bitola atualizada com sucesso!', 'success');
+        showNotification('Descrição atualizada com sucesso!', 'success');
 
         try {
             await updateItem<StockGauge>('stock_gauges', id, data);
@@ -1961,8 +1961,8 @@ const App: React.FC = () => {
                                     date: now,
                                     details: {
                                         'Ordem': orderToComplete.orderNumber,
-                                        'Bitola Original': item.bitola,
-                                        'Bitola Final': orderToComplete.targetBitola,
+                                        'Descrição Original': item.bitola,
+                                        'Descrição Final': orderToComplete.targetBitola,
                                         'Peso Final (kg)': finalWeight.toFixed(2)
                                     }
                                 }]
