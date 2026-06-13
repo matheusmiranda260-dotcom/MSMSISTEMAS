@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS production_orders (
     -- Campos principais
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_number TEXT NOT NULL UNIQUE,
-    machine TEXT NOT NULL CHECK (machine IN ('Trefila', 'Treliça')),
+    machine TEXT NOT NULL CHECK (machine IN ('Corte-01', 'Corte-02', 'Geral', 'Empilhadeira', 'Desbobinadeira 1')),
     target_bitola TEXT NOT NULL,
     
     -- Campos específicos para Treliça
@@ -103,10 +103,10 @@ CREATE POLICY "Allow delete access to production_orders"
     USING (true);
 
 -- 7. Comentários na tabela (documentação)
-COMMENT ON TABLE production_orders IS 'Tabela de ordens de produção para Trefila e Treliça';
+COMMENT ON TABLE production_orders IS 'Tabela de ordens de produção para Desbobinadeira e Corte';
 COMMENT ON COLUMN production_orders.id IS 'ID único da ordem (UUID)';
 COMMENT ON COLUMN production_orders.order_number IS 'Número da ordem de produção (único)';
-COMMENT ON COLUMN production_orders.machine IS 'Tipo de máquina: Trefila ou Treliça';
+COMMENT ON COLUMN production_orders.machine IS 'Tipo de máquina: Corte-01, Corte-02, Geral, Empilhadeira, Desbobinadeira 1';
 COMMENT ON COLUMN production_orders.target_bitola IS 'Bitola alvo a ser produzida';
 COMMENT ON COLUMN production_orders.selected_lot_ids IS 'IDs dos lotes selecionados (array ou objeto JSON)';
 COMMENT ON COLUMN production_orders.status IS 'Status da ordem: pending, in_progress, completed';

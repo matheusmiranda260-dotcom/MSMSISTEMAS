@@ -8,7 +8,7 @@ ALTER TABLE public.production_orders DROP CONSTRAINT IF EXISTS production_orders
 
 ALTER TABLE public.production_orders
     ADD CONSTRAINT production_orders_machine_check 
-    CHECK (machine IN ('Trefila', 'Treliça', 'Trefila 1', 'Trefila 2', 'Treliça 1', 'Treliça 2', 'Desbobinadeira 1'));
+    CHECK (machine IN ('Corte-01', 'Corte-02', 'Geral', 'Empilhadeira', 'Desbobinadeira 1'));
 
 -- 2. Tornar quantity_to_produce opcional (Desbobinadeira não usa)
 ALTER TABLE public.production_orders
