@@ -17,6 +17,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
     const [selectedGroup, setSelectedGroup] = useState<string>('Fio Máquina');
     const [customGroupName, setCustomGroupName] = useState('');
     const [isCreatingNewGroup, setIsCreatingNewGroup] = useState(false);
+    const [metricUnit, setMetricUnit] = useState('mm');
     
     // Editing states
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -38,8 +39,16 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
     }, [dynamicGroups, selectedGroup, isCreatingNewGroup]);
 
     const normalizeGauge = (val: string) => {
-        if (!val) return 0;
-        return parseFloat(val.replace(',', '.')) || 0;
+        if (!val) return '';
+        const str = val.trim();
+        const match = str.match(/^([\d.,]+)(.*)$/);
+        if (match) {
+            const num = parseFloat(match[1].replace(',', '.'));
+            if (!isNaN(num)) {
+                return num.toFixed(2) + match[2].toLowerCase();
+            }
+        }
+        return str.toLowerCase();
     };
 
     // Calculate dynamic stock summary per group and per gauge
@@ -49,7 +58,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
         (stock || []).forEach(item => {
             if (item.status === 'Consumido') return;
             const groupKey = (item.materialType || '').trim().toLowerCase();
-            const gaugeKey = normalizeGauge(item.bitola).toFixed(2);
+            const gaugeKey = normalizeGauge(item.bitola);
             const compositeKey = `${groupKey}::${gaugeKey}`;
             
             if (!map[compositeKey]) {
@@ -88,7 +97,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
 
     const getStockInfo = (materialType: string, gaugeStr: string) => {
         const groupKey = (materialType || '').trim().toLowerCase();
-        const gaugeKey = normalizeGauge(gaugeStr).toFixed(2);
+        const gaugeKey = normalizeGauge(gaugeStr);
         const compositeKey = `${groupKey}::${gaugeKey}`;
         return gaugeStockItems[compositeKey] || { count: 0, totalWeight: 0, items: [] };
     };
@@ -102,26 +111,21 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
             return;
         }
 
-        // Normalize gauge string (comma to dot)
-        const normalized = newGauge.replace(',', '.');
-        const numberVal = parseFloat(normalized);
-        if (isNaN(numberVal)) {
-            alert('Por favor, insira um número válido para a bitola.');
-            return;
+        let finalGauge = normalizeGauge(newGauge);
+        if (metricUnit !== 'nenhum' && !finalGauge.toLowerCase().includes(metricUnit.toLowerCase())) {
+            finalGauge = `${finalGauge} ${metricUnit}`;
         }
 
-        const formatted = numberVal.toFixed(2);
-
         // Check if already exists
-        const exists = gauges.some(g => g.materialType.toLowerCase() === groupToUse.toLowerCase() && g.gauge === formatted);
+        const exists = gauges.some(g => g.materialType.toLowerCase() === groupToUse.toLowerCase() && g.gauge.toLowerCase() === finalGauge.toLowerCase());
         if (exists) {
-            alert('Esta bitola já está cadastrada para este grupo.');
+            alert('Esta bitola/medida já está cadastrada para este material.');
             return;
         }
 
         onAdd({
             materialType: groupToUse,
-            gauge: formatted,
+            gauge: finalGauge,
             productCode: newProductCode.trim() || undefined
         });
 
@@ -266,7 +270,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                 <header className="flex items-center justify-between pt-4">
                     <div>
                         <h1 className="text-3xl font-bold text-slate-800">Gerenciar Bitolas</h1>
-                        <p className="text-slate-500 text-sm">Adicione, edite ou remova grupos e subgrupos (bitolas) do sistema.</p>
+                        <p className="text-slate-500 text-sm">Adicione, edite ou remova materiais e bitolas do sistema.</p>
                     </div>
                 </header>
 
@@ -274,11 +278,11 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                     <div className="p-6 bg-slate-50 border-b border-slate-200">
                         <h2 className="text-lg font-bold text-[#0F3F5C] mb-4 flex items-center gap-2">
                             <PlusIcon className="h-5 w-5 text-blue-600" />
-                            Cadastrar Grupo & Bitola
+                            Cadastrar Material & Bitola
                         </h2>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Grupo</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">MATERIAL</label>
                                 <select
                                     value={isCreatingNewGroup ? '__NEW_GROUP__' : selectedGroup}
                                     onChange={e => {
@@ -293,7 +297,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                     className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm bg-white font-medium text-slate-700"
                                 >
                                     {dynamicGroups.map(m => <option key={m} value={m}>{m}</option>)}
-                                    <option value="__NEW_GROUP__" className="text-blue-600 font-bold">+ Cadastrar Novo Grupo...</option>
+                                    <option value="__NEW_GROUP__" className="text-blue-600 font-bold">+ Cadastrar Novo Material...</option>
                                 </select>
                                 
                                 {isCreatingNewGroup && (
@@ -301,7 +305,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                         type="text"
                                         value={customGroupName}
                                         onChange={e => setCustomGroupName(e.target.value)}
-                                        placeholder="Nome do grupo (Ex: CA-50)"
+                                        placeholder="Nome do material (Ex: CA-50)"
                                         className="w-full p-3 mt-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm text-sm"
                                         autoFocus
                                     />
@@ -309,15 +313,28 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                             </div>
                             
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Subgrupo / Bitola (mm)</label>
-                                <input
-                                    type="text"
-                                    value={newGauge}
-                                    onChange={e => setNewGauge(e.target.value)}
-                                    placeholder="Ex: 6.50 ou 8.00"
-                                    className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold"
-                                    onKeyPress={e => e.key === 'Enter' && handleAdd()}
-                                />
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">MÉTRICA E MEDIDA</label>
+                                <div className="flex gap-2">
+                                    <select
+                                        value={metricUnit}
+                                        onChange={e => setMetricUnit(e.target.value)}
+                                        className="w-1/3 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm bg-white font-medium text-slate-700"
+                                    >
+                                        <option value="mm">mm</option>
+                                        <option value="kg">kg</option>
+                                        <option value="m">m</option>
+                                        <option value="barras">barras</option>
+                                        <option value="nenhum">-</option>
+                                    </select>
+                                    <input
+                                        type="text"
+                                        value={newGauge}
+                                        onChange={e => setNewGauge(e.target.value)}
+                                        placeholder="Ex: 8.00 ou Barra / 1"
+                                        className="w-2/3 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold"
+                                        onKeyPress={e => e.key === 'Enter' && handleAdd()}
+                                    />
+                                </div>
                             </div>
                             
                             <div>
@@ -335,23 +352,25 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                             <div className="flex items-end h-full">
                                 <button
                                     onClick={handleAdd}
-                                    className="w-full bg-[#0F3F5C] hover:bg-[#0A2A3D] text-white font-bold py-3 px-6 rounded-xl shadow-md transition flex items-center justify-center gap-2"
+                                    className="w-full bg-[#0F3F5C] hover:bg-[#0A2A3D] text-white font-bold py-3 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-2"
                                 >
-                                    <PlusIcon className="h-5 w-5" /> Salvar Cadastro
+                                    <PlusIcon className="h-5 w-5" /> Salvar Material
                                 </button>
                             </div>
                         </div>
                     </div>
 
                     <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center gap-4">
-                        <SearchIcon className="h-5 w-5 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="Buscar por grupo, subgrupo (bitola) ou código de produto..."
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                            className="flex-grow outline-none text-sm text-slate-600 font-medium"
-                        />
+                        <div className="relative w-full">
+                            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Buscar por material, bitola ou código de produto..."
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                className="w-full pl-12 pr-4 py-3 outline-none text-sm text-slate-600 font-medium"
+                            />
+                        </div>
                     </div>
 
                     <div className="p-6 space-y-8">
@@ -380,14 +399,14 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                         <div className="flex items-center gap-2">
                                             <button
                                                 onClick={() => handleRenameGroup(group)}
-                                                title="Renomear Grupo"
+                                                title="Renomear Material"
                                                 className="p-1.5 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-700 transition"
                                             >
                                                 <PencilIcon className="h-4 w-4" />
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteGroup(group)}
-                                                title="Excluir Grupo"
+                                                title="Excluir Material"
                                                 className="p-1.5 hover:bg-red-50 rounded text-slate-400 hover:text-red-600 transition"
                                             >
                                                 <TrashIcon className="h-4 w-4" />
@@ -490,7 +509,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                         })}
                                         {list.length === 0 && (
                                             <div className="col-span-full py-6 text-center text-slate-400 text-xs italic bg-white rounded-xl border border-dashed border-slate-200">
-                                                Nenhuma bitola cadastrada para este grupo.
+                                                Nenhuma bitola cadastrada para este material.
                                             </div>
                                         )}
                                     </div>
@@ -500,16 +519,14 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                     </div>
                 </div>
 
-                <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex gap-3">
-                    <div className="text-amber-500 mt-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                        </svg>
-                    </div>
-                    <div className="text-sm text-amber-800">
-                        <p className="font-bold mb-1">Dica de Gestão</p>
-                        <p>Os grupos (Ex: Fio Máquina, CA-60, CA-50) e subgrupos (Bitolas) cadastrados aqui serão exibidos automaticamente em todos os seletores do sistema como opções de matéria-prima disponíveis.</p>
-                    </div>
+                <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 shadow-sm">
+                    <h3 className="text-amber-800 font-bold text-sm mb-2 flex items-center gap-2">
+                        <div className="w-5 h-5 bg-amber-200 rounded-full flex items-center justify-center text-xs">i</div>
+                        Dica de Gestão
+                    </h3>
+                    <p className="text-amber-700 text-xs leading-relaxed">
+                        Os materiais e bitolas cadastrados aqui serão exibidos automaticamente em todos os seletores do sistema como opções de matéria-prima disponíveis.
+                    </p>
                 </div>
             </div>
         </div>
