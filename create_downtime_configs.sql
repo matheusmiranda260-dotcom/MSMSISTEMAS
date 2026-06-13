@@ -19,15 +19,3 @@ CREATE POLICY "Enable read access for all users" ON public.downtime_configs
 CREATE POLICY "Enable all access for authenticated users" ON public.downtime_configs
     FOR ALL USING (true);
 
--- Insert some default values (optional but helpful)
-INSERT INTO public.downtime_configs (reason, threshold_minutes, machine_type)
-VALUES 
-    ('Enrosco de fio', 15, 'Geral'),
-    ('Quebra de fio', 20, 'Geral'),
-    ('Manutenção Mecânica', 60, 'Geral'),
-    ('Manutenção Elétrica', 60, 'Geral'),
-    ('Troca de Rolo / Preparação', 15, 'Trefila'),
-    ('Ajuste de Bitola', 180, 'Trefila'),
-    ('Limpeza de Eletrodos', 15, 'Treliça'),
-    ('Troca de Modelo', 120, 'Treliça')
-ON CONFLICT (id) DO NOTHING;

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { StockItem, ProductionOrderData, Bitola, User } from '../types';
-import { TrefilaBitolaOptions } from '../types';
+import { CA60BitolaOptions } from '../types';
 import { WarningIcon, PencilIcon, TrashIcon, DocumentReportIcon } from './icons';
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
@@ -46,7 +46,7 @@ const EditProductionOrderModal: React.FC<{
                         <label className="block text-sm font-medium text-slate-700">Bitola a Produzir</label>
                         <select value={targetBitola} onChange={e => setTargetBitola(e.target.value as Bitola)}
                             className="mt-1 p-2 w-full border border-slate-300 rounded-md bg-white">
-                            {TrefilaBitolaOptions.map(b => <option key={b} value={b}>{b}</option>)}
+                            {CA60BitolaOptions.map(b => <option key={b} value={b}>{b}</option>)}
                         </select>
                     </div>
                 </div>

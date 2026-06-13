@@ -6,8 +6,6 @@ import PartsRequestModal from './PartsRequestModal';
 import ShiftReportsModal from './ShiftReportsModal';
 import ProductionOrderReport from './ProductionOrderReport';
 import { insertItem, deleteItem, updateItem, fetchTable, fetchByColumn } from '../services/supabaseService';
-import { trelicaModels } from './ProductionOrderTrelica';
-import TrefilaCalculation from './TrefilaCalculation';
 
 
 const IdleActivityLogger: React.FC<{

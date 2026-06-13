@@ -157,80 +157,9 @@ const MainMenu: React.FC<MainMenuProps> = ({ setPage, onLogout, currentUser }) =
                                     icon={<AdjustmentsIcon />}
                                     color="indigo"
                                 />
-                            )}
-
-
-                            {hasPermission('finishedGoods') && (
-                                <MenuButton
-                                    onClick={() => setPage('finishedGoods')}
-                                    label="Estoque Acabado (Treliça)"
-                                    description="Visualização de produtos prontos para expedição."
-                                    icon={<ArchiveIcon />}
-                                    color="teal"
-                                />
-                            )}
-                        </div>
+                            )}                        </div>
                     </section>
                 )}
-
-                {/* ORDEM DE PRODUÇÃO */}
-                {(hasPermission('productionOrderTrelica') || hasPermission('productionOrder')) && (
-                    <section>
-                        <div className="section-title">
-                            <h2>Ordem de Produção</h2>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                            {hasPermission('productionOrderTrelica') && (
-                                <MenuButton
-                                    onClick={() => setPage('productionOrderTrelica')}
-                                    label="Ordem (Treliça)"
-                                    description="Criação e acompanhamento de ordens para treliça."
-                                    icon={<ClipboardListIcon />}
-                                    color="blue"
-                                />
-                            )}
-                            {hasPermission('productionOrder') && (
-                                <MenuButton
-                                    onClick={() => setPage('productionOrder')}
-                                    label="Ordem (Trefila)"
-                                    description="Criação e acompanhamento de ordens para trefila."
-                                    icon={<ClipboardListIcon />}
-                                    color="teal"
-                                />
-                            )}
-                        </div>
-                    </section>
-                )}
-
-                {/* GESTÃO DE FÁBRICA */}
-                {(hasPermission('meetingsTasks') || hasPermission('productionDashboard')) && (
-                    <section>
-                        <div className="section-title">
-                            <h2>Gestão de Fábrica</h2>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                            {hasPermission('productionDashboard') && (
-                                <MenuButton
-                                    onClick={() => setPage('productionDashboard')}
-                                    label="Painel de Controle"
-                                    description="Visão geral da produção e KPIs em tempo real."
-                                    icon={<ChartBarIcon />}
-                                    color="indigo"
-                                />
-                            )}
-                            {hasPermission('meetingsTasks') && (
-                                <MenuButton
-                                    onClick={() => setPage('meetingsTasks')}
-                                    label="Reuniões e Tarefas"
-                                    description="Gestão de pautas, atas de reuniões e planos de ação."
-                                    icon={<ClipboardListIcon />}
-                                    color="purple"
-                                />
-                            )}
-                        </div>
-                    </section>
-                )}
-
                 {/* RH */}
                 {(hasPermission('continuousImprovement') || hasPermission('peopleManagement')) && (
                     <section>
@@ -261,58 +190,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ setPage, onLogout, currentUser }) =
                     </section>
                 )}
 
-                {/* EM PRODUÇÃO */}
-                {(hasPermission('trefila') || hasPermission('trefilaInProgress') || hasPermission('trefilaPending') || hasPermission('trefilaCompleted') || hasPermission('trefilaReports') || hasPermission('trefilaRings') ||
-                    hasPermission('trelica') || hasPermission('trelicaInProgress') || hasPermission('trelicaPending') || hasPermission('trelicaCompleted') || hasPermission('trelicaReports') ||
-                    hasPermission('productionDashboard')) && (
-                        <section>
-                            <div className="section-title">
-                                <h2>Em Produção</h2>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                                {(hasPermission('trefila') || hasPermission('trefilaInProgress') || hasPermission('trefilaPending') || hasPermission('trefilaCompleted') || hasPermission('trefilaReports') || hasPermission('trefilaRings')) && (
-                                    <MenuButton
-                                        onClick={() => {
-                                            if (hasPermission('trefila')) setPage('trefila');
-                                            else if (hasPermission('trefilaInProgress')) setPage('trefilaInProgress');
-                                            else if (hasPermission('trefilaPending')) setPage('trefilaPending');
-                                            else if (hasPermission('trefilaCompleted')) setPage('trefilaCompleted');
-                                            else if (hasPermission('trefilaRings')) setPage('trefilaRings');
-                                            else setPage('trefilaReports');
-                                        }}
-                                        label="Produção (Trefila)"
-                                        description="Painel de operação da máquina trefiladeira."
-                                        icon={<CogIcon />}
-                                        color="cyan"
-                                    />
-                                )}
-                                {(hasPermission('trelica') || hasPermission('trelicaInProgress') || hasPermission('trelicaPending') || hasPermission('trelicaCompleted') || hasPermission('trelicaReports')) && (
-                                    <MenuButton
-                                        onClick={() => {
-                                            if (hasPermission('trelica')) setPage('trelica');
-                                            else if (hasPermission('trelicaInProgress')) setPage('trelicaInProgress');
-                                            else if (hasPermission('trelicaPending')) setPage('trelicaPending');
-                                            else if (hasPermission('trelicaCompleted')) setPage('trelicaCompleted');
-                                            else setPage('trelicaReports');
-                                        }}
-                                        label="Produção (Treliça)"
-                                        description="Painel de operação da máquina de treliça."
-                                        icon={<CogIcon />}
-                                        color="indigo"
-                                    />
-                                )}
-                                {hasPermission('productionDashboard') && (
-                                    <MenuButton
-                                        onClick={() => setPage('productionDashboard')}
-                                        label="Dashboard"
-                                        description="Monitoramento em tempo real da produção."
-                                        icon={<ChartBarIcon />}
-                                        color="teal"
-                                    />
-                                )}
-                            </div>
-                        </section>
-                    )}
+
 
                 {/* GESTÃO & FERRAMENTAS */}
                 <section>
@@ -330,15 +208,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ setPage, onLogout, currentUser }) =
                                 color="purple"
                             />
                         )}
-                        {hasPermission('laboratory') && (
-                            <MenuButton
-                                onClick={() => setPage('laboratory')}
-                                label="Laboratório 🔬"
-                                description="Análises de qualidade e ensaios de tração."
-                                icon={<ChartBarIcon />}
-                                color="teal"
-                            />
-                        )}
+
                         {hasPermission('userManagement') && (
                             <MenuButton
                                 onClick={() => setPage('userManagement')}
@@ -375,15 +245,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ setPage, onLogout, currentUser }) =
                                 color="indigo"
                             />
                         )}
-                        {hasPermission('downtimeConfigs') && (
-                            <MenuButton
-                                onClick={() => setPage('downtimeConfigs')}
-                                label="Configuração de Máquinas"
-                                description="Gerencie motivos de paradas e tempos previstos."
-                                icon={<AdjustmentsIcon />}
-                                color="indigo"
-                            />
-                        )}
+
                     </div>
                 </section>
             </main>

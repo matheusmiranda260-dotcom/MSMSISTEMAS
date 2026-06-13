@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'; // Refresh Trigger
 import type { Page, User, Employee, StockItem, ConferenceData, ProductionOrderData, TransferRecord, Bitola, MachineType, PartsRequest, ShiftReport, ProductionRecord, TransferredLotInfo, ProcessedLot, DowntimeEvent, OperatorLog, TrelicaSelectedLots, WeighedPackage, FinishedProductItem, Ponta, PontaItem, FinishedGoodsTransferRecord, TransferredFinishedGoodInfo, KaizenProblem, Meeting, MeetingItem, MeetingCategory, StockMovement, DowntimeConfig, UserAccessLog } from './types';
-import { FioMaquinaBitolaOptions, TrefilaBitolaOptions } from './types';
+import { FioMaquinaBitolaOptions } from './types';
 import Login from './components/Login';
 import MainMenu from './components/MainMenu';
 import StockControl from './components/StockControl';
 import MachineControl from './components/MachineControl';
 import ProductionOrder from './components/ProductionOrder';
-import ProductionOrderTrelica from './components/ProductionOrderTrelica';
 import ProductionOrderDesbobinadeira from './components/ProductionOrderDesbobinadeira';
 import DesbobinadeiraDashboard from './components/DesbobinadeiraDashboard';
 import Reports from './components/Reports';
@@ -14,9 +13,7 @@ import UserManagement from './components/UserManagement';
 import Notification from './components/Notification';
 import Sidebar from './components/Sidebar';
 import ProductionDashboard from './components/ProductionDashboard';
-import { trelicaModels } from './components/ProductionOrderTrelica';
 import FinishedGoods from './components/FinishedGoods';
-import TrelicaStockManager from './components/TrelicaStockManager';
 import SparePartsManager from './components/SparePartsManager';
 
 import ContinuousImprovement from './components/ContinuousImprovement';
@@ -26,10 +23,8 @@ import PeopleManagement from './components/PeopleManagement';
 
 import StockTransfer from './components/StockTransfer';
 import GaugesManager from './components/GaugesManager';
-import TrefilaWeighing from './components/TrefilaWeighing';
 import StickyNotes from './components/StickyNotes';
 import MeetingsTasks from './components/MeetingsTasks';
-import Laboratory from './components/Laboratory';
 import DocumentManager from './components/DocumentManager';
 import DowntimeConfigManager from './components/DowntimeConfigManager';
 import { supabase } from './supabaseClient';
@@ -71,8 +66,6 @@ const App: React.FC = () => {
     const [finishedGoodsTransfers, setFinishedGoodsTransfers] = useState<FinishedGoodsTransferRecord[]>([]);
     const [partsRequests, setPartsRequests] = useState<PartsRequest[]>([]);
     const [shiftReports, setShiftReports] = useState<ShiftReport[]>([]);
-    const [trefilaProduction, setTrefilaProduction] = useState<ProductionRecord[]>([]);
-    const [trelicaProduction, setTrelicaProduction] = useState<ProductionRecord[]>([]);
 
     const [gauges, setGauges] = useState<StockGauge[]>([]);
     const [stickyNotes, setStickyNotes] = useState<StickyNote[]>([]);
@@ -174,8 +167,6 @@ const App: React.FC = () => {
                 setDowntimeConfigs(fetchedDowntimeConfigs || []);
 
                 // Split production records
-                setTrefilaProduction(fetchedProductionRecords.filter(r => r.machine.startsWith('Trefila')));
-                setTrelicaProduction(fetchedProductionRecords.filter(r => r.machine.startsWith('Treliça')));
 
 
             } catch (error) {
@@ -239,8 +230,6 @@ const App: React.FC = () => {
         setFinishedGoodsTransfers,
         setPartsRequests,
         setShiftReports,
-        setTrefilaProduction,
-        setTrelicaProduction,
 
         setGauges,
         setStickyNotes,
@@ -349,7 +338,7 @@ const App: React.FC = () => {
             username: supabaseUser.email || 'Usuario',
             password: '',
             role: role,
-            permissions: { trelica: true, trefila: true }
+            permissions: {   }
         };
         setCurrentUser(appUser);
         localStorage.setItem('msm_user', JSON.stringify(appUser));
@@ -413,7 +402,7 @@ const App: React.FC = () => {
                     username: 'Matheus Miranda',
                     password: '',
                     role: 'gestor',
-                    permissions: { trelica: true, trefila: true }
+                    permissions: {   }
                 };
                 setCurrentUser(adminUser);
                 localStorage.setItem('msm_user', JSON.stringify(adminUser));
@@ -1041,7 +1030,7 @@ const App: React.FC = () => {
                         }
                     }
                 } else if (savedOrder.machine.startsWith('Treliça')) {
-                    const lots = savedOrder.selectedLotIds as TrelicaSelectedLots;
+                    const lots = savedOrder.selectedLotIds ;
                     if (lots && typeof lots === 'object') {
                         const lotRoleMap = new Map<string, string>();
 
@@ -1107,7 +1096,7 @@ const App: React.FC = () => {
             const rawSelected = orderToDelete.selectedLotIds;
             
             if (orderToDelete.machine.startsWith('Treliça') && rawSelected && !Array.isArray(rawSelected)) {
-                const lots = rawSelected as TrelicaSelectedLots;
+                const lots = rawSelected ;
                 // Standard single-lot fields (old format)
                 const singleIds = [lots.superior, lots.inferior1, lots.inferior2, lots.senozoide1, lots.senozoide2].filter(Boolean);
                 // Multi-lot array fields (new format)
@@ -1251,7 +1240,7 @@ const App: React.FC = () => {
             // Collect all lot IDs from the order
             let lotIds: string[] = [];
             if (orderToCancel.machine.startsWith('Treliça') && !Array.isArray(orderToCancel.selectedLotIds)) {
-                const lots = orderToCancel.selectedLotIds as TrelicaSelectedLots;
+                const lots = orderToCancel.selectedLotIds ;
                 if (lots.allSuperior && lots.allInferior && lots.allSenozoide) {
                     lotIds = [...lots.allSuperior, ...lots.allInferior, ...lots.allSenozoide];
                 } else {
@@ -1518,7 +1507,7 @@ const App: React.FC = () => {
             totalProducedMeters = (shiftQuantity * tamanhoMeters) + pontasMeters;
 
             if (packageWeight === 0 && shiftQuantity > 0) {
-                const modelInfo = trelicaModels.find(m => m.modelo === order.trelicaModel && m.tamanho === order.tamanho);
+                const modelInfo = [].find(m => m.modelo === order.trelicaModel && m.tamanho === order.tamanho);
                 if (modelInfo) {
                     const theoreticalPieceWeight = parseFloat(modelInfo.pesoFinal.replace(',', '.'));
                     totalProducedWeight = (shiftQuantity * theoreticalPieceWeight) + pontasWeight;
@@ -1837,7 +1826,7 @@ const App: React.FC = () => {
                 }
 
                 let actualWeight = (orderToComplete.weighedPackages || []).reduce((sum, pkg) => sum + pkg.weight, 0);
-                const modelInfo = trelicaModels.find(m =>
+                const modelInfo = [].find(m =>
                     m.modelo.trim().toLowerCase() === orderToComplete.trelicaModel?.trim().toLowerCase() &&
                     String(m.tamanho).trim() === String(orderToComplete.tamanho).trim()
                 );
@@ -1874,7 +1863,7 @@ const App: React.FC = () => {
                     return [...new Set(combined)];
                 };
 
-                let lotsObj: TrelicaSelectedLots;
+                let lotsObj: any;
                 const rawSelected = orderToComplete.selectedLotIds;
                 if (Array.isArray(rawSelected)) {
                     lotsObj = {
@@ -1890,7 +1879,7 @@ const App: React.FC = () => {
                         allSenozoideRight: [rawSelected[4]].filter(Boolean)
                     };
                 } else {
-                    lotsObj = rawSelected as TrelicaSelectedLots;
+                    lotsObj = rawSelected ;
                 }
 
                 const parseW = (s: any) => parseFloat(String(s || '0').replace(',', '.'));
@@ -2486,22 +2475,7 @@ const App: React.FC = () => {
             case 'stockAdd': return <StockControl stock={stock} conferences={conferences} transfers={transfers} setPage={setPage} addConference={addConference} deleteStockItem={deleteStockItem} updateStockItem={(item) => updateStockItem(item.id, item)} createTransfer={createTransfer} editConference={editConference} deleteConference={deleteConference} productionOrders={productionOrders} initialView="add" gauges={gauges} currentUser={currentUser} />;
 
             case 'stockTransfer': return <StockTransfer stock={stock} transfers={transfers} setPage={setPage} createTransfer={createTransfer} gauges={gauges} />;
-            case 'trefila': return <MachineControl machineType="Trefila" {...mcProps} initialView="dashboard" initialModal={null} />;
-            case 'trefilaInProgress': return <MachineControl machineType="Trefila" {...mcProps} initialView="in_progress" initialModal={null} />;
-            case 'trefilaPending': return <MachineControl machineType="Trefila" {...mcProps} initialView="pending" initialModal={null} />;
-            case 'trefilaCompleted': return <MachineControl machineType="Trefila" {...mcProps} initialView="completed" initialModal={null} />;
-            case 'trefilaReports': return <MachineControl machineType="Trefila" {...mcProps} initialView="dashboard" initialModal="reports" />;
-            case 'trefilaParts': return <MachineControl machineType="Trefila" {...mcProps} initialView="dashboard" initialModal="parts" />;
-            case 'trefilaWeighing': return <TrefilaWeighing productionOrders={productionOrders} stock={stock} recordLotWeight={recordLotWeight} />;
-            case 'trefilaRings': return <MachineControl machineType="Trefila" {...mcProps} initialView="dashboard" initialModal="rings" />;
-            case 'trefilaBitolaCheck': return <MachineControl machineType="Trefila" {...mcProps} initialView="dashboard" initialModal="bitolaCheck" />;
 
-            case 'trelica': return <MachineControl machineType="Treliça" {...mcProps} initialView="dashboard" initialModal={null} />;
-            case 'trelicaInProgress': return <MachineControl machineType="Treliça" {...mcProps} initialView="in_progress" initialModal={null} />;
-            case 'trelicaPending': return <MachineControl machineType="Treliça" {...mcProps} initialView="pending" initialModal={null} />;
-            case 'trelicaCompleted': return <MachineControl machineType="Treliça" {...mcProps} initialView="completed" initialModal={null} />;
-            case 'trelicaReports': return <MachineControl machineType="Treliça" {...mcProps} initialView="dashboard" initialModal="reports" />;
-            case 'trelicaParts': return <MachineControl machineType="Treliça" {...mcProps} initialView="dashboard" initialModal="parts" />;
 
             case 'desbobinadeiraDashboard': return <DesbobinadeiraDashboard productionOrders={productionOrders} />;
             case 'desbobinadeira': return <MachineControl machineType="Desbobinadeira 1" {...mcProps} initialView="dashboard" initialModal={null} />;
@@ -2511,13 +2485,10 @@ const App: React.FC = () => {
             case 'desbobinadeiraReports': return <MachineControl machineType="Desbobinadeira 1" {...mcProps} initialView="dashboard" initialModal="reports" />;
 
             case 'productionOrder': return <ProductionOrder setPage={setPage} stock={stock} productionOrders={productionOrders} addProductionOrder={addProductionOrder} showNotification={showNotification} updateProductionOrder={updateProductionOrder} deleteProductionOrder={deleteProductionOrder} gauges={gauges} currentUser={currentUser} />;
-            case 'productionOrderTrelica': return <ProductionOrderTrelica setPage={setPage} stock={stock} productionOrders={productionOrders} addProductionOrder={addProductionOrder} showNotification={showNotification} updateProductionOrder={updateProductionOrder} deleteProductionOrder={deleteProductionOrder} gauges={gauges} currentUser={currentUser} />;
             case 'productionOrderDesbobinadeira': return <ProductionOrderDesbobinadeira setPage={setPage} stock={stock} productionOrders={productionOrders} addProductionOrder={addProductionOrder} showNotification={showNotification} updateProductionOrder={updateProductionOrder} deleteProductionOrder={deleteProductionOrder} gauges={gauges} currentUser={currentUser} />;
             case 'productionDashboard': return <ProductionDashboard setPage={setPage} productionOrders={productionOrders} stock={stock} currentUser={currentUser} downtimeConfigs={downtimeConfigs} />;
-            case 'reports': return <Reports setPage={setPage} stock={stock} trefilaProduction={trefilaProduction} trelicaProduction={trelicaProduction} gauges={gauges} />;
             case 'userManagement': return <UserManagement users={users} employees={employees} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} setPage={setPage} accessLogs={accessLogs} />;
             case 'finishedGoods': return <FinishedGoods finishedGoods={finishedGoods} pontasStock={pontasStock} setPage={setPage} finishedGoodsTransfers={finishedGoodsTransfers} createFinishedGoodsTransfer={createFinishedGoodsTransfer} onDelete={deleteFinishedGoods} onUpdateFinishedGood={updateFinishedGood} onUpdatePonta={updatePonta} currentUser={currentUser} users={users} />;
-            case 'trelicaStock': return <TrelicaStockManager finishedGoods={finishedGoods} setPage={setPage} createFinishedGoodsTransfer={createFinishedGoodsTransfer} onDelete={deleteFinishedGoods} onUpdateQuantity={updateFinishedGood} onAddManual={addManualFinishedGood} currentUser={currentUser} productionOrders={productionOrders} stock={stock} users={users} onUpdateFinishedGood={updateFinishedGood} onResetStock={resetTrelicaStock} />;
 
 
             case 'partsManager': return <SparePartsManager />;
@@ -2538,7 +2509,6 @@ const App: React.FC = () => {
                     onAddCategory={handleAddMeetingCategory}
                     onDeleteCategory={handleDeleteMeetingCategory}
                 />;
-            case 'laboratory': return <Laboratory setPage={setPage} currentUser={currentUser} gauges={gauges} />;
             case 'downtimeConfigs': return <DowntimeConfigManager onBack={() => setPage('menu')} showNotification={showNotification} />;
             default: return <Login onLogin={handleLogin} error={null} />;
         }

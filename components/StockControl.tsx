@@ -8,7 +8,7 @@ import type {
     ConferenceLotData, ConferenceData, StockItem, Bitola, MaterialType, Page, StockGauge, User, TransferRecord
 } from '../types';
 import {
-    FioMaquinaBitolaOptions, TrefilaBitolaOptions, MaterialOptions, CA60BitolaOptions, SteelTypeOptions
+    FioMaquinaBitolaOptions, CA60BitolaOptions, MaterialOptions, SteelTypeOptions
 } from '../types';
 import { extractLotDataFromImage } from '../services/geminiService';
 import ConferenceReport from './ConferenceReport';

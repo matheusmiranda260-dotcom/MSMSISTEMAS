@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { StockItem, Page, TransferRecord, MaterialType, Bitola, StockGauge } from '../types';
-import { MaterialOptions, FioMaquinaBitolaOptions, TrefilaBitolaOptions, CA60BitolaOptions } from '../types';
+import { MaterialOptions, FioMaquinaBitolaOptions, CA60BitolaOptions } from '../types';
 import { ArrowLeftIcon, TruckIcon, CalculatorIcon, CheckCircleIcon, ExclamationIcon, ClipboardListIcon } from './icons';
 import TransfersHistoryModal from './TransfersHistoryModal';
 import TransferReport from './TransferReport';

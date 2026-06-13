@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { Page, StockItem, ProductionOrderData, Bitola, StockGauge, User, MachineType } from '../types';
-import { TrefilaBitolaOptions, FioMaquinaBitolaOptions } from '../types';
+import { CA60BitolaOptions, FioMaquinaBitolaOptions } from '../types';
 import { ClipboardListIcon, WarningIcon, AdjustmentsIcon } from './icons';
 import ProductionOrderHistoryModal from './ProductionOrderHistoryModal';
 import ProductionOrderReport from './ProductionOrderReport';
@@ -81,7 +81,7 @@ const ProductionOrderDesbobinadeira: React.FC<ProductionOrderDesbobinadeiraProps
     }, [gauges]);
 
     const outputGauges = useMemo(() => {
-        const baseGauges = TrefilaBitolaOptions;
+        const baseGauges = CA60BitolaOptions;
         const customGauges = gauges.filter(g => g.materialType === 'CA-60');
         const allOptions = [
             ...baseGauges.map(g => ({ gauge: g, code: '' })),

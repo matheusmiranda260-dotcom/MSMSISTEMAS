@@ -1,7 +1,7 @@
 // FinishedConferencesModal.tsx
 import React, { useState, useEffect } from 'react';
 import type { ConferenceData, ConferenceLotData, StockItem, Bitola, MaterialType } from '../types';
-import { MaterialOptions, FioMaquinaBitolaOptions, TrefilaBitolaOptions, CA60BitolaOptions, SteelTypeOptions } from '../types';
+import { MaterialOptions, FioMaquinaBitolaOptions, CA60BitolaOptions, SteelTypeOptions } from '../types';
 import { PrinterIcon, PencilIcon, TrashIcon, WarningIcon } from './icons';
 
 interface FinishedConferencesModalProps {
@@ -24,7 +24,7 @@ const EditConferenceModal: React.FC<{
     const [duplicateErrors, setDuplicateErrors] = useState<Record<number, string>>({});
 
     // all bitola options (both machine types)
-    const allBitolaOptions: Bitola[] = [...new Set([...FioMaquinaBitolaOptions, ...TrefilaBitolaOptions])];
+    const allBitolaOptions: Bitola[] = [...new Set([...FioMaquinaBitolaOptions, ...CA60BitolaOptions])];
 
     // Validate duplicate lot combinations
     useEffect(() => {

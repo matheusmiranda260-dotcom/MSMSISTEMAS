@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Page, StockItem, ProductionOrderData, Bitola, StockGauge, User, MachineType, Employee } from '../types';
 import { fetchByColumn } from '../services/supabaseService';
-import { TrefilaBitolaOptions, FioMaquinaBitolaOptions } from '../types';
+import { CA60BitolaOptions, FioMaquinaBitolaOptions } from '../types';
 import { ArrowLeftIcon, WarningIcon, ClipboardListIcon, PencilIcon, TrashIcon, AdjustmentsIcon } from './icons';
 import ProductionOrderHistoryModal from './ProductionOrderHistoryModal';
 import ProductionOrderReport from './ProductionOrderReport';
@@ -44,7 +44,7 @@ const ProductionOrder: React.FC<ProductionOrderProps> = ({ setPage, stock, produ
 
     const initialTargetBitola = useMemo(() => {
         const trefilaGauges = gauges.filter(g => g.materialType === 'CA-60').map(g => g.gauge);
-        return (trefilaGauges.length > 0 ? trefilaGauges[0] : TrefilaBitolaOptions[0]) as Bitola;
+        return (trefilaGauges.length > 0 ? trefilaGauges[0] : CA60BitolaOptions[0]) as Bitola;
     }, [gauges]);
 
     const [targetBitola, setTargetBitola] = useState<Bitola>(initialTargetBitola);
@@ -143,7 +143,7 @@ const ProductionOrder: React.FC<ProductionOrderProps> = ({ setPage, stock, produ
 
         // Reset form
         setOrderNumber('');
-        setTargetBitola(TrefilaBitolaOptions[0]);
+        setTargetBitola(CA60BitolaOptions[0]);
         setSelectedLotIds([]);
         setInputBitolaFilter('');
         setIsGhostOrder(false);
@@ -308,7 +308,7 @@ const ProductionOrder: React.FC<ProductionOrderProps> = ({ setPage, stock, produ
                                         className="mt-1 p-2 w-full border border-slate-300 rounded-md bg-white"
                                     >
                                         {(() => {
-                                            const baseGauges = TrefilaBitolaOptions;
+                                            const baseGauges = CA60BitolaOptions;
                                             const customGauges = gauges.filter(g => g.materialType === 'CA-60');
                                             
                                             const allOptions = [

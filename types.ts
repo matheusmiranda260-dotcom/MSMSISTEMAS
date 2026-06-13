@@ -1,6 +1,6 @@
 // types.ts
 
-export type Page = 'login' | 'menu' | 'stock' | 'stockAdd' | 'stockTransfer' | 'documents' | 'finishedGoods' | 'trelicaStock' | 'productionOrderTrelica' | 'productionOrder' | 'productionDashboard' | 'meetingsTasks' | 'continuousImprovement' | 'peopleManagement' | 'trefila' | 'trefilaInProgress' | 'trefilaPending' | 'trefilaCompleted' | 'trefilaRings' | 'trefilaBitolaCheck' | 'trefilaReports' | 'trefilaWeighing' | 'trefilaTemplates' | 'trefilaParts' | 'trelica' | 'trelicaInProgress' | 'trelicaPending' | 'trelicaCompleted' | 'trelicaReports' | 'trelicaParts' | 'reports' | 'laboratory' | 'userManagement' | 'gaugesManager' | 'partsManager' | 'workInstructions' | 'people' | 'finished_goods' | 'spare_parts' | 'quality' | 'instructions' | 'weighing' | 'meetings' | 'downtimeConfigs' | 'desbobinadeira' | 'desbobinadeiraDashboard' | 'desbobinadeiraInProgress' | 'desbobinadeiraPending' | 'desbobinadeiraCompleted' | 'desbobinadeiraReports' | 'productionOrderDesbobinadeira';
+export type Page = 'login' | 'menu' | 'stock' | 'stockAdd' | 'stockTransfer' | 'documents' | 'finishedGoods' | 'productionOrder' | 'productionDashboard' | 'meetingsTasks' | 'continuousImprovement' | 'peopleManagement' | 'reports' | 'userManagement' | 'gaugesManager' | 'partsManager' | 'workInstructions' | 'people' | 'finished_goods' | 'spare_parts' | 'quality' | 'instructions' | 'weighing' | 'meetings' | 'downtimeConfigs' | 'desbobinadeira' | 'desbobinadeiraDashboard' | 'desbobinadeiraInProgress' | 'desbobinadeiraPending' | 'desbobinadeiraCompleted' | 'desbobinadeiraReports' | 'productionOrderDesbobinadeira';
 
 export interface DowntimeConfig {
     id: string;
@@ -29,9 +29,9 @@ export interface EmployeeDocument {
     createdAt?: string;
 }
 
-export type MachineType = 'Trefila 1' | 'Trefila 2' | 'Treliça 1' | 'Treliça 2' | 'Corte-01' | 'Corte-02' | 'Trefila' | 'Treliça' | 'Geral' | 'Empilhadeira' | 'Desbobinadeira 1';
+export type MachineType = 'Corte-01' | 'Corte-02' | 'Geral' | 'Empilhadeira' | 'Desbobinadeira 1';
 
-export type MaterialType = 'Arame' | 'Treliça' | 'Ponta' | 'Fio Máquina' | 'Sucata' | 'CA-60' | 'CA-50';
+export type MaterialType = 'Fio Máquina' | 'Sucata' | 'CA-60' | 'CA-50';
 
 export type Bitola = string; // e.g., '3.40', '4,20', '8.00'
 
@@ -268,72 +268,17 @@ export interface WeighedPackage {
     quantity?: number;
 }
 
-export interface FinishedProductItem {
-    id: string;
-    productionDate: string;
-    productionOrderId: string;
-    orderNumber: string;
-    productType: 'Treliça';
-    model: string;
-    size: string;
-    quantity: number;
-    physicalQuantity: number;
-    pendingTransferQuantity?: number;
-    totalWeight: number;
-    status: 'Disponível' | 'Vendido' | 'Transferido';
-    movementHistory?: StockMovement[];
-    isConferred?: boolean;
-    conferralJustification?: string;
-    opStartTime?: string;
-    opEndTime?: string;
-}
 
 
-export interface Ponta {
-    size: number;
-    weight?: number;
-    quantity: number;
-    totalWeight: number;
-}
-
-export interface PontaItem {
-    id: string;
-    productionDate: string;
-    productionOrderId: string;
-    orderNumber: string;
-    productType: 'Ponta de Treliça';
-    model: string;
-    size: string;
-    quantity: number;
-    physicalQuantity: number;
-    pendingTransferQuantity?: number;
-    totalWeight: number;
-    status: 'Disponível' | 'Vendido' | 'Transferido';
-    movementHistory?: StockMovement[];
-    isConferred?: boolean;
-    conferralJustification?: string;
-    opStartTime?: string;
-    opEndTime?: string;
-}
 
 
-export interface TransferredFinishedGoodInfo {
-    productId: string;
-    productType: 'Treliça' | 'Ponta de Treliça';
-    model: string;
-    size: string;
-    transferredQuantity: number;
-    totalWeight: number;
-}
 
-export interface FinishedGoodsTransferRecord {
-    id: string;
-    date: string;
-    operator: string;
-    destinationSector: string;
-    otherDestination?: string;
-    transferredItems: TransferredFinishedGoodInfo[];
-}
+
+
+
+
+
+
 
 export interface StockMovement {
     id: string;
@@ -412,56 +357,7 @@ export interface StockGauge {
     productCode?: string;
 }
 
-export interface LabAnalysisEntry {
-    id: string;
-    lote: string;
-    fornecedor: string;
-    bitola_mp?: string;
-    bitola_saida_ideal?: string;
-    qtd_k7_ideal?: string;
-    k7_1_ideal?: number | null;
-    k7_2_ideal?: number | null;
-    k7_3_ideal?: number | null;
-    k7_4_ideal?: number | null;
-    k7_1_entrada: number | null;
-    k7_1_saida: number | null;
-    k7_2_entrada: number | null;
-    k7_2_saida: number | null;
-    k7_3_entrada: number | null;
-    k7_3_saida: number | null;
-    k7_4_entrada: number | null;
-    k7_4_saida: number | null;
-    velocidade: number | null;
-    comprimento: number | null;
-    massa: number | null;
-    escoamento: number | null;
-    resistencia: number | null;
-    alongamento: number | null;
-    date: string;
-    operator: string;
-    productionOrderId?: string;
-    productionOrderNumber?: string;
-    setupProfile?: 'descrescente' | 'linear';
-    actionTaken?: string;
-    actionResult?: string;
-}
 
-export interface TrefilaRecipe {
-    id: string;
-    name: string;
-    type: string;
-    entryDiameter: number;
-    finalDiameter: number;
-    passes: number;
-    passDiameters: number[];
-    passRings: { entry: string; output: string }[];
-}
-
-export interface TrefilaRingStock {
-    id: string;
-    model: string;
-    quantity: number;
-}
 
 export interface Evaluation {
     id: string;
@@ -484,7 +380,7 @@ export interface TechnicalEvaluation {
     evaluator: string;
     date: string;
     monthNum: number;
-    machineType: 'Trefila' | 'Treliça';
+    machineType: 'Treliça';
     
     // Conhecimento (Questões)
     q1Answer?: string;
@@ -589,9 +485,7 @@ export interface EmployeeDocument {
     createdAt?: string;
 }
 
-export interface TrelicaSelectedLots {
-    [key: string]: any;
-}
+
 
 export interface SparePart {
     id: string;
@@ -637,11 +531,9 @@ export interface UserAccessLog {
     loginAt: string;
 }
 
-export const trelicaLabels = ['H08 (8m)', 'H12 (12m)', 'H6 (6m)', 'H10 (10m)'];
 export const MaterialOptions = ['Fio Máquina', 'CA-60'];
 export const FioMaquinaBitolaOptions = ['8.00', '7.00', '6.50', '6.35', '5.50'];
 export const CA60BitolaOptions = ['3.20', '3.40', '3.80', '4.20', '4.40', '4.90', '5.00', '5.50', '5.60', '5.80', '6.00', '6.35', '7.00'];
-export const TrefilaBitolaOptions = CA60BitolaOptions; // Keeping for compatibility
 export const SteelTypeOptions = ['1006', '1008', '1010', '1012', '1015', '1018', 'Outro'];
 
 export const DOWNTIME_THRESHOLDS: Record<string, number> = {

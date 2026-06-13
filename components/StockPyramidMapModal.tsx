@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { StockItem, Bitola, MaterialType, FioMaquinaBitolaOptions, TrefilaBitolaOptions } from '../types';
+import { StockItem, Bitola, MaterialType, FioMaquinaBitolaOptions, CA60BitolaOptions } from '../types';
 import { XIcon, ArchiveIcon, CheckCircleIcon, ExclamationIcon, AdjustmentsIcon, SearchIcon } from './icons';
 
 interface StockPyramidMapModalProps {
@@ -21,7 +21,7 @@ const StockPyramidMapModal: React.FC<StockPyramidMapModalProps> = ({ stock, onCl
     const [selectedSlot, setSelectedSlot] = useState<{ id: string; level: number; pos: number } | null>(null);
 
     // Derived Data
-    const allBitolaOptions = useMemo(() => [...new Set([...FioMaquinaBitolaOptions, ...TrefilaBitolaOptions])].sort(), []);
+    const allBitolaOptions = useMemo(() => [...new Set([...FioMaquinaBitolaOptions, ...CA60BitolaOptions])].sort(), []);
 
     const rowCounts = useMemo(() => {
         return pyramidStructure.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n > 0);

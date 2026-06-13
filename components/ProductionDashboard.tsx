@@ -7,7 +7,6 @@ import {
     WrenchScrewdriverIcon, ArchiveIcon, UserGroupIcon, ChartBarIcon 
 } from './icons';
 import { fetchTable, insertItem, updateItem, deleteItem } from '../services/supabaseService';
-import { trelicaModels } from './ProductionOrderTrelica';
 
 // Custom Power Icon
 const PowerIcon = ({ className }: { className?: string }) => (
@@ -461,7 +460,7 @@ const MachineStatusView: React.FC<MachineStatusViewProps> = ({ machineType, acti
         const orderModelNormalized = normalize(activeOrder.trelicaModel);
 
         // Tenta encontrar o modelo exato na lista de trelicaModels
-        const model = trelicaModels.find(m => {
+        const model = [].find(m => {
             const currentModelNormalized = normalize(m.modelo);
             const matchesModel = orderModelNormalized.includes(currentModelNormalized) || currentModelNormalized.includes(orderModelNormalized);
             const matchesSize = activeOrder.tamanho ? activeOrder.tamanho.toString() === m.tamanho : true;
