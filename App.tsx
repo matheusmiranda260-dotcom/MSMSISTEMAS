@@ -725,6 +725,7 @@ const App: React.FC = () => {
     const updateStockItem = async (id: string, updates: Partial<StockItem>) => {
         try {
             await updateItem<StockItem>('stock_items', id, updates);
+            setStock(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
         } catch (error) {
             showNotification('Erro ao atualizar item do estoque.', 'error');
         }
@@ -732,6 +733,7 @@ const App: React.FC = () => {
     const deleteStockItem = async (id: string) => {
         try {
             await deleteItem('stock_items', id);
+            setStock(prev => prev.filter(item => item.id !== id));
             showNotification('Lote removido com sucesso!', 'success');
         } catch (error) {
             showNotification('Erro ao remover lote.', 'error');
@@ -808,6 +810,13 @@ const App: React.FC = () => {
             for (const update of updates) {
                 await updateItem<StockItem>('stock_items', update.id, update.changes);
             }
+
+            // Update local state immediately
+            setTransfers(prev => [...prev, savedTransfer]);
+            setStock(prev => prev.map(item => {
+                const upd = updates.find(u => u.id === item.id);
+                return upd ? { ...item, ...upd.changes } : item;
+            }));
 
             showNotification('Transferência realizada com sucesso!', 'success');
             return savedTransfer;
@@ -982,6 +991,17 @@ const App: React.FC = () => {
                 await updateItem<PontaItem>('pontas_stock', update.id, update.changes);
             }
 
+            // Update local state immediately
+            setFinishedGoodsTransfers(prev => [...prev, savedTransfer]);
+            setFinishedGoods(prev => prev.map(item => {
+                const upd = finishedGoodsUpdates.find(u => u.id === item.id);
+                return upd ? { ...item, ...upd.changes } : item;
+            }));
+            setPontasStock(prev => prev.map(item => {
+                const upd = pontasUpdates.find(u => u.id === item.id);
+                return upd ? { ...item, ...upd.changes } : item;
+            }));
+
             showNotification('Transferência de produto acabado realizada com sucesso!', 'success');
             return savedTransfer;
         } catch (error) {
@@ -1065,6 +1085,59 @@ const App: React.FC = () => {
                 }
             }
 
+            // Update local state immediately
+            setProductionOrders(prev => [...prev, savedOrder]);
+            if (!orderData.isGhostOrder) {
+                if (savedOrder.machine.startsWith('Trefila') || savedOrder.machine.startsWith('Desbobinadeira')) {
+                    const lotIds = savedOrder.selectedLotIds as string[];
+                    if (Array.isArray(lotIds)) {
+                        setStock(prev => prev.map(s => {
+                            if (lotIds.includes(s.id)) {
+                                return {
+                                    ...s,
+                                    status: `Em Produção - ${savedOrder.machine}`,
+                                    productionOrderIds: [...(s.productionOrderIds || []), savedOrder.id]
+                                };
+                            }
+                            return s;
+                        }));
+                    }
+                } else if (savedOrder.machine.startsWith('Treliça')) {
+                    const lots = savedOrder.selectedLotIds;
+                    if (lots && typeof lots === 'object') {
+                        const lotRoleMap = new Map<string, string>();
+                        const assignRole = (ids: string | string[] | undefined, role: string) => {
+                            if (!ids) return;
+                            if (Array.isArray(ids)) {
+                                ids.forEach(id => {
+                                    if (id) lotRoleMap.set(String(id).trim(), role);
+                                });
+                            } else {
+                                if (ids) lotRoleMap.set(String(ids).trim(), role);
+                            }
+                        };
+                        assignRole(lots.allSuperior || lots.superior, 'Superior');
+                        assignRole(lots.allInferiorLeft || lots.inferior1, 'Inferior Esq.');
+                        assignRole(lots.allInferiorRight || lots.inferior2, 'Inferior Dir.');
+                        assignRole(lots.allSenozoideLeft || lots.senozoide1, 'Senozoide Esq.');
+                        assignRole(lots.allSenozoideRight || lots.senozoide2, 'Senozoide Dir.');
+
+                        setStock(prev => prev.map(s => {
+                            const role = lotRoleMap.get(s.id);
+                            if (role) {
+                                return {
+                                    ...s,
+                                    status: 'Em Produção - Treliça',
+                                    location: role,
+                                    productionOrderIds: [...(s.productionOrderIds || []), savedOrder.id]
+                                };
+                            }
+                            return s;
+                        }));
+                    }
+                }
+            }
+
             showNotification('Ordem de produção criada com sucesso!', 'success');
         } catch (error: any) {
             console.error('Error creating production order:', error);
@@ -1076,6 +1149,7 @@ const App: React.FC = () => {
     const updateProductionOrder = async (orderId: string, updates: Partial<ProductionOrderData>) => {
         try {
             await updateItem('production_orders', orderId, updates);
+            setProductionOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...updates } : o));
             showNotification('Ordem de produção atualizada com sucesso!', 'success');
         } catch (error) {
             showNotification('Erro ao atualizar ordem de produção.', 'error');
@@ -1116,6 +1190,7 @@ const App: React.FC = () => {
             }
 
             // 2. Update related stock items first (restore availability)
+            const updatedStockMap = new Map<string, { status: string, location: string, productionOrderIds?: string[] }>();
             for (const lotId of lotIds) {
                 const stockItem = stock.find(s => s.id === lotId);
                 if (stockItem) {
@@ -1132,11 +1207,14 @@ const App: React.FC = () => {
                         }
                     }
 
-                    await updateItem<StockItem>('stock_items', lotId, {
+                    const changes = {
                         status: newStatus,
                         location: isNowAvailable ? '' : stockItem.location,
                         productionOrderIds: newProductionOrderIds.length > 0 ? newProductionOrderIds : undefined,
-                    });
+                    };
+
+                    await updateItem<StockItem>('stock_items', lotId, changes);
+                    updatedStockMap.set(lotId, changes);
                 }
             }
 
@@ -1162,6 +1240,12 @@ const App: React.FC = () => {
             
             // 5. Update local state
             setProductionOrders(prev => prev.filter(o => o.id !== orderId));
+            if (updatedStockMap.size > 0) {
+                setStock(prev => prev.map(item => {
+                    const changes = updatedStockMap.get(item.id);
+                    return changes ? { ...item, ...changes } : item;
+                }));
+            }
             
             showNotification('Ordem de produção e registros relacionados removidos com sucesso.', 'success');
         } catch (error: any) {
@@ -1388,7 +1472,8 @@ const App: React.FC = () => {
                 }
             }
 
-            await updateItem('production_orders', orderToStartData.id, updates);
+            const updatedOrder = await updateItem<ProductionOrderData>('production_orders', orderToStartData.id, updates);
+            setProductionOrders(prev => prev.map(o => o.id === orderToStartData.id ? updatedOrder : o));
             showNotification('Ordem de produção iniciada.', 'success');
         } catch (error) {
             showNotification('Erro ao iniciar ordem de produção.', 'error');
@@ -1443,7 +1528,8 @@ const App: React.FC = () => {
         }
 
         try {
-            await updateItem('production_orders', orderId, updates);
+            const updatedOrder = await updateItem<ProductionOrderData>('production_orders', orderId, updates);
+            setProductionOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
             showNotification('Turno iniciado.', 'success');
         } catch (error) {
             showNotification('Erro ao iniciar turno.', 'error');
@@ -1549,7 +1635,8 @@ const App: React.FC = () => {
         };
 
         try {
-            await insertItem<ShiftReport>('shift_reports', report);
+            const savedReport = await insertItem<ShiftReport>('shift_reports', report);
+            setShiftReports(prev => [...prev, savedReport]);
         } catch (error) {
             showNotification('Erro ao salvar relatório de turno.', 'error');
         }
@@ -2152,7 +2239,8 @@ const App: React.FC = () => {
         if (!activeOrder) return;
         const newRequest: PartsRequest = { ...data, id: generateId('part'), date: new Date().toISOString(), operator: currentUser.username, status: 'Pendente', machine: activeOrder.machine, productionOrderId: activeOrder.id };
         try {
-            await insertItem<PartsRequest>('parts_requests', newRequest);
+            const savedRequest = await insertItem<PartsRequest>('parts_requests', newRequest);
+            setPartsRequests(prev => [...prev, savedRequest]);
             showNotification('Solicitação de peças enviada.', 'success');
         } catch (error) { showNotification('Erro ao enviar solicitação.', 'error'); }
     };

@@ -1454,7 +1454,7 @@ ALTER TABLE public.pontas_stock ADD COLUMN IF NOT EXISTS op_end_time TIMESTAMP W
 
 
 -- Arquivo: add_last_quantity_update_column.sql
-ALTER TABLE production_orders ADD COLUMN lastQuantityUpdate text;
+ALTER TABLE production_orders ADD COLUMN IF NOT EXISTS lastQuantityUpdate text;
 
 
 -- Arquivo: add_pending_transfer_column.sql
