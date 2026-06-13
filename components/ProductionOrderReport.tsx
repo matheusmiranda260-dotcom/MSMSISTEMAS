@@ -698,7 +698,7 @@ const ProductionOrderReport: React.FC<ProductionOrderReportProps> = ({ reportDat
                                         {osItems.map((item, idx) => (
                                             <tr key={idx} className="border-b border-black">
                                                 <td className="border border-black p-1.5">{item.os || `OS - ${idx + 1}`}</td>
-                                                <td className="border border-black p-1.5">{item.bitola ? `${item.bitola.replace('.', ',')} mm` : 'N/A'} {item.steelType}</td>
+                                                <td className="border border-black p-1.5">{item.bitola ? `${item.bitola.replace('.', ',')}` : 'N/A'} {item.steelType}</td>
                                                 <td className="border border-black p-1.5 text-[#0F3F5C] font-black">{item.quantity}</td>
                                                 <td className="border border-black p-1.5 font-bold text-slate-800">{item.length ? `${item.length} cm` : 'N/A'}</td>
                                                 <td className="border border-black p-1.5 italic font-bold">{item.drawingType || 'N/A'}</td>

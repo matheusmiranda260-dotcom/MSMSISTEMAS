@@ -123,7 +123,7 @@ const OSItemsPanel: React.FC<{ order: ProductionOrderData }> = ({ order }) => {
                                     <td className="px-3 py-2 font-black text-slate-800">{item.os || `OS ${idx + 1}`}</td>
                                     <td className="px-3 py-2">
                                         <span className="bg-[#0F3F5C]/10 text-[#0F3F5C] px-2 py-0.5 rounded-md font-bold">
-                                            {item.bitola || '—'} mm
+                                            {item.bitola || '-'}
                                         </span>
                                     </td>
                                     <td className="px-3 py-2 text-slate-600">{item.steelType || '—'}</td>

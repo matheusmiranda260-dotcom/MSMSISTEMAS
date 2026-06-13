@@ -448,7 +448,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                                             </div>
                                                         ) : (
                                                             <>
-                                                                <span className="font-bold text-slate-800 text-sm">{g.gauge.replace('.', ',')} mm</span>
+                                                                <span className="font-bold text-slate-800 text-sm">{g.gauge.replace('.', ',')}</span>
                                                                 <span className={`text-[10px] font-bold uppercase ${g.productCode ? 'text-blue-600' : 'text-slate-400 italic'}`}>
                                                                     {g.productCode || 'Sem código'}
                                                                 </span>
@@ -483,7 +483,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                                             </button>
                                                             {stockInfo.count > 0 ? (
                                                                 <button
-                                                                    onClick={() => alert(`Não é possível excluir a bitola ${g.gauge.replace('.', ',')} mm pois existem ${stockInfo.count} lotes em estoque usando ela.`)}
+                                                                    onClick={() => alert(`Não é possível excluir a medida ${g.gauge.replace('.', ',')} pois existem ${stockInfo.count} lotes em estoque usando ela.`)}
                                                                     className="p-1.5 text-slate-300 cursor-not-allowed rounded-lg transition"
                                                                     title="Não é possível excluir (Em estoque)"
                                                                 >
@@ -492,7 +492,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                                             ) : (
                                                                 <button
                                                                     onClick={() => {
-                                                                        if (confirm(`Deseja remover a bitola ${g.gauge.replace('.', ',')} mm para ${group}?`)) {
+                                                                        if (confirm(`Deseja remover a medida ${g.gauge.replace('.', ',')} para ${group}?`)) {
                                                                             onDelete(g.id);
                                                                         }
                                                                     }}
