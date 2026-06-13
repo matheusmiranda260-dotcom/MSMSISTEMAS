@@ -170,7 +170,7 @@ export const insertItem = async <T extends { id?: string }>(
             generatedId = (crypto as any).randomUUID();
         } else if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
             // Browser compliant UUID v4 generator
-            generatedId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, (c: any) =>
+            generatedId = ("10000000-1000-4000-8000-100000000000").replace(/[018]/g, (c: any) =>
                 (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
             );
         } else {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'; // Refresh Trigger
 import type { Page, User, Employee, StockItem, ConferenceData, ProductionOrderData, TransferRecord, Bitola, MachineType, PartsRequest, ShiftReport, ProductionRecord, TransferredLotInfo, ProcessedLot, DowntimeEvent, OperatorLog, TrelicaSelectedLots, WeighedPackage, FinishedProductItem, Ponta, PontaItem, FinishedGoodsTransferRecord, TransferredFinishedGoodInfo, KaizenProblem, Meeting, MeetingItem, MeetingCategory, StockMovement, DowntimeConfig, UserAccessLog } from './types';
-import { FioMaquinaBitolaOptions } from './types';
+import { FioMaquinaBitolaOptions, TrefilaBitolaOptions } from './types';
 import Login from './components/Login';
 import MainMenu from './components/MainMenu';
 import StockControl from './components/StockControl';
@@ -160,7 +160,91 @@ const App: React.FC = () => {
                 setPartsRequests(fetchedParts);
                 setShiftReports(fetchedReports);
 
-                setGauges(fetchedGauges || []);
+                // Extract unique gauges from current stock (fetchedStock)
+                const stockGaugesMap = new Map<string, StockGauge>();
+                if (fetchedStock) {
+                    fetchedStock.forEach(item => {
+                        if (item.status === 'Consumido') return;
+                        if (!item.materialType || !item.bitola) return;
+                        
+                        const materialType = item.materialType.trim();
+                        // Normalize gauge
+                        const rawGauge = item.bitola.toString().replace(',', '.');
+                        const numVal = parseFloat(rawGauge);
+                        if (isNaN(numVal)) return;
+                        const gaugeStr = numVal.toFixed(2);
+                        
+                        const sig = `${materialType.toLowerCase()}::${gaugeStr}`;
+                        if (!stockGaugesMap.has(sig)) {
+                            stockGaugesMap.set(sig, {
+                                id: `STOCK-${materialType}-${gaugeStr}-${Date.now()}`,
+                                materialType: materialType,
+                                gauge: gaugeStr,
+                                productCode: undefined
+                            });
+                        }
+                    });
+                }
+
+                const deletedSaved = localStorage.getItem('msm_deleted_gauges');
+                let deletedList: string[] = [];
+                if (deletedSaved) {
+                    try { deletedList = JSON.parse(deletedSaved); } catch (e) {}
+                }
+
+                // Load from localStorage explicitly custom added gauges
+                let localGauges: StockGauge[] = [];
+                const localSaved = localStorage.getItem('msm_local_gauges');
+                if (localSaved) {
+                    try {
+                        localGauges = JSON.parse(localSaved);
+                    } catch (e) {
+                        console.error('Error parsing msm_local_gauges', e);
+                    }
+                }
+
+                // If never loaded presets before, load them
+                let presets: StockGauge[] = [];
+                if (!localStorage.getItem('msm_presets_loaded_v2')) {
+                    presets = [
+                        ...FioMaquinaBitolaOptions.map((g, idx) => ({ id: `PRESET-FM-${idx}-${g}`, materialType: 'Fio Máquina', gauge: g })),
+                        ...TrefilaBitolaOptions.map((g, idx) => ({ id: `PRESET-CA-${idx}-${g}`, materialType: 'CA-60', gauge: g }))
+                    ];
+                    localStorage.setItem('msm_presets_loaded_v2', 'true');
+                }
+
+                // Combine them all
+                let allGauges = [...(fetchedGauges || []), ...localGauges, ...presets];
+                
+                // Add the ones from stock, ensuring we don't duplicate
+                const finalGaugesMap = new Map<string, StockGauge>();
+                
+                // First add the configured gauges (they might have custom codes or ids)
+                allGauges.forEach(g => {
+                    const sig = `${g.materialType.toLowerCase()}::${g.gauge}`;
+                    // Only add if not deleted
+                    if (!deletedList.includes(sig)) {
+                        finalGaugesMap.set(sig, g);
+                    }
+                });
+
+                // Then force-add gauges that are CURRENTLY IN STOCK (stock overwrites deletion)
+                stockGaugesMap.forEach((g, sig) => {
+                    if (!finalGaugesMap.has(sig)) {
+                        finalGaugesMap.set(sig, g);
+                        // Also remove from deletedList if it was there, because it's in stock!
+                        if (deletedList.includes(sig)) {
+                            deletedList = deletedList.filter(s => s !== sig);
+                        }
+                    }
+                });
+                
+                // Save updated deleted list if modified
+                localStorage.setItem('msm_deleted_gauges', JSON.stringify(deletedList));
+
+                const finalGauges = Array.from(finalGaugesMap.values());
+                localStorage.setItem('msm_local_gauges', JSON.stringify(finalGauges));
+                setGauges(finalGauges);
                 setStickyNotes(fetchedNotes || []);
                 setMeetings(fetchedMeetings || []);
                 setMeetingCategories(fetchedCategories || []);
@@ -482,70 +566,81 @@ const App: React.FC = () => {
     };
 
     const addGauge = async (data: Omit<StockGauge, 'id'>) => {
+        const signature = `${data.materialType.toLowerCase()}::${data.gauge}`;
+        const deletedSaved = localStorage.getItem('msm_deleted_gauges');
+        if (deletedSaved) {
+            try {
+                let deletedList = JSON.parse(deletedSaved);
+                if (deletedList.includes(signature)) {
+                    deletedList = deletedList.filter((s: string) => s !== signature);
+                    localStorage.setItem('msm_deleted_gauges', JSON.stringify(deletedList));
+                }
+            } catch (e) {}
+        }
+
+        const localId = `LOCAL-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        const localItem: StockGauge = { ...data, id: localId };
+        
+        setGauges(prev => {
+            const updated = [...prev, localItem];
+            localStorage.setItem('msm_local_gauges', JSON.stringify(updated));
+            return updated;
+        });
+        showNotification('Bitola cadastrada com sucesso!', 'success');
+
         try {
             const saved = await insertItem<StockGauge>('stock_gauges', data as StockGauge);
-            setGauges(prev => [...prev, saved]);
-            showNotification('Bitola cadastrada com sucesso!', 'success');
+            setGauges(prev => {
+                const updated = prev.map(g => g.id === localId ? saved : g);
+                localStorage.setItem('msm_local_gauges', JSON.stringify(updated));
+                return updated;
+            });
         } catch (error) {
-            console.error(error);
-            showNotification('Erro ao cadastrar bitola. Verifique se a tabela stock_gauges existe.', 'error');
+            console.warn('Could not sync new gauge to Supabase. Saved locally.', error);
         }
     };
 
     const deleteGauge = async (id: string) => {
+        const target = gauges.find(g => g.id === id);
+        if (target) {
+            const signature = `${target.materialType.toLowerCase()}::${target.gauge}`;
+            const deletedSaved = localStorage.getItem('msm_deleted_gauges');
+            let deletedList: string[] = [];
+            if (deletedSaved) {
+                try { deletedList = JSON.parse(deletedSaved); } catch (e) {}
+            }
+            if (!deletedList.includes(signature)) {
+                deletedList.push(signature);
+                localStorage.setItem('msm_deleted_gauges', JSON.stringify(deletedList));
+            }
+        }
+
+        setGauges(prev => {
+            const updated = prev.filter(g => g.id !== id);
+            localStorage.setItem('msm_local_gauges', JSON.stringify(updated));
+            return updated;
+        });
+        showNotification('Bitola removida com sucesso!', 'success');
+
         try {
             await deleteItem('stock_gauges', id);
-            setGauges(prev => prev.filter(g => g.id !== id));
-            showNotification('Bitola removida com sucesso!', 'success');
         } catch (error) {
-            showNotification('Erro ao remover bitola.', 'error');
+            console.warn('Could not sync gauge deletion to Supabase. Removed locally.', error);
         }
     };
 
     const updateGauge = async (id: string, data: Partial<StockGauge>) => {
+        setGauges(prev => {
+            const updated = prev.map(g => g.id === id ? { ...g, ...data } : g);
+            localStorage.setItem('msm_local_gauges', JSON.stringify(updated));
+            return updated;
+        });
+        showNotification('Bitola atualizada com sucesso!', 'success');
+
         try {
             await updateItem<StockGauge>('stock_gauges', id, data);
-            setGauges(prev => prev.map(g => g.id === id ? { ...g, ...data } : g));
-            showNotification('Bitola atualizada com sucesso!', 'success');
         } catch (error) {
-            console.error(error);
-            showNotification('Erro ao atualizar bitola.', 'error');
-        }
-    };
-
-    const restoreDefaultGauges = async () => {
-        if (!confirm('Deseja restaurar as bitolas padrão do sistema? Isso adicionará as bitolas comuns se estiverem faltando.')) return;
-
-        try {
-            const defaults = [
-                ...FioMaquinaBitolaOptions.map(g => ({ materialType: 'Fio Máquina', gauge: g })),
-                ...TrefilaBitolaOptions.map(g => ({ materialType: 'CA-60', gauge: g }))
-            ];
-
-            let addedCount = 0;
-            // Iterate sequentially to avoid race conditions or heavy load
-            for (const item of defaults) {
-                // Check if exists in local state
-                if (gauges.some(g => g.materialType === item.materialType && g.gauge === item.gauge)) continue;
-
-                try {
-                    const saved = await insertItem<StockGauge>('stock_gauges', item as StockGauge);
-                    setGauges(prev => [...prev, saved]);
-                    addedCount++;
-                } catch (e) {
-                    // Constraint violation likely if parallel usage or race condition, ignore
-                    console.warn('Skipping or error adding gauge', item, e);
-                }
-            }
-
-            if (addedCount > 0) {
-                showNotification(`${addedCount} bitolas padrão restauradas com sucesso!`, 'success');
-            } else {
-                showNotification('Todas as bitolas padrão já estavam cadastradas.', 'info');
-            }
-        } catch (error) {
-            console.error(error);
-            showNotification('Erro ao restaurar bitolas. Verifique se a tabela foi criada.', 'error');
+            console.warn('Could not sync gauge update to Supabase. Updated locally.', error);
         }
     };
 
@@ -2584,7 +2679,7 @@ const App: React.FC = () => {
             case 'workInstructions': return <WorkInstructions setPage={setPage} />;
             case 'peopleManagement': return <PeopleManagement setPage={setPage} currentUser={currentUser} />;
             case 'documents': return <DocumentManager setPage={setPage} currentUser={currentUser} />;
-            case 'gaugesManager': return <GaugesManager gauges={gauges} onAdd={addGauge} onDelete={deleteGauge} onUpdate={updateGauge} onRestoreDefaults={restoreDefaultGauges} />;
+            case 'gaugesManager': return <GaugesManager gauges={gauges} stock={stock} onAdd={addGauge} onDelete={deleteGauge} onUpdate={updateGauge} />;
             case 'meetingsTasks':
                 return <MeetingsTasks
                     meetings={meetings}

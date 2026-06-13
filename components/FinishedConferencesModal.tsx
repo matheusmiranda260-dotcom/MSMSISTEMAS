@@ -1,6 +1,6 @@
 // FinishedConferencesModal.tsx
 import React, { useState, useEffect } from 'react';
-import type { ConferenceData, ConferenceLotData, StockItem, Bitola, MaterialType } from '../types';
+import type { ConferenceData, ConferenceLotData, StockItem, Bitola, MaterialType, StockGauge } from '../types';
 import { MaterialOptions, FioMaquinaBitolaOptions, CA60BitolaOptions, SteelTypeOptions } from '../types';
 import { PrinterIcon, PencilIcon, TrashIcon, WarningIcon } from './icons';
 
@@ -11,20 +11,22 @@ interface FinishedConferencesModalProps {
     onShowReport: (conference: ConferenceData) => void;
     onEditConference: (conferenceNumber: string, updatedData: ConferenceData) => void;
     onDeleteConference: (conferenceNumber: string) => void;
+    gauges: StockGauge[];
 }
 
 // ---------- Edit Conference Modal ----------
 const EditConferenceModal: React.FC<{
     conference: ConferenceData;
     stock: StockItem[];
+    gauges: StockGauge[];
     onClose: () => void;
     onSubmit: (updatedData: ConferenceData) => void;
-}> = ({ conference, stock, onClose, onSubmit }) => {
+}> = ({ conference, stock, gauges, onClose, onSubmit }) => {
     const [formData, setFormData] = useState<ConferenceData>(conference);
     const [duplicateErrors, setDuplicateErrors] = useState<Record<number, string>>({});
 
     // all bitola options (both machine types)
-    const allBitolaOptions: Bitola[] = [...new Set([...FioMaquinaBitolaOptions, ...CA60BitolaOptions])];
+    const allBitolaOptions: Bitola[] = [...new Set(gauges.map(g => g.gauge))];
 
     // Validate duplicate lot combinations
     useEffect(() => {
@@ -51,12 +53,13 @@ const EditConferenceModal: React.FC<{
     }, [formData.lots, stock, conference.conferenceNumber]);
 
     const handleAddLot = () => {
+        const fmGauges = gauges.filter(g => g.materialType === 'Fio Máquina').map(g => g.gauge);
         setFormData(prev => ({
             ...prev,
             lots: [...prev.lots, {
                 internalLot: '',
                 runNumber: '',
-                bitola: FioMaquinaBitolaOptions[0],
+                bitola: fmGauges[0] || '8.00',
                 materialType: 'Fio Máquina' as MaterialType,
                 labelWeight: 0,
             }],
@@ -69,9 +72,9 @@ const EditConferenceModal: React.FC<{
             (newLots[index] as any)[field] = value;
 
             if (field === 'materialType') {
-                const applicable = value === 'Fio Máquina' ? FioMaquinaBitolaOptions : CA60BitolaOptions;
+                const applicable = gauges.filter(g => g.materialType === value).map(g => g.gauge);
                 if (!applicable.includes(newLots[index].bitola)) {
-                    newLots[index].bitola = applicable[0];
+                    newLots[index].bitola = applicable[0] || '';
                 }
             }
 
@@ -153,8 +156,8 @@ const EditConferenceModal: React.FC<{
                                     </td>
                                     <td className="p-2">
                                         <select value={lot.bitola} onChange={e => handleLotChange(idx, 'bitola', e.target.value)} className="w-full p-2 border border-slate-300 rounded bg-white text-center">
-                                            {(lot.materialType === 'Fio Máquina' ? FioMaquinaBitolaOptions : CA60BitolaOptions).map(b => (
-                                                <option key={b} value={b}>{b}</option>
+                                            {gauges.filter(g => g.materialType === lot.materialType).map(g => (
+                                                <option key={g.gauge} value={g.gauge}>{g.gauge.replace('.', ',')}</option>
                                             ))}
                                         </select>
                                     </td>
@@ -192,7 +195,7 @@ const EditConferenceModal: React.FC<{
 };
 
 // ---------- Finished Conferences Modal ----------
-const FinishedConferencesModal: React.FC<FinishedConferencesModalProps> = ({ conferences, stock, onClose, onShowReport, onEditConference, onDeleteConference }) => {
+const FinishedConferencesModal: React.FC<FinishedConferencesModalProps> = ({ conferences, stock, onClose, onShowReport, onEditConference, onDeleteConference, gauges }) => {
     const [expandedConferenceId, setExpandedConferenceId] = useState<string | null>(null);
     const [editingConference, setEditingConference] = useState<ConferenceData | null>(null);
     const [deletingConference, setDeletingConference] = useState<ConferenceData | null>(null);
@@ -233,7 +236,7 @@ const FinishedConferencesModal: React.FC<FinishedConferencesModalProps> = ({ con
     return (
         <>
             {editingConference && (
-                <EditConferenceModal conference={editingConference} stock={stock} onClose={() => setEditingConference(null)} onSubmit={handleEditSubmit} />
+                <EditConferenceModal conference={editingConference} stock={stock} gauges={gauges} onClose={() => setEditingConference(null)} onSubmit={handleEditSubmit} />
             )}
             {deletingConference && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ArrowLeftIcon, PlusIcon, StarIcon, SearchIcon, UserIcon, BookOpenIcon, ClockIcon, DocumentTextIcon, PencilIcon, TrashIcon, DownloadIcon, SaveIcon, XIcon } from '../icons';
-import type { Employee, Evaluation, TechnicalEvaluation, EmployeeCourse, EmployeeAbsence, EmployeeVacation, EmployeeResponsibility, EmployeeDocument, KaizenProblem, User, Achievement } from '../../types';
-import { fetchTable, insertItem, updateItem, deleteItem, deleteItemByColumn, uploadFile } from '../../services/supabaseService';
+import { ArrowLeftIcon, PlusIcon, StarIcon, SearchIcon, UserIcon, BookOpenIcon, ClockIcon, DocumentTextIcon, PencilIcon, TrashIcon, DownloadIcon, SaveIcon, XIcon, PrinterIcon, ChartBarIcon, CheckCircleIcon, ExclamationIcon } from '../icons';
+import type { Employee, Evaluation, TechnicalEvaluation, EmployeeCourse, EmployeeAbsence, EmployeeVacation, EmployeeResponsibility, EmployeeDocument, KaizenProblem, User, Achievement, OrgUnit, OrgPosition } from '../../types';
+import { fetchTable, insertItem, updateItem, deleteItem, deleteItemByColumn, uploadFile, fetchByColumn } from '../../services/supabaseService';
 import { formatDbDate, getDurationDays, isDateWithinRange, getAvailablePeriods, getPeriodDeadline } from './dateUtils';
 import { TREFILA_QUESTIONS, TRELICA_QUESTIONS, resizeImage } from './constants';
 import MobileFriendlyDateInput from './MobileFriendlyDateInput';

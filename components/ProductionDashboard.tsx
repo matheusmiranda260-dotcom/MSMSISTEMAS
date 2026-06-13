@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Page, ProductionOrderData, StockItem, User, OperatorLog, MachineType, ProcessedLot, DowntimeConfig } from '../types';
-import { DOWNTIME_THRESHOLDS } from '../types';
+import { DOWNTIME_THRESHOLDS, trelicaModels } from '../types';
 import { 
     ArrowLeftIcon, WarningIcon, CogIcon, PauseIcon, ClockIcon, 
     CheckCircleIcon, ScaleIcon, PlayIcon, BookOpenIcon, StopIcon, 
@@ -460,7 +460,7 @@ const MachineStatusView: React.FC<MachineStatusViewProps> = ({ machineType, acti
         const orderModelNormalized = normalize(activeOrder.trelicaModel);
 
         // Tenta encontrar o modelo exato na lista de trelicaModels
-        const model = [].find(m => {
+        const model = trelicaModels.find(m => {
             const currentModelNormalized = normalize(m.modelo);
             const matchesModel = orderModelNormalized.includes(currentModelNormalized) || currentModelNormalized.includes(orderModelNormalized);
             const matchesSize = activeOrder.tamanho ? activeOrder.tamanho.toString() === m.tamanho : true;
