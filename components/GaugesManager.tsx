@@ -38,6 +38,29 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
         }
     }, [dynamicGroups, selectedGroup, isCreatingNewGroup]);
 
+    useEffect(() => {
+        const groupToUse = isCreatingNewGroup ? customGroupName.trim() : selectedGroup;
+        if (!groupToUse) {
+            setNewProductCode('');
+            return;
+        }
+
+        const prefix = groupToUse.substring(0, 3).toUpperCase();
+        let maxNum = 0;
+        gauges.forEach(g => {
+            if (g.productCode && g.productCode.toUpperCase().startsWith(prefix + '-')) {
+                const numStr = g.productCode.substring(prefix.length + 1);
+                const num = parseInt(numStr, 10);
+                if (!isNaN(num) && num > maxNum) {
+                    maxNum = num;
+                }
+            }
+        });
+        
+        const suggested = `${prefix}-${String(maxNum + 1).padStart(3, '0')}`;
+        setNewProductCode(suggested);
+    }, [selectedGroup, isCreatingNewGroup, customGroupName, gauges]);
+
     const normalizeGauge = (val: string) => {
         if (!val) return '';
         const str = val.trim();
@@ -123,10 +146,23 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
             return;
         }
 
+        const trimmedCode = newProductCode.trim();
+        if (!trimmedCode) {
+            alert('O código do produto é obrigatório.');
+            return;
+        }
+
+        // Check if code is unique
+        const codeExists = gauges.some(g => g.productCode?.toLowerCase() === trimmedCode.toLowerCase());
+        if (codeExists) {
+            alert('Este código de produto já está em uso. Por favor, informe um código único.');
+            return;
+        }
+
         onAdd({
             materialType: groupToUse,
             gauge: finalGauge,
-            productCode: newProductCode.trim() || undefined
+            productCode: trimmedCode
         });
 
         setNewGauge('');
@@ -140,13 +176,24 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
     };
 
     const handleUpdate = (id: string) => {
-        const normalized = editingGaugeVal.replace(',', '.');
-        const numberVal = parseFloat(normalized);
-        if (isNaN(numberVal)) {
-            alert('Por favor, insira um número válido para a bitola.');
+        const formatted = normalizeGauge(editingGaugeVal);
+        if (!formatted) {
+            alert('A medida não pode ser vazia.');
             return;
         }
-        const formatted = numberVal.toFixed(2);
+
+        const trimmedCode = editingCode.trim();
+        if (!trimmedCode) {
+            alert('O código do produto é obrigatório.');
+            return;
+        }
+
+        // Check if code is unique (excluding self)
+        const codeExists = gauges.some(g => g.id !== id && g.productCode?.toLowerCase() === trimmedCode.toLowerCase());
+        if (codeExists) {
+            alert('Este código de produto já está em uso. Por favor, informe um código único.');
+            return;
+        }
 
         const targetGauge = gauges.find(g => g.id === id);
         if (targetGauge) {
@@ -159,7 +206,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
 
         onUpdate(id, { 
             gauge: formatted,
-            productCode: editingCode.trim() || undefined 
+            productCode: trimmedCode 
         });
         setEditingId(null);
         setEditingCode('');
@@ -339,7 +386,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                             </div>
                             
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Cód. Produto (Opcional)</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Cód. Produto</label>
                                 <input
                                     type="text"
                                     value={newProductCode}
