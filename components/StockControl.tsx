@@ -10,7 +10,7 @@ import type {
 import {
     FioMaquinaBitolaOptions, CA60BitolaOptions, MaterialOptions, SteelTypeOptions
 } from '../types';
-import { extractLotDataFromImage } from '../services/geminiService';
+
 import ConferenceReport from './ConferenceReport';
 import FinishedConferencesModal from './FinishedConferencesModal';
 import LotHistoryModal from './LotHistoryModal';

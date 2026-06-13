@@ -4,7 +4,7 @@ import { CA60BitolaOptions, FioMaquinaBitolaOptions } from '../types';
 import { ClipboardListIcon, WarningIcon, AdjustmentsIcon } from './icons';
 import ProductionOrderHistoryModal from './ProductionOrderHistoryModal';
 import ProductionOrderReport from './ProductionOrderReport';
-import { extractOrderDataFromPDF } from '../services/geminiService';
+
 
 interface ProductionOrderDesbobinadeiraProps {
     setPage: (page: Page) => void;
