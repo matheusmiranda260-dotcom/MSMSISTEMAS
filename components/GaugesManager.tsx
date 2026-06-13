@@ -324,6 +324,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                         <option value="mts">mts</option>
                                         <option value="kg">kg</option>
                                         <option value="unid">unid</option>
+                                        <option value="BWG">BWG</option>
                                         <option value="nenhum">-</option>
                                     </select>
                                     <input
