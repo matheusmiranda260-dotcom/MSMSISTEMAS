@@ -3,6 +3,7 @@ import os
 groups = [
     # 1. Tabelas Base (Sem dependências complexas)
     [
+        "create_stock_and_receiving_tables.sql",
         "setup_users_table.sql",
         "setup_people_management.sql",
         "setup_org_chart.sql",

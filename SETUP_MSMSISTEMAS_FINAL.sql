@@ -1,10 +1,144 @@
--- SCRIPT GERADO AUTOMATICAMENTE PARA O NOVO BANCO MSMSISTEMAS --
+-- SCRIPT GERADO AUTOMATICAMENTE PARA O NOVO BANCO MSMSISTEMAS (ENXUTO) --
 
 
 
 -- ======================================
 -- GRUPO 1
 -- ======================================
+
+-- Arquivo: create_stock_and_receiving_tables.sql
+-- create_stock_and_receiving_tables.sql
+-- Tabelas centrais do estoque, recebimento e apontamento de produção
+
+-- 1. Tabela de Conferência (Recebimento)
+CREATE TABLE IF NOT EXISTS public.conferences (
+    id TEXT PRIMARY KEY,
+    date TIMESTAMPTZ DEFAULT NOW(),
+    entry_date TIMESTAMPTZ,
+    operator TEXT,
+    supplier TEXT,
+    nfe TEXT,
+    conference_number TEXT UNIQUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. Tabela de Lotes no Estoque (Matéria-Prima)
+CREATE TABLE IF NOT EXISTS public.stock_items (
+    id TEXT PRIMARY KEY,
+    internal_lot TEXT,
+    supplier_lot TEXT,
+    run_number TEXT,
+    model TEXT,
+    bitola TEXT,
+    quantity NUMERIC,
+    weight NUMERIC,
+    label_weight NUMERIC DEFAULT 0,
+    initial_quantity NUMERIC,
+    remaining_quantity NUMERIC,
+    sector TEXT,
+    material_type TEXT DEFAULT 'Fio Máquina',
+    supplier TEXT,
+    nfe TEXT,
+    conference_number TEXT,
+    entry_date TIMESTAMPTZ,
+    status TEXT DEFAULT 'Disponível',
+    history JSONB DEFAULT '[]'::jsonb,
+    last_movement TIMESTAMPTZ,
+    sub_slot TEXT,
+    production_order_ids JSONB DEFAULT '[]'::jsonb,
+    location TEXT,
+    last_audit_date TIMESTAMPTZ,
+    audit_observation TEXT,
+    steel_type TEXT DEFAULT '1006',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3. Tabela de Transferências de Aço (FIFO)
+CREATE TABLE IF NOT EXISTS public.transfers (
+    id TEXT PRIMARY KEY,
+    date TIMESTAMPTZ DEFAULT NOW(),
+    operator TEXT,
+    destination_sector TEXT,
+    transferred_lots JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 4. Tabela de Movimentação de Produtos Acabados
+CREATE TABLE IF NOT EXISTS public.finished_goods_transfers (
+    id TEXT PRIMARY KEY,
+    date TIMESTAMPTZ DEFAULT NOW(),
+    operator TEXT,
+    destination_sector TEXT,
+    other_destination TEXT,
+    transferred_items JSONB DEFAULT '[]'::jsonb,
+    withdraw_physical_now BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 5. Tabela de Requisições de Peças de Reposição
+CREATE TABLE IF NOT EXISTS public.parts_requests (
+    id TEXT PRIMARY KEY,
+    date TIMESTAMPTZ DEFAULT NOW(),
+    operator TEXT,
+    machine TEXT,
+    production_order_id TEXT,
+    part_description TEXT,
+    quantity NUMERIC,
+    priority TEXT CHECK (priority IN ('Normal', 'Urgente')),
+    status TEXT CHECK (status IN ('Pendente', 'Atendido')),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 6. Tabela de Relatórios de Turno
+CREATE TABLE IF NOT EXISTS public.shift_reports (
+    id TEXT PRIMARY KEY,
+    machine TEXT,
+    operator TEXT,
+    production_order_id TEXT,
+    order_number TEXT,
+    target_bitola TEXT,
+    trelica_model TEXT,
+    tamanho TEXT,
+    quantity_to_produce NUMERIC,
+    shift_start_time TIMESTAMPTZ,
+    shift_end_time TIMESTAMPTZ,
+    processed_lots JSONB DEFAULT '[]'::jsonb,
+    downtime_events JSONB DEFAULT '[]'::jsonb,
+    total_produced_quantity NUMERIC DEFAULT 0,
+    total_produced_weight NUMERIC DEFAULT 0,
+    total_produced_meters NUMERIC DEFAULT 0,
+    total_scrap_weight NUMERIC DEFAULT 0,
+    scrap_percentage NUMERIC DEFAULT 0,
+    date DATE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 7. Tabela de Apontamento de Produção Realizada
+CREATE TABLE IF NOT EXISTS public.production_records (
+    id TEXT PRIMARY KEY,
+    production_order_id TEXT,
+    date TIMESTAMPTZ DEFAULT NOW(),
+    machine TEXT,
+    operator TEXT,
+    produced_weight NUMERIC,
+    produced_quantity NUMERIC,
+    bitola TEXT,
+    model TEXT,
+    consumed_lots JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 8. Tabela de Quadro de Avisos / Notas Adesivas
+CREATE TABLE IF NOT EXISTS public.sticky_notes (
+    id TEXT PRIMARY KEY,
+    content TEXT,
+    color TEXT,
+    author TEXT,
+    date TIMESTAMPTZ DEFAULT NOW(),
+    completed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 
 -- Arquivo: setup_users_table.sql
 -- Create a new table for simple user management
@@ -249,59 +383,6 @@ CREATE POLICY "Enable all for users" ON spare_parts FOR ALL USING (true) WITH CH
 CREATE POLICY "Enable all for users" ON part_usage_history FOR ALL USING (true) WITH CHECK (true);
 
 
--- Arquivo: supabase_trefila_recipes.sql
-
--- Create table for Trefila Recipes
-CREATE TABLE IF NOT EXISTS trefila_recipes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL,
-    type TEXT,
-    entry_diameter NUMERIC,
-    final_diameter NUMERIC,
-    passes INTEGER,
-    pass_diameters JSONB, -- Array of numbers
-    pass_rings JSONB,     -- Array of {entry, output} objects
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Enable RLS
-ALTER TABLE trefila_recipes ENABLE ROW LEVEL SECURITY;
-
--- Create policy for full access (public for now, or authenticated if user prefers)
-CREATE POLICY "Public access to recipes" ON trefila_recipes
-    FOR ALL USING (true) WITH CHECK (true);
-
-
--- Arquivo: supabase_trefila_rings.sql
--- Create table for Trefila Rings Stock
-create table if not exists public.trefila_rings_stock (
-    id uuid default gen_random_uuid() primary key,
-    model text not null, -- e.g. "PR 3.20", "CA 3.55"
-    quantity integer default 0,
-    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-    updated_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- Enable RLS
-alter table public.trefila_rings_stock enable row level security;
-
--- Create permissive policy for now (matching other tables in this project context)
-create policy "Enable all for public" on public.trefila_rings_stock for all using (true) with check (true);
-
--- Functions to update updated_at
-create or replace function public.handle_updated_at()
-returns trigger as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$ language plpgsql;
-
-create trigger handle_trefila_rings_stock_updated_at
-before update on public.trefila_rings_stock
-for each row execute procedure public.handle_updated_at();
-
-
 -- Arquivo: supabase_instructions.sql
 -- Work Instructions Table
 CREATE TABLE IF NOT EXISTS public.work_instructions (
@@ -409,104 +490,6 @@ FOR INSERT WITH CHECK ( bucket_id = 'kaizen-images' );
 -- ALLOW UPDATE for everyone
 CREATE POLICY "Kaizen Update" ON storage.objects 
 FOR UPDATE USING ( bucket_id = 'kaizen-images' );
-
-
--- Arquivo: sql_meetings.sql
--- Create Meetings table
-CREATE TABLE IF NOT EXISTS public.meetings (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    title TEXT NOT NULL,
-    meeting_date TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT now(),
-    author TEXT NOT NULL,
-    items JSONB DEFAULT '[]'::jsonb
-);
-
--- Enable RLS
-ALTER TABLE public.meetings ENABLE ROW LEVEL SECURITY;
-
--- Create Policy for open access (as per existing project pattern)
-DROP POLICY IF EXISTS "Enable all access for all users" ON public.meetings;
-CREATE POLICY "Enable all access for all users" ON public.meetings FOR ALL USING (true) WITH CHECK (true);
-
--- Insert a sample meeting if table is empty
-INSERT INTO public.meetings (title, meeting_date, author, items)
-SELECT 'Reunião Semanal 18/02', now(), 'Gestor', 
-'[{"id": "1", "content": "Definir metas de produção", "completed": false}, {"id": "2", "content": "Revisar segurança da trefila", "completed": true}]'::jsonb
-WHERE NOT EXISTS (SELECT 1 FROM public.meetings);
-
-
--- Arquivo: sql_laboratory.sql
--- Script para criar a tabela de Laboratório (lab_analysis)
--- Execute este script no SQL Editor do Supabase
-
-CREATE TABLE IF NOT EXISTS public.lab_analysis (
-    id TEXT PRIMARY KEY,
-    lote TEXT NOT NULL,
-    fornecedor TEXT NOT NULL,
-    k7_1_entrada DOUBLE PRECISION,
-    k7_1_saida DOUBLE PRECISION,
-    k7_2_entrada DOUBLE PRECISION,
-    k7_2_saida DOUBLE PRECISION,
-    k7_3_entrada DOUBLE PRECISION,
-    k7_3_saida DOUBLE PRECISION,
-    k7_4_entrada DOUBLE PRECISION,
-    k7_4_saida DOUBLE PRECISION,
-    velocidade DOUBLE PRECISION,
-    comprimento DOUBLE PRECISION,
-    massa DOUBLE PRECISION,
-    escoamento DOUBLE PRECISION,
-    resistencia DOUBLE PRECISION,
-    alongamento DOUBLE PRECISION,
-    date TIMESTAMPTZ DEFAULT NOW(),
-    operator TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Configura permissões (RLS)
-ALTER TABLE public.lab_analysis ENABLE ROW LEVEL SECURITY;
-
--- Permite todas as operações para usuários autenticados (ou todos para testes locais)
-CREATE POLICY "Enable all for authenticated users" ON public.lab_analysis
-    FOR ALL
-    USING (true)
-    WITH CHECK (true);
-
-
--- Arquivo: create_downtime_configs.sql
-
--- Create the downtime_configs table
-CREATE TABLE IF NOT EXISTS public.downtime_configs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    reason TEXT NOT NULL,
-    threshold_minutes INTEGER NOT NULL DEFAULT 15,
-    machine_type TEXT NOT NULL DEFAULT 'Geral',
-    is_active BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Enable Row Level Security (RLS)
-ALTER TABLE public.downtime_configs ENABLE ROW LEVEL SECURITY;
-
--- Create policies for access
-CREATE POLICY "Enable read access for all users" ON public.downtime_configs
-    FOR SELECT USING (true);
-
-CREATE POLICY "Enable all access for authenticated users" ON public.downtime_configs
-    FOR ALL USING (true);
-
--- Insert some default values (optional but helpful)
-INSERT INTO public.downtime_configs (reason, threshold_minutes, machine_type)
-VALUES 
-    ('Enrosco de fio', 15, 'Geral'),
-    ('Quebra de fio', 20, 'Geral'),
-    ('Manutenção Mecânica', 60, 'Geral'),
-    ('Manutenção Elétrica', 60, 'Geral'),
-    ('Troca de Rolo / Preparação', 15, 'Trefila'),
-    ('Ajuste de Bitola', 180, 'Trefila'),
-    ('Limpeza de Eletrodos', 15, 'Treliça'),
-    ('Troca de Modelo', 120, 'Treliça')
-ON CONFLICT (id) DO NOTHING;
 
 
 -- Arquivo: create_documents_table.sql
@@ -638,6 +621,97 @@ ALTER TABLE public.technical_evaluations ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Access technical_evaluations" ON public.technical_evaluations FOR ALL USING (true);
 
 
+-- Arquivo: supabase_migration_stock_gauges.sql
+-- Create the stock_gauges table
+CREATE TABLE IF NOT EXISTS public.stock_gauges (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    material_type TEXT NOT NULL,
+    gauge TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE(material_type, gauge)
+);
+
+-- Enable RLS
+ALTER TABLE public.stock_gauges ENABLE ROW LEVEL SECURITY;
+
+-- Create policy for all actions (simple for now)
+CREATE POLICY "Enable all for authenticated users" ON public.stock_gauges
+    FOR ALL USING (true) WITH CHECK (true);
+
+
+
+-- Arquivo: supabase_migration_inventory_applied.sql
+-- Migration to add applied_to_stock column and set up inventory_sessions table correctly
+-- Run this in the Supabase SQL Editor
+
+-- 1. Create the table if it doesn't exist (safety)
+CREATE TABLE IF NOT EXISTS public.inventory_sessions (
+    id TEXT PRIMARY KEY,
+    material_type TEXT NOT NULL,
+    bitola TEXT NOT NULL,
+    start_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    end_date TIMESTAMP WITH TIME ZONE,
+    status TEXT DEFAULT 'open',
+    operator TEXT,
+    items_count INTEGER DEFAULT 0,
+    checked_count INTEGER DEFAULT 0,
+    audited_lots JSONB DEFAULT '[]'::jsonb,
+    applied_to_stock BOOLEAN DEFAULT FALSE
+);
+
+-- 2. Add the column if it's missing (it likely is)
+ALTER TABLE public.inventory_sessions 
+ADD COLUMN IF NOT EXISTS applied_to_stock BOOLEAN DEFAULT FALSE;
+
+-- 3. Enable RLS and add policies
+ALTER TABLE public.inventory_sessions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Enable all access for all users" ON public.inventory_sessions;
+CREATE POLICY "Enable all access for all users" ON public.inventory_sessions FOR ALL USING (true);
+
+-- 4. Enable Realtime
+ALTER publication supabase_realtime ADD TABLE inventory_sessions;
+
+
+-- Arquivo: supabase_add_stock_location.sql
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS location TEXT;
+
+-- Create an index for faster lookups by location if needed
+CREATE INDEX IF NOT EXISTS idx_stock_items_location ON public.stock_items (location);
+
+
+-- Arquivo: supabase_storage_bucket.sql
+
+-- Create a public bucket for spare parts images
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('spare-parts', 'spare-parts', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Policy to allow public read access
+CREATE POLICY "Public Read Access" ON storage.objects 
+FOR SELECT USING (bucket_id = 'spare-parts');
+
+-- Policy to allow authenticated uploads
+CREATE POLICY "Authenticated Upload" ON storage.objects 
+FOR INSERT WITH CHECK (bucket_id = 'spare-parts');
+
+-- Policy to allow authenticated updates
+CREATE POLICY "Authenticated Update" ON storage.objects 
+FOR UPDATE WITH CHECK (bucket_id = 'spare-parts');
+
+
+-- Arquivo: supabase_spare_parts_v2.sql
+
+-- Add image_url to spare_parts for model photos
+ALTER TABLE spare_parts ADD COLUMN IF NOT EXISTS image_url TEXT;
+
+-- Add type to part_usage_history to distinguish Entrada (IN) and Saída (OUT)
+-- Default is 'OUT' to correspond to existing 'usage' records
+ALTER TABLE part_usage_history ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'OUT';
+
+-- Update RLS if needed (already permissive)
+
+
 -- Arquivo: supabase_production_orders_schema.sql
 -- Script para criar/atualizar a tabela production_orders no Supabase
 -- Execute este script no SQL Editor do Supabase
@@ -753,49 +827,6 @@ COMMENT ON COLUMN production_orders.selected_lot_ids IS 'IDs dos lotes seleciona
 COMMENT ON COLUMN production_orders.status IS 'Status da ordem: pending, in_progress, completed';
 
 
--- Arquivo: supabase_trelica_daily_reports.sql
--- SQL Migration: Criar tabela para Relatórios Diários da Treliça
--- Execute este script no SQL Editor do Supabase para criar a tabela.
-
-CREATE TABLE IF NOT EXISTS public.trelica_daily_reports (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    date DATE NOT NULL,
-    machine_type TEXT NOT NULL, -- 'Treliça 1' ou 'Treliça 2'
-    production_order TEXT,
-    operator_shift_a TEXT,
-    operator_shift_b TEXT,
-    product_description TEXT DEFAULT 'TRELIÇA H-12 LEVE 6 MTS',
-    pieces_to_produce NUMERIC DEFAULT 4500,
-    stops_shift_a JSONB DEFAULT '[]'::jsonb,
-    stops_shift_b JSONB DEFAULT '[]'::jsonb,
-    stats_shift_a JSONB DEFAULT '{}'::jsonb,
-    stats_shift_b JSONB DEFAULT '{}'::jsonb,
-    production_updates JSONB DEFAULT '[]'::jsonb,
-    created_at TIMESTAMPTZ DEFAULT now(),
-    
-    -- Garante que só exista um relatório por máquina e data
-    CONSTRAINT unique_machine_date UNIQUE (date, machine_type)
-);
-
--- Habilitar Segurança de Nível de Linha (RLS)
-ALTER TABLE public.trelica_daily_reports ENABLE ROW LEVEL SECURITY;
-
--- Remover política anterior se existir
-DROP POLICY IF EXISTS "Enable all access for all users" ON public.trelica_daily_reports;
-
--- Criar política de acesso irrestrito para facilitar operações
-CREATE POLICY "Enable all access for all users" ON public.trelica_daily_reports 
-    FOR ALL USING (true) WITH CHECK (true);
-
--- Comentários para documentação das colunas
-COMMENT ON TABLE public.trelica_daily_reports IS 'Tabela que armazena os relatórios de produção diária das máquinas Treliça 1 e 2.';
-COMMENT ON COLUMN public.trelica_daily_reports.stops_shift_a IS 'Lista de paradas do turno A (JSON: [{inicio, fim, motivo, duracao}])';
-COMMENT ON COLUMN public.trelica_daily_reports.stops_shift_b IS 'Lista de paradas do turno B (JSON: [{inicio, fim, motivo, duracao}])';
-COMMENT ON COLUMN public.trelica_daily_reports.stats_shift_a IS 'Dados estatísticos do turno A (JSON: {horasTrabalhadas, pecasProduzidas, tamanhoPeca})';
-COMMENT ON COLUMN public.trelica_daily_reports.stats_shift_b IS 'Dados estatísticos do turno B (JSON: {horasTrabalhadas, pecasProduzidas, tamanhoPeca})';
-COMMENT ON COLUMN public.trelica_daily_reports.production_updates IS 'Tabela de atualizações de lotes/pesos (JSON: [{qnt, peso, media, data}])';
-
-
 -- Arquivo: create_daily_reports_table.sql
 -- ============================================================
 -- SQL Migration: Tabela Unificada de Relatórios Diários
@@ -848,122 +879,6 @@ COMMENT ON COLUMN public.daily_reports.report_type IS 'Tipo do relatório: trefi
 COMMENT ON COLUMN public.daily_reports.machine_key  IS 'Chave da máquina/setor: Trefila | FinalTrelica';
 COMMENT ON COLUMN public.daily_reports.date         IS 'Data de produção do relatório (YYYY-MM-DD)';
 COMMENT ON COLUMN public.daily_reports.data         IS 'Payload JSON completo do formulário';
-
-
--- Arquivo: supabase_migration_stock_gauges.sql
--- Create the stock_gauges table
-CREATE TABLE IF NOT EXISTS public.stock_gauges (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    material_type TEXT NOT NULL,
-    gauge TEXT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    UNIQUE(material_type, gauge)
-);
-
--- Enable RLS
-ALTER TABLE public.stock_gauges ENABLE ROW LEVEL SECURITY;
-
--- Create policy for all actions (simple for now)
-CREATE POLICY "Enable all for authenticated users" ON public.stock_gauges
-    FOR ALL USING (true) WITH CHECK (true);
-
--- Insert initial data based on hardcoded constants in types.ts
--- Fio Máquina
-INSERT INTO public.stock_gauges (material_type, gauge) VALUES 
-('Fio Máquina', '8.00'),
-('Fio Máquina', '7.00'),
-('Fio Máquina', '6.50'),
-('Fio Máquina', '6.35'),
-('Fio Máquina', '5.50')
-ON CONFLICT DO NOTHING;
-
--- CA-60 (represented as TrefilaBitolaOptions in code)
-INSERT INTO public.stock_gauges (material_type, gauge) VALUES 
-('CA-60', '3.40'),
-('CA-60', '3.80'),
-('CA-60', '4.20'),
-('CA-60', '4.60'),
-('CA-60', '5.00'),
-('CA-60', '5.40'),
-('CA-60', '6.00'),
-('CA-60', '6.35'),
-('CA-60', '3.20'),
-('CA-60', '5.60'),
-('CA-60', '5.80'),
-('CA-60', '8.00')
-ON CONFLICT DO NOTHING;
-
-
--- Arquivo: supabase_migration_inventory_applied.sql
--- Migration to add applied_to_stock column and set up inventory_sessions table correctly
--- Run this in the Supabase SQL Editor
-
--- 1. Create the table if it doesn't exist (safety)
-CREATE TABLE IF NOT EXISTS public.inventory_sessions (
-    id TEXT PRIMARY KEY,
-    material_type TEXT NOT NULL,
-    bitola TEXT NOT NULL,
-    start_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    end_date TIMESTAMP WITH TIME ZONE,
-    status TEXT DEFAULT 'open',
-    operator TEXT,
-    items_count INTEGER DEFAULT 0,
-    checked_count INTEGER DEFAULT 0,
-    audited_lots JSONB DEFAULT '[]'::jsonb,
-    applied_to_stock BOOLEAN DEFAULT FALSE
-);
-
--- 2. Add the column if it's missing (it likely is)
-ALTER TABLE public.inventory_sessions 
-ADD COLUMN IF NOT EXISTS applied_to_stock BOOLEAN DEFAULT FALSE;
-
--- 3. Enable RLS and add policies
-ALTER TABLE public.inventory_sessions ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Enable all access for all users" ON public.inventory_sessions;
-CREATE POLICY "Enable all access for all users" ON public.inventory_sessions FOR ALL USING (true);
-
--- 4. Enable Realtime
-ALTER publication supabase_realtime ADD TABLE inventory_sessions;
-
-
--- Arquivo: supabase_add_stock_location.sql
-ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS location TEXT;
-
--- Create an index for faster lookups by location if needed
-CREATE INDEX IF NOT EXISTS idx_stock_items_location ON public.stock_items (location);
-
-
--- Arquivo: supabase_storage_bucket.sql
-
--- Create a public bucket for spare parts images
-INSERT INTO storage.buckets (id, name, public) 
-VALUES ('spare-parts', 'spare-parts', true)
-ON CONFLICT (id) DO NOTHING;
-
--- Policy to allow public read access
-CREATE POLICY "Public Read Access" ON storage.objects 
-FOR SELECT USING (bucket_id = 'spare-parts');
-
--- Policy to allow authenticated uploads
-CREATE POLICY "Authenticated Upload" ON storage.objects 
-FOR INSERT WITH CHECK (bucket_id = 'spare-parts');
-
--- Policy to allow authenticated updates
-CREATE POLICY "Authenticated Update" ON storage.objects 
-FOR UPDATE WITH CHECK (bucket_id = 'spare-parts');
-
-
--- Arquivo: supabase_spare_parts_v2.sql
-
--- Add image_url to spare_parts for model photos
-ALTER TABLE spare_parts ADD COLUMN IF NOT EXISTS image_url TEXT;
-
--- Add type to part_usage_history to distinguish Entrada (IN) and Saída (OUT)
--- Default is 'OUT' to correspond to existing 'usage' records
-ALTER TABLE part_usage_history ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'OUT';
-
--- Update RLS if needed (already permissive)
 
 
 
@@ -1330,26 +1245,6 @@ SET status = 'Disponível'
 WHERE status = 'Em Produção';
 
 
--- Arquivo: fix_production_orders_columns.sql
--- Allow active_lot_processing to be NULL
-ALTER TABLE production_orders ALTER COLUMN active_lot_processing DROP NOT NULL;
-
--- Ensure processed_lots is JSONB and nullable (just in case)
-ALTER TABLE production_orders ALTER COLUMN processed_lots DROP NOT NULL;
-
--- Ensure downtime_events is JSONB and nullable
-ALTER TABLE production_orders ALTER COLUMN downtime_events DROP NOT NULL;
-
-
--- Arquivo: fix_os_progress.sql
--- Script para adicionar as colunas necessárias para a Desbobinadeira
-
-ALTER TABLE public.production_orders ADD COLUMN IF NOT EXISTS "os_items" JSONB;
-ALTER TABLE public.production_orders ADD COLUMN IF NOT EXISTS "os_progress" JSONB;
-ALTER TABLE public.production_orders ADD COLUMN IF NOT EXISTS "is_ghost_order" BOOLEAN DEFAULT false;
-ALTER TABLE public.production_orders ADD COLUMN IF NOT EXISTS "input_bitola" TEXT;
-
-
 -- Arquivo: fix_people_management_permissions.sql
 -- Enable RLS and add policies for People Management tables to ensure data is accessible
 -- These policies allow the application (using the anon key) to Read/Write data.
@@ -1496,28 +1391,6 @@ ADD COLUMN IF NOT EXISTS attachment_url TEXT;
 -- ADD COLUMN IF NOT EXISTS attachment_name TEXT;
 
 
--- Arquivo: add_assigned_machine.sql
-ALTER TABLE employees ADD COLUMN IF NOT EXISTS assigned_machine TEXT;
-
-
--- Arquivo: add_cancelled_status.sql
--- Script para adicionar o status 'cancelled' à tabela production_orders
--- Execute este script no SQL Editor do Supabase
-
--- 1. Remover a constraint antiga de status
-ALTER TABLE public.production_orders DROP CONSTRAINT IF EXISTS production_orders_status_check;
-
--- 2. Adicionar a nova constraint com 'cancelled' incluído
-ALTER TABLE public.production_orders ADD CONSTRAINT production_orders_status_check 
-    CHECK (status IN ('pending', 'in_progress', 'completed', 'cancelled'));
-
--- Verificação: listar as constraints atuais
-SELECT conname, pg_get_constraintdef(oid) 
-FROM pg_constraint 
-WHERE conrelid = 'public.production_orders'::regclass 
-AND contype = 'c';
-
-
 -- Arquivo: add_conferral_and_op_columns.sql
 -- Adiciona colunas para controle de conferência e OP na tabela finished_goods
 ALTER TABLE public.finished_goods ADD COLUMN IF NOT EXISTS is_conferred BOOLEAN DEFAULT true;
@@ -1530,53 +1403,6 @@ ALTER TABLE public.pontas_stock ADD COLUMN IF NOT EXISTS is_conferred BOOLEAN DE
 ALTER TABLE public.pontas_stock ADD COLUMN IF NOT EXISTS conferral_justification TEXT;
 ALTER TABLE public.pontas_stock ADD COLUMN IF NOT EXISTS op_start_time TIMESTAMP WITH TIME ZONE;
 ALTER TABLE public.pontas_stock ADD COLUMN IF NOT EXISTS op_end_time TIMESTAMP WITH TIME ZONE;
-
-
--- Arquivo: add_desbobinadeira_columns.sql
--- Migration to add Desbobinadeira support
--- 1. Expand machine check constraint
-DO $$
-DECLARE
-    constraint_name text;
-BEGIN
-    SELECT conname INTO constraint_name
-    FROM pg_constraint
-    WHERE conrelid = 'production_orders'::regclass
-      AND contype = 'c'
-      AND conname LIKE 'production_orders_machine_check%';
-
-    IF constraint_name IS NOT NULL THEN
-        EXECUTE format('ALTER TABLE production_orders DROP CONSTRAINT %I', constraint_name);
-    END IF;
-END $$;
-
-ALTER TABLE production_orders
-    ALTER COLUMN machine TYPE TEXT,
-    ADD CONSTRAINT production_orders_machine_check
-        CHECK (machine IN ('Trefila', 'Treliça', 'Desbobinadeira 1'));
-
--- 2. New columns for Desbobinadeira
-ALTER TABLE production_orders
-    ADD COLUMN IF NOT EXISTS input_bitola TEXT,
-    ADD COLUMN IF NOT EXISTS os_items JSONB DEFAULT '[]'::jsonb,
-    ADD COLUMN IF NOT EXISTS is_ghost_order BOOLEAN DEFAULT FALSE,
-    ADD COLUMN IF NOT EXISTS summary JSONB;
-
-
--- Arquivo: add_desbobinadeira_machine.sql
--- Script para adicionar a máquina 'Desbobinadeira 1' à constraint de máquinas da tabela production_orders
--- Execute este script no SQL Editor do Supabase
-
-ALTER TABLE public.production_orders DROP CONSTRAINT IF EXISTS production_orders_machine_check;
-
-ALTER TABLE public.production_orders ADD CONSTRAINT production_orders_machine_check 
-    CHECK (machine IN ('Trefila', 'Treliça', 'Trefila 1', 'Trefila 2', 'Treliça 1', 'Treliça 2', 'Desbobinadeira 1'));
-
--- Verificação: listar as constraints atuais para confirmar a alteração
-SELECT conname, pg_get_constraintdef(oid) 
-FROM pg_constraint 
-WHERE conrelid = 'public.production_orders'::regclass 
-AND contype = 'c';
 
 
 -- Arquivo: add_last_quantity_update_column.sql
@@ -1596,13 +1422,10 @@ ALTER TABLE public.pontas_stock ADD COLUMN IF NOT EXISTS pending_transfer_quanti
 ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS product_code TEXT;
 
 
--- Arquivo: add_production_columns_to_shift_reports.sql
--- Adiciona a coluna total_produced_quantity à tabela shift_reports
-ALTER TABLE shift_reports ADD COLUMN IF NOT EXISTS total_produced_quantity NUMERIC DEFAULT 0;
-ALTER TABLE shift_reports ADD COLUMN IF NOT EXISTS total_produced_weight NUMERIC DEFAULT 0;
-ALTER TABLE shift_reports ADD COLUMN IF NOT EXISTS total_produced_meters NUMERIC DEFAULT 0;
-ALTER TABLE shift_reports ADD COLUMN IF NOT EXISTS total_scrap_weight NUMERIC DEFAULT 0;
-ALTER TABLE shift_reports ADD COLUMN IF NOT EXISTS scrap_percentage NUMERIC DEFAULT 0;
+-- Arquivo: link_users_employees.sql
+-- Link App Users to Employees (Corrected Type)
+ALTER TABLE app_users
+ADD COLUMN IF NOT EXISTS employee_id TEXT REFERENCES employees(id);
 
 
 -- Arquivo: FIX_DESBOBINADEIRA_FINAL.sql
@@ -1634,11 +1457,5 @@ SELECT column_name, data_type, is_nullable, column_default
 FROM information_schema.columns
 WHERE table_name = 'production_orders'
 ORDER BY ordinal_position;
-
-
--- Arquivo: link_users_employees.sql
--- Link App Users to Employees (Corrected Type)
-ALTER TABLE app_users
-ADD COLUMN IF NOT EXISTS employee_id TEXT REFERENCES employees(id);
 
 
