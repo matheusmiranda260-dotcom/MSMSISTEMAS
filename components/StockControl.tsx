@@ -51,7 +51,7 @@ const AddConferencePage: React.FC<{
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
     const [lots, setLots] = useState<Partial<ConferenceLotData>[]>([{
-        internalLot: '', runNumber: '', steelType: '1006', bitola: '8.00', materialType: 'Fio Máquina', labelWeight: 0
+        internalLot: '', runNumber: '', steelType: '1006', bitola: '', materialType: dynamicMaterialOptions[0] || '', labelWeight: 0
     }]);
     const [duplicateErrors, setDuplicateErrors] = useState<Record<number, string>>({});
     const [historyOpen, setHistoryOpen] = useState(false);
@@ -114,7 +114,7 @@ const AddConferencePage: React.FC<{
             if (res.lots?.length) {
                 const mapped = res.lots.map((l: any) => ({
                     internalLot: l.internalLot || '', runNumber: String(l.runNumber || ''),
-                    bitola: (l.bitola || '8.00').replace('.', ','), materialType: 'Fio Máquina' as MaterialType, labelWeight: Number(l.labelWeight) || 0
+                    bitola: (l.bitola || '8.00').replace('.', ','), materialType: (dynamicMaterialOptions[0] || '') as MaterialType, labelWeight: Number(l.labelWeight) || 0
                 }));
                 setLots(p => (p.length === 1 && !p[0].internalLot) ? mapped : [...p, ...mapped]);
             }
@@ -244,7 +244,7 @@ const AddConferencePage: React.FC<{
                                             </select>
                                         </td>
                                         <td className="p-2"><input type="text" value={lot.runNumber || ''} onChange={e => handleLotChange(index, 'runNumber', e.target.value)} className="w-full p-2 border rounded text-center" required /></td>
-                                        <td className="p-2"><select value={lot.materialType} onChange={e => handleLotChange(index, 'materialType', e.target.value)} className="w-full p-2 border rounded text-center">{MaterialOptions.map(m => <option key={m} value={m}>{m}</option>)}</select></td>
+                                        <td className="p-2"><select value={lot.materialType} onChange={e => handleLotChange(index, 'materialType', e.target.value)} className="w-full p-2 border rounded text-center">{dynamicMaterialOptions.map(m => <option key={m} value={m}>{m}</option>)}</select></td>
                                         <td className="p-2">
                                             <select value={lot.bitola} onChange={e => handleLotChange(index, 'bitola', e.target.value)} className="w-full p-2 border rounded text-center">
                                                 {(() => {
@@ -350,10 +350,8 @@ const StockControl: React.FC<{
 
     const availableBitolas = useMemo(() => {
         let options: string[] = [];
-        if (materialFilter === 'Fio Máquina') {
-            options = gauges.filter(g => g.materialType === 'Fio Máquina').map(g => g.gauge);
-        } else if (materialFilter === 'CA-60') {
-            options = gauges.filter(g => g.materialType === 'CA-60').map(g => g.gauge);
+        if (materialFilter) {
+            options = gauges.filter(g => g.materialType === materialFilter).map(g => g.gauge);
         } else {
             options = gauges.map(g => g.gauge);
         }

@@ -53,14 +53,18 @@ const EditConferenceModal: React.FC<{
     }, [formData.lots, stock, conference.conferenceNumber]);
 
     const handleAddLot = () => {
-        const fmGauges = gauges.filter(g => g.materialType === 'Fio Máquina').map(g => g.gauge);
+        const dynamicMaterialOptions = Array.from(new Set(gauges.map(g => g.materialType))).filter(Boolean) as string[];
+        const sortedMaterialOptions = dynamicMaterialOptions.sort();
+        const defaultMaterial = sortedMaterialOptions[0] || '';
+        const fmGauges = gauges.filter(g => g.materialType === defaultMaterial).map(g => g.gauge);
+        
         setFormData(prev => ({
             ...prev,
             lots: [...prev.lots, {
                 internalLot: '',
                 runNumber: '',
-                bitola: fmGauges[0] || '8.00',
-                materialType: 'Fio Máquina' as MaterialType,
+                bitola: fmGauges[0] || '',
+                materialType: defaultMaterial as MaterialType,
                 labelWeight: 0,
             }],
         }));
@@ -205,12 +209,15 @@ const FinishedConferencesModal: React.FC<FinishedConferencesModalProps> = ({ con
         if (conf.lots && conf.lots.length > 0) return conf;
         // Rebuild lots from stock_items
         const stockItems = stock.filter(s => s.conferenceNumber === conf.conferenceNumber);
+        const dynamicMaterialOptions = Array.from(new Set(gauges.map(g => g.materialType))).filter(Boolean) as string[];
+        const defaultMaterial = dynamicMaterialOptions.sort()[0] || '';
+
         const lots: ConferenceLotData[] = stockItems.map(s => ({
             internalLot: s.internalLot || '',
             runNumber: s.runNumber || '',
             steelType: s.steelType || '1006',
             bitola: s.bitola || '',
-            materialType: s.materialType || 'Fio Máquina',
+            materialType: s.materialType || defaultMaterial,
             labelWeight: Number(s.labelWeight) || 0,
             supplier: s.supplier || conf.supplier || '',
         }));
