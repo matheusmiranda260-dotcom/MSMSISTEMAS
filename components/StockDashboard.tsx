@@ -25,7 +25,7 @@ const StockDashboard: React.FC<StockDashboardProps> = ({ stock }) => {
     const stockStats = useMemo(() => {
         const availableStock = stock.filter(
             (item) =>
-                item.status === 'Disponível' || item.status === 'Disponível - Suporte Treliça'
+                item.status === 'Disponível'
         );
 
         const totalWeight = availableStock.reduce((acc, item) => acc + item.remainingQuantity, 0);

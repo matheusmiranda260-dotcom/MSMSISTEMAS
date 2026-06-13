@@ -33,7 +33,7 @@ const StockPyramidMapModal: React.FC<StockPyramidMapModalProps> = ({ stock, onCl
     const unassignedList = useMemo(() => {
         const term = searchTerm.toLowerCase();
         return stock.filter(item => {
-            if (item.status !== 'Disponível' && item.status !== 'Disponível - Suporte Treliça') return false;
+            if (item.status !== 'Disponível') return false;
             if (item.materialType !== selectedMaterial) return false;
             if (item.bitola !== selectedBitola) return false;
             if (item.location) return false; // Already has address

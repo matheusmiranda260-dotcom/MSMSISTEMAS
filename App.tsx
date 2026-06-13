@@ -783,8 +783,7 @@ const App: React.FC = () => {
 
             // Check if any lot is in use
             const lotsInUse = conferenceStockItems.filter(item =>
-                item.status !== 'Disponível' &&
-                item.status !== 'Disponível - Suporte Treliça'
+                item.status !== 'Disponível'
             );
 
             if (lotsInUse.length > 0) {
@@ -1170,7 +1169,7 @@ const App: React.FC = () => {
                             const stockItem = stock.find(s => s.id === lotId);
                             if (stockItem) {
                                 await updateItem<StockItem>('stock_items', lotId, {
-                                    status: 'Em Produção - Treliça',
+                                    status: 'Reservado',
                                     location: role,
                                     productionOrderIds: [...(stockItem.productionOrderIds || []), savedOrder.id]
                                 });
@@ -1190,7 +1189,7 @@ const App: React.FC = () => {
                             if (lotIds.includes(s.id)) {
                                 return {
                                     ...s,
-                                    status: `Em Produção - ${savedOrder.machine}`,
+                                    status: 'Reservado',
                                     productionOrderIds: [...(s.productionOrderIds || []), savedOrder.id]
                                 };
                             }
@@ -1222,7 +1221,7 @@ const App: React.FC = () => {
                             if (role) {
                                 return {
                                     ...s,
-                                    status: 'Em Produção - Treliça',
+                                    status: 'Reservado',
                                     location: role,
                                     productionOrderIds: [...(s.productionOrderIds || []), savedOrder.id]
                                 };
@@ -1295,11 +1294,7 @@ const App: React.FC = () => {
                     let newStatus = stockItem.status;
                     if (isNowAvailable) {
                         // Return to appropriate available status
-                        if (stockItem.status.includes('Treliça')) {
-                            newStatus = 'Disponível - Suporte Treliça';
-                        } else {
-                            newStatus = 'Disponível';
-                        }
+                        newStatus = 'Disponível';
                     }
 
                     const changes = {
@@ -1450,12 +1445,7 @@ const App: React.FC = () => {
 
                     let newStatus = stockItem.status;
                     if (!hasOtherActive) {
-                        // If it was being used in treliça production, return to support status
-                        if (stockItem.status === 'Em Produção - Treliça' || stockItem.status === 'Disponível - Suporte Treliça') {
-                            newStatus = 'Disponível - Suporte Treliça';
-                        } else {
-                            newStatus = 'Disponível';
-                        }
+                        newStatus = 'Disponível';
                     }
 
                     await updateItem<StockItem>('stock_items', lotId, {
@@ -2157,9 +2147,9 @@ const App: React.FC = () => {
                             newStatus = 'Consumido para fazer treliça';
                             newRem = 0;
                         } else if (!hasOtherActive) {
-                            newStatus = 'Disponível - Suporte Treliça';
+                            newStatus = 'Disponível';
                         } else {
-                            newStatus = 'Em Produção - Treliça';
+                            newStatus = 'Reservado';
                         }
 
                         stockUpdates.push({

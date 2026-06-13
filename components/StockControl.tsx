@@ -18,10 +18,8 @@ import LotHistoryModal from './LotHistoryModal';
 const getStatusBadge = (status: string) => {
     const baseClass = "px-2 py-0.5 rounded text-[10px] font-bold border";
     switch (status) {
-        case 'Disponível': return <span className={`${baseClass} bg-emerald-100 text-emerald-800 border-emerald-200`}>Disponível</span>;
-        case 'Disponível - Suporte Treliça': return <span className={`${baseClass} bg-blue-100 text-blue-800 border-blue-200`}>Suporte Treliça</span>;
-        case 'Em Produção - Trefila': return <span className={`${baseClass} bg-amber-100 text-amber-800 border-amber-200`}>Em Prod. Trefila</span>;
-        case 'Em Produção - Treliça': return <span className={`${baseClass} bg-purple-100 text-purple-800 border-purple-200`}>Em Prod. Treliça</span>;
+        case 'Disponível': return <span className={`${baseClass} bg-green-100 text-green-800 border-green-200`}>Disponível</span>;
+        case 'Reservado': return <span className={`${baseClass} bg-slate-200 text-slate-700 border-slate-300`}>Reservado</span>;
         case 'Consumido': return <span className={`${baseClass} bg-slate-100 text-slate-400 border-slate-200 italic`}>Consumido</span>;
         default: return <span className={`${baseClass} bg-slate-100 text-slate-500 border-slate-200`}>{status}</span>;
     }
@@ -545,9 +543,6 @@ const StockControl: React.FC<{
                                     <hr className="my-1 border-slate-100" />
                                     {[
                                         { val: 'Disponível', label: 'Disponível' },
-                                        { val: 'Disponível - Suporte Treliça', label: 'Suporte Treliça' },
-                                        { val: 'Em Produção - Trefila', label: 'Em Prod. Trefila' },
-                                        { val: 'Em Produção - Treliça', label: 'Em Prod. Treliça' },
                                         { val: 'Reservado', label: 'Reservado' },
                                         { val: 'Consumido', label: 'Consumido' }
                                     ].map(s => (
@@ -622,9 +617,6 @@ const StockControl: React.FC<{
                             <hr className="my-1 border-slate-100" />
                             {[
                                 { val: 'Disponível', label: 'Disponível' },
-                                { val: 'Disponível - Suporte Treliça', label: 'Sup. Treliça' },
-                                { val: 'Em Produção - Trefila', label: 'Em Prod. Trefila' },
-                                { val: 'Em Produção - Treliça', label: 'Em Prod. Treliça' },
                                 { val: 'Reservado', label: 'Reservado' },
                                 { val: 'Consumido', label: 'Consumido' }
                             ].map(s => (

@@ -71,7 +71,7 @@ const StockTransfer: React.FC<StockTransferProps> = ({ stock, transfers, setPage
 
         currentRequests.forEach(req => {
             const candidates = currentStock.filter(item =>
-                (item.status === 'Disponível' || item.status === 'Disponível - Suporte Treliça') &&
+                item.status === 'Disponível' &&
                 item.materialType === req.materialType &&
                 item.bitola === req.bitola
             );
@@ -116,7 +116,7 @@ const StockTransfer: React.FC<StockTransferProps> = ({ stock, transfers, setPage
 
         requests.forEach((req, index) => {
             const candidates = stock.filter(item =>
-                (item.status === 'Disponível' || item.status === 'Disponível - Suporte Treliça') &&
+                item.status === 'Disponível' &&
                 item.materialType === req.materialType &&
                 item.bitola === req.bitola
             );
