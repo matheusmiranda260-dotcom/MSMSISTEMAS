@@ -25,6 +25,25 @@ const getStatusBadge = (status: string) => {
     }
 };
 
+const calculateTheoreticalWeight = (gauge: StockGauge | undefined, qtyPackages: number) => {
+    if (!gauge) return 0;
+    const type = gauge.packagingType || 'granel';
+    const qtyPerPack = gauge.qtyPerPackaging || 1;
+    const size = gauge.pieceSize || 0;
+    const wpm = gauge.weightPerMeter || 0;
+    
+    if (type === 'rolo') {
+        return Number((qtyPackages * (gauge.rawWeightValue || 2000)).toFixed(2));
+    }
+    if (type === 'pacote') {
+        return Number((qtyPackages * qtyPerPack * size * wpm).toFixed(2));
+    }
+    if (type === 'barra') {
+        return Number((qtyPackages * size * wpm).toFixed(2));
+    }
+    return 0;
+};
+
 const AddConferencePage: React.FC<{
     onClose: () => void;
     onSubmit: (data: ConferenceData) => Promise<void> | void;
@@ -71,6 +90,17 @@ const AddConferencePage: React.FC<{
                         } else {
                             copy[0].steelType = '';
                         }
+                        
+                        copy[0].packagingType = matGauges[0].packagingType || 'granel';
+                        copy[0].qtyPerPackaging = matGauges[0].qtyPerPackaging || 1;
+                        copy[0].pieceSize = matGauges[0].pieceSize || 0;
+                        copy[0].qtyPackages = 1;
+                        copy[0].totalPieces = copy[0].packagingType === 'pacote' ? (matGauges[0].qtyPerPackaging || 200) : 1;
+                        
+                        const defaultWeight = calculateTheoreticalWeight(matGauges[0], 1);
+                        if (defaultWeight > 0) {
+                            copy[0].labelWeight = defaultWeight;
+                        }
                     }
                     return copy;
                 });
@@ -113,7 +143,19 @@ const AddConferencePage: React.FC<{
 
     const handleAddLot = () => {
         const lastLot = lots[lots.length - 1];
-        setLots([...lots, { ...lastLot, internalLot: '', labelWeight: 0 }]);
+        const targetGauge = gauges.find(g => g.materialType === lastLot.materialType && g.gauge === lastLot.bitola);
+        const defaultWeight = calculateTheoreticalWeight(targetGauge, 1);
+        
+        setLots([...lots, { 
+            ...lastLot, 
+            internalLot: '', 
+            qtyPackages: 1, 
+            labelWeight: defaultWeight || 0,
+            packagingType: targetGauge?.packagingType || 'granel',
+            qtyPerPackaging: targetGauge?.qtyPerPackaging || 1,
+            pieceSize: targetGauge?.pieceSize || 0,
+            totalPieces: targetGauge?.packagingType === 'pacote' ? (targetGauge.qtyPerPackaging || 200) : 1
+        }]);
     };
 
     const handleLotChange = (index: number, field: keyof ConferenceLotData, value: any) => {
@@ -128,7 +170,7 @@ const AddConferencePage: React.FC<{
             }
         }
 
-        // Auto-populate default steel type if configured
+        // Auto-populate default steel type and packaging if configured
         const currentMaterial = newLots[index].materialType;
         const currentBitola = newLots[index].bitola;
         if (currentMaterial && currentBitola) {
@@ -138,6 +180,26 @@ const AddConferencePage: React.FC<{
                     newLots[index].steelType = targetGauge.customFieldValue || targetGauge.defaultSteelType || '';
                 } else {
                     newLots[index].steelType = '';
+                }
+
+                if (field === 'materialType' || field === 'bitola' || field === 'qtyPackages') {
+                    newLots[index].packagingType = targetGauge.packagingType || 'granel';
+                    newLots[index].qtyPerPackaging = targetGauge.qtyPerPackaging || 1;
+                    newLots[index].pieceSize = targetGauge.pieceSize || 0;
+
+                    const qtyPack = field === 'qtyPackages' ? (Number(value) || 0) : 1;
+                    if (field !== 'qtyPackages') {
+                        newLots[index].qtyPackages = 1;
+                    }
+
+                    newLots[index].totalPieces = newLots[index].packagingType === 'pacote' 
+                        ? (targetGauge.qtyPerPackaging || 200) * qtyPack 
+                        : qtyPack;
+
+                    const defaultWeight = calculateTheoreticalWeight(targetGauge, qtyPack);
+                    if (defaultWeight > 0) {
+                        newLots[index].labelWeight = defaultWeight;
+                    }
                 }
             }
         }
@@ -320,7 +382,7 @@ const AddConferencePage: React.FC<{
                         <table className="w-full text-sm">
                             <thead className="bg-slate-50 border-y">
                                 <tr>
-                                    {['Lote Interno', 'Tipo de Aço', 'Corrida', 'Material', 'Descrição', 'Peso Etiqueta', ''].map(h => {
+                                    {['Lote Interno', 'Tipo de Aço', 'Corrida', 'Material', 'Descrição', 'Embalagem', 'Peso Etiqueta', ''].map(h => {
                                         let displayHeader = h;
                                         if (h === 'Tipo de Aço') {
                                             const customLabels = lots
@@ -410,9 +472,9 @@ const AddConferencePage: React.FC<{
                                             <select value={lot.bitola} onChange={e => handleLotChange(index, 'bitola', e.target.value)} className="w-full p-2 border rounded text-center">
                                                 {(() => {
                                                     const customGauges = gauges.filter(g => g.materialType === lot.materialType);
-
+ 
                                                     const allOptions = customGauges.map(g => ({ gauge: g.gauge, code: g.productCode }));
-
+ 
                                                     const map = new Map();
                                                     allOptions.forEach(opt => {
                                                         const existing = map.get(opt.gauge);
@@ -420,10 +482,10 @@ const AddConferencePage: React.FC<{
                                                             map.set(opt.gauge, opt);
                                                         }
                                                     });
-
+ 
                                                     const uniqueOptions = Array.from(map.values())
                                                         .sort((a, b) => parseFloat(a.gauge.replace(',', '.')) - parseFloat(b.gauge.replace(',', '.')));
-
+ 
                                                     return uniqueOptions.map(opt => (
                                                         <option key={`${opt.gauge}-${opt.code}`} value={opt.gauge}>
                                                             {opt.gauge.replace('.', ',')} {opt.code ? `(${opt.code})` : ''}
@@ -431,6 +493,50 @@ const AddConferencePage: React.FC<{
                                                     ));
                                                 })()}
                                             </select>
+                                        </td>
+                                        <td className="p-2">
+                                            {(() => {
+                                                const g = gauges.find(x => x.materialType === lot.materialType && x.gauge === lot.bitola);
+                                                const hasPackaging = g && g.packagingType && g.packagingType !== 'granel';
+                                                
+                                                if (hasPackaging) {
+                                                    const packName = g.packagingType === 'rolo' ? 'Rolo' : g.packagingType === 'pacote' ? 'Pacote' : 'Barra';
+                                                    const descText = g.packagingType === 'pacote' 
+                                                        ? `${g.qtyPerPackaging || 200} un x ${g.pieceSize || 6}m`
+                                                        : g.packagingType === 'barra'
+                                                        ? `${g.pieceSize || 6}m`
+                                                        : `~${g.rawWeightValue || 2000}kg`;
+                                                    
+                                                    return (
+                                                        <div className="flex flex-col items-center">
+                                                            <div className="flex items-center gap-1">
+                                                                <input
+                                                                    type="number"
+                                                                    value={lot.qtyPackages || 1}
+                                                                    onChange={e => {
+                                                                        const val = Math.max(1, parseInt(e.target.value) || 1);
+                                                                        handleLotChange(index, 'qtyPackages', val);
+                                                                    }}
+                                                                    className="w-16 p-1 border rounded text-center font-bold"
+                                                                    min="1"
+                                                                    required
+                                                                />
+                                                                <span className="text-xs font-semibold text-slate-700">{packName}s</span>
+                                                            </div>
+                                                            <span className="text-[10px] text-slate-500 font-bold mt-1">({descText})</span>
+                                                        </div>
+                                                    );
+                                                } else {
+                                                    return (
+                                                        <input
+                                                            type="text"
+                                                            value="-"
+                                                            disabled
+                                                            className="w-full p-2 border rounded text-center bg-slate-100 text-slate-500 font-semibold cursor-not-allowed"
+                                                        />
+                                                    );
+                                                }
+                                            })()}
                                         </td>
                                         <td className="p-2">
                                             <input
@@ -856,7 +962,31 @@ const StockControl: React.FC<{
                                             })()}
                                         </div>
                                     </td>
-                                    <td className="p-3 text-center font-black text-slate-800">{item.remainingQuantity.toFixed(2)}</td>
+                                    <td className="p-3 text-center font-black text-slate-800">
+                                        <div>{item.remainingQuantity.toFixed(2)}</div>
+                                        {item.packagingType && item.packagingType !== 'granel' && (
+                                            <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                                                {(() => {
+                                                    const ratio = item.labelWeight && item.labelWeight > 0 ? (item.remainingQuantity / item.labelWeight) : 1;
+                                                    const packs = Math.round((item.qtyPackages || 1) * ratio * 100) / 100;
+                                                    const packName = item.packagingType === 'rolo' ? 'rolo' : item.packagingType === 'pacote' ? 'pacote' : 'barra';
+                                                    const suffix = packs !== 1 ? 's' : '';
+                                                    
+                                                    if (item.packagingType === 'pacote') {
+                                                        const pieces = Math.round((item.totalPieces || 0) * ratio);
+                                                        return `${packs} ${packName}${suffix} (${pieces} un)`;
+                                                    }
+                                                    if (item.packagingType === 'barra') {
+                                                        return `${packs} ${packName}${suffix}`;
+                                                    }
+                                                    if (item.packagingType === 'rolo') {
+                                                        return `${packs} ${packName}${suffix}`;
+                                                    }
+                                                    return null;
+                                                })()}
+                                            </div>
+                                        )}
+                                    </td>
                                     <td className="p-3 text-center">{getStatusBadge(item.status)}</td>
                                     <td className="p-3 flex justify-center gap-2 no-print">
                                         {(item.status.includes('Produção') || item.status === 'Reservado') && (
@@ -905,6 +1035,19 @@ const EditStockItemModal: React.FC<{ item: StockItem; onClose: () => void; onSav
             const customGauges = gauges.filter(g => g.materialType === initial.materialType);
             if (customGauges.length > 0) {
                 initial.bitola = customGauges[0].gauge;
+            }
+        }
+        const g = gauges.find(x => x.materialType === initial.materialType && x.gauge === initial.bitola);
+        if (g) {
+            if (!initial.packagingType) initial.packagingType = g.packagingType || 'granel';
+            if (!initial.qtyPerPackaging) initial.qtyPerPackaging = g.qtyPerPackaging || 1;
+            if (initial.pieceSize === undefined || initial.pieceSize === null) initial.pieceSize = g.pieceSize || 0;
+            if (initial.qtyPackages === undefined || initial.qtyPackages === null) initial.qtyPackages = 1;
+            if (initial.totalPieces === undefined || initial.totalPieces === null) {
+                initial.totalPieces = initial.packagingType === 'pacote' ? (g.qtyPerPackaging || 200) : 1;
+            }
+            if (!initial.labelWeight) {
+                initial.labelWeight = calculateTheoreticalWeight(g, initial.qtyPackages || 1);
             }
         }
         return initial;
@@ -1009,12 +1152,29 @@ const EditStockItemModal: React.FC<{ item: StockItem; onClose: () => void; onSav
                                 onChange={e => {
                                     const val = e.target.value as any;
                                     const all = gauges.filter(g => g.materialType === val).map(g => g.gauge);
+                                    const nextBitola = all.includes(formData.bitola) ? formData.bitola : (all[0] || '');
+                                    const targetGauge = gauges.find(g => g.materialType === val && g.gauge === nextBitola);
 
-                                    setFormData(p => ({
-                                        ...p,
-                                        materialType: val,
-                                        bitola: all.includes(p.bitola) ? p.bitola : (all[0] || '')
-                                    }));
+                                    setFormData(p => {
+                                        const copy = {
+                                            ...p,
+                                            materialType: val,
+                                            bitola: nextBitola
+                                        };
+                                        if (targetGauge) {
+                                            copy.packagingType = targetGauge.packagingType || 'granel';
+                                            copy.qtyPerPackaging = targetGauge.qtyPerPackaging || 1;
+                                            copy.pieceSize = targetGauge.pieceSize || 0;
+                                            copy.qtyPackages = 1;
+                                            copy.totalPieces = copy.packagingType === 'pacote' 
+                                                ? (targetGauge.qtyPerPackaging || 200) 
+                                                : 1;
+                                            const defaultWeight = calculateTheoreticalWeight(targetGauge, 1);
+                                            copy.labelWeight = defaultWeight;
+                                            copy.remainingQuantity = defaultWeight;
+                                        }
+                                        return copy;
+                                    });
                                 }}
                                 className="w-full px-3 py-2 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                             >
@@ -1023,7 +1183,34 @@ const EditStockItemModal: React.FC<{ item: StockItem; onClose: () => void; onSav
                         </div>
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-slate-500 uppercase">Descrição</label>
-                            <select value={formData.bitola} onChange={e => setFormData({ ...formData, bitola: e.target.value })} className="w-full px-3 py-2 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                            <select
+                                value={formData.bitola}
+                                onChange={e => {
+                                    const nextBitola = e.target.value;
+                                    const targetGauge = gauges.find(g => g.materialType === formData.materialType && g.gauge === nextBitola);
+                                    
+                                    setFormData(p => {
+                                        const copy = {
+                                            ...p,
+                                            bitola: nextBitola
+                                        };
+                                        if (targetGauge) {
+                                            copy.packagingType = targetGauge.packagingType || 'granel';
+                                            copy.qtyPerPackaging = targetGauge.qtyPerPackaging || 1;
+                                            copy.pieceSize = targetGauge.pieceSize || 0;
+                                            copy.qtyPackages = 1;
+                                            copy.totalPieces = copy.packagingType === 'pacote' 
+                                                ? (targetGauge.qtyPerPackaging || 200) 
+                                                : 1;
+                                            const defaultWeight = calculateTheoreticalWeight(targetGauge, 1);
+                                            copy.labelWeight = defaultWeight;
+                                            copy.remainingQuantity = defaultWeight;
+                                        }
+                                        return copy;
+                                    });
+                                }}
+                                className="w-full px-3 py-2 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                            >
                                 {(() => {
                                     const customGauges = gauges.filter(g => g.materialType === formData.materialType);
 
@@ -1049,6 +1236,47 @@ const EditStockItemModal: React.FC<{ item: StockItem; onClose: () => void; onSav
                             </select>
                         </div>
                     </div>
+
+                    {formData.packagingType && formData.packagingType !== 'granel' && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase">
+                                    Qtd de {formData.packagingType === 'rolo' ? 'Rolo' : formData.packagingType === 'pacote' ? 'Pacote' : 'Barra'}s
+                                </label>
+                                <input
+                                    type="number"
+                                    value={formData.qtyPackages || 1}
+                                    onChange={e => {
+                                        const val = Math.max(1, parseInt(e.target.value) || 1);
+                                        const targetGauge = gauges.find(g => g.materialType === formData.materialType && g.gauge === formData.bitola);
+                                        const nextWeight = calculateTheoreticalWeight(targetGauge, val);
+                                        
+                                        setFormData(p => ({
+                                            ...p,
+                                            qtyPackages: val,
+                                            totalPieces: p.packagingType === 'pacote' 
+                                                ? (p.qtyPerPackaging || 200) * val 
+                                                : val,
+                                            labelWeight: nextWeight || p.labelWeight,
+                                            remainingQuantity: nextWeight || p.remainingQuantity
+                                        }));
+                                    }}
+                                    className="w-full px-3 py-2 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold text-center"
+                                    min="1"
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-1 flex flex-col justify-end">
+                                <span className="text-xs text-slate-500 font-semibold mb-2">
+                                    {formData.packagingType === 'pacote' 
+                                        ? `Equivale a: ${(formData.totalPieces || 0)} un` 
+                                        : formData.packagingType === 'barra'
+                                        ? `Equivale a: ${(formData.pieceSize || 0) * (formData.qtyPackages || 1)} m`
+                                        : `Peso base: ${formData.labelWeight} kg`}
+                                </span>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">

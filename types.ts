@@ -97,6 +97,11 @@ export interface StockItem {
     lastAuditDate?: string;
     auditObservation?: string;
     steelType?: string;
+    packagingType?: string;
+    qtyPerPackaging?: number;
+    pieceSize?: number;
+    qtyPackages?: number;
+    totalPieces?: number;
 }
 
 export interface ConferenceLotData {
@@ -107,6 +112,11 @@ export interface ConferenceLotData {
     bitola: Bitola;
     labelWeight: number;
     supplier?: string;
+    packagingType?: string;
+    qtyPerPackaging?: number;
+    pieceSize?: number;
+    qtyPackages?: number;
+    totalPieces?: number;
 }
 
 export interface ConferenceData {
@@ -373,6 +383,8 @@ export interface StockGauge {
     customFieldLabel?: string;
     customFieldOptions?: string;
     customFieldValue?: string;
+    packagingType?: string;
+    qtyPerPackaging?: number;
 }
 
 export interface GaugeComponent {

@@ -33,6 +33,8 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
     const [customFieldLabel, setCustomFieldLabel] = useState<string>('');
     const [customFieldOptions, setCustomFieldOptions] = useState<string>('');
     const [customFieldValue, setCustomFieldValue] = useState<string>('');
+    const [packagingType, setPackagingType] = useState<string>('granel');
+    const [qtyPerPackaging, setQtyPerPackaging] = useState<string>('1');
 
     // New fields states for weight configurations
     const [weightPerMeter, setWeightPerMeter] = useState('');
@@ -276,6 +278,8 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
         setCustomFieldLabel('');
         setCustomFieldOptions('');
         setCustomFieldValue('');
+        setPackagingType('granel');
+        setQtyPerPackaging('1');
     };
 
     const calculateRowConsumptionWeight = (
@@ -447,7 +451,9 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
             defaultSteelType: useCustomField ? (customFieldValue || undefined) : undefined,
             customFieldLabel: useCustomField ? customFieldLabel.trim() : undefined,
             customFieldOptions: useCustomField ? customFieldOptions.trim() : undefined,
-            customFieldValue: useCustomField ? customFieldValue.trim() : undefined
+            customFieldValue: useCustomField ? customFieldValue.trim() : undefined,
+            packagingType: packagingType,
+            qtyPerPackaging: qtyPerPackaging ? parseFloat(qtyPerPackaging) : 1
         };
 
         try {
@@ -526,6 +532,8 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
         setCustomFieldLabel(g.customFieldLabel || '');
         setCustomFieldOptions(g.customFieldOptions || '');
         setCustomFieldValue(g.customFieldValue || '');
+        setPackagingType(g.packagingType || 'granel');
+        setQtyPerPackaging(g.qtyPerPackaging?.toString() || '1');
         setWeightPerMeter(g.weightPerMeter?.toString() || '');
         setPieceSize(g.pieceSize?.toString() || '');
         setWeightType(g.weightType || 'metro');
@@ -907,7 +915,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                 </div>
                             </div>
 
-                            {/* Column 3: CONFIGURAÇÃO DE KG */}
+                            {/* Column 3: CONFIGURAÇÃO DE EMBALAGEM & CONVERSÃO */}
                             <div className={`rounded-2xl p-4 border flex flex-col justify-between space-y-4 transition-colors ${
                                 itemType === 'produto_composto'
                                     ? 'bg-purple-50/50 border-purple-200'
@@ -916,11 +924,56 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                 <h3 className={`text-xs font-bold uppercase tracking-wider text-center border-b pb-2 ${
                                     itemType === 'produto_composto' ? 'text-purple-700 border-purple-200' : 'text-slate-700 border-slate-200'
                                 }`}>
-                                    {itemType === 'produto_composto' ? 'PESO TEÓRICO (FICHA)' : 'CONFIGURAÇÃO DE KG'}
+                                    {itemType === 'produto_composto' ? 'PESO TEÓRICO (FICHA)' : 'EMBALAGEM & CONVERSÃO'}
                                 </h3>
 
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">TIPO DE CONTROLE</label>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">TIPO DE EMBALAGEM</label>
+                                    <select
+                                        value={packagingType}
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            setPackagingType(val);
+                                            if (val === 'rolo') {
+                                                setWeightType('peso');
+                                                setRawWeightValue('2000');
+                                                setQtyPerPackaging('1');
+                                            } else if (val === 'pacote') {
+                                                setWeightType('unid');
+                                                setQtyPerPackaging('200');
+                                            } else if (val === 'barra') {
+                                                setWeightType('unid');
+                                                setQtyPerPackaging('1');
+                                            } else {
+                                                setWeightType('metro');
+                                                setQtyPerPackaging('1');
+                                            }
+                                        }}
+                                        className="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white text-slate-700"
+                                    >
+                                        <option value="granel">Granel (Apenas Peso)</option>
+                                        <option value="rolo">Rolo / Bobina</option>
+                                        <option value="pacote">Fardo / Pacote</option>
+                                        <option value="barra">Barra / Peça Avulsa</option>
+                                    </select>
+                                </div>
+
+                                {packagingType === 'pacote' && (
+                                    <div className="animate-fadeIn">
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">QTD DE PEÇAS NO PACOTE</label>
+                                        <input
+                                            type="number"
+                                            value={qtyPerPackaging}
+                                            onChange={e => setQtyPerPackaging(e.target.value)}
+                                            placeholder="Ex: 200"
+                                            min="1"
+                                            className="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white"
+                                        />
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">TIPO DE CONTROLE DE PESO</label>
                                     <select
                                         value={weightType}
                                         onChange={e => setWeightType(e.target.value)}
@@ -959,7 +1012,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                     </div>
                                 </div>
 
-                                {weightType === 'unid' && (
+                                {(weightType === 'unid' || packagingType === 'pacote' || packagingType === 'barra') && (
                                     <div className="animate-fadeIn">
                                         <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">COMPRIMENTO DA BARRA/PEÇA (MTS)</label>
                                         <input
@@ -1271,6 +1324,11 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                                         {(g.customFieldLabel || g.defaultSteelType) && (
                                                             <span className="inline-block px-1.5 py-0.5 text-[10px] font-bold rounded bg-emerald-100 text-emerald-800 border border-emerald-200" title={g.customFieldOptions ? `Opções: ${g.customFieldOptions}` : undefined}>
                                                                 {g.customFieldLabel || 'Aço'}: {g.customFieldValue || g.defaultSteelType}
+                                                            </span>
+                                                        )}
+                                                        {g.packagingType && g.packagingType !== 'granel' && (
+                                                            <span className="inline-block px-1.5 py-0.5 text-[10px] font-bold rounded bg-indigo-100 text-indigo-700 border border-indigo-200">
+                                                                {g.packagingType === 'rolo' ? 'Rolo' : g.packagingType === 'pacote' ? `Pacote (${g.qtyPerPackaging} un)` : g.packagingType === 'barra' ? 'Barra' : 'Granel'}
                                                             </span>
                                                         )}
                                                     </div>

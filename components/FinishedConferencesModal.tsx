@@ -4,6 +4,25 @@ import type { ConferenceData, ConferenceLotData, StockItem, Bitola, MaterialType
 import { MaterialOptions, FioMaquinaBitolaOptions, CA60BitolaOptions, SteelTypeOptions } from '../types';
 import { PrinterIcon, PencilIcon, TrashIcon, WarningIcon } from './icons';
 
+const calculateTheoreticalWeight = (gauge: StockGauge | undefined, qtyPackages: number) => {
+    if (!gauge) return 0;
+    const type = gauge.packagingType || 'granel';
+    const qtyPerPack = gauge.qtyPerPackaging || 1;
+    const size = gauge.pieceSize || 0;
+    const wpm = gauge.weightPerMeter || 0;
+    
+    if (type === 'rolo') {
+        return Number((qtyPackages * (gauge.rawWeightValue || 2000)).toFixed(2));
+    }
+    if (type === 'pacote') {
+        return Number((qtyPackages * qtyPerPack * size * wpm).toFixed(2));
+    }
+    if (type === 'barra') {
+        return Number((qtyPackages * size * wpm).toFixed(2));
+    }
+    return 0;
+};
+
 interface FinishedConferencesModalProps {
     conferences: ConferenceData[];
     stock: StockItem[];
@@ -72,6 +91,13 @@ const EditConferenceModal: React.FC<{
             ? (defaultGauge.customFieldValue || defaultGauge.defaultSteelType || '')
             : '';
         
+        const packagingType = defaultGauge?.packagingType || 'granel';
+        const qtyPerPackaging = defaultGauge?.qtyPerPackaging || 1;
+        const pieceSize = defaultGauge?.pieceSize || 0;
+        const qtyPackages = packagingType !== 'granel' ? 1 : undefined;
+        const totalPieces = packagingType === 'pacote' ? (defaultGauge?.qtyPerPackaging || 200) : (qtyPackages || 1);
+        const labelWeight = defaultGauge ? calculateTheoreticalWeight(defaultGauge, qtyPackages || 1) : 0;
+
         setFormData(prev => ({
             ...prev,
             lots: [...prev.lots, {
@@ -79,8 +105,13 @@ const EditConferenceModal: React.FC<{
                 runNumber: '',
                 bitola: defaultBitola,
                 materialType: defaultMaterial as MaterialType,
-                labelWeight: 0,
+                labelWeight: labelWeight,
                 steelType: defaultSteel,
+                packagingType,
+                qtyPerPackaging,
+                pieceSize,
+                qtyPackages,
+                totalPieces
             }],
         }));
     };
@@ -97,7 +128,7 @@ const EditConferenceModal: React.FC<{
                 }
             }
 
-            // Auto-populate default steel type if configured
+            // Auto-populate default steel type and packaging if configured
             const currentMaterial = newLots[index].materialType;
             const currentBitola = newLots[index].bitola;
             if (currentMaterial && currentBitola) {
@@ -107,6 +138,26 @@ const EditConferenceModal: React.FC<{
                         newLots[index].steelType = targetGauge.customFieldValue || targetGauge.defaultSteelType || '';
                     } else {
                         newLots[index].steelType = '';
+                    }
+
+                    if (field === 'materialType' || field === 'bitola' || field === 'qtyPackages') {
+                        newLots[index].packagingType = targetGauge.packagingType || 'granel';
+                        newLots[index].qtyPerPackaging = targetGauge.qtyPerPackaging || 1;
+                        newLots[index].pieceSize = targetGauge.pieceSize || 0;
+
+                        const qtyPack = field === 'qtyPackages' ? (Number(value) || 0) : (newLots[index].qtyPackages || 1);
+                        if (field !== 'qtyPackages' && !newLots[index].qtyPackages) {
+                            newLots[index].qtyPackages = 1;
+                        }
+
+                        newLots[index].totalPieces = newLots[index].packagingType === 'pacote' 
+                            ? (targetGauge.qtyPerPackaging || 200) * qtyPack 
+                            : qtyPack;
+
+                        const defaultWeight = calculateTheoreticalWeight(targetGauge, qtyPack);
+                        if (defaultWeight > 0) {
+                            newLots[index].labelWeight = defaultWeight;
+                        }
                     }
                 }
             }
@@ -232,7 +283,7 @@ const EditConferenceModal: React.FC<{
                     <table className="w-full text-sm">
                         <thead className="sticky top-0 bg-slate-100 z-10">
                             <tr>
-                                {['Lote Interno', 'Tipo de Aço', 'Corrida', 'Tipo Material', 'Bitola', 'Peso Etiqueta (kg)', ''].map(h => {
+                                {['Lote Interno', 'Tipo de Aço', 'Corrida', 'Tipo Material', 'Bitola', 'Embalagem', 'Peso Etiqueta (kg)', ''].map(h => {
                                     let displayHeader = h;
                                     if (h === 'Tipo de Aço') {
                                         const customLabels = formData.lots
@@ -319,7 +370,10 @@ const EditConferenceModal: React.FC<{
                                     </td>
                                     <td className="p-2">
                                         <select value={lot.materialType} onChange={e => handleLotChange(idx, 'materialType', e.target.value)} className="w-full p-2 border border-slate-300 rounded bg-white text-center">
-                                            {MaterialOptions.map(m => (<option key={m} value={m}>{m}</option>))}
+                                            {(() => {
+                                                const dynamicMaterialOptions = Array.from(new Set(gauges.map(g => g.materialType))).filter(Boolean) as string[];
+                                                return dynamicMaterialOptions.sort().map(m => (<option key={m} value={m}>{m}</option>));
+                                            })()}
                                         </select>
                                     </td>
                                     <td className="p-2">
@@ -328,6 +382,50 @@ const EditConferenceModal: React.FC<{
                                                 <option key={g.gauge} value={g.gauge}>{g.gauge.replace('.', ',')}</option>
                                             ))}
                                         </select>
+                                    </td>
+                                    <td className="p-2">
+                                        {(() => {
+                                            const g = gauges.find(x => x.materialType === lot.materialType && x.gauge === lot.bitola);
+                                            const hasPackaging = g && g.packagingType && g.packagingType !== 'granel';
+                                            
+                                            if (hasPackaging) {
+                                                const packName = g.packagingType === 'rolo' ? 'Rolo' : g.packagingType === 'pacote' ? 'Pacote' : 'Barra';
+                                                const descText = g.packagingType === 'pacote' 
+                                                    ? `${g.qtyPerPackaging || 200} un x ${g.pieceSize || 6}m`
+                                                    : g.packagingType === 'barra'
+                                                    ? `${g.pieceSize || 6}m`
+                                                    : `~${g.rawWeightValue || 2000}kg`;
+                                                
+                                                return (
+                                                    <div className="flex flex-col items-center">
+                                                        <div className="flex items-center gap-1 justify-center">
+                                                            <input
+                                                                type="number"
+                                                                value={lot.qtyPackages || 1}
+                                                                onChange={e => {
+                                                                    const val = Math.max(1, parseInt(e.target.value) || 1);
+                                                                    handleLotChange(idx, 'qtyPackages', val);
+                                                                }}
+                                                                className="w-16 p-1 border rounded text-center font-bold"
+                                                                min="1"
+                                                                required
+                                                            />
+                                                            <span className="text-xs font-semibold text-slate-700">{packName}s</span>
+                                                        </div>
+                                                        <span className="text-[10px] text-slate-500 font-bold mt-1">({descText})</span>
+                                                    </div>
+                                                );
+                                            } else {
+                                                return (
+                                                    <input
+                                                        type="text"
+                                                        value="-"
+                                                        disabled
+                                                        className="w-full p-2 border rounded text-center bg-slate-100 text-slate-500 font-semibold cursor-not-allowed"
+                                                    />
+                                                );
+                                            }
+                                        })()}
                                     </td>
                                     <td className="p-2">
                                         <input
@@ -384,6 +482,11 @@ const FinishedConferencesModal: React.FC<FinishedConferencesModalProps> = ({ con
             materialType: s.materialType || defaultMaterial,
             labelWeight: Number(s.labelWeight) || 0,
             supplier: s.supplier || conf.supplier || '',
+            packagingType: s.packagingType || 'granel',
+            qtyPerPackaging: s.qtyPerPackaging || 1,
+            pieceSize: s.pieceSize || 0,
+            qtyPackages: s.qtyPackages || 1,
+            totalPieces: s.totalPieces || 1
         }));
         return { ...conf, lots };
     });
@@ -484,6 +587,7 @@ const FinishedConferencesModal: React.FC<FinishedConferencesModalProps> = ({ con
                                                                                 <th className="p-2 text-left font-semibold">Lote Fornecedor</th>
                                                                                 <th className="p-2 text-left font-semibold">Tipo de Material</th>
                                                                                 <th className="p-2 text-left font-semibold">Bitola</th>
+                                                                                <th className="p-2 text-left font-semibold">Embalagem</th>
                                                                                 <th className="p-2 text-right font-semibold">Peso Etiqueta (kg)</th>
                                                                             </tr>
                                                                         </thead>
@@ -494,6 +598,11 @@ const FinishedConferencesModal: React.FC<FinishedConferencesModalProps> = ({ con
                                                                                     <td className="p-2">{lot.supplierLot}</td>
                                                                                     <td className="p-2">{lot.materialType}</td>
                                                                                     <td className="p-2">{lot.bitola}</td>
+                                                                                    <td className="p-2">
+                                                                                        {lot.packagingType && lot.packagingType !== 'granel'
+                                                                                            ? `${lot.qtyPackages || 1} ${lot.packagingType === 'rolo' ? 'rolo(s)' : lot.packagingType === 'pacote' ? `pacote(s) (${lot.totalPieces} un)` : 'barra(s)'}`
+                                                                                            : 'Granel'}
+                                                                                    </td>
                                                                                     <td className="p-2 text-right">{(Number(lot.labelWeight) || 0).toFixed(2)}</td>
                                                                                 </tr>
                                                                             ))}

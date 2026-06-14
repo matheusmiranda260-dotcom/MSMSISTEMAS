@@ -775,6 +775,11 @@ const App: React.FC = () => {
                 initialQuantity: lot.labelWeight,
                 remainingQuantity: lot.labelWeight,
                 status: 'Disponível',
+                packagingType: lot.packagingType || 'granel',
+                qtyPerPackaging: lot.qtyPerPackaging || 1,
+                pieceSize: lot.pieceSize || 0,
+                qtyPackages: lot.qtyPackages || 1,
+                totalPieces: lot.totalPieces || 1,
                 history: [{
                     type: 'Entrada',
                     date: new Date().toISOString(),
@@ -847,6 +852,11 @@ const App: React.FC = () => {
                     initialQuantity: lot.labelWeight,
                     remainingQuantity: existingItem?.remainingQuantity ?? lot.labelWeight,
                     status: existingItem?.status ?? 'Disponível',
+                    packagingType: lot.packagingType || 'granel',
+                    qtyPerPackaging: lot.qtyPerPackaging || 1,
+                    pieceSize: lot.pieceSize || 0,
+                    qtyPackages: lot.qtyPackages || 1,
+                    totalPieces: lot.totalPieces || 1,
                     history: [...(existingItem?.history || []), {
                         type: 'Entrada (Editada)',
                         date: new Date().toISOString(),
