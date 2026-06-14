@@ -65,8 +65,10 @@ const permissionCategories = [
             { page: 'peopleManagement', label: 'Gestão de Pessoas' },
             { page: 'meetingsTasks', label: 'Reuniões e Tarefas (Atas)' },
             { page: 'userManagement', label: 'Controle de Usuários e Acessos' },
+            { page: 'partnerConfig', label: 'Configuração de Parceiros' },
             { page: 'partsManager', label: 'Catálogo de Peças (Global)' },
             { page: 'gaugesManager', label: 'Configurações de Bitolas' },
+            { page: 'labelConfig', label: 'Configuração de Etiqueta' },
         ]
     }
 ];

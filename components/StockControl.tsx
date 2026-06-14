@@ -60,6 +60,22 @@ const calculateTheoreticalWeight = (gauge: StockGauge | undefined, qtyPackages: 
     return 0;
 };
 
+const generateQrCodeSvg = (lotVal: string, prodCode: string, mat: string) => {
+    const qrcodeLib = (window as any).qrcode;
+    if (typeof qrcodeLib !== 'undefined') {
+        try {
+            const qrData = `https://msm.gestao/stock/track?lot=${lotVal}&code=${prodCode}&mat=${encodeURIComponent(mat)}`;
+            const qr = qrcodeLib(0, 'M');
+            qr.addData(qrData);
+            qr.make();
+            return qr.createSvgTag(3, 0);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+    return `<img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(lotVal)}" alt="QR" class="w-16 h-16 object-contain" />`;
+};
+
 const AddConferencePage: React.FC<{
     onClose: () => void;
     onSubmit: (data: ConferenceData) => Promise<void> | void;
@@ -91,6 +107,7 @@ const AddConferencePage: React.FC<{
     const [historyOpen, setHistoryOpen] = useState(false);
     const [conferenceNumberError, setConferenceNumberError] = useState<string>('');
     const [submitResult, setSubmitResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+    const [printLots, setPrintLots] = useState<ConferenceLotData[] | null>(null);
 
     useEffect(() => {
         if (lots.length === 1 && lots[0].bitola === '' && dynamicMaterialOptions[0]) {
@@ -348,12 +365,44 @@ const AddConferencePage: React.FC<{
         try {
             const final = { ...conferenceData, lots: validLots } as ConferenceData;
             await onSubmit(final);
+            setPrintLots(validLots);
             setSubmitResult({ type: 'success', message: 'Conferência registrada no sistema com sucesso!' });
         } catch (error: any) {
             setIsSubmitting(false);
             setSubmitResult({ type: 'error', message: error.message || 'Erro ao registrar conferência.' });
         }
     };
+
+    useEffect(() => {
+        if (printLots && printLots.length > 0) {
+            const jsBarcode = (window as any).JsBarcode;
+            if (typeof jsBarcode !== 'undefined') {
+                setTimeout(() => {
+                    printLots.forEach(lot => {
+                        const element = document.getElementById(`print-barcode-${lot.internalLot}`);
+                        if (element) {
+                            try {
+                                jsBarcode(element, lot.internalLot, {
+                                    format: "CODE128",
+                                    lineColor: "#000000",
+                                    width: 1.8,
+                                    height: 50,
+                                    displayValue: true,
+                                    fontSize: 12,
+                                    font: "monospace",
+                                    textMargin: 2,
+                                    margin: 0
+                                });
+                            } catch (err) {
+                                console.error("Error rendering print barcode:", err);
+                            }
+                        }
+                    });
+                }, 150);
+            }
+        }
+    }, [printLots]);
+
 
     return (
         <div className="min-h-screen bg-slate-50 p-4 md:p-8 animate-fadeIn">
@@ -368,23 +417,47 @@ const AddConferencePage: React.FC<{
                         <h3 className="text-xl font-bold text-slate-800 mb-2">
                             {submitResult.type === 'success' ? 'Sucesso!' : 'Atenção!'}
                         </h3>
-                        <p className="text-sm font-medium text-slate-600 mb-6">
-                            {submitResult.message}
-                        </p>
+                        <div className="text-sm font-medium text-slate-600 mb-6">
+                            <p>{submitResult.message}</p>
+                            {submitResult.type === 'success' && (
+                                <p className="mt-3 font-extrabold text-slate-800">
+                                    Deseja imprimir as etiquetas dos lotes recebidos?
+                                </p>
+                            )}
+                        </div>
                         {submitResult.type === 'success' ? (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setSubmitResult(null);
-                                    const validLots = lots.filter(l => !!l.internalLot) as ConferenceLotData[];
-                                    const final = { ...conferenceData, lots: validLots } as ConferenceData;
-                                    onShowReport(final);
-                                    onClose();
-                                }}
-                                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl transition-colors"
-                            >
-                                OK
-                            </button>
+                            <div className="flex flex-col gap-2.5">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setTimeout(() => {
+                                            window.print();
+                                            setSubmitResult(null);
+                                            const validLots = lots.filter(l => !!l.internalLot) as ConferenceLotData[];
+                                            const final = { ...conferenceData, lots: validLots } as ConferenceData;
+                                            onShowReport(final);
+                                            onClose();
+                                        }, 200);
+                                    }}
+                                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2"
+                                >
+                                    <PrinterIcon className="h-5 w-5" />
+                                    Sim, Imprimir Etiquetas
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSubmitResult(null);
+                                        const validLots = lots.filter(l => !!l.internalLot) as ConferenceLotData[];
+                                        const final = { ...conferenceData, lots: validLots } as ConferenceData;
+                                        onShowReport(final);
+                                        onClose();
+                                    }}
+                                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 px-4 rounded-xl transition-colors"
+                                >
+                                    Voltar para o Estoque
+                                </button>
+                            </div>
                         ) : (
                             <button
                                 type="button"
@@ -657,6 +730,182 @@ const AddConferencePage: React.FC<{
                         <button type="submit" disabled={isSubmitting} className="bg-[#0F3F5C] text-white px-10 py-3 rounded-xl font-bold">{isSubmitting ? 'Salvando...' : 'Finalizar'}</button>
                     </div>
                 </form>
+            {/* Hidden printable label container */}
+            {printLots && printLots.length > 0 && (
+                <div className="hidden print:block print-labels-container">
+                    <style dangerouslySetInnerHTML={{ __html: `
+                        @media print {
+                            body, html, #root, .app-container, .main-content, .min-h-screen, .max-w-7xl, header, aside, .no-print, form, .print-section {
+                                visibility: hidden !important;
+                                height: 0 !important;
+                                overflow: visible !important;
+                                margin: 0 !important;
+                                padding: 0 !important;
+                            }
+                            .print-labels-container {
+                                visibility: visible !important;
+                                display: block !important;
+                                position: absolute !important;
+                                left: 0 !important;
+                                top: 0 !important;
+                                width: 100mm !important;
+                                height: auto !important;
+                                margin: 0 !important;
+                                padding: 0 !important;
+                                background: white !important;
+                            }
+                            .print-labels-container *, .print-label-card, .print-label-card * {
+                                visibility: visible !important;
+                            }
+                            .print-label-card {
+                                position: relative !important;
+                                width: 100mm !important;
+                                height: 150mm !important;
+                                padding: 6mm !important;
+                                border: 2px solid black !important;
+                                box-sizing: border-box !important;
+                                background: white !important;
+                                color: black !important;
+                                display: flex !important;
+                                flex-direction: column !important;
+                                justify-content: space-between !important;
+                                page-break-inside: avoid !important;
+                                page-break-after: always !important;
+                            }
+                            @page {
+                                size: 100mm 150mm !important;
+                                margin: 0 !important;
+                            }
+                            .print-label-card text, 
+                            .print-label-card span, 
+                            .print-label-card div, 
+                            .print-label-card p,
+                            .print-label-card h1,
+                            .print-label-card h2,
+                            .print-label-card td,
+                            .print-label-card th {
+                                color: black !important;
+                                font-family: Arial, sans-serif !important;
+                                -webkit-print-color-adjust: exact !important;
+                                print-color-adjust: exact !important;
+                            }
+                        }
+                    `}} />
+
+                    {printLots.map((lot, idx) => {
+                        const gauge = gauges.find(g => g.materialType === lot.materialType && g.gauge === lot.bitola);
+                        const isBar = lot.materialType?.toLowerCase().includes('barra');
+                        const defaultImg = isBar ? '/images/steel_bars.png' : '/images/wire_coil.png';
+                        const imageToUse = gauge?.imageUrl || defaultImg;
+                        const factorStr = gauge?.weightPerMeter ? `${gauge.weightPerMeter.toString().replace('.', ',')} kg/m` : lot.labelWeightInput || '';
+                        
+                        return (
+                            <div key={idx} className="print-label-card bg-white text-black border-2 border-black p-5 flex flex-col justify-between">
+                                {/* Header */}
+                                <div className="flex gap-4 items-start border-b-2 border-black pb-3">
+                                    <div className="w-[64px] h-[64px] border border-slate-300 rounded overflow-hidden flex items-center justify-center shrink-0 bg-slate-50">
+                                        <img 
+                                            src={imageToUse} 
+                                            alt="Produto" 
+                                            className="w-full h-full object-contain"
+                                            onError={(e) => {
+                                                (e.currentTarget as HTMLImageElement).src = '/logo.png';
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="flex-grow flex flex-col">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[11px] font-black tracking-wider text-slate-700 uppercase bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                                CÓD. {gauge?.productCode || 'N/A'}
+                                            </span>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                                                <span className="text-[10px] font-black text-emerald-700 uppercase">Ativo</span>
+                                            </div>
+                                        </div>
+                                        <h1 className="text-sm font-black text-slate-900 mt-1 uppercase truncate">
+                                            {lot.materialType || 'N/A'}
+                                        </h1>
+                                        <span className="text-[9px] font-bold text-slate-500 tracking-wide mt-0.5 uppercase">
+                                            MSM Sistemas de Gestão de Produção
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Spec Grid */}
+                                <div className="my-2.5 flex-grow">
+                                    <table className="w-full text-left border-collapse">
+                                        <tbody>
+                                            <tr className="border-b border-slate-200">
+                                                <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase w-28">Bitola/Dimensão</td>
+                                                <td className="py-1.5 text-xs font-black text-slate-900 uppercase">{lot.bitola || 'N/A'}</td>
+                                            </tr>
+                                            <tr className="border-b border-slate-200">
+                                                <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Fator Conversão</td>
+                                                <td className="py-1.5 text-xs font-black text-slate-900 font-mono">{factorStr}</td>
+                                            </tr>
+                                            <tr className="border-b border-slate-200">
+                                                <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Especificação</td>
+                                                <td className="py-1.5 text-xs font-bold text-slate-800 uppercase">{gauge?.technicalDescription || 'Norma ABNT NBR 7480'}</td>
+                                            </tr>
+                                            {lot.steelType && (
+                                                <tr className="border-b border-slate-200">
+                                                    <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Composição</td>
+                                                    <td className="py-1.5 text-xs font-bold text-slate-800 uppercase">{lot.steelType}</td>
+                                                </tr>
+                                            )}
+                                            <tr className="border-b border-slate-200">
+                                                <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Fabricado/Origem</td>
+                                                <td className="py-1.5 text-xs font-bold text-slate-800 uppercase">Fabricado (Interno)</td>
+                                            </tr>
+                                            <tr className="border-b border-slate-200">
+                                                <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Peso Registrado</td>
+                                                <td className="py-1.5 text-xs font-black text-indigo-700 font-mono">{lot.labelWeight ? `${lot.labelWeight.toFixed(2).replace('.', ',')} kg` : '0 kg'}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Big Lot Code Banner */}
+                                <div className="border-t border-b border-black py-2 my-1.5 text-center bg-slate-50">
+                                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest block">LOTE DE RASTREABILIDADE</span>
+                                    <span className="text-2xl font-black text-slate-900 font-mono tracking-wider block mt-0.5">
+                                        {lot.internalLot}
+                                    </span>
+                                </div>
+
+                                {/* Barcode Section */}
+                                <div className="flex flex-col items-center justify-center py-2 bg-slate-50">
+                                    <svg 
+                                        id={`print-barcode-${lot.internalLot}`} 
+                                        className="max-w-full"
+                                    />
+                                </div>
+
+                                {/* QR Code Section */}
+                                <div className="flex items-center justify-between gap-4 mt-3">
+                                    <div className="flex-grow flex flex-col justify-center border-l-4 border-black pl-3 py-1">
+                                        <span className="text-[10px] font-black tracking-widest text-slate-950 uppercase">ETIQUETA DE REGISTRO</span>
+                                        <p className="text-[8px] text-slate-600 font-bold leading-normal mt-0.5 max-w-[200px]">
+                                            Escaneie o código ao lado para rastrear as movimentações de estoque deste lote.
+                                        </p>
+                                    </div>
+                                    <div 
+                                        className="w-[64px] h-[64px] flex items-center justify-center bg-white shrink-0 border border-slate-200 rounded p-1"
+                                        dangerouslySetInnerHTML={{ __html: generateQrCodeSvg(lot.internalLot, gauge?.productCode || '', lot.materialType) }}
+                                    />
+                                </div>
+
+                                {/* Footer */}
+                                <div className="border-t border-slate-200 pt-2 mt-2 flex justify-between items-center text-[7px] font-black text-slate-400 uppercase tracking-wider">
+                                    <span>Gerado Automaticamente</span>
+                                    <span className="font-mono text-slate-500">{new Date().toLocaleDateString('pt-BR')} - {new Date().toLocaleTimeString('pt-BR')}</span>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
             </div>
         </div>
     );
@@ -686,6 +935,7 @@ const StockControl: React.FC<{
     const [isStatusOpen, setIsStatusOpen] = useState(false);
     const [isMobileStatusOpen, setIsMobileStatusOpen] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
+    const [reprintLot, setReprintLot] = useState<StockItem | null>(null);
 
     const dynamicMaterialOptions = useMemo(() => {
         const list = Array.from(new Set(gauges.map(g => g.materialType))).filter(Boolean) as string[];
@@ -712,6 +962,42 @@ const StockControl: React.FC<{
             setTimeout(() => setIsPrinting(false), 500);
         }
     }, [isPrinting]);
+
+    useEffect(() => {
+        if (reprintLot) {
+            const jsBarcode = (window as any).JsBarcode;
+            if (typeof jsBarcode !== 'undefined') {
+                setTimeout(() => {
+                    const element = document.getElementById(`reprint-barcode-${reprintLot.internalLot}`);
+                    if (element) {
+                        try {
+                            jsBarcode(element, reprintLot.internalLot, {
+                                format: "CODE128",
+                                lineColor: "#000000",
+                                width: 1.8,
+                                height: 50,
+                                displayValue: true,
+                                fontSize: 12,
+                                font: "monospace",
+                                textMargin: 2,
+                                margin: 0
+                            });
+                        } catch (err) {
+                            console.error("Error rendering reprint barcode:", err);
+                        }
+                    }
+                }, 100);
+            }
+        }
+    }, [reprintLot]);
+
+    const handleReprintLabel = (item: StockItem) => {
+        setReprintLot(item);
+        setTimeout(() => {
+            window.print();
+            setTimeout(() => setReprintLot(null), 1000);
+        }, 250);
+    };
 
     const availableBitolas = useMemo(() => {
         let options: string[] = [];
@@ -1108,6 +1394,9 @@ const StockControl: React.FC<{
                                         <button onClick={() => setEditingItem(item)} title="Editar" className="p-1 hover:bg-amber-50 rounded-lg transition-colors">
                                             <PencilIcon className="h-5 w-5 text-slate-400 hover:text-amber-500" />
                                         </button>
+                                        <button onClick={() => handleReprintLabel(item)} title="Reimprimir Etiqueta" className="p-1 hover:bg-slate-50 rounded-lg transition-colors">
+                                            <PrinterIcon className="h-5 w-5 text-slate-400 hover:text-indigo-600" />
+                                        </button>
                                         <button onClick={() => confirm('Excluir?') && deleteStockItem(item.id)} title="Excluir" className="p-1 hover:bg-red-50 rounded-lg transition-colors">
                                             <TrashIcon className="h-5 w-5 text-red-400 hover:text-red-600" />
                                         </button>
@@ -1129,6 +1418,182 @@ const StockControl: React.FC<{
                     <p className="text-[10px] font-black text-slate-400 italic">MSM - Tecnologia em Gestão de Produção</p>
                 </div>
             </div>
+            {/* Hidden reprint label container */}
+            {reprintLot && (
+                <div className="hidden print:block print-reprint-container">
+                    <style dangerouslySetInnerHTML={{ __html: `
+                        @media print {
+                            body, html, #root, .app-container, .main-content, .min-h-screen, .max-w-7xl, header, aside, .no-print, form, .print-section, .print-labels-container {
+                                visibility: hidden !important;
+                                height: 0 !important;
+                                overflow: visible !important;
+                                margin: 0 !important;
+                                padding: 0 !important;
+                            }
+                            .print-reprint-container {
+                                visibility: visible !important;
+                                display: block !important;
+                                position: absolute !important;
+                                left: 0 !important;
+                                top: 0 !important;
+                                width: 100mm !important;
+                                height: auto !important;
+                                margin: 0 !important;
+                                padding: 0 !important;
+                                background: white !important;
+                            }
+                            .print-reprint-container *, .print-label-card, .print-label-card * {
+                                visibility: visible !important;
+                            }
+                            .print-label-card {
+                                position: relative !important;
+                                width: 100mm !important;
+                                height: 150mm !important;
+                                padding: 6mm !important;
+                                border: 2px solid black !important;
+                                box-sizing: border-box !important;
+                                background: white !important;
+                                color: black !important;
+                                display: flex !important;
+                                flex-direction: column !important;
+                                justify-content: space-between !important;
+                                page-break-inside: avoid !important;
+                                page-break-after: always !important;
+                            }
+                            @page {
+                                size: 100mm 150mm !important;
+                                margin: 0 !important;
+                            }
+                            .print-label-card text, 
+                            .print-label-card span, 
+                            .print-label-card div, 
+                            .print-label-card p,
+                            .print-label-card h1,
+                            .print-label-card h2,
+                            .print-label-card td,
+                            .print-label-card th {
+                                color: black !important;
+                                font-family: Arial, sans-serif !important;
+                                -webkit-print-color-adjust: exact !important;
+                                print-color-adjust: exact !important;
+                            }
+                        }
+                    `}} />
+
+                    {(() => {
+                        const gauge = gauges.find(g => g.materialType === reprintLot.materialType && g.gauge === reprintLot.bitola);
+                        const isBar = reprintLot.materialType?.toLowerCase().includes('barra');
+                        const defaultImg = isBar ? '/images/steel_bars.png' : '/images/wire_coil.png';
+                        const imageToUse = gauge?.imageUrl || defaultImg;
+                        const factorStr = gauge?.weightPerMeter ? `${gauge.weightPerMeter.toString().replace('.', ',')} kg/m` : '';
+                        
+                        return (
+                            <div className="print-label-card bg-white text-black border-2 border-black p-5 flex flex-col justify-between">
+                                {/* Header */}
+                                <div className="flex gap-4 items-start border-b-2 border-black pb-3">
+                                    <div className="w-[64px] h-[64px] border border-slate-300 rounded overflow-hidden flex items-center justify-center shrink-0 bg-slate-50">
+                                        <img 
+                                            src={imageToUse} 
+                                            alt="Produto" 
+                                            className="w-full h-full object-contain"
+                                            onError={(e) => {
+                                                (e.currentTarget as HTMLImageElement).src = '/logo.png';
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="flex-grow flex flex-col">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[11px] font-black tracking-wider text-slate-700 uppercase bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                                CÓD. {gauge?.productCode || 'N/A'}
+                                            </span>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                                                <span className="text-[10px] font-black text-emerald-700 uppercase">Ativo</span>
+                                            </div>
+                                        </div>
+                                        <h1 className="text-sm font-black text-slate-900 mt-1 uppercase truncate">
+                                            {reprintLot.materialType || 'N/A'}
+                                        </h1>
+                                        <span className="text-[9px] font-bold text-slate-500 tracking-wide mt-0.5 uppercase">
+                                            MSM Sistemas de Gestão de Produção
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Spec Grid */}
+                                <div className="my-2.5 flex-grow">
+                                    <table className="w-full text-left border-collapse">
+                                        <tbody>
+                                            <tr className="border-b border-slate-200">
+                                                <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase w-28">Bitola/Dimensão</td>
+                                                <td className="py-1.5 text-xs font-black text-slate-900 uppercase">{reprintLot.bitola || 'N/A'}</td>
+                                            </tr>
+                                            <tr className="border-b border-slate-200">
+                                                <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Fator Conversão</td>
+                                                <td className="py-1.5 text-xs font-black text-slate-900 font-mono">{factorStr}</td>
+                                            </tr>
+                                            <tr className="border-b border-slate-200">
+                                                <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Especificação</td>
+                                                <td className="py-1.5 text-xs font-bold text-slate-800 uppercase">{gauge?.technicalDescription || 'Norma ABNT NBR 7480'}</td>
+                                            </tr>
+                                            {reprintLot.steelType && (
+                                                <tr className="border-b border-slate-200">
+                                                    <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Composição</td>
+                                                    <td className="py-1.5 text-xs font-bold text-slate-800 uppercase">{reprintLot.steelType}</td>
+                                                </tr>
+                                            )}
+                                            <tr className="border-b border-slate-200">
+                                                <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Fabricado/Origem</td>
+                                                <td className="py-1.5 text-xs font-bold text-slate-800 uppercase">Fabricado (Interno)</td>
+                                            </tr>
+                                            <tr className="border-b border-slate-200">
+                                                <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Peso Registrado</td>
+                                                <td className="py-1.5 text-xs font-black text-indigo-700 font-mono">{reprintLot.weight ? `${reprintLot.weight.toFixed(2).replace('.', ',')} kg` : '0 kg'}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Big Lot Code Banner */}
+                                <div className="border-t border-b border-black py-2 my-1.5 text-center bg-slate-50">
+                                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest block">LOTE DE RASTREABILIDADE</span>
+                                    <span className="text-2xl font-black text-slate-900 font-mono tracking-wider block mt-0.5">
+                                        {reprintLot.internalLot}
+                                    </span>
+                                </div>
+
+                                {/* Barcode Section */}
+                                <div className="flex flex-col items-center justify-center py-2 bg-slate-50">
+                                    <svg 
+                                        id={`reprint-barcode-${reprintLot.internalLot}`} 
+                                        className="max-w-full"
+                                    />
+                                </div>
+
+                                {/* QR Code Section */}
+                                <div className="flex items-center justify-between gap-4 mt-3">
+                                    <div className="flex-grow flex flex-col justify-center border-l-4 border-black pl-3 py-1">
+                                        <span className="text-[10px] font-black tracking-widest text-slate-950 uppercase">ETIQUETA DE REGISTRO</span>
+                                        <p className="text-[8px] text-slate-600 font-bold leading-normal mt-0.5 max-w-[200px]">
+                                            Escaneie o código ao lado para rastrear as movimentações de estoque deste lote.
+                                        </p>
+                                    </div>
+                                    <div 
+                                        className="w-[64px] h-[64px] flex items-center justify-center bg-white shrink-0 border border-slate-200 rounded p-1"
+                                        dangerouslySetInnerHTML={{ __html: generateQrCodeSvg(reprintLot.internalLot, gauge?.productCode || '', reprintLot.materialType) }}
+                                    />
+                                </div>
+
+                                {/* Footer */}
+                                <div className="border-t border-slate-200 pt-2 mt-2 flex justify-between items-center text-[7px] font-black text-slate-400 uppercase tracking-wider">
+                                    <span>Gerado Automaticamente</span>
+                                    <span className="font-mono text-slate-500">{new Date().toLocaleDateString('pt-BR')} - {new Date().toLocaleTimeString('pt-BR')}</span>
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </div>
+            )}
         </div>
     );
 };

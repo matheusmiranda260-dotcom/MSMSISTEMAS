@@ -12,6 +12,7 @@ import Reports from './components/Reports';
 import UserManagement from './components/UserManagement';
 import Notification from './components/Notification';
 import Sidebar from './components/Sidebar';
+import PartnerConfig from './components/PartnerConfig';
 import ProductionDashboard from './components/ProductionDashboard';
 import FinishedGoods from './components/FinishedGoods';
 import SparePartsManager from './components/SparePartsManager';
@@ -23,6 +24,7 @@ import PeopleManagement from './components/PeopleManagement';
 
 import StockTransfer from './components/StockTransfer';
 import GaugesManager from './components/GaugesManager';
+import LabelConfiguration from './components/LabelConfiguration';
 import StickyNotes from './components/StickyNotes';
 import MeetingsTasks from './components/MeetingsTasks';
 import DocumentManager from './components/DocumentManager';
@@ -102,6 +104,11 @@ const App: React.FC = () => {
     const [meetings, setMeetings] = useState<Meeting[]>([]);
     const [meetingCategories, setMeetingCategories] = useState<MeetingCategory[]>([]);
     const [downtimeConfigs, setDowntimeConfigs] = useState<DowntimeConfig[]>([]);
+    const [partners, setPartners] = useState<Partner[]>([]);
+
+    const activeBrandingPartner = useMemo(() => {
+        return partners.find(p => p.isActiveBranding) || null;
+    }, [partners]);
 
     const [pendingKaizenCount, setPendingKaizenCount] = useState(0);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -154,7 +161,7 @@ const App: React.FC = () => {
                     fetchedUsers, fetchedEmployees, fetchedStock, fetchedConferences, fetchedTransfers,
                     fetchedOrders, fetchedFinishedGoods, fetchedPontas, fetchedFGTransfers,
                     fetchedParts, fetchedReports, fetchedProductionRecords, fetchedGauges, fetchedNotes, fetchedMeetings, fetchedCategories, fetchedDowntimeConfigs,
-                    fetchedAccessLogs, fetchedComponents
+                    fetchedAccessLogs, fetchedComponents, fetchedPartners
                 ] = await Promise.all([
                     fetchTable<User>('app_users').catch(() => []),
                     fetchTable<Employee>('employees').catch(() => []),
@@ -175,7 +182,8 @@ const App: React.FC = () => {
                     fetchTable<MeetingCategory>('meeting_categories').catch(() => []),
                     fetchTable<DowntimeConfig>('downtime_configs').catch(() => []),
                     fetchTable<UserAccessLog>('user_access_logs').catch(() => []),
-                    fetchTable<GaugeComponent>('gauge_components').catch(() => [])
+                    fetchTable<GaugeComponent>('gauge_components').catch(() => []),
+                    fetchTable<Partner>('partners').catch(() => [])
                 ]);
 
                 setUsers(fetchedUsers);
@@ -190,6 +198,19 @@ const App: React.FC = () => {
                 setFinishedGoodsTransfers(fetchedFGTransfers);
                 setPartsRequests(fetchedParts);
                 setShiftReports(fetchedReports);
+
+                let partnersToSet = fetchedPartners;
+                if (!fetchedPartners || fetchedPartners.length === 0) {
+                    const localData = localStorage.getItem('msm_partners_fallback');
+                    if (localData) {
+                        try {
+                            partnersToSet = JSON.parse(localData);
+                        } catch (e) {
+                            console.error("Error parsing local partners data", e);
+                        }
+                    }
+                }
+                setPartners(partnersToSet || []);
 
                 // =========================================================
                 // GAUGE LOADING - Source of truth is ONLY the DB (stock_gauges)
@@ -2763,6 +2784,71 @@ const App: React.FC = () => {
             case 'peopleManagement': return <PeopleManagement setPage={setPage} currentUser={currentUser} />;
             case 'documents': return <DocumentManager setPage={setPage} currentUser={currentUser} />;
             case 'gaugesManager': return <GaugesManager gauges={gauges} stock={stock} onAdd={addGauge} onDelete={deleteGauge} onUpdate={updateGauge} gaugeComponents={gaugeComponents} onSaveComponents={saveGaugeComponents} currentUser={currentUser} />;
+            case 'labelConfig': return <LabelConfiguration gauges={gauges} showNotification={showNotification} />;
+            case 'partnerConfig': return (
+                <PartnerConfig 
+                    partners={partners} 
+                    onAdd={async (newPartner) => {
+                        let saved: Partner;
+                        try {
+                            saved = await insertItem<Partner>('partners', newPartner);
+                        } catch (err) {
+                            console.warn("Could not insert into Supabase 'partners' table. Saving to LocalStorage fallback.", err);
+                            saved = {
+                                ...newPartner,
+                                id: 'local-' + Date.now().toString(),
+                                createdAt: new Date().toISOString(),
+                                updatedAt: new Date().toISOString()
+                            };
+                            const updatedList = [...partners, saved];
+                            setPartners(updatedList);
+                            localStorage.setItem('msm_partners_fallback', JSON.stringify(updatedList));
+                            showNotification('Aviso: Tabela "partners" não encontrada. Salvo localmente no navegador.', 'warning');
+                            return saved;
+                        }
+                        setPartners(prev => [...prev, saved]);
+                        return saved;
+                    }}
+                    onUpdate={async (id, updates) => {
+                        let updated: Partner;
+                        try {
+                            updated = await updateItem<Partner>('partners', id, updates);
+                        } catch (err) {
+                            console.warn("Could not update in Supabase 'partners' table. Updating in LocalStorage fallback.", err);
+                            const original = partners.find(p => p.id === id);
+                            updated = {
+                                ...original,
+                                ...updates,
+                                id,
+                                updatedAt: new Date().toISOString()
+                            } as Partner;
+                            const updatedList = partners.map(p => p.id === id ? updated : p);
+                            setPartners(updatedList);
+                            localStorage.setItem('msm_partners_fallback', JSON.stringify(updatedList));
+                            showNotification('Aviso: Alterações salvas localmente no navegador.', 'warning');
+                            return updated;
+                        }
+                        setPartners(prev => prev.map(p => p.id === id ? updated : p));
+                        return updated;
+                    }}
+                    onDelete={async (id) => {
+                        try {
+                            await deleteItem('partners', id);
+                        } catch (err) {
+                            console.warn("Could not delete from Supabase 'partners' table. Deleting from LocalStorage fallback.", err);
+                            const updatedList = partners.filter(p => p.id !== id);
+                            setPartners(updatedList);
+                            localStorage.setItem('msm_partners_fallback', JSON.stringify(updatedList));
+                            showNotification('Aviso: Item removido do armazenamento local.', 'warning');
+                            return;
+                        }
+                        const updatedList = partners.filter(p => p.id !== id);
+                        setPartners(updatedList);
+                    }}
+                    showNotification={showNotification}
+                    currentUser={currentUser}
+                />
+            );
             case 'meetingsTasks':
                 return <MeetingsTasks
                     meetings={meetings}
@@ -2786,7 +2872,7 @@ const App: React.FC = () => {
             {currentUser && page !== 'login' && (
                 <>
                     <div className={`sidebar-overlay ${isMobileMenuOpen ? 'active' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
-                    <Sidebar page={page} setPage={(p) => { setPage(p); setIsMobileMenuOpen(false); }} currentUser={currentUser} notificationCount={pendingKaizenCount} isMobileMenuOpen={isMobileMenuOpen} onLogout={handleLogout} />
+                    <Sidebar page={page} setPage={(p) => { setPage(p); setIsMobileMenuOpen(false); }} currentUser={currentUser} notificationCount={pendingKaizenCount} isMobileMenuOpen={isMobileMenuOpen} onLogout={handleLogout} activeBrandingPartner={activeBrandingPartner} />
                 </>
             )}
             <main className="main-content">
