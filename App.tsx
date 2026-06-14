@@ -28,7 +28,7 @@ import MeetingsTasks from './components/MeetingsTasks';
 import DocumentManager from './components/DocumentManager';
 import DowntimeConfigManager from './components/DowntimeConfigManager';
 import { supabase } from './supabaseClient';
-import type { StockGauge, StickyNote } from './types';
+import type { StockGauge, StickyNote, GaugeComponent } from './types';
 
 import { fetchTable, insertItem, updateItem, deleteItem, deleteItemByColumn, updateItemByColumn, mapToCamelCase, fetchByColumn } from './services/supabaseService';
 import { useAllRealtimeSubscriptions } from './hooks/useSupabaseRealtime';
@@ -68,6 +68,7 @@ const App: React.FC = () => {
     const [shiftReports, setShiftReports] = useState<ShiftReport[]>([]);
 
     const [gauges, setGauges] = useState<StockGauge[]>([]);
+    const [gaugeComponents, setGaugeComponents] = useState<GaugeComponent[]>([]);
     const [stickyNotes, setStickyNotes] = useState<StickyNote[]>([]);
     const [meetings, setMeetings] = useState<Meeting[]>([]);
     const [meetingCategories, setMeetingCategories] = useState<MeetingCategory[]>([]);
@@ -124,7 +125,7 @@ const App: React.FC = () => {
                     fetchedUsers, fetchedEmployees, fetchedStock, fetchedConferences, fetchedTransfers,
                     fetchedOrders, fetchedFinishedGoods, fetchedPontas, fetchedFGTransfers,
                     fetchedParts, fetchedReports, fetchedProductionRecords, fetchedGauges, fetchedNotes, fetchedMeetings, fetchedCategories, fetchedDowntimeConfigs,
-                    fetchedAccessLogs
+                    fetchedAccessLogs, fetchedComponents
                 ] = await Promise.all([
                     fetchTable<User>('app_users').catch(() => []),
                     fetchTable<Employee>('employees').catch(() => []),
@@ -144,7 +145,8 @@ const App: React.FC = () => {
                     fetchTable<Meeting>('meetings').catch(() => []),
                     fetchTable<MeetingCategory>('meeting_categories').catch(() => []),
                     fetchTable<DowntimeConfig>('downtime_configs').catch(() => []),
-                    fetchTable<UserAccessLog>('user_access_logs').catch(() => [])
+                    fetchTable<UserAccessLog>('user_access_logs').catch(() => []),
+                    fetchTable<GaugeComponent>('gauge_components').catch(() => [])
                 ]);
 
                 setUsers(fetchedUsers);
@@ -254,6 +256,7 @@ const App: React.FC = () => {
                 const finalGauges = Array.from(finalGaugesMap.values());
                 localStorage.setItem('msm_local_gauges', JSON.stringify(finalGauges));
                 setGauges(finalGauges);
+                setGaugeComponents(fetchedComponents || []);
                 setStickyNotes(fetchedNotes || []);
                 setMeetings(fetchedMeetings || []);
                 setMeetingCategories(fetchedCategories || []);
@@ -323,14 +326,14 @@ const App: React.FC = () => {
         setFinishedGoodsTransfers,
         setPartsRequests,
         setShiftReports,
-
-        setGauges,
         setStickyNotes,
         setMeetings,
         setMeetingCategories,
         setDowntimeConfigs,
+        setGauges,
         setUsers,
         setAccessLogs,
+        setGaugeComponents,
     }), []);
 
     useAllRealtimeSubscriptions(realtimeSetters, !!currentUser);
@@ -574,7 +577,7 @@ const App: React.FC = () => {
         }
     };
 
-    const addGauge = async (data: Omit<StockGauge, 'id'>) => {
+    const addGauge = async (data: Omit<StockGauge, 'id'>): Promise<StockGauge> => {
         const signature = `${data.materialType.toLowerCase()}::${data.gauge}`;
         const deletedSaved = localStorage.getItem('msm_deleted_gauges');
         if (deletedSaved) {
@@ -604,26 +607,25 @@ const App: React.FC = () => {
                 localStorage.setItem('msm_local_gauges', JSON.stringify(updated));
                 return updated;
             });
+            return saved;
         } catch (error) {
             console.warn('Could not sync new gauge to Supabase. Saved locally.', error);
+            return localItem;
         }
     };
 
     const deleteGauge = async (id: string) => {
         const target = gauges.find(g => g.id === id);
-        if (target) {
-            const signature = `${target.materialType.toLowerCase()}::${target.gauge}`;
-            const deletedSaved = localStorage.getItem('msm_deleted_gauges');
-            let deletedList: string[] = [];
-            if (deletedSaved) {
-                try { deletedList = JSON.parse(deletedSaved); } catch (e) {}
-            }
-            if (!deletedList.includes(signature)) {
-                deletedList.push(signature);
-                localStorage.setItem('msm_deleted_gauges', JSON.stringify(deletedList));
-            }
+        if (!target) return;
+
+        const signature = `${target.materialType.toLowerCase()}::${target.gauge}`;
+        const deletedSaved = localStorage.getItem('msm_deleted_gauges');
+        let deletedList: string[] = [];
+        if (deletedSaved) {
+            try { deletedList = JSON.parse(deletedSaved); } catch (e) {}
         }
 
+        const previousGauges = [...gauges];
         setGauges(prev => {
             const updated = prev.filter(g => g.id !== id);
             localStorage.setItem('msm_local_gauges', JSON.stringify(updated));
@@ -633,12 +635,19 @@ const App: React.FC = () => {
 
         try {
             await deleteItem('stock_gauges', id);
+            if (!deletedList.includes(signature)) {
+                deletedList.push(signature);
+                localStorage.setItem('msm_deleted_gauges', JSON.stringify(deletedList));
+            }
         } catch (error) {
-            console.warn('Could not sync gauge deletion to Supabase. Removed locally.', error);
+            console.error('Could not sync gauge deletion to Supabase. Reverting local state.', error);
+            showNotification('Erro ao remover material. Verifique se ele está em uso como componente de outro produto ou possui lotes em estoque.', 'error');
+            setGauges(previousGauges);
+            localStorage.setItem('msm_local_gauges', JSON.stringify(previousGauges));
         }
     };
 
-    const updateGauge = async (id: string, data: Partial<StockGauge>) => {
+    const updateGauge = async (id: string, data: Partial<StockGauge>): Promise<StockGauge> => {
         setGauges(prev => {
             const updated = prev.map(g => g.id === id ? { ...g, ...data } : g);
             localStorage.setItem('msm_local_gauges', JSON.stringify(updated));
@@ -647,9 +656,12 @@ const App: React.FC = () => {
         showNotification('Descrição atualizada com sucesso!', 'success');
 
         try {
-            await updateItem<StockGauge>('stock_gauges', id, data);
+            const updated = await updateItem<StockGauge>('stock_gauges', id, data);
+            return updated;
         } catch (error) {
             console.warn('Could not sync gauge update to Supabase. Updated locally.', error);
+            const current = gauges.find(g => g.id === id);
+            return { ...current, ...data } as StockGauge;
         }
     };
 
@@ -2678,7 +2690,7 @@ const App: React.FC = () => {
             case 'workInstructions': return <WorkInstructions setPage={setPage} />;
             case 'peopleManagement': return <PeopleManagement setPage={setPage} currentUser={currentUser} />;
             case 'documents': return <DocumentManager setPage={setPage} currentUser={currentUser} />;
-            case 'gaugesManager': return <GaugesManager gauges={gauges} stock={stock} onAdd={addGauge} onDelete={deleteGauge} onUpdate={updateGauge} />;
+            case 'gaugesManager': return <GaugesManager gauges={gauges} stock={stock} onAdd={addGauge} onDelete={deleteGauge} onUpdate={updateGauge} gaugeComponents={gaugeComponents} />;
             case 'meetingsTasks':
                 return <MeetingsTasks
                     meetings={meetings}

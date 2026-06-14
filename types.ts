@@ -367,6 +367,15 @@ export interface StockGauge {
     weightType?: string;
     weightUnit?: string;
     rawWeightValue?: number;
+    itemType?: string; // 'materia_prima' | 'produto_composto'
+}
+
+export interface GaugeComponent {
+    id: string;
+    parentGaugeId: string;
+    componentGaugeId: string;
+    funcao?: string;
+    consumption: number;
 }
 
 

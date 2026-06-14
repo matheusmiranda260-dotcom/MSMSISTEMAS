@@ -1,16 +1,18 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { StockGauge, StockItem } from '../types';
+import type { StockGauge, StockItem, GaugeComponent } from '../types';
 import { TrashIcon, PlusIcon, ScaleIcon, PencilIcon, XIcon, SearchIcon } from './icons';
+import { insertItem, deleteItemByColumn } from '../services/supabaseService';
 
 interface GaugesManagerProps {
     gauges: StockGauge[];
     stock: StockItem[];
-    onAdd: (gauge: Omit<StockGauge, 'id'>) => void;
+    onAdd: (gauge: Omit<StockGauge, 'id'>) => Promise<StockGauge>;
     onDelete: (id: string) => void;
-    onUpdate: (id: string, data: Partial<StockGauge>) => void;
+    onUpdate: (id: string, data: Partial<StockGauge>) => Promise<StockGauge>;
+    gaugeComponents?: GaugeComponent[];
 }
 
-const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onDelete, onUpdate }) => {
+const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onDelete, onUpdate, gaugeComponents }) => {
     // Form fields states
     const [selectedGroup, setSelectedGroup] = useState<string>('Fio Máquina');
     const [customGroupName, setCustomGroupName] = useState('');
@@ -30,6 +32,32 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
     const [weightType, setWeightType] = useState('metro'); // 'metro' | 'unid' | 'peso'
     const [weightUnit, setWeightUnit] = useState('kg');     // 'kg' | 'g'
     const [rawWeightValue, setRawWeightValue] = useState('');
+
+    // Compound products states
+    const [itemType, setItemType] = useState<'materia_prima' | 'produto_composto'>('materia_prima');
+    const [componentsForm, setComponentsForm] = useState<{ componentGaugeId: string; funcao: string; consumption: number }[]>([]);
+
+    // Calculate dynamic cost of compound products
+    const totalTheoreticalCost = useMemo(() => {
+        return componentsForm.reduce((sum, item) => {
+            const compGauge = gauges.find(g => g.id === item.componentGaugeId);
+            const price = compGauge?.purchasePrice || 0;
+            return sum + ((parseFloat(item.consumption.toString()) || 0) * price);
+        }, 0);
+    }, [componentsForm, gauges]);
+
+    // Calculate dynamic weight of compound products
+    const totalTheoreticalWeight = useMemo(() => {
+        return componentsForm.reduce((sum, item) => sum + (parseFloat(item.consumption.toString()) || 0), 0);
+    }, [componentsForm]);
+
+    // Sync calculated values to form state for saving
+    useEffect(() => {
+        if (itemType === 'produto_composto') {
+            setRawWeightValue(totalTheoreticalWeight.toString());
+            setPurchasePrice(totalTheoreticalCost.toString());
+        }
+    }, [itemType, totalTheoreticalWeight, totalTheoreticalCost]);
 
     // Auto-calculate weightPerMeter in real-time
     useEffect(() => {
@@ -209,10 +237,37 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
         setWeightType('metro');
         setWeightUnit('kg');
         setRawWeightValue('');
+        setItemType('materia_prima');
+        setComponentsForm([]);
+    };
+
+    // Ficha técnica component editors
+    const handleAddComponentRow = () => {
+        const rawMaterials = gauges.filter(g => g.itemType !== 'produto_composto');
+        setComponentsForm(prev => [
+            ...prev,
+            {
+                componentGaugeId: rawMaterials.length > 0 ? rawMaterials[0].id : '',
+                funcao: 'Banzo Inferior',
+                consumption: 0
+            }
+        ]);
+    };
+
+    const handleUpdateComponentRow = (index: number, field: string, value: any) => {
+        setComponentsForm(prev => {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], [field]: value };
+            return updated;
+        });
+    };
+
+    const handleRemoveComponentRow = (index: number) => {
+        setComponentsForm(prev => prev.filter((_, i) => i !== index));
     };
 
     // Save action
-    const handleSave = () => {
+    const handleSave = async () => {
         const groupToUse = isCreatingNewGroup ? customGroupName.trim() : selectedGroup;
         if (!groupToUse) {
             alert('Por favor, informe ou selecione o grupo/material.');
@@ -274,18 +329,38 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
             pieceSize: pieceSize ? parseFloat(pieceSize) : undefined,
             weightType: weightType,
             weightUnit: weightUnit,
-            rawWeightValue: rawWeightValue ? parseFloat(rawWeightValue) : undefined
+            rawWeightValue: rawWeightValue ? parseFloat(rawWeightValue) : undefined,
+            itemType: itemType
         };
 
-        if (editingId) {
-            onUpdate(editingId, gaugeData);
-            alert('Material atualizado com sucesso!');
-        } else {
-            onAdd(gaugeData as Omit<StockGauge, 'id'>);
-            alert('Material cadastrado com sucesso!');
-        }
+        try {
+            let savedGauge: StockGauge;
+            if (editingId) {
+                savedGauge = await onUpdate(editingId, gaugeData);
+                await deleteItemByColumn('gauge_components', 'parent_gauge_id', editingId);
+            } else {
+                savedGauge = await onAdd(gaugeData as Omit<StockGauge, 'id'>);
+            }
 
-        handleReset();
+            if (itemType === 'produto_composto' && savedGauge?.id) {
+                for (const comp of componentsForm) {
+                    if (comp.componentGaugeId && comp.consumption > 0) {
+                        await insertItem<GaugeComponent>('gauge_components', {
+                            parentGaugeId: savedGauge.id,
+                            componentGaugeId: comp.componentGaugeId,
+                            funcao: comp.funcao,
+                            consumption: comp.consumption
+                        });
+                    }
+                }
+            }
+
+            alert(editingId ? 'Material atualizado com sucesso!' : 'Material cadastrado com sucesso!');
+            handleReset();
+        } catch (error: any) {
+            console.error('Error saving gauge/components:', error);
+            alert(`Erro ao salvar: ${error?.message || 'erro desconhecido'}`);
+        }
     };
 
     // Edit action
@@ -325,6 +400,20 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
         } else {
             setIsCreatingNewGroup(true);
             setCustomGroupName(g.materialType);
+        }
+
+        const currentItemType = (g.itemType === 'produto_composto' ? 'produto_composto' : 'materia_prima') as 'materia_prima' | 'produto_composto';
+        setItemType(currentItemType);
+
+        if (currentItemType === 'produto_composto') {
+            const comps = (gaugeComponents || []).filter(c => c.parentGaugeId === g.id);
+            setComponentsForm(comps.map(c => ({
+                componentGaugeId: c.componentGaugeId,
+                funcao: c.funcao || '',
+                consumption: c.consumption
+            })));
+        } else {
+            setComponentsForm([]);
         }
         
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -421,19 +510,55 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                 {/* Form Card */}
                 <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
                     <div className="p-6 bg-slate-50 border-b border-slate-200">
-                        <h2 className="text-lg font-bold text-[#0F3F5C] mb-4 flex items-center gap-2">
-                            {editingId ? (
-                                <>
-                                    <PencilIcon className="h-5 w-5 text-blue-600" />
-                                    Editar Material & Bitola
-                                </>
-                            ) : (
-                                <>
-                                    <PlusIcon className="h-5 w-5 text-blue-600" />
-                                    Cadastrar Material & Bitola
-                                </>
-                            )}
-                        </h2>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                            <h2 className="text-lg font-bold text-[#0F3F5C] flex items-center gap-2">
+                                {editingId ? (
+                                    <>
+                                        <PencilIcon className="h-5 w-5 text-blue-600" />
+                                        Editar Material & Bitola
+                                    </>
+                                ) : (
+                                    <>
+                                        <PlusIcon className="h-5 w-5 text-blue-600" />
+                                        Cadastrar Material & Bitola
+                                    </>
+                                )}
+                            </h2>
+                            <div className="bg-slate-200/60 p-1 rounded-xl flex items-center gap-1 self-start md:self-auto">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (editingId) return;
+                                        setItemType('materia_prima');
+                                        setMetricUnit('mm');
+                                        setWeightType('metro');
+                                    }}
+                                    className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
+                                        itemType === 'materia_prima'
+                                            ? 'bg-[#0F3F5C] text-white shadow-sm'
+                                            : 'text-slate-600 hover:text-[#0F3F5C] cursor-pointer'
+                                    } ${editingId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    Matéria-Prima
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (editingId) return;
+                                        setItemType('produto_composto');
+                                        setMetricUnit('unid');
+                                        setWeightType('unid');
+                                    }}
+                                    className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
+                                        itemType === 'produto_composto'
+                                            ? 'bg-[#0F3F5C] text-white shadow-sm'
+                                            : 'text-slate-600 hover:text-[#0F3F5C] cursor-pointer'
+                                    } ${editingId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    Produto Composto
+                                </button>
+                            </div>
+                        </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-stretch">
                             {/* Column 1: Identificação */}
@@ -533,9 +658,15 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                             </div>
 
                             {/* Column 3: CONFIGURAÇÃO DE KG */}
-                            <div className="bg-slate-100 rounded-2xl p-4 border border-slate-200 flex flex-col justify-between space-y-4">
-                                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-b border-slate-200 pb-2">
-                                    CONFIGURAÇÃO DE KG
+                            <div className={`rounded-2xl p-4 border flex flex-col justify-between space-y-4 transition-colors ${
+                                itemType === 'produto_composto'
+                                    ? 'bg-purple-50/50 border-purple-200'
+                                    : 'bg-slate-100 border-slate-200'
+                            }`}>
+                                <h3 className={`text-xs font-bold uppercase tracking-wider text-center border-b pb-2 ${
+                                    itemType === 'produto_composto' ? 'text-purple-700 border-purple-200' : 'text-slate-700 border-slate-200'
+                                }`}>
+                                    {itemType === 'produto_composto' ? 'PESO TEÓRICO (FICHA)' : 'CONFIGURAÇÃO DE KG'}
                                 </h3>
 
                                 <div>
@@ -558,18 +689,18 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                     <div className="flex gap-2">
                                         <input
                                             type="number"
-                                            value={rawWeightValue}
+                                            value={itemType === 'produto_composto' ? totalTheoreticalWeight.toFixed(3) : rawWeightValue}
                                             onChange={e => setRawWeightValue(e.target.value)}
                                             placeholder={weightType === 'metro' ? "Ex: 0.109" : weightType === 'unid' ? "Ex: 5.2" : "Ex: 1.0"}
                                             step="any"
                                             min="0"
-                                            disabled={weightType === 'peso'}
+                                            disabled={weightType === 'peso' || itemType === 'produto_composto'}
                                             className="w-2/3 p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white disabled:bg-slate-50 disabled:text-slate-400"
                                         />
                                         <select
-                                            value={weightUnit}
+                                            value={itemType === 'produto_composto' ? 'kg' : weightUnit}
                                             onChange={e => setWeightUnit(e.target.value)}
-                                            disabled={weightType === 'peso'}
+                                            disabled={weightType === 'peso' || itemType === 'produto_composto'}
                                             className="w-1/3 p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white text-slate-700 disabled:bg-slate-50 disabled:text-slate-400"
                                         >
                                             <option value="kg">kg</option>
@@ -606,21 +737,24 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                             {/* Column 4: Preço & Ações */}
                             <div className="flex flex-col justify-between space-y-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">PREÇO DE COMPRA (KG)</label>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                                        {itemType === 'produto_composto' ? 'CUSTO MATÉRIA-PRIMA' : 'PREÇO DE COMPRA (KG)'}
+                                    </label>
                                     <div className="relative">
                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
                                         <input
                                             type="number"
-                                            value={purchasePrice}
+                                            value={itemType === 'produto_composto' ? totalTheoreticalCost.toFixed(2) : purchasePrice}
                                             onChange={e => setPurchasePrice(e.target.value)}
                                             placeholder="0,00"
                                             step="0.01"
                                             min="0"
-                                            className="w-full p-3 pl-9 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm"
+                                            disabled={itemType === 'produto_composto'}
+                                            className="w-full p-3 pl-9 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white disabled:bg-slate-50 disabled:text-slate-400"
                                         />
                                     </div>
                                     <span className="text-[10px] text-slate-400 font-semibold mt-1.5 block">
-                                        (R$ {pricePerMeter} / Mts)
+                                        {itemType === 'produto_composto' ? '(Custo Teórico Total)' : `(R$ ${pricePerMeter} / Mts)`}
                                     </span>
                                 </div>
 
@@ -672,6 +806,107 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                 className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm text-sm"
                             />
                         </div>
+
+                        {/* Row 3: Ficha Técnica (Estrutura do Produto) */}
+                        {itemType === 'produto_composto' && (
+                            <div className="mt-6 pt-6 border-t border-slate-200 animate-fadeIn">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div>
+                                        <h3 className="text-sm font-bold text-[#0F3F5C] uppercase tracking-wider">
+                                            Estrutura do Produto (Ficha Técnica Teórica)
+                                        </h3>
+                                        <p className="text-xs text-slate-500">
+                                            Selecione as matérias-primas e consumos para calcular o peso e custo teóricos do produto composto.
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleAddComponentRow}
+                                        className="bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold py-2 px-3 rounded-lg border border-blue-200 transition text-xs flex items-center gap-1.5"
+                                    >
+                                        <PlusIcon className="h-4 w-4" /> Adicionar Componente
+                                    </button>
+                                </div>
+
+                                {componentsForm.length === 0 ? (
+                                    <div className="bg-slate-50 border border-dashed border-slate-300 rounded-xl p-6 text-center text-slate-500 text-xs italic">
+                                        Nenhum componente adicionado à estrutura deste produto. Clique no botão acima para adicionar.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {componentsForm.map((comp, idx) => {
+                                            const rawMaterials = gauges.filter(g => g.itemType !== 'produto_composto');
+                                            return (
+                                                <div
+                                                    key={idx}
+                                                    className="flex flex-col md:flex-row gap-3 items-end md:items-center bg-slate-50 p-3 rounded-xl border border-slate-200 animate-fadeIn"
+                                                >
+                                                    <div className="w-full md:w-5/12">
+                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                                            Matéria-Prima / Bitola
+                                                        </label>
+                                                        <select
+                                                            value={comp.componentGaugeId}
+                                                            onChange={e => handleUpdateComponentRow(idx, 'componentGaugeId', e.target.value)}
+                                                            className="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm bg-white font-medium text-slate-700 text-sm"
+                                                        >
+                                                            <option value="" disabled>Selecione uma matéria-prima...</option>
+                                                            {rawMaterials.map(rm => (
+                                                                <option key={rm.id} value={rm.id}>
+                                                                    {rm.materialType} - {rm.gauge} {rm.purchasePrice ? `(R$ ${rm.purchasePrice}/kg)` : ''}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+
+                                                    <div className="w-full md:w-3/12">
+                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                                            Função / Posição
+                                                        </label>
+                                                        <select
+                                                            value={comp.funcao}
+                                                            onChange={e => handleUpdateComponentRow(idx, 'funcao', e.target.value)}
+                                                            className="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm bg-white font-medium text-slate-700 text-sm"
+                                                        >
+                                                            <option value="Banzo Superior">Banzo Superior</option>
+                                                            <option value="Diagonais (Senoide)">Diagonais (Senoide)</option>
+                                                            <option value="Banzo Inferior">Banzo Inferior</option>
+                                                            <option value="Outro / Adicional">Outro / Adicional</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div className="w-full md:w-3/12">
+                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                                            Consumo (kg por {metricUnit === 'unid' ? 'peça' : metricUnit})
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            value={comp.consumption || ''}
+                                                            onChange={e => handleUpdateComponentRow(idx, 'consumption', parseFloat(e.target.value) || 0)}
+                                                            placeholder="Ex: 1.25"
+                                                            step="any"
+                                                            min="0"
+                                                            className="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white"
+                                                        />
+                                                    </div>
+
+                                                    <div className="w-full md:w-1/12 flex justify-end md:justify-center">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveComponentRow(idx)}
+                                                            className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition"
+                                                            title="Remover Componente"
+                                                        >
+                                                            <TrashIcon className="h-5 w-5" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -729,13 +964,42 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                             <td className="p-4">
                                                 <div className="flex flex-col">
                                                     <span className="font-semibold text-slate-800">{g.materialType}</span>
+                                                    <span className={`inline-block self-start mt-1 px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                                                        g.itemType === 'produto_composto'
+                                                            ? 'bg-purple-100 text-purple-700 border border-purple-200'
+                                                            : 'bg-blue-100 text-blue-700 border border-blue-200'
+                                                    }`}>
+                                                        {g.itemType === 'produto_composto' ? 'Composto' : 'Matéria-Prima'}
+                                                    </span>
                                                 </div>
                                             </td>
                                             <td className="p-4">
                                                 <div className="flex flex-col">
                                                     <span className="font-bold text-slate-800">{displayValue} {displayUnit}</span>
                                                     {g.weightPerMeter && (
-                                                        <span className="text-[10px] text-slate-500 font-semibold">Peso/m: {g.weightPerMeter} kg/m</span>
+                                                        <span className="text-[10px] text-slate-500 font-semibold">
+                                                            {g.itemType === 'produto_composto' ? 'Peso/m Teórico:' : 'Peso/m:'} {g.weightPerMeter} kg/m
+                                                        </span>
+                                                    )}
+                                                    {g.itemType === 'produto_composto' && (
+                                                        <div className="mt-1.5 flex flex-wrap gap-1">
+                                                            {(gaugeComponents || [])
+                                                                .filter(c => c.parentGaugeId === g.id)
+                                                                .map(c => {
+                                                                    const childGauge = gauges.find(cg => cg.id === c.componentGaugeId);
+                                                                    if (!childGauge) return null;
+                                                                    return (
+                                                                        <span
+                                                                            key={c.id}
+                                                                            className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[10px] font-medium border border-slate-200"
+                                                                            title={`${c.funcao || 'Componente'}: ${c.consumption} kg`}
+                                                                        >
+                                                                            <span className="font-semibold text-slate-500">{c.funcao || 'Comp'}:</span>
+                                                                            {childGauge.materialType} {childGauge.gauge} ({c.consumption}kg)
+                                                                        </span>
+                                                                    );
+                                                                })}
+                                                        </div>
                                                     )}
                                                 </div>
                                             </td>

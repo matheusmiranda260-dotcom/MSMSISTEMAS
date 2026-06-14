@@ -6,7 +6,7 @@ import type {
     FinishedProductItem, PontaItem, FinishedGoodsTransferRecord,
     PartsRequest, ShiftReport, ProductionRecord,
     StickyNote, Meeting, MeetingCategory, DowntimeConfig, User,
-    UserAccessLog, StockGauge
+    UserAccessLog, StockGauge, GaugeComponent
 } from '../types';
 import { mapToCamelCase } from '../services/supabaseService';
 
@@ -30,6 +30,7 @@ interface RealtimeSetters {
     setGauges?: React.Dispatch<React.SetStateAction<StockGauge[]>>;
     setUsers?: React.Dispatch<React.SetStateAction<User[]>>;
     setAccessLogs?: React.Dispatch<React.SetStateAction<UserAccessLog[]>>;
+    setGaugeComponents?: React.Dispatch<React.SetStateAction<GaugeComponent[]>>;
 }
 
 /**
@@ -207,6 +208,11 @@ export function useAllRealtimeSubscriptions(setters: RealtimeSetters, enabled: b
         // Gauges Realtime Subscription
         if (setters.setGauges) {
             createSubscription<StockGauge>('stock_gauges', setters.setGauges);
+        }
+
+        // Gauge Components Realtime Subscription
+        if (setters.setGaugeComponents) {
+            createSubscription<GaugeComponent>('gauge_components', setters.setGaugeComponents);
         }
 
         // Production Records (Trefila e Treliça)
