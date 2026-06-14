@@ -35,7 +35,7 @@ const StockTransfer: React.FC<StockTransferProps> = ({ stock, transfers, setPage
     const [isSuggestionCalculated, setIsSuggestionCalculated] = useState(false);
 
     const allBitolaOptions = useMemo(() => {
-        return [...new Set(gauges.map(g => String(g.gauge)))].sort((a, b) => parseFloat(a.replace(',', '.')) - parseFloat(b.replace(',', '.')));
+        return [...new Set<string>(gauges.map(g => String(g.gauge)))].sort((a, b) => parseFloat(a.replace(',', '.')) - parseFloat(b.replace(',', '.')));
     }, [gauges]);
 
     const [selectionMode, setSelectionMode] = useState<'full' | 'exact'>('full');
@@ -356,7 +356,7 @@ const StockTransfer: React.FC<StockTransferProps> = ({ stock, transfers, setPage
                                                     <option value="">Descrição...</option>
                                                     {(() => {
                                                         const materialGaugesFromDB = gauges.filter(g => g.materialType === req.materialType).map(g => g.gauge);
-                                                        const combinedOptions = [...new Set(materialGaugesFromDB)].sort((a, b) => parseFloat(a.replace(',', '.')) - parseFloat(b.replace(',', '.')));
+                                                        const combinedOptions = [...new Set<string>(materialGaugesFromDB)].sort((a, b) => parseFloat(a.replace(',', '.')) - parseFloat(b.replace(',', '.')));
                                                         return combinedOptions.map(b => <option key={b} value={b}>{b}</option>);
                                                     })()}
                                                 </select>

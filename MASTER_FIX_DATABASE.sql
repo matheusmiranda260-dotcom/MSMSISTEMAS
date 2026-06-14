@@ -22,6 +22,11 @@ ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS "run_number" TEXT;
 ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS "entry_date" TIMESTAMPTZ;
 ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS "supplier" TEXT;
 ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS "nfe" TEXT;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS "packaging_type" TEXT DEFAULT 'granel';
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS "qty_per_packaging" NUMERIC DEFAULT 1;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS "piece_size" NUMERIC;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS "qty_packages" NUMERIC DEFAULT 1;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS "total_pieces" NUMERIC DEFAULT 1;
 
 -- Habilita RLS e cria políticas de acesso total (IMPORTANTE: Corrige bugs de inserção/deleção)
 ALTER TABLE public.stock_items ENABLE ROW LEVEL SECURITY;
@@ -112,11 +117,52 @@ DROP POLICY IF EXISTS "Allow all access to sticky_notes" ON public.sticky_notes;
 DROP POLICY IF EXISTS "Enable all access for all users" ON public.sticky_notes;
 CREATE POLICY "Enable all access for all users" ON public.sticky_notes FOR ALL USING (true) WITH CHECK (true);
 
--- Stock Gauges
+-- Stock Gauges Columns & RLS
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "product_code" TEXT;
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "technical_description" TEXT;
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "purchase_price" NUMERIC;
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "commercial_name" TEXT;
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "bitola_nominal" TEXT;
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "comercial_estimada" TEXT;
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "lot_validity" DATE;
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "status" TEXT DEFAULT 'Ativo';
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "weight_per_meter" NUMERIC;
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "piece_size" NUMERIC;
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "weight_type" TEXT DEFAULT 'metro';
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "weight_unit" TEXT DEFAULT 'kg';
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "raw_weight_value" NUMERIC;
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "item_type" TEXT DEFAULT 'materia_prima';
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "auto_generate_lot" BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "default_steel_type" TEXT;
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "custom_field_label" TEXT;
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "custom_field_options" TEXT;
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "custom_field_value" TEXT;
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "packaging_type" TEXT DEFAULT 'granel';
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS "qty_per_packaging" NUMERIC DEFAULT 1;
+
 ALTER TABLE public.stock_gauges ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow all access to stock_gauges" ON public.stock_gauges;
 DROP POLICY IF EXISTS "Enable all access for all users" ON public.stock_gauges;
 CREATE POLICY "Enable all access for all users" ON public.stock_gauges FOR ALL USING (true) WITH CHECK (true);
+
+-- 6.1. Correção da tabela gauge_components (Ficha Técnica / Estrutura do Produto)
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'gauge_components') THEN
+        ALTER TABLE public.gauge_components ADD COLUMN IF NOT EXISTS "consumption_type" TEXT DEFAULT 'peso';
+        ALTER TABLE public.gauge_components ADD COLUMN IF NOT EXISTS "consumption_value" NUMERIC;
+        
+        -- Atualizar registros existentes
+        UPDATE public.gauge_components 
+        SET consumption_value = consumption 
+        WHERE consumption_value IS NULL;
+        
+        ALTER TABLE public.gauge_components ENABLE ROW LEVEL SECURITY;
+        DROP POLICY IF EXISTS "Enable all access for all users" ON public.gauge_components;
+        CREATE POLICY "Enable all access for all users" ON public.gauge_components FOR ALL USING (true) WITH CHECK (true);
+    END IF;
+END $$;
+
 
 -- 7. Tabelas de RH e Gestão de Pessoas (Se existirem)
 DO $$

@@ -23,6 +23,20 @@ const calculateTheoreticalWeight = (gauge: StockGauge | undefined, qtyPackages: 
     return 0;
 };
 
+const getStandardizedGaugeKey = (gaugeStr: string) => {
+    if (!gaugeStr) return '';
+    const clean = gaugeStr.trim().replace(',', '.');
+    const match = clean.match(/^([\d.]+)\s*(.*)$/);
+    if (match) {
+        const num = parseFloat(match[1]);
+        if (!isNaN(num)) {
+            const unit = match[2].trim().toLowerCase() || 'mm';
+            return `${num.toFixed(2)} ${unit}`;
+        }
+    }
+    return clean.toLowerCase();
+};
+
 interface FinishedConferencesModalProps {
     conferences: ConferenceData[];
     stock: StockItem[];
@@ -44,9 +58,10 @@ const EditConferenceModal: React.FC<{
 }> = ({ conference, stock, gauges, conferences, onClose, onSubmit }) => {
     const [formData, setFormData] = useState<ConferenceData>(conference);
     const [duplicateErrors, setDuplicateErrors] = useState<Record<number, string>>({});
+    const [showManualInput, setShowManualInput] = useState<Record<number, boolean>>({});
 
     // all bitola options (both machine types)
-    const allBitolaOptions: Bitola[] = [...new Set(gauges.map(g => g.gauge))];
+    const allBitolaOptions: Bitola[] = [...new Set<string>(gauges.map(g => g.gauge))];
 
     const checkIfAutoGenerate = (materialType: string, bitola: string) => {
         const g = gauges.find(x => x.materialType === materialType && x.gauge === bitola);
@@ -132,12 +147,14 @@ const EditConferenceModal: React.FC<{
             const currentMaterial = newLots[index].materialType;
             const currentBitola = newLots[index].bitola;
             if (currentMaterial && currentBitola) {
-                const targetGauge = gauges.find(g => g.materialType === currentMaterial && g.gauge === currentBitola);
+                const targetGauge = gauges.find(g => g.materialType === currentMaterial && getStandardizedGaugeKey(g.gauge) === getStandardizedGaugeKey(currentBitola));
                 if (targetGauge) {
-                    if (targetGauge.customFieldLabel || targetGauge.defaultSteelType) {
-                        newLots[index].steelType = targetGauge.customFieldValue || targetGauge.defaultSteelType || '';
-                    } else {
-                        newLots[index].steelType = '';
+                    if (field === 'materialType' || field === 'bitola') {
+                        if (targetGauge.customFieldLabel || targetGauge.defaultSteelType) {
+                            newLots[index].steelType = targetGauge.customFieldValue || targetGauge.defaultSteelType || '';
+                        } else {
+                            newLots[index].steelType = '';
+                        }
                     }
 
                     if (field === 'materialType' || field === 'bitola' || field === 'qtyPackages') {
@@ -328,30 +345,62 @@ const EditConferenceModal: React.FC<{
                                     </td>
                                     <td className="p-2">
                                         {(() => {
-                                            const g = gauges.find(x => x.materialType === lot.materialType && x.gauge === lot.bitola);
+                                            const g = gauges.find(x => x.materialType === lot.materialType && getStandardizedGaugeKey(x.gauge) === getStandardizedGaugeKey(lot.bitola));
                                             const hasCustom = g && (g.customFieldLabel || g.defaultSteelType);
                                             const options = g?.customFieldOptions
                                                 ? g.customFieldOptions.split(/[,;\-]+/).map(o => o.trim()).filter(Boolean)
                                                 : [];
                                             
                                             if (hasCustom) {
+                                                const isManual = showManualInput[idx] || (!!lot.steelType && !options.includes(lot.steelType));
+                                                if (options.length > 0 && !isManual) {
+                                                    return (
+                                                        <select
+                                                            value={lot.steelType || ''}
+                                                            onChange={e => {
+                                                                const val = e.target.value;
+                                                                if (val === '__MANUAL__') {
+                                                                    setShowManualInput(prev => ({ ...prev, [idx]: true }));
+                                                                    handleLotChange(idx, 'steelType', '');
+                                                                } else {
+                                                                    handleLotChange(idx, 'steelType', val);
+                                                                }
+                                                            }}
+                                                            className="w-full p-2 border border-slate-300 rounded text-center bg-white text-slate-700"
+                                                            required
+                                                        >
+                                                            <option value="">Selecione...</option>
+                                                            {options.map(opt => (
+                                                                <option key={opt} value={opt}>{opt}</option>
+                                                            ))}
+                                                            <option value="__MANUAL__">Outro (Digitar)...</option>
+                                                        </select>
+                                                    );
+                                                }
                                                 return (
-                                                    <>
+                                                    <div className="flex items-center gap-1">
                                                         <input
                                                             type="text"
-                                                            list={`edit-options-${idx}`}
                                                             value={lot.steelType || ''}
                                                             onChange={e => handleLotChange(idx, 'steelType', e.target.value)}
                                                             placeholder={g.customFieldLabel || 'Tipo de Aço'}
                                                             className="w-full p-2 border border-slate-300 rounded text-center bg-white"
                                                             required
                                                         />
-                                                        <datalist id={`edit-options-${idx}`}>
-                                                            {options.map(opt => (
-                                                                <option key={opt} value={opt} />
-                                                            ))}
-                                                        </datalist>
-                                                    </>
+                                                        {options.length > 0 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setShowManualInput(prev => ({ ...prev, [idx]: false }));
+                                                                    handleLotChange(idx, 'steelType', options[0]);
+                                                                }}
+                                                                className="px-1 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                                                                title="Voltar para seleção"
+                                                            >
+                                                                Listar
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 );
                                             } else {
                                                 return (
@@ -377,11 +426,39 @@ const EditConferenceModal: React.FC<{
                                         </select>
                                     </td>
                                     <td className="p-2">
-                                        <select value={lot.bitola} onChange={e => handleLotChange(idx, 'bitola', e.target.value)} className="w-full p-2 border border-slate-300 rounded bg-white text-center">
-                                            {gauges.filter(g => g.materialType === lot.materialType).map(g => (
-                                                <option key={g.gauge} value={g.gauge}>{g.gauge.replace('.', ',')}</option>
-                                            ))}
-                                        </select>
+                                        {(() => {
+                                            const customGauges = gauges.filter(g => g.materialType === lot.materialType);
+                                            const matchingGauge = customGauges.find(g => getStandardizedGaugeKey(g.gauge) === getStandardizedGaugeKey(lot.bitola));
+                                            const selectValue = matchingGauge ? matchingGauge.gauge : lot.bitola;
+
+                                            const allOptions = customGauges.map(g => ({ gauge: g.gauge, code: g.productCode }));
+  
+                                            const map = new Map();
+                                            allOptions.forEach(opt => {
+                                                const stdKey = getStandardizedGaugeKey(opt.gauge);
+                                                const existing = map.get(stdKey);
+                                                if (!existing || (opt.code && !existing.code)) {
+                                                    map.set(stdKey, opt);
+                                                }
+                                            });
+  
+                                            const uniqueOptions = Array.from(map.values())
+                                                .sort((a, b) => parseFloat(a.gauge.replace(',', '.')) - parseFloat(b.gauge.replace(',', '.')));
+
+                                            return (
+                                                <select 
+                                                    value={selectValue} 
+                                                    onChange={e => handleLotChange(idx, 'bitola', e.target.value)} 
+                                                    className="w-full p-2 border border-slate-300 rounded bg-white text-center text-slate-700"
+                                                >
+                                                    {uniqueOptions.map(opt => (
+                                                        <option key={`${opt.gauge}-${opt.code}`} value={opt.gauge}>
+                                                            {opt.gauge.replace('.', ',')} {opt.code ? `(${opt.code})` : ''}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            );
+                                        })()}
                                     </td>
                                     <td className="p-2">
                                         {(() => {

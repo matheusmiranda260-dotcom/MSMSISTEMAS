@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { StockGauge, StockItem, GaugeComponent } from '../types';
+import type { StockGauge, StockItem, GaugeComponent, User } from '../types';
 import { SteelTypeOptions } from '../types';
 import { TrashIcon, PlusIcon, ScaleIcon, PencilIcon, XIcon, SearchIcon } from './icons';
 import { insertItem, deleteItemByColumn } from '../services/supabaseService';
@@ -12,9 +12,26 @@ interface GaugesManagerProps {
     onUpdate: (id: string, data: Partial<StockGauge>) => Promise<StockGauge>;
     gaugeComponents?: GaugeComponent[];
     onSaveComponents?: (parentGaugeId: string, components: Omit<GaugeComponent, 'id'>[]) => Promise<void>;
+    currentUser?: User | null;
 }
 
-const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onDelete, onUpdate, gaugeComponents, onSaveComponents }) => {
+const getStandardizedGaugeKey = (gaugeStr: string) => {
+    if (!gaugeStr) return '';
+    const clean = gaugeStr.trim().replace(',', '.');
+    const match = clean.match(/^([\d.]+)\s*(.*)$/);
+    if (match) {
+        const num = parseFloat(match[1]);
+        if (!isNaN(num)) {
+            const unit = match[2].trim().toLowerCase() || 'mm';
+            return `${num.toFixed(2)} ${unit}`;
+        }
+    }
+    return clean.toLowerCase();
+};
+
+const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onDelete, onUpdate, gaugeComponents, onSaveComponents, currentUser }) => {
+    const isGestor = currentUser?.role === 'admin' || currentUser?.role === 'gestor' || currentUser?.username === 'admin' || currentUser?.id === 'local-admin-gestor';
+
     // Form fields states
     const [selectedGroup, setSelectedGroup] = useState<string>('');
     const [customGroupName, setCustomGroupName] = useState('');
@@ -181,11 +198,12 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
     const normalizeGauge = (val: string) => {
         if (!val) return '';
         const str = val.trim();
-        const match = str.match(/^([\d.,]+)(.*)$/);
+        const match = str.match(/^([\d.,]+)\s*(.*)$/);
         if (match) {
             const num = parseFloat(match[1].replace(',', '.'));
             if (!isNaN(num)) {
-                return num.toFixed(2) + match[2].toLowerCase();
+                const unit = match[2].trim().toLowerCase();
+                return num.toFixed(2) + (unit ? ' ' + unit : '');
             }
         }
         return str.toLowerCase();
@@ -198,7 +216,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
         (stock || []).forEach(item => {
             if (item.status === 'Consumido') return;
             const groupKey = (item.materialType || '').trim().toLowerCase();
-            const gaugeKey = normalizeGauge(item.bitola);
+            const gaugeKey = getStandardizedGaugeKey(item.bitola);
             const compositeKey = `${groupKey}::${gaugeKey}`;
             
             if (!map[compositeKey]) {
@@ -216,7 +234,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
 
     const getStockInfo = (materialType: string, gaugeStr: string) => {
         const groupKey = (materialType || '').trim().toLowerCase();
-        const gaugeKey = normalizeGauge(gaugeStr);
+        const gaugeKey = getStandardizedGaugeKey(gaugeStr);
         const compositeKey = `${groupKey}::${gaugeKey}`;
         return gaugeStockItems[compositeKey] || { count: 0, totalWeight: 0, items: [] };
     };
@@ -660,8 +678,9 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                 </header>
 
                 {/* Form Card */}
-                <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-                    <div className="p-6 bg-slate-50 border-b border-slate-200">
+                {isGestor ? (
+                    <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+                        <div className="p-6 bg-slate-50 border-b border-slate-200">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                             <h2 className="text-lg font-bold text-[#0F3F5C] flex items-center gap-2">
                                 {editingId ? (
@@ -1238,8 +1257,13 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                 )}
                             </div>
                         )}
+                        </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 shadow-sm text-center text-amber-800 font-semibold text-sm">
+                        Apenas administradores e gestores possuem permissão para cadastrar ou editar materiais e bitolas.
+                    </div>
+                )}
 
                 {/* Search and List Section */}
                 <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
@@ -1265,7 +1289,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                     <th className="p-4">Bitola</th>
                                     <th className="p-4">Preço (kg)</th>
                                     <th className="p-4">Status</th>
-                                    <th className="p-4 text-center">Ações</th>
+                                    {isGestor && <th className="p-4 text-center">Ações</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-sm">
@@ -1399,44 +1423,69 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="p-4">
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <button
-                                                        onClick={() => handleStartEdit(g)}
-                                                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                                                        title="Editar"
-                                                    >
-                                                        <PencilIcon className="h-4 w-4" />
-                                                    </button>
-                                                    {hasStock ? (
-                                                        <button
-                                                            onClick={() => alert(`Não é possível excluir pois existem lotes em estoque usando esta bitola.`)}
-                                                            className="p-1.5 text-slate-300 cursor-not-allowed rounded-lg"
-                                                            title="Em estoque (bloqueado)"
-                                                        >
-                                                            <TrashIcon className="h-4 w-4 opacity-50" />
-                                                        </button>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => {
-                                                                if (confirm(`Deseja realmente excluir a bitola ${g.gauge} do material ${g.materialType}?`)) {
-                                                                    onDelete(g.id);
-                                                                }
-                                                            }}
-                                                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
-                                                            title="Excluir"
-                                                        >
-                                                            <TrashIcon className="h-4 w-4" />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </td>
+                                            {isGestor && (
+                                                <td className="p-4">
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        {g.id.startsWith('STOCK-') ? (
+                                                            // STOCK- entry: not registered in DB, can only be removed from view
+                                                            <>
+                                                                <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-bold">
+                                                                    Sem cadastro
+                                                                </span>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        if (confirm(`A bitola "${g.gauge}" do material "${g.materialType}" aparece no estoque mas não está cadastrada no sistema.\n\nCadastre-a em "Cadastrar Material & Bitola" acima para ter controle total.\n\nDeseja apenas remover da visualização?`)) {
+                                                                            onDelete(g.id);
+                                                                        }
+                                                                    }}
+                                                                    className="p-1.5 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition"
+                                                                    title="Remover da visualização (não cadastrado)"
+                                                                >
+                                                                    <TrashIcon className="h-4 w-4" />
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            // Registered gauge - normal edit + delete
+                                                            <>
+                                                                <button
+                                                                    onClick={() => handleStartEdit(g)}
+                                                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                                                                    title="Editar"
+                                                                >
+                                                                    <PencilIcon className="h-4 w-4" />
+                                                                </button>
+                                                                {hasStock ? (
+                                                                    <button
+                                                                        onClick={() => alert(`Não é possível excluir pois existem lotes em estoque usando esta bitola.`)}
+                                                                        className="p-1.5 text-slate-300 cursor-not-allowed rounded-lg"
+                                                                        title="Em estoque (bloqueado)"
+                                                                    >
+                                                                        <TrashIcon className="h-4 w-4 opacity-50" />
+                                                                    </button>
+                                                                ) : (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            if (confirm(`Deseja realmente excluir a bitola ${g.gauge} do material ${g.materialType}?`)) {
+                                                                                onDelete(g.id);
+                                                                            }
+                                                                        }}
+                                                                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                                                                        title="Excluir"
+                                                                    >
+                                                                        <TrashIcon className="h-4 w-4" />
+                                                                    </button>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            )}
                                         </tr>
                                     );
                                 })}
                                 {filteredGauges.length === 0 && (
                                     <tr>
-                                        <td colSpan={6} className="p-8 text-center text-slate-400 italic">
+                                        <td colSpan={isGestor ? 6 : 5} className="p-8 text-center text-slate-400 italic">
                                             Nenhum material ou bitola cadastrada que corresponda à busca.
                                         </td>
                                     </tr>

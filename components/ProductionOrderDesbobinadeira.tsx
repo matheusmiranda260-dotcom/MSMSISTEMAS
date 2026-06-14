@@ -28,6 +28,8 @@ interface OSItem {
     drawingType: string | null;
 }
 
+declare const extractOrderDataFromPDF: any;
+
 const ProductionOrderDesbobinadeira: React.FC<ProductionOrderDesbobinadeiraProps> = ({
     setPage, stock, productionOrders, addProductionOrder, showNotification,
     updateProductionOrder, deleteProductionOrder, gauges, currentUser
