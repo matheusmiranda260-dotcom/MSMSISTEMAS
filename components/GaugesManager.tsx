@@ -887,13 +887,12 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
                                         <input
                                             type="number"
-                                            value={itemType === 'produto_composto' ? totalTheoreticalCost.toFixed(2) : purchasePrice}
+                                            value={purchasePrice}
                                             onChange={e => setPurchasePrice(e.target.value)}
                                             placeholder="0,00"
                                             step="0.01"
                                             min="0"
-                                            disabled={itemType === 'produto_composto'}
-                                            className="w-full p-3 pl-9 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white disabled:bg-slate-50 disabled:text-slate-400"
+                                            className="w-full p-3 pl-9 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white"
                                         />
                                     </div>
                                     <span className="text-[10px] text-slate-400 font-semibold mt-1.5 block">
