@@ -633,6 +633,11 @@ const App: React.FC = () => {
         });
         showNotification('Descrição removida com sucesso!', 'success');
 
+        if (id.startsWith('LOCAL-')) {
+            // Unsynced local item, no DB call needed
+            return;
+        }
+
         try {
             await deleteItem('stock_gauges', id);
             if (!deletedList.includes(signature)) {
@@ -654,6 +659,11 @@ const App: React.FC = () => {
             return updated;
         });
         showNotification('Descrição atualizada com sucesso!', 'success');
+
+        if (id.startsWith('LOCAL-')) {
+            const current = gauges.find(g => g.id === id);
+            return { ...current, ...data } as StockGauge;
+        }
 
         try {
             const updated = await updateItem<StockGauge>('stock_gauges', id, data);
