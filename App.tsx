@@ -256,7 +256,27 @@ const App: React.FC = () => {
                 const finalGauges = Array.from(finalGaugesMap.values());
                 localStorage.setItem('msm_local_gauges', JSON.stringify(finalGauges));
                 setGauges(finalGauges);
-                setGaugeComponents(fetchedComponents || []);
+
+                // Load local gauge components from localStorage
+                let localComponents: GaugeComponent[] = [];
+                const localCompsSaved = localStorage.getItem('msm_local_gauge_components');
+                if (localCompsSaved) {
+                    try {
+                        localComponents = JSON.parse(localCompsSaved);
+                    } catch (e) {
+                        console.error('Error parsing msm_local_gauge_components', e);
+                    }
+                }
+
+                // Merge database components and local storage components
+                const finalComponentsMap = new Map<string, GaugeComponent>();
+                localComponents.forEach(c => finalComponentsMap.set(c.id, c));
+                if (fetchedComponents) {
+                    fetchedComponents.forEach(c => finalComponentsMap.set(c.id, c));
+                }
+                const finalComponents = Array.from(finalComponentsMap.values());
+                localStorage.setItem('msm_local_gauge_components', JSON.stringify(finalComponents));
+                setGaugeComponents(finalComponents);
                 setStickyNotes(fetchedNotes || []);
                 setMeetings(fetchedMeetings || []);
                 setMeetingCategories(fetchedCategories || []);
@@ -631,6 +651,14 @@ const App: React.FC = () => {
             localStorage.setItem('msm_local_gauges', JSON.stringify(updated));
             return updated;
         });
+
+        // Also delete its components from state and localStorage!
+        setGaugeComponents(prev => {
+            const updated = prev.filter(c => c.parentGaugeId !== id);
+            localStorage.setItem('msm_local_gauge_components', JSON.stringify(updated));
+            return updated;
+        });
+
         showNotification('Descrição removida com sucesso!', 'success');
 
         if (id.startsWith('LOCAL-')) {
@@ -640,6 +668,11 @@ const App: React.FC = () => {
 
         try {
             await deleteItem('stock_gauges', id);
+            try {
+                await deleteItemByColumn('gauge_components', 'parent_gauge_id', id);
+            } catch (err) {
+                console.warn('Could not sync components deletion to Supabase:', err);
+            }
             if (!deletedList.includes(signature)) {
                 deletedList.push(signature);
                 localStorage.setItem('msm_deleted_gauges', JSON.stringify(deletedList));
@@ -672,6 +705,43 @@ const App: React.FC = () => {
             console.warn('Could not sync gauge update to Supabase. Updated locally.', error);
             const current = gauges.find(g => g.id === id);
             return { ...current, ...data } as StockGauge;
+        }
+    };
+
+    const saveGaugeComponents = async (parentGaugeId: string, newComponents: Omit<GaugeComponent, 'id'>[]) => {
+        const generatedComponents: GaugeComponent[] = newComponents.map(c => ({
+            ...c,
+            id: `LOCAL-COMP-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+        }));
+
+        setGaugeComponents(prev => {
+            const filtered = prev.filter(c => c.parentGaugeId !== parentGaugeId);
+            const updated = [...filtered, ...generatedComponents];
+            localStorage.setItem('msm_local_gauge_components', JSON.stringify(updated));
+            return updated;
+        });
+
+        try {
+            try {
+                await deleteItemByColumn('gauge_components', 'parent_gauge_id', parentGaugeId);
+            } catch (delErr) {
+                console.warn('Could not sync old components deletion to Supabase. Proceeding to insert.', delErr);
+            }
+
+            const savedList: GaugeComponent[] = [];
+            for (const comp of newComponents) {
+                const saved = await insertItem<GaugeComponent>('gauge_components', comp);
+                savedList.push(saved);
+            }
+
+            setGaugeComponents(prev => {
+                const filtered = prev.filter(c => c.parentGaugeId !== parentGaugeId);
+                const updated = [...filtered, ...savedList];
+                localStorage.setItem('msm_local_gauge_components', JSON.stringify(updated));
+                return updated;
+            });
+        } catch (error) {
+            console.warn('Could not sync gauge components to Supabase. Saved locally.', error);
         }
     };
 
@@ -2700,7 +2770,7 @@ const App: React.FC = () => {
             case 'workInstructions': return <WorkInstructions setPage={setPage} />;
             case 'peopleManagement': return <PeopleManagement setPage={setPage} currentUser={currentUser} />;
             case 'documents': return <DocumentManager setPage={setPage} currentUser={currentUser} />;
-            case 'gaugesManager': return <GaugesManager gauges={gauges} stock={stock} onAdd={addGauge} onDelete={deleteGauge} onUpdate={updateGauge} gaugeComponents={gaugeComponents} />;
+            case 'gaugesManager': return <GaugesManager gauges={gauges} stock={stock} onAdd={addGauge} onDelete={deleteGauge} onUpdate={updateGauge} gaugeComponents={gaugeComponents} onSaveComponents={saveGaugeComponents} />;
             case 'meetingsTasks':
                 return <MeetingsTasks
                     meetings={meetings}

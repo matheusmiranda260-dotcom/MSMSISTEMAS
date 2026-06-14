@@ -376,6 +376,8 @@ export interface GaugeComponent {
     componentGaugeId: string;
     funcao?: string;
     consumption: number;
+    consumptionType?: 'quantidade' | 'metro' | 'peso';
+    consumptionValue?: number;
 }
 
 
