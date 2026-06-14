@@ -16,6 +16,7 @@ const permissionCategories = [
     {
         title: '📦 Estoque',
         permissions: [
+            { page: 'pointingSystem', label: 'Sistema Apontamento (Orçamentos)' },
             { page: 'stock', label: 'Gestão de Lotes (Relatórios e Filtros)' },
             { page: 'stockAdd', label: 'Conferência: Adicionar Material' },
             { page: 'stockTransfer', label: 'Transferência entre Setores' },

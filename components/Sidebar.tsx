@@ -53,7 +53,7 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
     };
 
     React.useEffect(() => {
-        if (['stock', 'stockAdd', 'stockTransfer'].includes(page)) {
+        if (['stock', 'stockAdd', 'stockTransfer', 'pointingSystem'].includes(page)) {
             setExpandedMenus(prev => prev.includes('stock') ? prev : [...prev, 'stock']);
         } else if (['desbobinadeiraDashboard', 'desbobinadeiraInProgress', 'desbobinadeiraPending', 'desbobinadeiraCompleted', 'desbobinadeiraReports'].includes(page)) {
             setExpandedMenus(prev => prev.includes('desbobinadeira') ? prev : [...prev, 'desbobinadeira']);
@@ -196,6 +196,11 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                             {/* Submenu */}
                             {!isCollapsed && expandedMenus.includes('stock') && (
                                 <div className="ml-4 pl-4 border-l border-slate-700/50 flex flex-col gap-0.5 mt-1 mb-2 animate-in slide-in-from-left-2 duration-200">
+                                    {hasPermission('pointingSystem') && (
+                                        <button onClick={() => setPage('pointingSystem')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'pointingSystem' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                            📋 Sistema Apontamento
+                                        </button>
+                                    )}
                                     {hasPermission('stockAdd') && (
                                         <button onClick={() => setPage('stockAdd')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'stockAdd' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
                                             + Conferência

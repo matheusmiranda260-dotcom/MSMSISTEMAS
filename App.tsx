@@ -25,6 +25,7 @@ import PeopleManagement from './components/PeopleManagement';
 import StockTransfer from './components/StockTransfer';
 import GaugesManager from './components/GaugesManager';
 import LabelConfiguration from './components/LabelConfiguration';
+import PointingSystem from './components/PointingSystem';
 import StickyNotes from './components/StickyNotes';
 import MeetingsTasks from './components/MeetingsTasks';
 import DocumentManager from './components/DocumentManager';
@@ -2785,6 +2786,7 @@ const App: React.FC = () => {
             case 'documents': return <DocumentManager setPage={setPage} currentUser={currentUser} />;
             case 'gaugesManager': return <GaugesManager gauges={gauges} stock={stock} onAdd={addGauge} onDelete={deleteGauge} onUpdate={updateGauge} gaugeComponents={gaugeComponents} onSaveComponents={saveGaugeComponents} currentUser={currentUser} />;
             case 'labelConfig': return <LabelConfiguration gauges={gauges} showNotification={showNotification} activeBrandingPartner={activeBrandingPartner} />;
+            case 'pointingSystem': return <PointingSystem currentUser={currentUser} showNotification={showNotification} />;
             case 'partnerConfig': return (
                 <PartnerConfig 
                     partners={partners} 
