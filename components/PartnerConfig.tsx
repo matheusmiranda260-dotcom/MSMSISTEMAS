@@ -198,7 +198,7 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
                             Gerencie empresas parceiras, configure white-label e controle logotipo e metadados.
                         </p>
                     </div>
-                    {isGestor && viewMode === 'list' && (
+                    {isGestor && viewMode === 'list' && partners.length === 0 && (
                         <button
                             onClick={() => {
                                 handleReset();
@@ -486,15 +486,17 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
                                                                 onClick={() => handleStartEdit(p)}
                                                                 title="Editar Parceiro"
                                                                 className="p-1.5 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors border border-transparent hover:border-blue-100"
+                                                                type="button"
                                                             >
-                                                                <PencilIcon className="h-4.5 w-4.5" />
+                                                                <PencilIcon className="h-5 w-5" />
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDelete(p.id)}
                                                                 title="Excluir Parceiro"
-                                                                className="p-1.5 hover:bg-red-50 text-red-600 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                                                className="p-1.5 hover:bg-red-50 text-red-500 hover:text-red-600 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                                                type="button"
                                                             >
-                                                                <TrashIcon className="h-4.5 w-4.5" />
+                                                                <TrashIcon className="h-5 w-5" />
                                                             </button>
                                                         </div>
                                                     </td>

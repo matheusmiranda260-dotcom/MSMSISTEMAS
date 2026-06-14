@@ -5,7 +5,7 @@ import {
     ArrowPathIcon, DownloadIcon
 } from './icons';
 import type {
-    ConferenceLotData, ConferenceData, StockItem, Bitola, MaterialType, Page, StockGauge, User, TransferRecord
+    ConferenceLotData, ConferenceData, StockItem, Bitola, MaterialType, Page, StockGauge, User, TransferRecord, Partner
 } from '../types';
 import {
     FioMaquinaBitolaOptions, CA60BitolaOptions, MaterialOptions, SteelTypeOptions
@@ -87,7 +87,8 @@ const AddConferencePage: React.FC<{
     gauges: StockGauge[];
     isGestor: boolean;
     setPage: (page: Page) => void;
-}> = ({ onClose, onSubmit, stock, onShowReport, conferences, onEditConference, onDeleteConference, gauges, isGestor, setPage }) => {
+    activeBrandingPartner?: Partner | null;
+}> = ({ onClose, onSubmit, stock, onShowReport, conferences, onEditConference, onDeleteConference, gauges, isGestor, setPage, activeBrandingPartner }) => {
     const dynamicMaterialOptions = useMemo(() => {
         const list = Array.from(new Set(gauges.map(g => g.materialType))).filter(Boolean) as string[];
         return list.sort();
@@ -802,8 +803,8 @@ const AddConferencePage: React.FC<{
                         return (
                             <div key={idx} className="print-label-card bg-white text-black border-2 border-black p-5 flex flex-col justify-between">
                                 {/* Header */}
-                                <div className="flex gap-4 items-start border-b-2 border-black pb-3">
-                                    <div className="w-[64px] h-[64px] border border-slate-300 rounded overflow-hidden flex items-center justify-center shrink-0 bg-slate-50">
+                                <div className="flex gap-4 items-center border-b-2 border-black pb-3">
+                                    <div className="w-[56px] h-[56px] border border-slate-300 rounded overflow-hidden flex items-center justify-center shrink-0 bg-slate-50">
                                         <img 
                                             src={imageToUse} 
                                             alt="Produto" 
@@ -813,23 +814,28 @@ const AddConferencePage: React.FC<{
                                             }}
                                         />
                                     </div>
-                                    <div className="flex-grow flex flex-col">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-[11px] font-black tracking-wider text-slate-700 uppercase bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                    <div className="flex-grow flex flex-col min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-black tracking-wider text-slate-700 uppercase bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                                                 CÓD. {gauge?.productCode || 'N/A'}
                                             </span>
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
-                                                <span className="text-[10px] font-black text-emerald-700 uppercase">Ativo</span>
-                                            </div>
                                         </div>
                                         <h1 className="text-sm font-black text-slate-900 mt-1 uppercase truncate">
                                             {lot.materialType || 'N/A'}
                                         </h1>
-                                        <span className="text-[9px] font-bold text-slate-500 tracking-wide mt-0.5 uppercase">
-                                            MSM Sistemas de Gestão de Produção
+                                        <span className="text-[9px] font-bold text-slate-500 tracking-wide mt-0.5 uppercase truncate">
+                                            {activeBrandingPartner ? activeBrandingPartner.companyName : "MSM Sistemas de Gestão"}
                                         </span>
                                     </div>
+                                    {activeBrandingPartner?.logoUrl && (
+                                        <div className="w-[56px] h-[56px] bg-white rounded border border-slate-200 p-1 flex items-center justify-center shrink-0">
+                                            <img 
+                                                src={activeBrandingPartner.logoUrl} 
+                                                alt="Logo Cliente" 
+                                                className="w-full h-full object-contain" 
+                                            />
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Spec Grid */}
@@ -917,7 +923,8 @@ const StockControl: React.FC<{
     updateStockItem: (i: StockItem) => void; editConference: (id: string, d: ConferenceData) => void;
     deleteConference: (id: string) => void; gauges: StockGauge[]; currentUser: User | null;
     initialView?: 'list' | 'add';
-}> = ({ stock, conferences, setPage, addConference, deleteStockItem, updateStockItem, editConference, deleteConference, gauges, currentUser, initialView = 'list' }) => {
+    activeBrandingPartner?: Partner | null;
+}> = ({ stock, conferences, setPage, addConference, deleteStockItem, updateStockItem, editConference, deleteConference, gauges, currentUser, initialView = 'list', activeBrandingPartner }) => {
     const isGestor = currentUser?.role === 'admin' || currentUser?.role === 'gestor';
     const [isAdding, setIsAdding] = useState(initialView === 'add');
 
@@ -1081,7 +1088,7 @@ const StockControl: React.FC<{
         }
     };
 
-    if (isAdding) return <AddConferencePage onClose={() => setIsAdding(false)} onSubmit={addConference} stock={stock} onShowReport={setReportView} conferences={conferences} onEditConference={editConference} onDeleteConference={deleteConference} gauges={gauges} isGestor={isGestor} setPage={setPage} />;
+    if (isAdding) return <AddConferencePage onClose={() => setIsAdding(false)} onSubmit={addConference} stock={stock} onShowReport={setReportView} conferences={conferences} onEditConference={editConference} onDeleteConference={deleteConference} gauges={gauges} isGestor={isGestor} setPage={setPage} activeBrandingPartner={activeBrandingPartner} />;
 
     return (
         <div className="p-4 md:p-8 space-y-6">
@@ -1490,8 +1497,8 @@ const StockControl: React.FC<{
                         return (
                             <div className="print-label-card bg-white text-black border-2 border-black p-5 flex flex-col justify-between">
                                 {/* Header */}
-                                <div className="flex gap-4 items-start border-b-2 border-black pb-3">
-                                    <div className="w-[64px] h-[64px] border border-slate-300 rounded overflow-hidden flex items-center justify-center shrink-0 bg-slate-50">
+                                <div className="flex gap-4 items-center border-b-2 border-black pb-3">
+                                    <div className="w-[56px] h-[56px] border border-slate-300 rounded overflow-hidden flex items-center justify-center shrink-0 bg-slate-50">
                                         <img 
                                             src={imageToUse} 
                                             alt="Produto" 
@@ -1501,23 +1508,28 @@ const StockControl: React.FC<{
                                             }}
                                         />
                                     </div>
-                                    <div className="flex-grow flex flex-col">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-[11px] font-black tracking-wider text-slate-700 uppercase bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                    <div className="flex-grow flex flex-col min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-black tracking-wider text-slate-700 uppercase bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                                                 CÓD. {gauge?.productCode || 'N/A'}
                                             </span>
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
-                                                <span className="text-[10px] font-black text-emerald-700 uppercase">Ativo</span>
-                                            </div>
                                         </div>
                                         <h1 className="text-sm font-black text-slate-900 mt-1 uppercase truncate">
                                             {reprintLot.materialType || 'N/A'}
                                         </h1>
-                                        <span className="text-[9px] font-bold text-slate-500 tracking-wide mt-0.5 uppercase">
-                                            MSM Sistemas de Gestão de Produção
+                                        <span className="text-[9px] font-bold text-slate-500 tracking-wide mt-0.5 uppercase truncate">
+                                            {activeBrandingPartner ? activeBrandingPartner.companyName : "MSM Sistemas de Gestão"}
                                         </span>
                                     </div>
+                                    {activeBrandingPartner?.logoUrl && (
+                                        <div className="w-[56px] h-[56px] bg-white rounded border border-slate-200 p-1 flex items-center justify-center shrink-0">
+                                            <img 
+                                                src={activeBrandingPartner.logoUrl} 
+                                                alt="Logo Cliente" 
+                                                className="w-full h-full object-contain" 
+                                            />
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Spec Grid */}

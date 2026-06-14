@@ -99,14 +99,18 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
         );
     };
 
-    return (
-        <aside className={`sidebar no-print ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
-            <div className={`sidebar-header ${activeBrandingPartner ? 'flex flex-col items-center pt-6 pb-4 px-4 border-b border-white/10 gap-2' : ''}`}>
+    return (        <aside className={`sidebar no-print ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
+            <div className={`sidebar-header relative ${activeBrandingPartner ? 'flex flex-col items-center pt-5 pb-3 px-4 border-b border-white/10 gap-2' : ''}`}>
                 {activeBrandingPartner ? (
                     isCollapsed ? (
-                        <button onClick={() => setIsCollapsed(false)} className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-xl font-black text-[#00E5FF]">
+                        <button 
+                            onClick={() => setIsCollapsed(false)} 
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl font-black text-[#00E5FF] ${
+                                !activeBrandingPartner?.logoUrl ? 'bg-white/5 border border-white/10' : 'bg-white p-1.5 shadow-md'
+                            }`}
+                        >
                             {activeBrandingPartner?.logoUrl ? (
-                                <img src={activeBrandingPartner.logoUrl} className="w-6 h-6 object-contain" alt="L" />
+                                <img src={activeBrandingPartner.logoUrl} className="w-full h-full object-contain" alt="L" />
                             ) : (
                                 activeBrandingPartner?.companyName?.charAt(0) || "M"
                             )}
@@ -115,7 +119,7 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                         <div className="w-full flex flex-col items-center text-center animate-fadeIn relative">
                             {/* Client logo */}
                             {activeBrandingPartner?.logoUrl ? (
-                                <div className="w-[80px] h-[80px] rounded-xl overflow-hidden flex items-center justify-center bg-white/5 border border-white/10 mb-2 p-1">
+                                <div className="w-[80px] h-[80px] rounded-xl overflow-hidden flex items-center justify-center bg-white p-2 shadow-lg mb-2">
                                     <img src={activeBrandingPartner.logoUrl} className="w-full h-full object-contain" alt="Logo Cliente" />
                                 </div>
                             ) : (
@@ -129,14 +133,14 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                                 {activeBrandingPartner?.companyName}
                             </h2>
 
-                            <div className="w-full h-px bg-white/10 my-2"></div>
+                            <div className="w-full h-px bg-white/10 my-1.5"></div>
 
                             {/* Subtitle */}
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-normal">
                                 Sistema de Controle de Produção
                             </span>
 
-                            <div className="w-full h-px bg-white/10 my-2"></div>
+                            <div className="w-full h-px bg-white/10 my-1.5"></div>
 
                             {/* Powered By Badge */}
                             <div className="flex flex-col items-center gap-0.5 mt-0.5 animate-pulse-slow">
@@ -157,7 +161,7 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                 
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="sidebar-toggle mt-2"
+                    className={`sidebar-toggle ${activeBrandingPartner ? 'absolute right-3 top-3 mt-0 !mb-0' : 'mt-2'}`}
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
                         <path strokeLinecap="round" strokeLinejoin="round" d={isCollapsed ? "M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5" : "M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5"} />

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { StockGauge } from '../types';
+import type { StockGauge, Partner } from '../types';
 
 interface LabelConfigurationProps {
     gauges: StockGauge[];
     showNotification: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
+    activeBrandingPartner?: Partner | null;
 }
 
 // Default items if database is empty or offline
@@ -49,7 +50,7 @@ const DEFAULT_PRESETS: StockGauge[] = [
     }
 ];
 
-const LabelConfiguration: React.FC<LabelConfigurationProps> = ({ gauges = [], showNotification }) => {
+const LabelConfiguration: React.FC<LabelConfigurationProps> = ({ gauges = [], showNotification, activeBrandingPartner }) => {
     // Combine db gauges with defaults to guarantee we have presets to display
     const dbGaugesFiltered = gauges.filter(g => g.materialType && g.gauge);
     const presets = dbGaugesFiltered.length > 0 ? dbGaugesFiltered : DEFAULT_PRESETS;
@@ -82,6 +83,7 @@ const LabelConfiguration: React.FC<LabelConfigurationProps> = ({ gauges = [], sh
     // Label printer config
     const [labelFormat, setLabelFormat] = useState<'portrait' | 'square'>('portrait'); // portrait = 100x150mm, square = 100x100mm
     const [previewTheme, setPreviewTheme] = useState<'light' | 'dark'>('dark'); // screen preview bg
+    const [labelModel, setLabelModel] = useState<'recebimento' | 'produto_acabado'>('recebimento');
 
     // DOM references for barcode and QR code containers
     const barcodeRef = useRef<SVGSVGElement | null>(null);
@@ -239,6 +241,19 @@ const LabelConfiguration: React.FC<LabelConfigurationProps> = ({ gauges = [], sh
                     <p className="text-xs text-slate-400 mt-1">
                         Configure e visualize o visual da etiqueta antes de integrar ao fluxo de recebimento.
                     </p>
+                </div>
+
+                {/* Label Model Selector */}
+                <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Modelo de Etiqueta</label>
+                    <select
+                        value={labelModel}
+                        onChange={(e) => setLabelModel(e.target.value as 'recebimento' | 'produto_acabado')}
+                        className="bg-[#122A45] border border-white/10 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-[#00E5FF] transition-all cursor-pointer"
+                    >
+                        <option value="recebimento">Recebimento de Matéria-Prima</option>
+                        <option value="produto_acabado">Produto Acabado (Em breve)</option>
+                    </select>
                 </div>
 
                 {/* Preset Dropdown */}
@@ -498,9 +513,9 @@ const LabelConfiguration: React.FC<LabelConfigurationProps> = ({ gauges = [], sh
                     }}
                 >
                     {/* Header: Product Logo + Basic details */}
-                    <div className="flex gap-4 items-start border-b-2 border-black pb-3">
+                    <div className="flex gap-4 items-center border-b-2 border-black pb-3">
                         {showImage && (
-                            <div className="w-[64px] h-[64px] border border-slate-300 rounded overflow-hidden flex items-center justify-center shrink-0 bg-slate-50">
+                            <div className="w-[56px] h-[56px] border border-slate-300 rounded overflow-hidden flex items-center justify-center shrink-0 bg-slate-50">
                                 {imageUrl ? (
                                     <img 
                                         src={imageUrl} 
@@ -516,25 +531,35 @@ const LabelConfiguration: React.FC<LabelConfigurationProps> = ({ gauges = [], sh
                                 )}
                             </div>
                         )}
-                        <div className="flex-grow flex flex-col">
-                            <div className="flex items-center justify-between">
-                                <span className="text-[11px] font-black tracking-wider text-slate-700 uppercase bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                        <div className="flex-grow flex flex-col min-w-0">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-black tracking-wider text-slate-700 uppercase bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                                     CÓD. {productCode || 'N/A'}
                                 </span>
-                                {status && (
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse print:animate-none"></span>
-                                        <span className="text-[10px] font-black text-emerald-700 uppercase">{status}</span>
-                                    </div>
-                                )}
                             </div>
                             <h1 className="text-sm font-black text-slate-900 mt-1 uppercase truncate">
                                 {material || 'MATERIAL NÃO DEFINIDO'}
                             </h1>
-                            <span className="text-[9px] font-bold text-slate-500 tracking-wide mt-0.5 uppercase">
-                                MSM Sistemas de Gestão de Produção
+                            <span className="text-[9px] font-bold text-slate-500 tracking-wide mt-0.5 uppercase truncate">
+                                {activeBrandingPartner ? activeBrandingPartner.companyName : "MSM Sistemas de Gestão"}
                             </span>
                         </div>
+                        {activeBrandingPartner?.logoUrl ? (
+                            <div className="w-[56px] h-[56px] bg-white rounded border border-slate-200 p-1 flex items-center justify-center shrink-0">
+                                <img 
+                                    src={activeBrandingPartner.logoUrl} 
+                                    alt="Logo Cliente" 
+                                    className="w-full h-full object-contain" 
+                                />
+                            </div>
+                        ) : (
+                            status && (
+                                <div className="flex items-center gap-1.5 shrink-0 select-none">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse print:animate-none"></span>
+                                    <span className="text-[10px] font-black text-emerald-700 uppercase">{status}</span>
+                                </div>
+                            )
+                        )}
                     </div>
 
                     {/* Specifications Grid */}

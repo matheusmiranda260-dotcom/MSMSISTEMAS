@@ -1445,7 +1445,7 @@ const EmployeeDetailModal: React.FC<{
                                                                         className="p-1.5 hover:bg-red-50 text-red-500 hover:text-red-600 rounded-lg transition"
                                                                         title="Excluir Teste"
                                                                     >
-                                                                        <TrashIcon className="h-4.5 w-4.5" />
+                                                                        <TrashIcon className="h-5 w-5" />
                                                                     </button>
                                                                 )}
                                                             </div>
