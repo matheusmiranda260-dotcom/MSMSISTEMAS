@@ -401,7 +401,7 @@ const ProductionOrderDesbobinadeira: React.FC<ProductionOrderDesbobinadeiraProps
                             className="bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold py-2 px-4 rounded-xl border border-blue-200 shadow-sm transition flex items-center gap-2 text-sm"
                         >
                             <AdjustmentsIcon className="h-4 w-4" />
-                            <span>Gerenciar Bitolas</span>
+                            <span>Configuração de Materiais</span>
                         </button>
                     )}
                     <button

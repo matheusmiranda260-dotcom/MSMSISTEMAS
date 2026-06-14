@@ -226,7 +226,7 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                     <div className="sidebar-category">
                         <div className="sidebar-category-title">{isCollapsed ? '⚙️' : '⚙️ Sistema'}</div>
                         <MenuItem target="userManagement" label="Usuários" icon={UserGroupIcon} />
-                        <MenuItem target="gaugesManager" label="Configurar Bitolas" icon={CogIcon} />
+                        <MenuItem target="gaugesManager" label="Configuração de Materiais" icon={CogIcon} />
 
                         {/* Projetos Novos (Laboratório) */}
                         <>

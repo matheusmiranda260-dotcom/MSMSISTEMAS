@@ -714,7 +714,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
             <div className="max-w-6xl mx-auto space-y-6">
                 <header className="flex items-center justify-between pt-4 bg-transparent border-none">
                     <div>
-                        <h1 className="text-3xl font-bold text-slate-800">Gerenciar Bitolas</h1>
+                        <h1 className="text-3xl font-bold text-slate-800">Configuração de Materiais</h1>
                         <p className="text-slate-500 text-sm">Adicione, edite ou remova materiais e bitolas do sistema.</p>
                     </div>
                     {isGestor && viewMode === 'list' && (

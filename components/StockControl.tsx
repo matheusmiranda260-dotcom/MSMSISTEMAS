@@ -667,9 +667,14 @@ const StockControl: React.FC<{
     addConference: (d: ConferenceData) => void; deleteStockItem: (id: string) => void;
     updateStockItem: (i: StockItem) => void; editConference: (id: string, d: ConferenceData) => void;
     deleteConference: (id: string) => void; gauges: StockGauge[]; currentUser: User | null;
-}> = ({ stock, conferences, setPage, addConference, deleteStockItem, updateStockItem, editConference, deleteConference, gauges, currentUser }) => {
+    initialView?: 'list' | 'add';
+}> = ({ stock, conferences, setPage, addConference, deleteStockItem, updateStockItem, editConference, deleteConference, gauges, currentUser, initialView = 'list' }) => {
     const isGestor = currentUser?.role === 'admin' || currentUser?.role === 'gestor';
-    const [isAdding, setIsAdding] = useState(false);
+    const [isAdding, setIsAdding] = useState(initialView === 'add');
+
+    useEffect(() => {
+        setIsAdding(initialView === 'add');
+    }, [initialView]);
     const [reportView, setReportView] = useState<ConferenceData | null>(null);
     const [historyLot, setHistoryLot] = useState<StockItem | null>(null);
     const [searchTerm, setSearchTerm] = useState('');

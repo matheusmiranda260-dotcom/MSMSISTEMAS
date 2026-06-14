@@ -184,7 +184,7 @@ const ProductionOrder: React.FC<ProductionOrderProps> = ({ setPage, stock, produ
                             onClick={() => setPage('gaugesManager')}
                             className="bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold py-2 px-4 rounded-lg border border-blue-200 shadow-sm transition flex items-center gap-2"
                         >
-                            <AdjustmentsIcon className="h-5 w-5" />Gerenciar Bitolas
+                            <AdjustmentsIcon className="h-5 w-5" />Configuração de Materiais
                         </button>
                     )}
                     <button
