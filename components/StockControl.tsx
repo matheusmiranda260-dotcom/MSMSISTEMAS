@@ -57,6 +57,23 @@ const AddConferencePage: React.FC<{
     const [submitResult, setSubmitResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
     useEffect(() => {
+        if (lots.length === 1 && lots[0].bitola === '' && dynamicMaterialOptions[0]) {
+            const firstMat = dynamicMaterialOptions[0];
+            const matGauges = gauges.filter(g => g.materialType === firstMat);
+            if (matGauges.length > 0) {
+                setLots(prev => {
+                    const copy = [...prev];
+                    if (copy[0] && copy[0].bitola === '') {
+                        copy[0].bitola = matGauges[0].gauge;
+                        copy[0].materialType = firstMat;
+                    }
+                    return copy;
+                });
+            }
+        }
+    }, [dynamicMaterialOptions, gauges, lots]);
+
+    useEffect(() => {
         if (!conferenceData.conferenceNumber) {
             setConferenceNumberError('');
             return;
@@ -665,7 +682,13 @@ const StockControl: React.FC<{
                                     <td className="p-3 text-center text-slate-500">{item.materialType}</td>
                                     <td className="p-3 text-center">
                                         <div className="flex flex-col items-center">
-                                            <span className="font-black text-blue-600">{item.bitola.replace('.', ',')}</span>
+                                            {item.bitola ? (
+                                                <span className="font-black text-blue-600">{item.bitola.replace('.', ',')}</span>
+                                            ) : (
+                                                <span className="text-xs text-red-500 italic font-semibold hover:underline cursor-pointer" onClick={() => setEditingItem(item)} title="Clique para editar e definir uma bitola/descrição">
+                                                    Sem Descrição (Editar)
+                                                </span>
+                                            )}
                                             {(() => {
                                                 const gauge = gauges.find(g => g.materialType === item.materialType && g.gauge === item.bitola);
                                                 return gauge?.productCode ? <span className="text-[9px] text-slate-500 font-black uppercase print:text-black">{gauge.productCode}</span> : null;
@@ -715,7 +738,16 @@ const StockControl: React.FC<{
 };
 
 const EditStockItemModal: React.FC<{ item: StockItem; onClose: () => void; onSave: (i: StockItem) => void; gauges: StockGauge[] }> = ({ item, onClose, onSave, gauges }) => {
-    const [formData, setFormData] = useState<StockItem>({ ...item });
+    const [formData, setFormData] = useState<StockItem>(() => {
+        const initial = { ...item };
+        if (!initial.bitola && initial.materialType) {
+            const customGauges = gauges.filter(g => g.materialType === initial.materialType);
+            if (customGauges.length > 0) {
+                initial.bitola = customGauges[0].gauge;
+            }
+        }
+        return initial;
+    });
 
     const dynamicMaterialOptions = useMemo(() => {
         const list = Array.from(new Set(gauges.map(g => g.materialType))).filter(Boolean) as string[];
@@ -727,9 +759,9 @@ const EditStockItemModal: React.FC<{ item: StockItem; onClose: () => void; onSav
 
         return [...new Set(customOptions)]
             .filter(Boolean)
-            .sort((a, b) => {
-                const numA = parseFloat(a.replace(',', '.'));
-                const numB = parseFloat(b.replace(',', '.'));
+            .sort((a: any, b: any) => {
+                const numA = parseFloat(String(a).replace(',', '.'));
+                const numB = parseFloat(String(b).replace(',', '.'));
                 return numA - numB;
             });
     }, [gauges, formData.materialType]);
