@@ -52,7 +52,7 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
     };
 
     React.useEffect(() => {
-        if (['stock', 'stockAdd', 'stockTransfer', 'gaugesManager'].includes(page)) {
+        if (['stock', 'stockAdd', 'stockTransfer'].includes(page)) {
             setExpandedMenus(prev => prev.includes('stock') ? prev : [...prev, 'stock']);
 
         } else if (['desbobinadeiraDashboard', 'desbobinadeiraInProgress', 'desbobinadeiraPending', 'desbobinadeiraCompleted', 'desbobinadeiraReports'].includes(page)) {
@@ -166,11 +166,6 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                                             ⚙️ Gestão de Lotes
                                         </button>
                                     )}
-                                    {hasPermission('gaugesManager') && (
-                                        <button onClick={() => setPage('gaugesManager')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'gaugesManager' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
-                                            ⚙️ Configurar Bitolas
-                                        </button>
-                                    )}
                                 </div>
                             )}
                         </>
@@ -227,10 +222,11 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                 </div>
 
                 {/* SISTEMA */}
-                {(hasPermission('userManagement') || hasPermission('downtimeConfigs')) && (
+                {(hasPermission('userManagement') || hasPermission('downtimeConfigs') || hasPermission('gaugesManager')) && (
                     <div className="sidebar-category">
                         <div className="sidebar-category-title">{isCollapsed ? '⚙️' : '⚙️ Sistema'}</div>
                         <MenuItem target="userManagement" label="Usuários" icon={UserGroupIcon} />
+                        <MenuItem target="gaugesManager" label="Configurar Bitolas" icon={CogIcon} />
 
                         {/* Projetos Novos (Laboratório) */}
                         <>
