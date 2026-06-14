@@ -546,7 +546,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                     onClick={() => {
                                         if (editingId) return;
                                         setItemType('produto_composto');
-                                        setMetricUnit('unid');
+                                        setMetricUnit('nenhum');
                                         setWeightType('unid');
                                     }}
                                     className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
@@ -643,7 +643,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                             <option value="kg">kg</option>
                                             <option value="unid">unid</option>
                                             <option value="BWG">BWG</option>
-                                            <option value="nenhum">-</option>
+                                            <option value="nenhum">Sem unid.</option>
                                         </select>
                                         <input
                                             type="text"
@@ -877,7 +877,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
 
                                                     <div className="w-full md:w-3/12">
                                                         <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                                                            Consumo (kg por {metricUnit === 'unid' ? 'peça' : metricUnit})
+                                                             Consumo (kg por {metricUnit === 'unid' ? 'peça' : metricUnit === 'nenhum' ? 'peça' : metricUnit})
                                                         </label>
                                                         <input
                                                             type="number"
