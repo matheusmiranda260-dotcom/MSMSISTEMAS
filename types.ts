@@ -355,6 +355,18 @@ export interface StockGauge {
     minWeight?: number;
     idealWeight?: number;
     productCode?: string;
+    technicalDescription?: string;
+    purchasePrice?: number;
+    commercialName?: string;
+    bitolaNominal?: string;
+    comercialEstimada?: string;
+    lotValidity?: string;
+    status?: string;
+    weightPerMeter?: number;
+    pieceSize?: number;
+    weightType?: string;
+    weightUnit?: string;
+    rawWeightValue?: number;
 }
 
 

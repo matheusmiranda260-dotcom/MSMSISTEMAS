@@ -203,18 +203,27 @@ const App: React.FC = () => {
                     }
                 }
 
-                // If never loaded presets before, load them
-                let presets: StockGauge[] = [];
-                if (!localStorage.getItem('msm_presets_loaded_v2')) {
-                    presets = [
-                        ...FioMaquinaBitolaOptions.map((g, idx) => ({ id: `PRESET-FM-${idx}-${g}`, materialType: 'Fio Máquina', gauge: g })),
-                        ...TrefilaBitolaOptions.map((g, idx) => ({ id: `PRESET-CA-${idx}-${g}`, materialType: 'CA-60', gauge: g }))
-                    ];
-                    localStorage.setItem('msm_presets_loaded_v2', 'true');
-                }
+                // Extract unsynced gauges (LOCAL-) and edited presets (PRESET-) from local storage
+                const unsyncedGauges = localGauges.filter(g => g.id.startsWith('LOCAL-'));
+                const editedPresets = localGauges.filter(g => g.id.startsWith('PRESET-'));
 
-                // Combine them all
-                let allGauges = [...(fetchedGauges || []), ...localGauges, ...presets];
+                // Define standard presets
+                const defaultPresets = [
+                    ...FioMaquinaBitolaOptions.map((g, idx) => ({ id: `PRESET-FM-${idx}-${g}`, materialType: 'Fio Máquina', gauge: g })),
+                    ...TrefilaBitolaOptions.map((g, idx) => ({ id: `PRESET-CA-${idx}-${g}`, materialType: 'CA-60', gauge: g }))
+                ];
+
+                // Build presets list, preferring edited versions from local storage
+                const finalPresets = defaultPresets.map(preset => {
+                    const edited = editedPresets.find(ep => ep.id === preset.id);
+                    return edited || preset;
+                });
+
+                // Combine them all: 
+                // 1. Fresh custom gauges from Supabase (the ultimate source of truth)
+                // 2. Unsynced local gauges (created while offline)
+                // 3. Final presets
+                let allGauges = [...(fetchedGauges || []), ...unsyncedGauges, ...finalPresets];
                 
                 // Add the ones from stock, ensuring we don't duplicate
                 const finalGaugesMap = new Map<string, StockGauge>();
