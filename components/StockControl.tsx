@@ -126,6 +126,24 @@ const AddConferencePage: React.FC<{
         }
     }, [dynamicMaterialOptions, gauges, lots]);
 
+    const initializedSeq = useRef(false);
+
+    useEffect(() => {
+        if (!initializedSeq.current) {
+            let nextNum = 1;
+            while (conferences.some(c => {
+                const confNum = c.conferenceNumber ? c.conferenceNumber.trim() : '';
+                return confNum === String(nextNum).padStart(4, '0') || confNum === String(nextNum);
+            })) {
+                nextNum++;
+            }
+            const nextSeq = String(nextNum).padStart(4, '0');
+            setConferenceData(prev => ({ ...prev, conferenceNumber: nextSeq }));
+            initializedSeq.current = true;
+        }
+    }, [conferences]);
+
+
     useEffect(() => {
         if (!conferenceData.conferenceNumber) {
             setConferenceNumberError('');
@@ -402,14 +420,12 @@ const AddConferencePage: React.FC<{
                         <div className="text-center"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data</label><input type="date" value={conferenceData.entryDate} onChange={e => setConferenceData({ ...conferenceData, entryDate: e.target.value })} className="w-full p-2 border rounded text-center" required /></div>
                         <div className="text-center"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Fornecedor</label><input type="text" value={conferenceData.supplier} onChange={e => setConferenceData({ ...conferenceData, supplier: e.target.value })} className="w-full p-2 border rounded text-center" required /></div>
                         <div className="text-center"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">NFe</label><input type="text" value={conferenceData.nfe} onChange={e => setConferenceData({ ...conferenceData, nfe: e.target.value })} className="w-full p-2 border rounded text-center" required /></div>
-                        <div className="text-center relative"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nº Conf.</label><input type="text" value={conferenceData.conferenceNumber} onChange={e => setConferenceData({ ...conferenceData, conferenceNumber: e.target.value })} className={`w-full p-2 border rounded text-center ${conferenceNumberError ? 'border-red-500 bg-red-50' : ''}`} required />
+                        <div className="text-center relative"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nº Conf.</label>
+                            <input type="text" value={conferenceData.conferenceNumber} onChange={e => setConferenceData({ ...conferenceData, conferenceNumber: e.target.value })} className={`w-full p-2 border rounded text-center ${conferenceNumberError ? 'border-red-500 bg-red-50' : ''}`} required />
                             {conferenceNumberError && <p className="text-red-500 text-[10px] font-bold absolute -bottom-5 w-full left-0">{conferenceNumberError}</p>}
                         </div>
                     </div>
-                    <div className="p-4 flex justify-end">
-                        <input type="file" accept="image/*" capture="environment" className="hidden" id="scan-ia" onChange={handleGlobalScan} />
-                        <label htmlFor="scan-ia" className="bg-[#0F3F5C] text-white px-6 py-2 rounded-lg font-bold cursor-pointer flex items-center gap-2"><CameraIcon className="h-5 w-5" /> {isScanning ? 'Lendo...' : 'Leitura IA'}</label>
-                    </div>
+
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead className="bg-slate-50 border-y">
