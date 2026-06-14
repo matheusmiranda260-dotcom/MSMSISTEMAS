@@ -368,6 +368,11 @@ export interface StockGauge {
     weightUnit?: string;
     rawWeightValue?: number;
     itemType?: string; // 'materia_prima' | 'produto_composto'
+    autoGenerateLot?: boolean;
+    defaultSteelType?: string;
+    customFieldLabel?: string;
+    customFieldOptions?: string;
+    customFieldValue?: string;
 }
 
 export interface GaugeComponent {

@@ -19,14 +19,20 @@ const EditConferenceModal: React.FC<{
     conference: ConferenceData;
     stock: StockItem[];
     gauges: StockGauge[];
+    conferences: ConferenceData[];
     onClose: () => void;
     onSubmit: (updatedData: ConferenceData) => void;
-}> = ({ conference, stock, gauges, onClose, onSubmit }) => {
+}> = ({ conference, stock, gauges, conferences, onClose, onSubmit }) => {
     const [formData, setFormData] = useState<ConferenceData>(conference);
     const [duplicateErrors, setDuplicateErrors] = useState<Record<number, string>>({});
 
     // all bitola options (both machine types)
     const allBitolaOptions: Bitola[] = [...new Set(gauges.map(g => g.gauge))];
+
+    const checkIfAutoGenerate = (materialType: string, bitola: string) => {
+        const g = gauges.find(x => x.materialType === materialType && x.gauge === bitola);
+        return !!g?.autoGenerateLot;
+    };
 
     // Validate duplicate lot combinations
     useEffect(() => {
@@ -40,6 +46,7 @@ const EditConferenceModal: React.FC<{
         );
         const currentKeys = new Set<string>();
         formData.lots.forEach((lot, idx) => {
+            if (checkIfAutoGenerate(lot.materialType || '', lot.bitola || '')) return;
             if (!lot.internalLot) return;
             const key = lot.internalLot.trim().toLowerCase();
             if (existingInternalLots.has(key)) {
@@ -57,15 +64,23 @@ const EditConferenceModal: React.FC<{
         const sortedMaterialOptions = dynamicMaterialOptions.sort();
         const defaultMaterial = sortedMaterialOptions[0] || '';
         const fmGauges = gauges.filter(g => g.materialType === defaultMaterial).map(g => g.gauge);
+        const defaultBitola = fmGauges[0] || '';
+
+        // Find default steel type if configured
+        const defaultGauge = gauges.find(g => g.materialType === defaultMaterial && g.gauge === defaultBitola);
+        const defaultSteel = defaultGauge && (defaultGauge.customFieldLabel || defaultGauge.defaultSteelType)
+            ? (defaultGauge.customFieldValue || defaultGauge.defaultSteelType || '')
+            : '';
         
         setFormData(prev => ({
             ...prev,
             lots: [...prev.lots, {
                 internalLot: '',
                 runNumber: '',
-                bitola: fmGauges[0] || '',
+                bitola: defaultBitola,
                 materialType: defaultMaterial as MaterialType,
                 labelWeight: 0,
+                steelType: defaultSteel,
             }],
         }));
     };
@@ -82,6 +97,20 @@ const EditConferenceModal: React.FC<{
                 }
             }
 
+            // Auto-populate default steel type if configured
+            const currentMaterial = newLots[index].materialType;
+            const currentBitola = newLots[index].bitola;
+            if (currentMaterial && currentBitola) {
+                const targetGauge = gauges.find(g => g.materialType === currentMaterial && g.gauge === currentBitola);
+                if (targetGauge) {
+                    if (targetGauge.customFieldLabel || targetGauge.defaultSteelType) {
+                        newLots[index].steelType = targetGauge.customFieldValue || targetGauge.defaultSteelType || '';
+                    } else {
+                        newLots[index].steelType = '';
+                    }
+                }
+            }
+
             return { ...prev, lots: newLots };
         });
     };
@@ -95,15 +124,85 @@ const EditConferenceModal: React.FC<{
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (Object.keys(duplicateErrors).length > 0) {
-            alert('Corrija os lotes duplicados antes de continuar.');
+
+        // Find the highest existing numeric lot number in stock (excluding items from the current conference) and conferences
+        let maxLotNum = 0;
+        stock.forEach(item => {
+            if (item.conferenceNumber !== conference.conferenceNumber) {
+                const num = parseInt(item.internalLot.replace(/\D/g, '')) || 0;
+                if (num > maxLotNum) maxLotNum = num;
+            }
+        });
+        conferences.forEach(c => {
+            if (c.conferenceNumber !== conference.conferenceNumber) {
+                c.lots?.forEach(l => {
+                    const num = parseInt(l.internalLot.replace(/\D/g, '')) || 0;
+                    if (num > maxLotNum) maxLotNum = num;
+                });
+            }
+        });
+
+        // Also check if any existing lots in the form already have a numeric lot number to not overwrite them
+        formData.lots.forEach(l => {
+            const num = parseInt(l.internalLot.replace(/\D/g, '')) || 0;
+            if (num > maxLotNum) maxLotNum = num;
+        });
+
+        // Assign automatic lot numbers for empty lots configured as auto-generate
+        const updatedLots = formData.lots.map(l => {
+            const isAuto = checkIfAutoGenerate(l.materialType || '', l.bitola || '');
+            if (isAuto && !l.internalLot) {
+                maxLotNum += 1;
+                return {
+                    ...l,
+                    internalLot: String(maxLotNum).padStart(4, '0')
+                };
+            }
+            return l;
+        });
+
+        // Re-run validation on the updated lots
+        const newErrors: Record<number, string> = {};
+        const existingInternalLots = new Set(
+            stock
+                .filter(item => !formData.lots.some(lot =>
+                    item.internalLot === lot.internalLot &&
+                    item.conferenceNumber === conference.conferenceNumber))
+                .map(item => item.internalLot.trim().toLowerCase())
+        );
+        const currentKeys = new Set<string>();
+        let hasErrors = false;
+
+        updatedLots.forEach((lot, idx) => {
+            if (!lot.internalLot) {
+                newErrors[idx] = 'O lote interno é obrigatório.';
+                hasErrors = true;
+                return;
+            }
+            const key = lot.internalLot.trim().toLowerCase();
+            if (existingInternalLots.has(key)) {
+                newErrors[idx] = 'Este lote já existe no estoque.';
+                hasErrors = true;
+            } else if (currentKeys.has(key)) {
+                newErrors[idx] = 'Lote duplicado nesta conferência.';
+                hasErrors = true;
+            }
+            currentKeys.add(key);
+        });
+
+        if (hasErrors) {
+            setDuplicateErrors(newErrors);
+            alert('Existem lotes inválidos ou duplicados. Corrija-os antes de continuar.');
             return;
         }
-        if (formData.lots.length === 0) {
+
+        if (updatedLots.length === 0) {
             alert('A conferência deve ter ao menos um lote.');
             return;
         }
-        onSubmit(formData);
+
+        const finalData = { ...formData, lots: updatedLots };
+        onSubmit(finalData);
         onClose();
     };
 
@@ -133,22 +232,87 @@ const EditConferenceModal: React.FC<{
                     <table className="w-full text-sm">
                         <thead className="sticky top-0 bg-slate-100 z-10">
                             <tr>
-                                {['Lote Interno', 'Tipo de Aço', 'Corrida', 'Tipo Material', 'Bitola', 'Peso Etiqueta (kg)', ''].map(h => (
-                                    <th key={h} className="p-2 text-center font-semibold text-slate-600 space-nowrap whitespace-nowrap">{h}</th>
-                                ))}
+                                {['Lote Interno', 'Tipo de Aço', 'Corrida', 'Tipo Material', 'Bitola', 'Peso Etiqueta (kg)', ''].map(h => {
+                                    let displayHeader = h;
+                                    if (h === 'Tipo de Aço') {
+                                        const customLabels = formData.lots
+                                            .map(lot => {
+                                                const g = gauges.find(x => x.materialType === lot.materialType && x.gauge === lot.bitola);
+                                                return g?.customFieldLabel;
+                                            })
+                                            .filter(Boolean) as string[];
+                                        
+                                        if (customLabels.length > 0) {
+                                            const unique = Array.from(new Set(customLabels));
+                                            displayHeader = unique.length === 1 ? unique[0] : 'Info. Adicional';
+                                        }
+                                    }
+                                    return (
+                                        <th key={h} className="p-2 text-center font-semibold text-slate-600 space-nowrap whitespace-nowrap">{displayHeader}</th>
+                                    );
+                                })}
                             </tr>
                         </thead>
                         <tbody>
                             {formData.lots.map((lot, idx) => (
                                 <tr key={idx} className="border-b">
                                     <td className="p-2">
-                                        <input type="text" value={lot.internalLot} onChange={e => handleLotChange(idx, 'internalLot', e.target.value)} className="w-full p-2 border border-slate-300 rounded text-center" required />
+                                        {checkIfAutoGenerate(lot.materialType || '', lot.bitola || '') ? (
+                                            <input
+                                                type="text"
+                                                value={lot.internalLot || '(Gerado Automático)'}
+                                                disabled
+                                                className="w-full p-2 border border-slate-300 rounded text-center bg-slate-100 text-slate-500 font-semibold italic"
+                                            />
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                value={lot.internalLot}
+                                                onChange={e => handleLotChange(idx, 'internalLot', e.target.value)}
+                                                className="w-full p-2 border border-slate-300 rounded text-center"
+                                                required
+                                            />
+                                        )}
                                         {duplicateErrors[idx] && <p className="text-red-500 text-xs mt-1 text-center">{duplicateErrors[idx]}</p>}
                                     </td>
                                     <td className="p-2">
-                                        <select value={lot.steelType || ''} onChange={e => handleLotChange(idx, 'steelType', e.target.value)} className="w-full p-2 border border-slate-300 rounded bg-white text-center">
-                                            {SteelTypeOptions.map(s => <option key={s} value={s}>{s}</option>)}
-                                        </select>
+                                        {(() => {
+                                            const g = gauges.find(x => x.materialType === lot.materialType && x.gauge === lot.bitola);
+                                            const hasCustom = g && (g.customFieldLabel || g.defaultSteelType);
+                                            const options = g?.customFieldOptions
+                                                ? g.customFieldOptions.split(/[,;\-]+/).map(o => o.trim()).filter(Boolean)
+                                                : [];
+                                            
+                                            if (hasCustom) {
+                                                return (
+                                                    <>
+                                                        <input
+                                                            type="text"
+                                                            list={`edit-options-${idx}`}
+                                                            value={lot.steelType || ''}
+                                                            onChange={e => handleLotChange(idx, 'steelType', e.target.value)}
+                                                            placeholder={g.customFieldLabel || 'Tipo de Aço'}
+                                                            className="w-full p-2 border border-slate-300 rounded text-center bg-white"
+                                                            required
+                                                        />
+                                                        <datalist id={`edit-options-${idx}`}>
+                                                            {options.map(opt => (
+                                                                <option key={opt} value={opt} />
+                                                            ))}
+                                                        </datalist>
+                                                    </>
+                                                );
+                                            } else {
+                                                return (
+                                                    <input
+                                                        type="text"
+                                                        value="-"
+                                                        disabled
+                                                        className="w-full p-2 border border-slate-300 rounded text-center bg-slate-100 text-slate-500 font-semibold cursor-not-allowed"
+                                                    />
+                                                );
+                                            }
+                                        })()}
                                     </td>
                                     <td className="p-2">
                                         <input type="text" value={lot.runNumber} onChange={e => handleLotChange(idx, 'runNumber', e.target.value)} className="w-full p-2 border border-slate-300 rounded text-center" required />
@@ -243,7 +407,7 @@ const FinishedConferencesModal: React.FC<FinishedConferencesModalProps> = ({ con
     return (
         <>
             {editingConference && (
-                <EditConferenceModal conference={editingConference} stock={stock} gauges={gauges} onClose={() => setEditingConference(null)} onSubmit={handleEditSubmit} />
+                <EditConferenceModal conference={editingConference} stock={stock} gauges={gauges} conferences={conferences} onClose={() => setEditingConference(null)} onSubmit={handleEditSubmit} />
             )}
             {deletingConference && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">

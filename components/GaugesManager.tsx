@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { StockGauge, StockItem, GaugeComponent } from '../types';
+import { SteelTypeOptions } from '../types';
 import { TrashIcon, PlusIcon, ScaleIcon, PencilIcon, XIcon, SearchIcon } from './icons';
 import { insertItem, deleteItemByColumn } from '../services/supabaseService';
 
@@ -26,6 +27,12 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
     const [purchasePrice, setPurchasePrice] = useState('');
     const [technicalDescription, setTechnicalDescription] = useState('');
     const [status, setStatus] = useState('Ativo');
+    const [autoGenerateLot, setAutoGenerateLot] = useState<boolean>(false);
+    const [defaultSteelType, setDefaultSteelType] = useState<string>('');
+    const [useCustomField, setUseCustomField] = useState<boolean>(false);
+    const [customFieldLabel, setCustomFieldLabel] = useState<string>('');
+    const [customFieldOptions, setCustomFieldOptions] = useState<string>('');
+    const [customFieldValue, setCustomFieldValue] = useState<string>('');
 
     // New fields states for weight configurations
     const [weightPerMeter, setWeightPerMeter] = useState('');
@@ -263,6 +270,12 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
         setRawWeightValue('');
         setItemType('materia_prima');
         setComponentsForm([]);
+        setAutoGenerateLot(false);
+        setDefaultSteelType('');
+        setUseCustomField(false);
+        setCustomFieldLabel('');
+        setCustomFieldOptions('');
+        setCustomFieldValue('');
     };
 
     const calculateRowConsumptionWeight = (
@@ -429,7 +442,12 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
             weightType: weightType,
             weightUnit: weightUnit,
             rawWeightValue: rawWeightValue ? parseFloat(rawWeightValue) : undefined,
-            itemType: itemType
+            itemType: itemType,
+            autoGenerateLot: autoGenerateLot,
+            defaultSteelType: useCustomField ? (customFieldValue || undefined) : undefined,
+            customFieldLabel: useCustomField ? customFieldLabel.trim() : undefined,
+            customFieldOptions: useCustomField ? customFieldOptions.trim() : undefined,
+            customFieldValue: useCustomField ? customFieldValue.trim() : undefined
         };
 
         try {
@@ -502,6 +520,12 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
         setPurchasePrice(g.purchasePrice?.toString() || '');
         setTechnicalDescription(g.technicalDescription || '');
         setStatus(g.status || 'Ativo');
+        setAutoGenerateLot(g.autoGenerateLot || false);
+        setDefaultSteelType(g.defaultSteelType || '');
+        setUseCustomField(!!g.customFieldLabel);
+        setCustomFieldLabel(g.customFieldLabel || '');
+        setCustomFieldOptions(g.customFieldOptions || '');
+        setCustomFieldValue(g.customFieldValue || '');
         setWeightPerMeter(g.weightPerMeter?.toString() || '');
         setPieceSize(g.pieceSize?.toString() || '');
         setWeightType(g.weightType || 'metro');
@@ -798,6 +822,89 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                     </div>
                                 </div>
 
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">NUMERAÇÃO DO LOTE</label>
+                                    <select
+                                        value={autoGenerateLot ? 'true' : 'false'}
+                                        onChange={e => setAutoGenerateLot(e.target.value === 'true')}
+                                        className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm bg-white font-medium text-slate-700 text-sm"
+                                    >
+                                        <option value="false">Manual (Digitar no recebimento)</option>
+                                        <option value="true">Automático (Gerar sequencial)</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">CAMPO ADICIONAL PERSONALIZADO</label>
+                                    <div className="space-y-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                id="useCustomField"
+                                                checked={useCustomField}
+                                                onChange={e => {
+                                                    setUseCustomField(e.target.checked);
+                                                    if (e.target.checked && !customFieldLabel) {
+                                                        setCustomFieldLabel('Tipo de Aço');
+                                                    }
+                                                }}
+                                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
+                                            />
+                                            <label htmlFor="useCustomField" className="text-xs font-bold text-slate-700 cursor-pointer">
+                                                Ativar Informação Adicional
+                                            </label>
+                                        </div>
+
+                                        {useCustomField && (
+                                            <div className="space-y-2 animate-fadeIn">
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nome do Campo</label>
+                                                    <input
+                                                        type="text"
+                                                        value={customFieldLabel}
+                                                        onChange={e => setCustomFieldLabel(e.target.value)}
+                                                        placeholder="Ex: Tipo de Aço, Dureza, Cor"
+                                                        className="w-full p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Opções do Campo (separadas por vírgula ou hífen)</label>
+                                                    <input
+                                                        type="text"
+                                                        value={customFieldOptions}
+                                                        onChange={e => setCustomFieldOptions(e.target.value)}
+                                                        placeholder="Ex: 1006, 1010, 1018 ou 1006-1018"
+                                                        className="w-full p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Valor Padrão</label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="text"
+                                                            list="default-value-options"
+                                                            value={customFieldValue}
+                                                            onChange={e => setCustomFieldValue(e.target.value)}
+                                                            placeholder="Selecione ou digite o valor padrão"
+                                                            className="w-full p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                                        />
+                                                        <datalist id="default-value-options">
+                                                            {customFieldOptions
+                                                                .split(/[,;\-]+/)
+                                                                .map(o => o.trim())
+                                                                .filter(Boolean)
+                                                                .map(opt => (
+                                                                    <option key={opt} value={opt} />
+                                                                ))}
+                                                        </datalist>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Column 3: CONFIGURAÇÃO DE KG */}
@@ -1146,13 +1253,27 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                             <td className="p-4">
                                                 <div className="flex flex-col">
                                                     <span className="font-semibold text-slate-800">{g.materialType}</span>
-                                                    <span className={`inline-block self-start mt-1 px-1.5 py-0.5 text-[10px] font-bold rounded ${
-                                                        g.itemType === 'produto_composto'
-                                                            ? 'bg-purple-100 text-purple-700 border border-purple-200'
-                                                            : 'bg-blue-100 text-blue-700 border border-blue-200'
-                                                    }`}>
-                                                        {g.itemType === 'produto_composto' ? 'Composto' : 'Matéria-Prima'}
-                                                    </span>
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        <span className={`inline-block px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                                                            g.itemType === 'produto_composto'
+                                                                ? 'bg-purple-100 text-purple-700 border border-purple-200'
+                                                                : 'bg-blue-100 text-blue-700 border border-blue-200'
+                                                        }`}>
+                                                            {g.itemType === 'produto_composto' ? 'Composto' : 'Matéria-Prima'}
+                                                        </span>
+                                                        <span className={`inline-block px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                                                            g.autoGenerateLot
+                                                                ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                                                                : 'bg-slate-100 text-slate-600 border border-slate-200'
+                                                        }`}>
+                                                            Lote: {g.autoGenerateLot ? 'Automático' : 'Manual'}
+                                                        </span>
+                                                        {(g.customFieldLabel || g.defaultSteelType) && (
+                                                            <span className="inline-block px-1.5 py-0.5 text-[10px] font-bold rounded bg-emerald-100 text-emerald-800 border border-emerald-200" title={g.customFieldOptions ? `Opções: ${g.customFieldOptions}` : undefined}>
+                                                                {g.customFieldLabel || 'Aço'}: {g.customFieldValue || g.defaultSteelType}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="p-4">

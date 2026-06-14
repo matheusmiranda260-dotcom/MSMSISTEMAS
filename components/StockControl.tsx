@@ -66,6 +66,11 @@ const AddConferencePage: React.FC<{
                     if (copy[0] && copy[0].bitola === '') {
                         copy[0].bitola = matGauges[0].gauge;
                         copy[0].materialType = firstMat;
+                        if (matGauges[0].customFieldLabel || matGauges[0].defaultSteelType) {
+                            copy[0].steelType = matGauges[0].customFieldValue || matGauges[0].defaultSteelType || '';
+                        } else {
+                            copy[0].steelType = '';
+                        }
                     }
                     return copy;
                 });
@@ -86,11 +91,17 @@ const AddConferencePage: React.FC<{
         }
     }, [conferenceData.conferenceNumber, conferences]);
 
+    const checkIfAutoGenerate = (materialType: string, bitola: string) => {
+        const g = gauges.find(x => x.materialType === materialType && x.gauge === bitola);
+        return !!g?.autoGenerateLot;
+    };
+
     useEffect(() => {
         const newErrors: Record<number, string> = {};
         const existingStock = new Set(stock.filter(s => s.status !== 'Consumido').map(i => i.internalLot.trim().toLowerCase()));
         const currentBatch = new Set();
         lots.forEach((l, i) => {
+            if (checkIfAutoGenerate(l.materialType || '', l.bitola || '')) return;
             if (!l.internalLot) return;
             const key = l.internalLot.trim().toLowerCase();
             if (existingStock.has(key)) newErrors[i] = "Já existe no estoque.";
@@ -114,6 +125,20 @@ const AddConferencePage: React.FC<{
 
             if (!all.includes(newLots[index].bitola || '')) {
                 newLots[index].bitola = all[0] || '';
+            }
+        }
+
+        // Auto-populate default steel type if configured
+        const currentMaterial = newLots[index].materialType;
+        const currentBitola = newLots[index].bitola;
+        if (currentMaterial && currentBitola) {
+            const targetGauge = gauges.find(g => g.materialType === currentMaterial && g.gauge === currentBitola);
+            if (targetGauge) {
+                if (targetGauge.customFieldLabel || targetGauge.defaultSteelType) {
+                    newLots[index].steelType = targetGauge.customFieldValue || targetGauge.defaultSteelType || '';
+                } else {
+                    newLots[index].steelType = '';
+                }
             }
         }
 
@@ -141,8 +166,58 @@ const AddConferencePage: React.FC<{
 
         if (isSubmitting) return;
 
-        if (Object.keys(duplicateErrors).length > 0) {
-            setSubmitResult({ type: 'error', message: 'Existem lotes duplicados ou já cadastrados. Corrija-os antes de finalizar.' });
+        // Find the highest existing numeric lot number in stock and conferences
+        let maxLotNum = 0;
+        stock.forEach(item => {
+            const num = parseInt(item.internalLot.replace(/\D/g, '')) || 0;
+            if (num > maxLotNum) maxLotNum = num;
+        });
+        conferences.forEach(c => {
+            c.lots?.forEach(l => {
+                const num = parseInt(l.internalLot.replace(/\D/g, '')) || 0;
+                if (num > maxLotNum) maxLotNum = num;
+            });
+        });
+
+        // Assign automatic lot numbers for empty lots configured as auto-generate
+        const updatedLots = lots.map(l => {
+            const isAuto = checkIfAutoGenerate(l.materialType || '', l.bitola || '');
+            if (isAuto && !l.internalLot) {
+                maxLotNum += 1;
+                return {
+                    ...l,
+                    internalLot: String(maxLotNum).padStart(4, '0')
+                };
+            }
+            return l;
+        });
+
+        // Perform validation with the assigned lot numbers
+        const newErrors: Record<number, string> = {};
+        const existingStock = new Set(stock.filter(s => s.status !== 'Consumido').map(i => i.internalLot.trim().toLowerCase()));
+        const currentBatch = new Set();
+        let hasErrors = false;
+
+        updatedLots.forEach((l, i) => {
+            if (!l.internalLot) {
+                newErrors[i] = "Lote interno é obrigatório.";
+                hasErrors = true;
+                return;
+            }
+            const key = l.internalLot.trim().toLowerCase();
+            if (existingStock.has(key)) {
+                newErrors[i] = "Já existe no estoque.";
+                hasErrors = true;
+            } else if (currentBatch.has(key)) {
+                newErrors[i] = "Duplicado nesta lista.";
+                hasErrors = true;
+            }
+            currentBatch.add(key);
+        });
+
+        if (hasErrors) {
+            setDuplicateErrors(newErrors);
+            setSubmitResult({ type: 'error', message: 'Existem lotes inválidos, duplicados ou já cadastrados. Corrija-os antes de finalizar.' });
             return;
         }
 
@@ -151,7 +226,7 @@ const AddConferencePage: React.FC<{
             return;
         }
 
-        const validLots = lots.filter(l => !!l.internalLot) as ConferenceLotData[];
+        const validLots = updatedLots.filter(l => !!l.internalLot) as ConferenceLotData[];
         if (!validLots.length) {
             setSubmitResult({ type: 'error', message: 'Por favor, adicione pelo menos um lote válido.' });
             return;
@@ -244,19 +319,90 @@ const AddConferencePage: React.FC<{
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead className="bg-slate-50 border-y">
-                                <tr>{['Lote Interno', 'Tipo de Aço', 'Corrida', 'Material', 'Descrição', 'Peso Etiqueta', ''].map(h => <th key={h} className="p-3 text-center font-bold text-slate-600 uppercase text-[10px]">{h}</th>)}</tr>
+                                <tr>
+                                    {['Lote Interno', 'Tipo de Aço', 'Corrida', 'Material', 'Descrição', 'Peso Etiqueta', ''].map(h => {
+                                        let displayHeader = h;
+                                        if (h === 'Tipo de Aço') {
+                                            const customLabels = lots
+                                                .map(lot => {
+                                                    const g = gauges.find(x => x.materialType === lot.materialType && x.gauge === lot.bitola);
+                                                    return g?.customFieldLabel;
+                                                })
+                                                .filter(Boolean) as string[];
+                                            
+                                            if (customLabels.length > 0) {
+                                                const unique = Array.from(new Set(customLabels));
+                                                displayHeader = unique.length === 1 ? unique[0] : 'Info. Adicional';
+                                            }
+                                        }
+                                        return (
+                                            <th key={h} className="p-3 text-center font-bold text-slate-600 uppercase text-[10px]">
+                                                {displayHeader}
+                                            </th>
+                                        );
+                                    })}
+                                </tr>
                             </thead>
                             <tbody>
                                 {lots.map((lot, index) => (
                                     <tr key={index} className="border-b">
                                         <td className="p-2">
-                                            <input type="text" value={lot.internalLot || ''} onChange={e => handleLotChange(index, 'internalLot', e.target.value)} className="w-full p-2 border rounded text-center" required />
+                                            {checkIfAutoGenerate(lot.materialType || '', lot.bitola || '') ? (
+                                                <input
+                                                    type="text"
+                                                    value={lot.internalLot || '(Gerado Automático)'}
+                                                    disabled
+                                                    className="w-full p-2 border rounded text-center bg-slate-100 text-slate-500 font-semibold italic"
+                                                />
+                                            ) : (
+                                                <input
+                                                    type="text"
+                                                    value={lot.internalLot || ''}
+                                                    onChange={e => handleLotChange(index, 'internalLot', e.target.value)}
+                                                    className="w-full p-2 border rounded text-center"
+                                                    required
+                                                />
+                                            )}
                                             {duplicateErrors[index] && <p className="text-red-500 text-[9px] font-bold text-center">{duplicateErrors[index]}</p>}
                                         </td>
                                         <td className="p-2">
-                                            <select value={lot.steelType || ''} onChange={e => handleLotChange(index, 'steelType', e.target.value)} className="w-full p-2 border rounded text-center" required>
-                                                {SteelTypeOptions.map(s => <option key={s} value={s}>{s}</option>)}
-                                            </select>
+                                            {(() => {
+                                                const g = gauges.find(x => x.materialType === lot.materialType && x.gauge === lot.bitola);
+                                                const hasCustom = g && (g.customFieldLabel || g.defaultSteelType);
+                                                const options = g?.customFieldOptions
+                                                    ? g.customFieldOptions.split(/[,;\-]+/).map(o => o.trim()).filter(Boolean)
+                                                    : [];
+                                                
+                                                if (hasCustom) {
+                                                    return (
+                                                        <>
+                                                            <input
+                                                                type="text"
+                                                                list={`options-${index}`}
+                                                                value={lot.steelType || ''}
+                                                                onChange={e => handleLotChange(index, 'steelType', e.target.value)}
+                                                                placeholder={g.customFieldLabel || 'Tipo de Aço'}
+                                                                className="w-full p-2 border rounded text-center bg-white"
+                                                                required
+                                                            />
+                                                            <datalist id={`options-${index}`}>
+                                                                {options.map(opt => (
+                                                                    <option key={opt} value={opt} />
+                                                                ))}
+                                                            </datalist>
+                                                        </>
+                                                    );
+                                                } else {
+                                                    return (
+                                                        <input
+                                                            type="text"
+                                                            value="-"
+                                                            disabled
+                                                            className="w-full p-2 border rounded text-center bg-slate-100 text-slate-500 font-semibold cursor-not-allowed"
+                                                        />
+                                                    );
+                                                }
+                                            })()}
                                         </td>
                                         <td className="p-2"><input type="text" value={lot.runNumber || ''} onChange={e => handleLotChange(index, 'runNumber', e.target.value)} className="w-full p-2 border rounded text-center" required /></td>
                                         <td className="p-2"><select value={lot.materialType} onChange={e => handleLotChange(index, 'materialType', e.target.value)} className="w-full p-2 border rounded text-center">{dynamicMaterialOptions.map(m => <option key={m} value={m}>{m}</option>)}</select></td>
@@ -665,7 +811,22 @@ const StockControl: React.FC<{
                             <tr>
                                 <th className="p-3 text-center print:hidden">Data</th>
                                 <th className="p-3 text-center">Lote Interno</th>
-                                <th className="p-3 text-center">Tipo Aço</th>
+                                <th className="p-3 text-center">
+                                    {(() => {
+                                        const customLabels = filtered
+                                            .map(item => {
+                                                const g = gauges.find(x => x.materialType === item.materialType && x.gauge === item.bitola);
+                                                return g?.customFieldLabel;
+                                            })
+                                            .filter(Boolean) as string[];
+                                        
+                                        if (customLabels.length > 0) {
+                                            const unique = Array.from(new Set(customLabels));
+                                            return unique.length === 1 ? unique[0] : 'Tipo/Info';
+                                        }
+                                        return 'Tipo Aço';
+                                    })()}
+                                </th>
                                 <th className="p-3 text-center">Mat.</th>
                                 <th className="p-3 text-center">Descrição</th>
                                 <th className="p-3 text-center">Peso (kg)</th>
@@ -785,10 +946,48 @@ const EditStockItemModal: React.FC<{ item: StockItem; onClose: () => void; onSav
                             <input type="text" value={formData.internalLot} onChange={e => setFormData({ ...formData, internalLot: e.target.value })} className="w-full px-3 py-2 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-500 uppercase">Tipo de Aço</label>
-                            <select value={formData.steelType || ''} onChange={e => setFormData({ ...formData, steelType: e.target.value })} className="w-full px-3 py-2 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                                {SteelTypeOptions.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
+                            {(() => {
+                                const g = gauges.find(x => x.materialType === formData.materialType && x.gauge === formData.bitola);
+                                const hasCustom = g && (g.customFieldLabel || g.defaultSteelType);
+                                const label = g?.customFieldLabel || 'Tipo de Aço';
+                                const options = g?.customFieldOptions
+                                    ? g.customFieldOptions.split(/[,;\-]+/).map(o => o.trim()).filter(Boolean)
+                                    : [];
+                                
+                                if (hasCustom) {
+                                    return (
+                                        <>
+                                            <label className="text-xs font-bold text-slate-500 uppercase">{label}</label>
+                                            <input
+                                                type="text"
+                                                list="edit-single-options"
+                                                value={formData.steelType || ''}
+                                                onChange={e => setFormData({ ...formData, steelType: e.target.value })}
+                                                placeholder={label}
+                                                className="w-full px-3 py-2 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                                required
+                                            />
+                                            <datalist id="edit-single-options">
+                                                {options.map(opt => (
+                                                    <option key={opt} value={opt} />
+                                                ))}
+                                            </datalist>
+                                        </>
+                                    );
+                                } else {
+                                    return (
+                                        <>
+                                            <label className="text-xs font-bold text-slate-500 uppercase">Tipo de Aço</label>
+                                            <input
+                                                type="text"
+                                                value="-"
+                                                disabled
+                                                className="w-full px-3 py-2 bg-slate-100 border rounded-lg text-slate-500 font-semibold cursor-not-allowed text-center"
+                                            />
+                                        </>
+                                    );
+                                }
+                            })()}
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
