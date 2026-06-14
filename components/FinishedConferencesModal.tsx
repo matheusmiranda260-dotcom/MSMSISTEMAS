@@ -56,7 +56,13 @@ const EditConferenceModal: React.FC<{
     onClose: () => void;
     onSubmit: (updatedData: ConferenceData) => void;
 }> = ({ conference, stock, gauges, conferences, onClose, onSubmit }) => {
-    const [formData, setFormData] = useState<ConferenceData>(conference);
+    const [formData, setFormData] = useState<ConferenceData>(() => {
+        const lots = conference.lots?.map(l => ({
+            ...l,
+            labelWeightInput: l.labelWeight !== undefined && l.labelWeight !== null ? String(l.labelWeight).replace('.', ',') : ''
+        })) || [];
+        return { ...conference, lots };
+    });
     const [duplicateErrors, setDuplicateErrors] = useState<Record<number, string>>({});
     const [showManualInput, setShowManualInput] = useState<Record<number, boolean>>({});
 
@@ -121,6 +127,7 @@ const EditConferenceModal: React.FC<{
                 bitola: defaultBitola,
                 materialType: defaultMaterial as MaterialType,
                 labelWeight: labelWeight,
+                labelWeightInput: labelWeight ? String(labelWeight).replace('.', ',') : '0',
                 steelType: defaultSteel,
                 packagingType,
                 qtyPerPackaging,
@@ -174,6 +181,10 @@ const EditConferenceModal: React.FC<{
                         const defaultWeight = calculateTheoreticalWeight(targetGauge, qtyPack);
                         if (defaultWeight > 0) {
                             newLots[index].labelWeight = defaultWeight;
+                            newLots[index].labelWeightInput = String(defaultWeight).replace('.', ',');
+                        } else {
+                            newLots[index].labelWeight = 0;
+                            newLots[index].labelWeightInput = '0';
                         }
                     }
                 }
@@ -300,13 +311,14 @@ const EditConferenceModal: React.FC<{
                     <table className="w-full text-sm">
                         <thead className="sticky top-0 bg-slate-100 z-10">
                             <tr>
-                                {['Lote Interno', 'Tipo de Aço', 'Corrida', 'Tipo Material', 'Bitola', 'Embalagem', 'Peso Etiqueta (kg)', ''].map(h => {
+                                {['Lote Interno', 'Especificações', 'Corrida', 'Tipo Material', 'Bitola', 'Embalagem', 'Peso Etiqueta (kg)', ''].map(h => {
                                     let displayHeader = h;
-                                    if (h === 'Tipo de Aço') {
+                                    if (h === 'Especificações') {
                                         const customLabels = formData.lots
                                             .map(lot => {
                                                 const g = gauges.find(x => x.materialType === lot.materialType && x.gauge === lot.bitola);
-                                                return g?.customFieldLabel;
+                                                const lbl = g?.customFieldLabel;
+                                                return lbl === 'Tipo de Aço' ? 'Especificações' : lbl;
                                             })
                                             .filter(Boolean) as string[];
                                         
@@ -383,7 +395,7 @@ const EditConferenceModal: React.FC<{
                                                             type="text"
                                                             value={lot.steelType || ''}
                                                             onChange={e => handleLotChange(idx, 'steelType', e.target.value)}
-                                                            placeholder={g.customFieldLabel || 'Tipo de Aço'}
+                                                            placeholder={(g.customFieldLabel === 'Tipo de Aço' ? 'Especificações' : g.customFieldLabel) || 'Especificações'}
                                                             className="w-full p-2 border border-slate-300 rounded text-center bg-white"
                                                             required
                                                         />
@@ -507,11 +519,14 @@ const EditConferenceModal: React.FC<{
                                     <td className="p-2">
                                         <input
                                             type="text"
-                                            inputMode="numeric"
-                                            value={lot.labelWeight}
+                                            inputMode="decimal"
+                                            value={lot.labelWeightInput !== undefined ? lot.labelWeightInput : (lot.labelWeight || '')}
                                             onChange={e => {
-                                                const val = e.target.value.replace(/\D/g, '');
-                                                handleLotChange(idx, 'labelWeight', parseInt(val) || 0);
+                                                const val = e.target.value.replace(/[^0-9.,]/g, '');
+                                                const normalized = val.replace(',', '.');
+                                                const parsed = parseFloat(normalized);
+                                                handleLotChange(idx, 'labelWeight', isNaN(parsed) ? 0 : parsed);
+                                                handleLotChange(idx, 'labelWeightInput', val);
                                             }}
                                             className="w-full p-2 border border-slate-300 rounded no-spinner text-center"
                                             required
@@ -554,7 +569,7 @@ const FinishedConferencesModal: React.FC<FinishedConferencesModalProps> = ({ con
         const lots: ConferenceLotData[] = stockItems.map(s => ({
             internalLot: s.internalLot || '',
             runNumber: s.runNumber || '',
-            steelType: s.steelType || '1006',
+            steelType: s.steelType || '',
             bitola: s.bitola || '',
             materialType: s.materialType || defaultMaterial,
             labelWeight: Number(s.labelWeight) || 0,

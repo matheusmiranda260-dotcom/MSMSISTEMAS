@@ -430,22 +430,74 @@ const StockTransfer: React.FC<StockTransferProps> = ({ stock, transfers, setPage
                                                     </td>
                                                     <td className="p-3 text-slate-500">{new Date(item.lot.entryDate).toLocaleDateString('pt-BR')}</td>
                                                     <td className="p-3 font-medium text-[#0F3F5C]">{item.lot.internalLot}</td>
-                                                    <td className="p-3 text-right text-slate-400">{item.lot.remainingQuantity.toFixed(2)}</td>
                                                     <td className="p-3 text-right">
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            value={item.suggestQty > 0 ? item.suggestQty : ''}
-                                                            placeholder={item.selected && item.suggestQty === 0 ? item.lot.remainingQuantity.toFixed(2) : '0.00'}
-                                                            disabled={!item.selected}
-                                                            onChange={(e) => {
-                                                                const val = parseFloat(e.target.value);
-                                                                const newSuggestions = [...suggestedLots];
-                                                                newSuggestions[idx].suggestQty = isNaN(val) ? 0 : val;
-                                                                setSuggestedLots(newSuggestions);
-                                                            }}
-                                                            className={`w-24 p-1 text-right border rounded bg-white font-bold ${item.selected ? 'text-[#0F3F5C] border-blue-200' : 'text-slate-300 border-slate-100'}`}
-                                                        />
+                                                        <div className="font-bold text-slate-700">{item.lot.remainingQuantity.toFixed(2)}</div>
+                                                        {item.lot.packagingType && item.lot.packagingType !== 'granel' && (
+                                                            <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                                                                {(() => {
+                                                                    const ratio = item.lot.labelWeight && item.lot.labelWeight > 0 ? (item.lot.remainingQuantity / item.lot.labelWeight) : 1;
+                                                                    const packs = Math.round((item.lot.qtyPackages || 1) * ratio);
+                                                                    const packName = item.lot.packagingType === 'rolo' ? 'rolo' : item.lot.packagingType === 'pacote' ? 'pacote' : 'barra';
+                                                                    const suffix = packs > 1 ? 's' : '';
+                                                                    return `${packs} ${packName}${suffix}`;
+                                                                })()}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="p-3 text-right">
+                                                        <div className="flex flex-col items-end gap-1">
+                                                            <div className="flex items-center gap-1">
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    value={item.suggestQty > 0 ? item.suggestQty : ''}
+                                                                    placeholder={item.selected && item.suggestQty === 0 ? item.lot.remainingQuantity.toFixed(2) : '0.00'}
+                                                                    disabled={!item.selected}
+                                                                    onChange={(e) => {
+                                                                        const val = parseFloat(e.target.value);
+                                                                        const newSuggestions = [...suggestedLots];
+                                                                        newSuggestions[idx].suggestQty = isNaN(val) ? 0 : val;
+                                                                        setSuggestedLots(newSuggestions);
+                                                                    }}
+                                                                    className={`w-24 p-1 text-right border rounded bg-white font-bold ${item.selected ? 'text-[#0F3F5C] border-blue-200' : 'text-slate-300 border-slate-100'}`}
+                                                                />
+                                                                <span className="text-[10px] font-bold text-slate-500 uppercase">kg</span>
+                                                            </div>
+                                                            {item.lot.packagingType && item.lot.packagingType !== 'granel' && (
+                                                                <div className="flex items-center gap-1">
+                                                                    {(() => {
+                                                                        const qty = item.suggestQty > 0 ? item.suggestQty : (item.selected ? item.lot.remainingQuantity : 0);
+                                                                        const weightPerUnit = item.lot.qtyPackages && item.lot.qtyPackages > 0 ? (item.lot.labelWeight / item.lot.qtyPackages) : item.lot.labelWeight;
+                                                                        const ratio = item.lot.labelWeight && item.lot.labelWeight > 0 ? (item.lot.remainingQuantity / item.lot.labelWeight) : 1;
+                                                                        const maxUnits = Math.max(1, Math.round((item.lot.qtyPackages || 1) * ratio));
+                                                                        const currentUnits = Math.round(qty / weightPerUnit);
+                                                                        const packName = item.lot.packagingType === 'rolo' ? 'rolo' : item.lot.packagingType === 'pacote' ? 'pacote' : 'barra';
+                                                                        
+                                                                        return (
+                                                                            <>
+                                                                                <input
+                                                                                    type="number"
+                                                                                    value={currentUnits || ''}
+                                                                                    placeholder="0"
+                                                                                    min="0"
+                                                                                    max={maxUnits}
+                                                                                    disabled={!item.selected}
+                                                                                    onChange={(e) => {
+                                                                                        const u = parseInt(e.target.value) || 0;
+                                                                                        const sanitizedU = Math.min(maxUnits, Math.max(0, u));
+                                                                                        const newSuggestions = [...suggestedLots];
+                                                                                        newSuggestions[idx].suggestQty = Number((sanitizedU * weightPerUnit).toFixed(2));
+                                                                                        setSuggestedLots(newSuggestions);
+                                                                                    }}
+                                                                                    className={`w-16 p-0.5 text-right border rounded bg-white font-semibold text-xs ${item.selected ? 'text-[#0F3F5C] border-blue-100' : 'text-slate-300 border-slate-100'}`}
+                                                                                />
+                                                                                <span className="text-[10px] text-slate-500 font-semibold">{packName}{currentUnits !== 1 ? 's' : ''}</span>
+                                                                            </>
+                                                                        );
+                                                                    })()}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                     <td className="p-3 text-center">
                                                         <input

@@ -84,7 +84,7 @@ const AddConferencePage: React.FC<{
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
     const [lots, setLots] = useState<Partial<ConferenceLotData>[]>([{
-        internalLot: '', runNumber: '', steelType: '1006', bitola: '', materialType: dynamicMaterialOptions[0] || '', labelWeight: 0
+        internalLot: '', runNumber: '', steelType: '', bitola: '', materialType: dynamicMaterialOptions[0] || '', labelWeight: 0, labelWeightInput: '0'
     }]);
     const [showManualInput, setShowManualInput] = useState<Record<number, boolean>>({});
     const [duplicateErrors, setDuplicateErrors] = useState<Record<number, string>>({});
@@ -117,6 +117,7 @@ const AddConferencePage: React.FC<{
                         const defaultWeight = calculateTheoreticalWeight(matGauges[0], 1);
                         if (defaultWeight > 0) {
                             copy[0].labelWeight = defaultWeight;
+                            copy[0].labelWeightInput = String(defaultWeight).replace('.', ',');
                         }
                     }
                     return copy;
@@ -168,6 +169,7 @@ const AddConferencePage: React.FC<{
             internalLot: '', 
             qtyPackages: 1, 
             labelWeight: defaultWeight || 0,
+            labelWeightInput: defaultWeight ? String(defaultWeight).replace('.', ',') : '0',
             packagingType: targetGauge?.packagingType || 'granel',
             qtyPerPackaging: targetGauge?.qtyPerPackaging || 1,
             pieceSize: targetGauge?.pieceSize || 0,
@@ -218,6 +220,10 @@ const AddConferencePage: React.FC<{
                     const defaultWeight = calculateTheoreticalWeight(targetGauge, qtyPack);
                     if (defaultWeight > 0) {
                         newLots[index].labelWeight = defaultWeight;
+                        newLots[index].labelWeightInput = String(defaultWeight).replace('.', ',');
+                    } else {
+                        newLots[index].labelWeight = 0;
+                        newLots[index].labelWeightInput = '0';
                     }
                 }
             }
@@ -233,10 +239,17 @@ const AddConferencePage: React.FC<{
             const res = await extractLotDataFromImage(file);
             if (res.nfe || res.conferenceNumber) setConferenceData(p => ({ ...p, nfe: res.nfe || p.nfe, conferenceNumber: res.conferenceNumber || p.conferenceNumber }));
             if (res.lots?.length) {
-                const mapped = res.lots.map((l: any) => ({
-                    internalLot: l.internalLot || '', runNumber: String(l.runNumber || ''),
-                    bitola: (l.bitola || '8.00').replace('.', ','), materialType: (dynamicMaterialOptions[0] || '') as MaterialType, labelWeight: Number(l.labelWeight) || 0
-                }));
+                const mapped = res.lots.map((l: any) => {
+                    const wt = Number(l.labelWeight) || 0;
+                    return {
+                        internalLot: l.internalLot || '',
+                        runNumber: String(l.runNumber || ''),
+                        bitola: (l.bitola || '8.00').replace('.', ','),
+                        materialType: (dynamicMaterialOptions[0] || '') as MaterialType,
+                        labelWeight: wt,
+                        labelWeightInput: String(wt).replace('.', ',')
+                    };
+                });
                 setLots(p => (p.length === 1 && !p[0].internalLot) ? mapped : [...p, ...mapped]);
             }
         } catch (e) { alert('Erro na leitura'); } finally { setIsScanning(false); }
@@ -401,19 +414,20 @@ const AddConferencePage: React.FC<{
                         <table className="w-full text-sm">
                             <thead className="bg-slate-50 border-y">
                                 <tr>
-                                    {['Lote Interno', 'Tipo de Aço', 'Corrida', 'Material', 'Descrição', 'Embalagem', 'Peso Etiqueta', ''].map(h => {
+                                    {['Lote Interno', 'Especificações', 'Corrida', 'Material', 'Descrição', 'Embalagem', 'Peso Etiqueta', ''].map(h => {
                                         let displayHeader = h;
-                                        if (h === 'Tipo de Aço') {
+                                        if (h === 'Especificações') {
                                             const customLabels = lots
                                                 .map(lot => {
                                                     const g = gauges.find(x => x.materialType === lot.materialType && x.gauge === lot.bitola);
-                                                    return g?.customFieldLabel;
+                                                    const lbl = g?.customFieldLabel;
+                                                    return lbl === 'Tipo de Aço' ? 'Especificações' : lbl;
                                                 })
                                                 .filter(Boolean) as string[];
                                             
                                             if (customLabels.length > 0) {
                                                 const unique = Array.from(new Set(customLabels));
-                                                displayHeader = unique.length === 1 ? unique[0] : 'Info. Adicional';
+                                                displayHeader = unique.length === 1 ? unique[0] : 'Especificações';
                                             }
                                         }
                                         return (
@@ -486,7 +500,7 @@ const AddConferencePage: React.FC<{
                                                                 type="text"
                                                                 value={lot.steelType || ''}
                                                                 onChange={e => handleLotChange(index, 'steelType', e.target.value)}
-                                                                placeholder={g.customFieldLabel || 'Tipo de Aço'}
+                                                                placeholder={(g.customFieldLabel === 'Tipo de Aço' ? 'Especificações' : g.customFieldLabel) || 'Especificações'}
                                                                 className="w-full p-2 border rounded text-center bg-white"
                                                                 required
                                                             />
@@ -601,11 +615,14 @@ const AddConferencePage: React.FC<{
                                         <td className="p-2">
                                             <input
                                                 type="text"
-                                                inputMode="numeric"
-                                                value={lot.labelWeight || ''}
+                                                inputMode="decimal"
+                                                value={lot.labelWeightInput !== undefined ? lot.labelWeightInput : (lot.labelWeight || '')}
                                                 onChange={e => {
-                                                    const val = e.target.value.replace(/\D/g, '');
-                                                    handleLotChange(index, 'labelWeight', val ? parseInt(val) : 0);
+                                                    const val = e.target.value.replace(/[^0-9.,]/g, '');
+                                                    const normalized = val.replace(',', '.');
+                                                    const parsed = parseFloat(normalized);
+                                                    handleLotChange(index, 'labelWeight', isNaN(parsed) ? 0 : parsed);
+                                                    handleLotChange(index, 'labelWeightInput', val);
                                                 }}
                                                 className="w-full p-2 border rounded font-bold text-center no-spinner"
                                                 placeholder="0"
@@ -982,15 +999,16 @@ const StockControl: React.FC<{
                                         const customLabels = filtered
                                             .map(item => {
                                                 const g = gauges.find(x => x.materialType === item.materialType && x.gauge === item.bitola);
-                                                return g?.customFieldLabel;
+                                                const lbl = g?.customFieldLabel;
+                                                return lbl === 'Tipo de Aço' ? 'Especificações' : lbl;
                                             })
                                             .filter(Boolean) as string[];
                                         
                                         if (customLabels.length > 0) {
                                             const unique = Array.from(new Set(customLabels));
-                                            return unique.length === 1 ? unique[0] : 'Tipo/Info';
+                                            return unique.length === 1 ? unique[0] : 'Especificações';
                                         }
-                                        return 'Tipo Aço';
+                                        return 'Especificações';
                                     })()}
                                 </th>
                                 <th className="p-3 text-center">Mat.</th>
@@ -1005,7 +1023,13 @@ const StockControl: React.FC<{
                                 <tr key={item.id} className="hover:bg-slate-50">
                                     <td className="p-3 text-center text-slate-500 font-medium print:hidden">{new Date(item.entryDate).toLocaleDateString('pt-BR')}</td>
                                     <td className="p-3 text-center font-black text-slate-900">{item.internalLot}</td>
-                                    <td className="p-3 text-center font-bold text-slate-600">{item.steelType || '-'}</td>
+                                    <td className="p-3 text-center font-bold text-slate-600">
+                                        {(() => {
+                                            const g = gauges.find(x => x.materialType === item.materialType && x.gauge === item.bitola);
+                                            const hasCustom = g && (g.customFieldLabel || g.defaultSteelType);
+                                            return hasCustom ? (item.steelType || '-') : '-';
+                                        })()}
+                                    </td>
                                     <td className="p-3 text-center text-slate-500">{item.materialType}</td>
                                     <td className="p-3 text-center">
                                         <div className="flex flex-col items-center">
@@ -1153,7 +1177,7 @@ const EditStockItemModal: React.FC<{ item: StockItem; onClose: () => void; onSav
                             {(() => {
                                 const g = gauges.find(x => x.materialType === formData.materialType && getStandardizedGaugeKey(x.gauge) === getStandardizedGaugeKey(formData.bitola));
                                 const hasCustom = g && (g.customFieldLabel || g.defaultSteelType);
-                                const label = g?.customFieldLabel || 'Tipo de Aço';
+                                const label = (g?.customFieldLabel === 'Tipo de Aço' ? 'Especificações' : g?.customFieldLabel) || 'Especificações';
                                 const options = g?.customFieldOptions
                                     ? g.customFieldOptions.split(/[,;\-]+/).map(o => o.trim()).filter(Boolean)
                                     : [];
@@ -1218,7 +1242,7 @@ const EditStockItemModal: React.FC<{ item: StockItem; onClose: () => void; onSav
                                 } else {
                                     return (
                                         <>
-                                            <label className="text-xs font-bold text-slate-500 uppercase">Tipo de Aço</label>
+                                            <label className="text-xs font-bold text-slate-500 uppercase">Especificações</label>
                                             <input
                                                 type="text"
                                                 value="-"
@@ -1424,6 +1448,37 @@ const ConsumeLotModal: React.FC<{ item: StockItem; onClose: () => void; onSave: 
         reason: 'Uso na Produção'
     });
 
+    const hasPackaging = item.packagingType && item.packagingType !== 'granel';
+    const unitName = item.packagingType === 'rolo' ? 'rolo' : item.packagingType === 'pacote' ? 'pacote' : item.packagingType === 'barra' ? 'barra' : 'unidade';
+    
+    // Calculate current remaining units based on remainingQuantity ratio
+    const currentRatio = item.labelWeight && item.labelWeight > 0 ? (item.remainingQuantity / item.labelWeight) : 1;
+    const remainingUnits = Math.max(1, Math.round((item.qtyPackages || 1) * currentRatio));
+    const weightPerUnit = item.qtyPackages && item.qtyPackages > 0 ? (item.labelWeight / item.qtyPackages) : item.labelWeight;
+
+    const [consumeType, setConsumeType] = useState<'weight' | 'unit'>(hasPackaging ? 'unit' : 'weight');
+    const [unitsToConsume, setUnitsToConsume] = useState<number>(1);
+
+    // Initialize weight if consuming by unit initially
+    useEffect(() => {
+        if (hasPackaging) {
+            setFormData(prev => ({
+                ...prev,
+                weight: Math.min(item.remainingQuantity, Number((1 * weightPerUnit).toFixed(2)))
+            }));
+        }
+    }, [hasPackaging, weightPerUnit, item.remainingQuantity]);
+
+    const handleUnitsChange = (val: number) => {
+        const sanitizedVal = Math.min(remainingUnits, Math.max(1, val));
+        setUnitsToConsume(sanitizedVal);
+        const calculatedWeight = Number((sanitizedVal * weightPerUnit).toFixed(2));
+        setFormData(prev => ({
+            ...prev,
+            weight: Math.min(item.remainingQuantity, calculatedWeight)
+        }));
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -1441,7 +1496,10 @@ const ConsumeLotModal: React.FC<{ item: StockItem; onClose: () => void; onSave: 
                     'Peso Retirado': `${formData.weight.toFixed(2)} kg`,
                     'Peso Restante': `${newWeight.toFixed(2)} kg`,
                     'Observação': formData.observation || '-',
-                    'Operador': currentUser?.username || 'Sistema'
+                    'Operador': currentUser?.username || 'Sistema',
+                    ...(hasPackaging ? {
+                        'Unidades Retiradas': `${consumeType === 'unit' ? unitsToConsume : Math.round(formData.weight / weightPerUnit)} ${unitName}${Math.round(formData.weight / weightPerUnit) !== 1 ? 's' : ''}`
+                    } : {})
                 }
             }]
         };
@@ -1459,23 +1517,107 @@ const ConsumeLotModal: React.FC<{ item: StockItem; onClose: () => void; onSave: 
                     <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-full transition-colors"><XIcon className="h-6 w-6" /></button>
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex justify-between items-center">
-                        <span className="text-sm font-bold text-blue-800">Saldo Atual:</span>
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex justify-between items-center animate-fadeIn">
+                        <div className="flex flex-col">
+                            <span className="text-xs font-bold text-blue-800 uppercase">Saldo Atual:</span>
+                            {hasPackaging && (
+                                <span className="text-[10px] font-bold text-blue-600 uppercase mt-0.5">({remainingUnits} {unitName}{remainingUnits !== 1 ? 's' : ''})</span>
+                            )}
+                        </div>
                         <span className="text-xl font-black text-[#0F3F5C]">{item.remainingQuantity.toFixed(2)} kg</span>
                     </div>
 
-                    <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase">Quantidade para Baixar (kg)</label>
-                        <input
-                            type="number"
-                            step="0.01"
-                            value={formData.weight}
-                            onChange={e => setFormData({ ...formData, weight: parseFloat(e.target.value) || 0 })}
-                            max={item.remainingQuantity}
-                            className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-lg"
-                            required
-                        />
-                    </div>
+                    {hasPackaging ? (
+                        <div className="space-y-4">
+                            {/* Segmented Control / Toggle */}
+                            <div className="bg-slate-100 p-1 rounded-xl flex gap-1 border">
+                                <button
+                                    type="button"
+                                    onClick={() => setConsumeType('unit')}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${consumeType === 'unit' ? 'bg-[#0F3F5C] text-white shadow-sm' : 'text-slate-600 hover:text-[#0F3F5C]'}`}
+                                >
+                                    Por {unitName.charAt(0).toUpperCase() + unitName.slice(1)}s
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setConsumeType('weight')}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${consumeType === 'weight' ? 'bg-[#0F3F5C] text-white shadow-sm' : 'text-slate-600 hover:text-[#0F3F5C]'}`}
+                                >
+                                    Por Peso (kg)
+                                </button>
+                            </div>
+
+                            {consumeType === 'unit' ? (
+                                <div className="space-y-2 animate-fadeIn">
+                                    <label className="block text-xs font-bold text-slate-500 uppercase">Qtd de {unitName}s para Baixar (Max: {remainingUnits})</label>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleUnitsChange(unitsToConsume - 1)}
+                                            className="px-4 py-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-black rounded-xl text-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled={unitsToConsume <= 1}
+                                        >
+                                            -
+                                        </button>
+                                        <input
+                                            type="number"
+                                            value={unitsToConsume}
+                                            onChange={e => handleUnitsChange(parseInt(e.target.value) || 0)}
+                                            min="1"
+                                            max={remainingUnits}
+                                            className="flex-grow p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-center text-lg"
+                                            required
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => handleUnitsChange(unitsToConsume + 1)}
+                                            className="px-4 py-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-black rounded-xl text-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled={unitsToConsume >= remainingUnits}
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+                                    <p className="text-xs font-semibold text-slate-500 mt-1 italic">
+                                        Equivale a cerca de <span className="font-bold text-slate-700">{formData.weight.toFixed(2)} kg</span>
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-1 animate-fadeIn">
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Quantidade para Baixar (kg)</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={formData.weight || ''}
+                                        onChange={e => {
+                                            const w = parseFloat(e.target.value) || 0;
+                                            setFormData({ ...formData, weight: w });
+                                            const u = Math.max(1, Math.round(w / weightPerUnit));
+                                            setUnitsToConsume(Math.min(remainingUnits, u));
+                                        }}
+                                        max={item.remainingQuantity}
+                                        className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-lg"
+                                        required
+                                    />
+                                    <p className="text-xs font-semibold text-slate-500 mt-1 italic">
+                                        Equivale a retirar cerca de <span className="font-bold text-slate-700">{Math.round(formData.weight / weightPerUnit)} {unitName}{Math.round(formData.weight / weightPerUnit) !== 1 ? 's' : ''}</span>
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-500 uppercase">Quantidade para Baixar (kg)</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={formData.weight || ''}
+                                onChange={e => setFormData({ ...formData, weight: parseFloat(e.target.value) || 0 })}
+                                max={item.remainingQuantity}
+                                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-lg"
+                                required
+                            />
+                        </div>
+                    )}
 
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-slate-500 uppercase">Motivo / Destino</label>
@@ -1504,8 +1646,8 @@ const ConsumeLotModal: React.FC<{ item: StockItem; onClose: () => void; onSave: 
                     </div>
 
                     <div className="pt-4 flex gap-3">
-                        <button type="button" onClick={onClose} className="flex-1 px-4 py-3 border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-colors">Cancelar</button>
-                        <button type="submit" className="flex-1 px-4 py-3 bg-[#0F3F5C] text-white font-bold rounded-xl hover:bg-[#0A2A3D] transition-colors shadow-lg shadow-blue-900/20">Confirmar Baixa</button>
+                        <button type="button" onClick={onClose} className="flex-1 px-4 py-3 border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-colors cursor-pointer">Cancelar</button>
+                        <button type="submit" className="flex-1 px-4 py-3 bg-[#0F3F5C] text-white font-bold rounded-xl hover:bg-[#0A2A3D] transition-colors shadow-lg shadow-blue-900/20 cursor-pointer">Confirmar Baixa</button>
                     </div>
                 </form>
             </div>

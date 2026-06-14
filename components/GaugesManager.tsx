@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import type { StockGauge, StockItem, GaugeComponent, User } from '../types';
 import { SteelTypeOptions } from '../types';
 import { TrashIcon, PlusIcon, ScaleIcon, PencilIcon, XIcon, SearchIcon } from './icons';
-import { insertItem, deleteItemByColumn } from '../services/supabaseService';
+import { insertItem, deleteItemByColumn, uploadFile } from '../services/supabaseService';
 
 interface GaugesManagerProps {
     gauges: StockGauge[];
@@ -36,6 +36,39 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
     const [selectedGroup, setSelectedGroup] = useState<string>('');
     const [customGroupName, setCustomGroupName] = useState('');
     const [isCreatingNewGroup, setIsCreatingNewGroup] = useState(false);
+    
+    // View modes and upload states
+    const [viewMode, setViewMode] = useState<'list' | 'form'>('list');
+    const [imageUrl, setImageUrl] = useState('');
+    const [isUploading, setIsUploading] = useState(false);
+    const [viewingGauge, setViewingGauge] = useState<StockGauge | null>(null);
+
+    // SVG icon for eye
+    const EyeIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+        <svg xmlns="http://www.w3.org/2050/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+        </svg>
+    );
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setIsUploading(true);
+        try {
+            const path = `product-images/${Date.now()}-${file.name}`;
+            const url = await uploadFile('kb-files', path, file);
+            if (url) {
+                setImageUrl(url);
+                alert('Imagem carregada com sucesso!');
+            }
+        } catch (err) {
+            console.error('Error uploading image:', err);
+            alert('Erro ao carregar imagem.');
+        } finally {
+            setIsUploading(false);
+        }
+    };
     
     const [metricUnit, setMetricUnit] = useState('mm');
     const [gaugeValue, setGaugeValue] = useState('');
@@ -113,17 +146,21 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                 setWeightPerMeter('');
             }
         } else if (weightType === 'peso') {
-            setWeightPerMeter('1');
+            if (packagingType === 'rolo') {
+                // Do not overwrite weightPerMeter, it is set directly by the input
+            } else {
+                setWeightPerMeter('1');
+            }
         }
-    }, [rawWeightValue, weightType, weightUnit, pieceSize]);
+    }, [rawWeightValue, weightType, weightUnit, pieceSize, packagingType]);
 
-    // Force values if weightType is 'peso' (1:1)
+    // Force values if weightType is 'peso' (1:1), except for rolo where we allow custom rawWeightValue
     useEffect(() => {
-        if (weightType === 'peso') {
+        if (weightType === 'peso' && packagingType !== 'rolo') {
             setRawWeightValue('1');
             setWeightUnit('kg');
         }
-    }, [weightType]);
+    }, [weightType, packagingType]);
     
     // Global actions / editing state
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -298,6 +335,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
         setCustomFieldValue('');
         setPackagingType('granel');
         setQtyPerPackaging('1');
+        setImageUrl('');
     };
 
     const calculateRowConsumptionWeight = (
@@ -471,7 +509,8 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
             customFieldOptions: useCustomField ? customFieldOptions.trim() : undefined,
             customFieldValue: useCustomField ? customFieldValue.trim() : undefined,
             packagingType: packagingType,
-            qtyPerPackaging: qtyPerPackaging ? parseFloat(qtyPerPackaging) : 1
+            qtyPerPackaging: qtyPerPackaging ? parseFloat(qtyPerPackaging) : 1,
+            imageUrl: imageUrl.trim() || undefined
         };
 
         try {
@@ -513,6 +552,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
 
             alert(editingId ? 'Material atualizado com sucesso!' : 'Material cadastrado com sucesso!');
             handleReset();
+            setViewMode('list');
         } catch (error: any) {
             console.error('Error saving gauge/components:', error);
             alert(`Erro ao salvar: ${error?.message || 'erro desconhecido'}`);
@@ -568,6 +608,8 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
 
         const currentItemType = (g.itemType === 'produto_composto' ? 'produto_composto' : 'materia_prima') as 'materia_prima' | 'produto_composto';
         setItemType(currentItemType);
+        setImageUrl(g.imageUrl || '');
+        setViewMode('form');
 
         if (currentItemType === 'produto_composto') {
             const comps = (gaugeComponents || []).filter(c => c.parentGaugeId === g.id);
@@ -670,15 +712,26 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
     return (
         <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-8 animate-fadeIn">
             <div className="max-w-6xl mx-auto space-y-6">
-                <header className="flex items-center justify-between pt-4">
+                <header className="flex items-center justify-between pt-4 bg-transparent border-none">
                     <div>
                         <h1 className="text-3xl font-bold text-slate-800">Gerenciar Bitolas</h1>
                         <p className="text-slate-500 text-sm">Adicione, edite ou remova materiais e bitolas do sistema.</p>
                     </div>
+                    {isGestor && viewMode === 'list' && (
+                        <button
+                            onClick={() => {
+                                handleReset();
+                                setViewMode('form');
+                            }}
+                            className="bg-[#0F3F5C] hover:bg-[#0A2A3D] text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition flex items-center gap-2"
+                        >
+                            <PlusIcon className="h-5 w-5" /> Novo Cadastro
+                        </button>
+                    )}
                 </header>
 
                 {/* Form Card */}
-                {isGestor ? (
+                {isGestor && viewMode === 'form' ? (
                     <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
                         <div className="p-6 bg-slate-50 border-b border-slate-200">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -872,7 +925,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                                 onChange={e => {
                                                     setUseCustomField(e.target.checked);
                                                     if (e.target.checked && !customFieldLabel) {
-                                                        setCustomFieldLabel('Tipo de Aço');
+                                                        setCustomFieldLabel('Especificações');
                                                     }
                                                 }}
                                                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
@@ -890,7 +943,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                                         type="text"
                                                         value={customFieldLabel}
                                                         onChange={e => setCustomFieldLabel(e.target.value)}
-                                                        placeholder="Ex: Tipo de Aço, Dureza, Cor"
+                                                        placeholder="Ex: Especificações, Dureza, Cor"
                                                         className="w-full p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                                                     />
                                                 </div>
@@ -1011,18 +1064,30 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                     <div className="flex gap-2">
                                         <input
                                             type="number"
-                                            value={itemType === 'produto_composto' ? totalTheoreticalWeight.toFixed(3) : rawWeightValue}
-                                            onChange={e => setRawWeightValue(e.target.value)}
+                                            value={
+                                                itemType === 'produto_composto'
+                                                    ? totalTheoreticalWeight.toFixed(3)
+                                                    : (packagingType === 'rolo' && weightType === 'peso')
+                                                    ? weightPerMeter
+                                                    : rawWeightValue
+                                            }
+                                            onChange={e => {
+                                                if (packagingType === 'rolo' && weightType === 'peso') {
+                                                    setWeightPerMeter(e.target.value);
+                                                } else {
+                                                    setRawWeightValue(e.target.value);
+                                                }
+                                            }}
                                             placeholder={weightType === 'metro' ? "Ex: 0.109" : weightType === 'unid' ? "Ex: 10.5" : "Ex: 1.0"}
                                             step="any"
                                             min="0"
-                                            disabled={weightType === 'peso' || itemType === 'produto_composto'}
+                                            disabled={(weightType === 'peso' && packagingType !== 'rolo') || itemType === 'produto_composto'}
                                             className="w-2/3 p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white disabled:bg-slate-50 disabled:text-slate-400"
                                         />
                                         <select
                                             value={itemType === 'produto_composto' ? 'kg' : weightUnit}
                                             onChange={e => setWeightUnit(e.target.value)}
-                                            disabled={weightType === 'peso' || itemType === 'produto_composto'}
+                                            disabled={(weightType === 'peso' && packagingType !== 'rolo') || itemType === 'produto_composto'}
                                             className="w-1/3 p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white text-slate-700 disabled:bg-slate-50 disabled:text-slate-400"
                                         >
                                             <option value="kg">kg</option>
@@ -1056,8 +1121,50 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                 </div>
                             </div>
 
-                            {/* Column 4: Preço & Ações */}
+                            {/* Column 4: Imagem, Preço & Ações */}
                             <div className="flex flex-col justify-between space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">IMAGEM DO PRODUTO</label>
+                                    <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                                        <div className="w-16 h-16 rounded-lg border bg-white flex items-center justify-center overflow-hidden flex-shrink-0 shadow-inner">
+                                            {imageUrl ? (
+                                                <img src={imageUrl} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <ScaleIcon className="h-8 w-8 text-slate-300" />
+                                            )}
+                                        </div>
+                                        <div className="flex flex-col space-y-1.5 w-full">
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleImageUpload}
+                                                id="gauge-image-upload"
+                                                className="hidden"
+                                                disabled={isUploading}
+                                            />
+                                            <label
+                                                htmlFor="gauge-image-upload"
+                                                className={`text-center text-xs font-bold py-1.5 px-3 rounded-lg border cursor-pointer transition ${
+                                                    isUploading
+                                                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                                                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300 shadow-sm'
+                                                }`}
+                                            >
+                                                {isUploading ? 'Enviando...' : 'Selecionar Imagem'}
+                                            </label>
+                                            {imageUrl && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setImageUrl('')}
+                                                    className="text-left text-[10px] text-red-500 hover:text-red-700 font-bold uppercase tracking-wider"
+                                                >
+                                                    Remover Imagem
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                                         {itemType === 'produto_composto' ? 'CUSTO MATÉRIA-PRIMA' : 'PREÇO DE COMPRA (KG)'}
@@ -1098,6 +1205,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                     <div className="flex gap-2 flex-wrap md:flex-nowrap">
                                         {editingId && (
                                             <button
+                                                type="button"
                                                 onClick={() => {
                                                     setEditingId(null);
                                                     alert("Modo de edição desativado. Agora você pode salvar este item como um NOVO cadastro!");
@@ -1109,19 +1217,25 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                             </button>
                                         )}
                                         <button
-                                            onClick={handleReset}
+                                            type="button"
+                                            onClick={() => {
+                                                handleReset();
+                                                setViewMode('list');
+                                            }}
                                             className="flex-grow bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold py-3.5 px-3 rounded-xl shadow-sm transition text-xs flex items-center justify-center gap-1.5"
                                         >
-                                            <XIcon className="h-4 w-4" /> Novo Cadastro
+                                            <XIcon className="h-4 w-4" /> {editingId ? 'Cancelar' : 'Voltar'}
                                         </button>
                                         <button
+                                            type="button"
                                             onClick={handleSave}
-                                            className="bg-[#0F3F5C] hover:bg-[#0A2A3D] text-white font-bold p-3.5 rounded-xl shadow-sm transition flex items-center justify-center w-14 border border-transparent"
+                                            className="bg-[#0F3F5C] hover:bg-[#0A2A3D] text-white font-bold p-3.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2 flex-grow border border-transparent text-xs"
                                             title={editingId ? 'Salvar Alterações' : 'Salvar Material'}
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                                             </svg>
+                                            Salvar
                                         </button>
                                     </div>
                                 </div>
@@ -1259,241 +1373,266 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                         )}
                         </div>
                     </div>
-                ) : (
+                ) : viewMode === 'form' ? (
                     <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 shadow-sm text-center text-amber-800 font-semibold text-sm">
                         Apenas administradores e gestores possuem permissão para cadastrar ou editar materiais e bitolas.
                     </div>
-                )}
+                ) : null}
 
                 {/* Search and List Section */}
-                <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-                    <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center gap-4">
-                        <div className="relative w-full">
-                            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                            <input
-                                type="text"
-                                placeholder="Buscar por material, bitola ou código de produto..."
-                                value={searchTerm}
-                                onChange={e => setSearchTerm(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 outline-none text-sm text-slate-600 font-medium bg-transparent"
-                            />
+                {viewMode === 'list' && (
+                    <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden animate-fadeIn">
+                        <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center gap-4">
+                            <div className="relative w-full">
+                                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar por material, bitola ou código de produto..."
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                    className="w-full pl-12 pr-4 py-3 outline-none text-sm text-slate-600 font-medium bg-transparent"
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse text-slate-700">
-                            <thead>
-                                <tr className="bg-slate-50/70 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
-                                    <th className="p-4">Cód. Produto</th>
-                                    <th className="p-4">Material</th>
-                                    <th className="p-4">Bitola</th>
-                                    <th className="p-4">Preço (kg)</th>
-                                    <th className="p-4">Status</th>
-                                    {isGestor && <th className="p-4 text-center">Ações</th>}
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 text-sm">
-                                {filteredGauges.map(g => {
-                                    const stockInfo = getStockInfo(g.materialType, g.gauge);
-                                    const hasStock = stockInfo.count > 0;
-                                    
-                                    // Parse value and unit for display
-                                    let displayValue = g.gauge.replace('.', ',');
-                                    let displayUnit = '';
-                                    const units = ['mm', 'mts', 'kg', 'unid', 'BWG'];
-                                    for (const u of units) {
-                                        if (g.gauge.toLowerCase().endsWith(` ${u.toLowerCase()}`)) {
-                                            displayValue = g.gauge.substring(0, g.gauge.length - u.length - 1).replace('.', ',');
-                                            displayUnit = u;
-                                            break;
-                                        } else if (g.gauge.toLowerCase().endsWith(u.toLowerCase())) {
-                                            displayValue = g.gauge.substring(0, g.gauge.length - u.length).replace('.', ',');
-                                            displayUnit = u;
-                                            break;
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-slate-700">
+                                <thead>
+                                    <tr className="bg-slate-50/70 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                                        <th className="p-4 text-left">COD</th>
+                                        <th className="p-4 text-left">IMAGEM</th>
+                                        <th className="p-4 text-left">MATERIAL</th>
+                                        <th className="p-4 text-left">ESPECIFICAÇÃO</th>
+                                        <th className="p-4 text-left">BITOLA/DIMENSÃO</th>
+                                        <th className="p-4 text-left">FATOR CONVERSÃO</th>
+                                        <th className="p-4 text-left">ESTOQUE</th>
+                                        <th className="p-4 text-left">PREÇO (KG)</th>
+                                        <th className="p-4 text-left">STATUS</th>
+                                        {isGestor && <th className="p-4 text-center">AÇÕES</th>}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-sm">
+                                    {filteredGauges.map(g => {
+                                        const stockInfo = getStockInfo(g.materialType, g.gauge);
+                                        const hasStock = stockInfo.count > 0;
+                                        
+                                        // Parse value and unit for display
+                                        let displayValue = g.gauge.replace('.', ',');
+                                        let displayUnit = '';
+                                        const units = ['mm', 'mts', 'kg', 'unid', 'BWG'];
+                                        for (const u of units) {
+                                            if (g.gauge.toLowerCase().endsWith(` ${u.toLowerCase()}`)) {
+                                                displayValue = g.gauge.substring(0, g.gauge.length - u.length - 1).replace('.', ',');
+                                                displayUnit = u;
+                                                break;
+                                            } else if (g.gauge.toLowerCase().endsWith(u.toLowerCase())) {
+                                                displayValue = g.gauge.substring(0, g.gauge.length - u.length).replace('.', ',');
+                                                displayUnit = u;
+                                                break;
+                                            }
                                         }
-                                    }
-                                    
-                                    return (
-                                        <tr key={g.id} className="hover:bg-slate-50/50 transition-colors group">
-                                            <td className="p-4 font-semibold text-slate-900">
-                                                <div className="flex flex-col">
-                                                    <span className={g.productCode ? 'text-blue-600 font-mono font-bold' : 'text-slate-400 italic'}>
+
+                                        const percent = g.idealWeight ? Math.min(100, (stockInfo.totalWeight / g.idealWeight) * 100) : (stockInfo.totalWeight > 0 ? 50 : 0);
+                                        
+                                        return (
+                                            <tr key={g.id} className="hover:bg-slate-50/50 transition-colors group">
+                                                {/* COD */}
+                                                <td className="p-4 font-semibold text-slate-900">
+                                                    <span className={g.productCode ? 'text-blue-600 font-mono font-bold text-sm' : 'text-slate-400 italic text-sm'}>
                                                         {g.productCode || 'Sem código'}
                                                     </span>
-                                                    {g.technicalDescription && (
-                                                        <span className="text-[10px] text-slate-400 font-normal line-clamp-1 max-w-[250px]" title={g.technicalDescription}>
-                                                            {g.technicalDescription}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="p-4">
-                                                <div className="flex flex-col">
-                                                    <span className="font-semibold text-slate-800">{g.materialType}</span>
-                                                    <div className="flex flex-wrap gap-1 mt-1">
-                                                        <span className={`inline-block px-1.5 py-0.5 text-[10px] font-bold rounded ${
-                                                            g.itemType === 'produto_composto'
-                                                                ? 'bg-purple-100 text-purple-700 border border-purple-200'
-                                                                : 'bg-blue-100 text-blue-700 border border-blue-200'
-                                                        }`}>
-                                                            {g.itemType === 'produto_composto' ? 'Composto' : 'Matéria-Prima'}
-                                                        </span>
-                                                        <span className={`inline-block px-1.5 py-0.5 text-[10px] font-bold rounded ${
-                                                            g.autoGenerateLot
-                                                                ? 'bg-amber-100 text-amber-700 border border-amber-200'
-                                                                : 'bg-slate-100 text-slate-600 border border-slate-200'
-                                                        }`}>
-                                                            Lote: {g.autoGenerateLot ? 'Automático' : 'Manual'}
-                                                        </span>
-                                                        {(g.customFieldLabel || g.defaultSteelType) && (
-                                                            <span className="inline-block px-1.5 py-0.5 text-[10px] font-bold rounded bg-emerald-100 text-emerald-800 border border-emerald-200" title={g.customFieldOptions ? `Opções: ${g.customFieldOptions}` : undefined}>
-                                                                {g.customFieldLabel || 'Aço'}: {g.customFieldValue || g.defaultSteelType}
-                                                            </span>
-                                                        )}
-                                                        {g.packagingType && g.packagingType !== 'granel' && (
-                                                            <span className="inline-block px-1.5 py-0.5 text-[10px] font-bold rounded bg-indigo-100 text-indigo-700 border border-indigo-200">
-                                                                {g.packagingType === 'rolo' ? 'Rolo' : g.packagingType === 'pacote' ? `Pacote (${g.qtyPerPackaging} un)` : g.packagingType === 'barra' ? 'Barra' : 'Granel'}
-                                                            </span>
+                                                </td>
+
+                                                {/* IMAGEM */}
+                                                <td className="p-4">
+                                                    <div className="w-12 h-12 rounded-lg border bg-white flex items-center justify-center overflow-hidden shadow-sm">
+                                                        {g.imageUrl ? (
+                                                            <img src={g.imageUrl} className="w-full h-full object-cover" />
+                                                        ) : g.materialType.toLowerCase().includes('rolo') || g.gauge.toLowerCase().includes('rolo') ? (
+                                                            <img src="/images/wire_coil.png" className="w-full h-full object-cover opacity-90" />
+                                                        ) : g.materialType.toLowerCase().includes('vergalhão') || g.materialType.toLowerCase().includes('barra') || g.packagingType === 'barra' ? (
+                                                            <img src="/images/steel_bars.png" className="w-full h-full object-cover opacity-90" />
+                                                        ) : (
+                                                            <ScaleIcon className="h-6 w-6 text-slate-300" />
                                                         )}
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td className="p-4">
-                                                <div className="flex flex-col">
-                                                    <span className="font-bold text-slate-800">
-                                                        {displayValue}{displayUnit ? ` ${displayUnit}` : ''}
-                                                        {g.weightType === 'unid' && g.pieceSize ? ` / ${String(g.pieceSize).replace('.', ',')} mts` : ''}
-                                                    </span>
-                                                    {g.weightPerMeter && (
-                                                        <span className="text-[10px] text-slate-500 font-semibold">
-                                                            {g.weightType === 'unid' && g.pieceSize ? (
-                                                                <>
-                                                                    Peso/Barra: {String(((g.weightPerMeter || 0) * (g.pieceSize || 0)).toFixed(2)).replace('.', ',')} kg ({String(g.weightPerMeter).replace('.', ',')} kg/m)
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    {g.itemType === 'produto_composto' ? 'Peso/m Teórico:' : 'Peso/m:'} {g.weightPerMeter} kg/m
-                                                                </>
+                                                </td>
+
+                                                {/* MATERIAL */}
+                                                <td className="p-4">
+                                                    <div className="flex flex-col space-y-1">
+                                                        <span className="font-bold text-slate-805 text-sm">{g.materialType}</span>
+                                                        <div className="flex flex-wrap gap-1">
+                                                            <span className={`inline-block px-1.5 py-0.5 text-[9px] font-bold rounded ${
+                                                                g.itemType === 'produto_composto'
+                                                                    ? 'bg-purple-100 text-purple-700 border border-purple-200'
+                                                                    : 'bg-blue-100 text-blue-700 border border-blue-200'
+                                                            }`}>
+                                                                {g.itemType === 'produto_composto' ? 'Composto' : 'Matéria-Prima'}
+                                                            </span>
+                                                            {g.packagingType && g.packagingType !== 'granel' && (
+                                                                <span className="inline-block px-1.5 py-0.5 text-[9px] font-bold rounded bg-indigo-100 text-indigo-700 border border-indigo-200">
+                                                                    {g.packagingType === 'rolo' ? 'Rolo' : g.packagingType === 'pacote' ? `Pacote` : g.packagingType === 'barra' ? 'Barra' : 'Granel'}
+                                                                </span>
                                                             )}
-                                                        </span>
-                                                    )}
-                                                    {g.itemType === 'produto_composto' && (
-                                                        <div className="mt-1.5 flex flex-wrap gap-1">
-                                                            {(gaugeComponents || [])
-                                                                .filter(c => c.parentGaugeId === g.id)
-                                                                .map(c => {
-                                                                    const childGauge = gauges.find(cg => cg.id === c.componentGaugeId);
-                                                                    if (!childGauge) return null;
-                                                                    const unitSuffix = c.consumptionType === 'metro' ? 'm' : c.consumptionType === 'quantidade' ? 'un' : 'kg';
-                                                                    const displayVal = c.consumptionValue !== undefined ? c.consumptionValue : c.consumption;
-                                                                    const showConversion = c.consumptionType && c.consumptionType !== 'peso';
-                                                                    
-                                                                    return (
-                                                                        <span
-                                                                            key={c.id}
-                                                                            className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[10px] font-medium border border-slate-200"
-                                                                            title={`${c.funcao || 'Componente'}: ${displayVal}${unitSuffix}${showConversion ? ` (${c.consumption.toFixed(2)} kg)` : ''}`}
-                                                                        >
-                                                                            <span className="font-semibold text-slate-500">{c.funcao || 'Comp'}:</span>
-                                                                            {childGauge.materialType} {childGauge.gauge} ({displayVal}{unitSuffix})
-                                                                        </span>
-                                                                    );
-                                                                })}
+                                                            {g.defaultSteelType && (
+                                                                <span className="inline-block px-1.5 py-0.5 text-[9px] font-bold rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                                    {g.defaultSteelType}
+                                                                </span>
+                                                            )}
                                                         </div>
+                                                    </div>
+                                                </td>
+
+                                                {/* ESPECIFICAÇÃO */}
+                                                <td className="p-4">
+                                                    <span className="text-slate-600 font-medium text-xs">
+                                                        {g.technicalDescription || 'Norma ABNT NBR 7480'}
+                                                    </span>
+                                                </td>
+
+                                                {/* BITOLA/DIMENSÃO */}
+                                                <td className="p-4 font-bold text-slate-850 text-sm">
+                                                    <div className="flex flex-col">
+                                                        <span>
+                                                            {displayValue}{displayUnit ? ` ${displayUnit}` : ''}
+                                                            {g.weightType === 'unid' && g.pieceSize ? ` x ${String(g.pieceSize).replace('.', ',')}m` : ''}
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-400 font-normal">
+                                                            {g.weightType === 'unid' && g.pieceSize ? '(Ø/L)' : '(Ø)'}
+                                                        </span>
+                                                    </div>
+                                                </td>
+
+                                                {/* FATOR CONVERSÃO */}
+                                                <td className="p-4 text-xs font-semibold text-slate-700">
+                                                    {g.weightType === 'unid' && g.pieceSize ? (
+                                                        <div className="flex flex-col">
+                                                            <span>{String(g.rawWeightValue || 0).replace('.', ',')} kg/barra</span>
+                                                            <span className="text-[10px] text-slate-400 font-normal">({String(g.weightPerMeter || 0).replace('.', ',')} kg/m)</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span>{String(g.weightPerMeter || 0).replace('.', ',')} kg/m</span>
                                                     )}
-                                                </div>
-                                            </td>
-                                            <td className="p-4 font-bold text-slate-800">
-                                                {g.purchasePrice ? `R$ ${g.purchasePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
-                                            </td>
-                                            <td className="p-4">
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full border ${
+                                                </td>
+
+                                                {/* ESTOQUE */}
+                                                <td className="p-4 text-xs font-semibold text-slate-700">
+                                                    <div className="flex flex-col space-y-1">
+                                                        <span className="font-bold text-slate-800">
+                                                            Total: {stockInfo.totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 3 })} kg
+                                                        </span>
+                                                        <span className="text-xs text-slate-500 font-semibold">
+                                                            {stockInfo.count} {stockInfo.count === 1 ? 'Lote' : 'Lotes'}
+                                                        </span>
+                                                        {stockInfo.totalWeight > 0 && (
+                                                            <div className="w-24 bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                                                <div 
+                                                                    className={`h-full rounded-full ${
+                                                                        percent < 25 ? 'bg-red-500' : percent < 60 ? 'bg-amber-500' : 'bg-emerald-500'
+                                                                    }`}
+                                                                    style={{ width: `${percent}%` }}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </td>
+
+                                                {/* PREÇO (KG) */}
+                                                <td className="p-4 font-bold text-slate-850 text-sm">
+                                                    {g.purchasePrice ? `R$ ${g.purchasePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                                                </td>
+
+                                                {/* STATUS */}
+                                                <td className="p-4">
+                                                    <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full border flex items-center gap-1 w-fit ${
                                                         g.status === 'Inativo'
                                                             ? 'bg-slate-100 text-slate-500 border-slate-200'
                                                             : 'bg-emerald-100 text-emerald-800 border-emerald-200'
                                                     }`}>
+                                                        <span className={`h-1.5 w-1.5 rounded-full ${g.status === 'Inativo' ? 'bg-slate-450' : 'bg-emerald-500'}`} />
                                                         {g.status || 'Ativo'}
                                                     </span>
-                                                    {hasStock && (
-                                                        <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-full font-extrabold flex items-center gap-1 animate-fadeIn">
-                                                            <span className="h-1 w-1 rounded-full bg-emerald-500"></span>
-                                                            {stockInfo.count} Lote(s) ({stockInfo.totalWeight.toLocaleString('pt-BR')} kg)
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            {isGestor && (
-                                                <td className="p-4">
-                                                    <div className="flex items-center justify-center gap-2">
-                                                        {g.id.startsWith('STOCK-') ? (
-                                                            // STOCK- entry: not registered in DB, can only be removed from view
-                                                            <>
-                                                                <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-bold">
-                                                                    Sem cadastro
-                                                                </span>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        if (confirm(`A bitola "${g.gauge}" do material "${g.materialType}" aparece no estoque mas não está cadastrada no sistema.\n\nCadastre-a em "Cadastrar Material & Bitola" acima para ter controle total.\n\nDeseja apenas remover da visualização?`)) {
-                                                                            onDelete(g.id);
-                                                                        }
-                                                                    }}
-                                                                    className="p-1.5 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition"
-                                                                    title="Remover da visualização (não cadastrado)"
-                                                                >
-                                                                    <TrashIcon className="h-4 w-4" />
-                                                                </button>
-                                                            </>
-                                                        ) : (
-                                                            // Registered gauge - normal edit + delete
-                                                            <>
-                                                                <button
-                                                                    onClick={() => handleStartEdit(g)}
-                                                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                                                                    title="Editar"
-                                                                >
-                                                                    <PencilIcon className="h-4 w-4" />
-                                                                </button>
-                                                                {hasStock ? (
-                                                                    <button
-                                                                        onClick={() => alert(`Não é possível excluir pois existem lotes em estoque usando esta bitola.`)}
-                                                                        className="p-1.5 text-slate-300 cursor-not-allowed rounded-lg"
-                                                                        title="Em estoque (bloqueado)"
-                                                                    >
-                                                                        <TrashIcon className="h-4 w-4 opacity-50" />
-                                                                    </button>
-                                                                ) : (
+                                                </td>
+
+                                                {/* AÇÕES */}
+                                                {isGestor && (
+                                                    <td className="p-4">
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            {g.id.startsWith('STOCK-') ? (
+                                                                <>
+                                                                    <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-bold">
+                                                                        Sem cadastro
+                                                                    </span>
                                                                     <button
                                                                         onClick={() => {
-                                                                            if (confirm(`Deseja realmente excluir a bitola ${g.gauge} do material ${g.materialType}?`)) {
+                                                                            if (confirm(`A bitola "${g.gauge}" do material "${g.materialType}" aparece no estoque mas não está cadastrada no sistema.\n\nCadastre-a para ter controle total.\n\nDeseja apenas remover da visualização?`)) {
                                                                                 onDelete(g.id);
                                                                             }
                                                                         }}
-                                                                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
-                                                                        title="Excluir"
+                                                                        className="p-1.5 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition"
+                                                                        title="Remover da visualização (não cadastrado)"
                                                                     >
                                                                         <TrashIcon className="h-4 w-4" />
                                                                     </button>
-                                                                )}
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            )}
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => setViewingGauge(g)}
+                                                                        className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
+                                                                        title="Visualizar Detalhes"
+                                                                    >
+                                                                        <EyeIcon className="h-4 w-4" />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleStartEdit(g)}
+                                                                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                                                                        title="Editar"
+                                                                    >
+                                                                        <PencilIcon className="h-4 w-4" />
+                                                                    </button>
+                                                                    {hasStock ? (
+                                                                        <button
+                                                                            onClick={() => alert(`Não é possível excluir pois existem lotes em estoque usando esta bitola.`)}
+                                                                            className="p-1.5 text-slate-300 cursor-not-allowed rounded-lg"
+                                                                            title="Em estoque (bloqueado)"
+                                                                        >
+                                                                            <TrashIcon className="h-4 w-4 opacity-50" />
+                                                                        </button>
+                                                                    ) : (
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                if (confirm(`Deseja realmente excluir a bitola ${g.gauge} do material ${g.materialType}?`)) {
+                                                                                    onDelete(g.id);
+                                                                                }
+                                                                            }}
+                                                                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                                                                            title="Excluir"
+                                                                        >
+                                                                            <TrashIcon className="h-4 w-4" />
+                                                                        </button>
+                                                                    )}
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        );
+                                    })}
+                                    {filteredGauges.length === 0 && (
+                                        <tr>
+                                            <td colSpan={isGestor ? 10 : 9} className="p-8 text-center text-slate-400 italic">
+                                                Nenhum material ou bitola cadastrada que corresponda à busca.
+                                            </td>
                                         </tr>
-                                    );
-                                })}
-                                {filteredGauges.length === 0 && (
-                                    <tr>
-                                        <td colSpan={isGestor ? 6 : 5} className="p-8 text-center text-slate-400 italic">
-                                            Nenhum material ou bitola cadastrada que corresponda à busca.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Info Card */}
                 <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 shadow-sm">
@@ -1506,6 +1645,99 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                     </p>
                 </div>
             </div>
+
+            {/* viewingGauge modal popup */}
+            {viewingGauge && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+                        {/* Header */}
+                        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                            <div>
+                                <h3 className="text-xl font-bold text-slate-900">Detalhes do Material</h3>
+                                <p className="text-xs text-slate-500">Visualização detalhada da bitola cadastrada</p>
+                            </div>
+                            <button
+                                onClick={() => setViewingGauge(null)}
+                                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition"
+                            >
+                                <XIcon className="h-5 w-5" />
+                            </button>
+                        </div>
+                        {/* Content */}
+                        <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+                            <div className="flex flex-col md:flex-row gap-6">
+                                {/* Image */}
+                                <div className="w-full md:w-1/3 flex-shrink-0">
+                                    <div className="w-full aspect-square rounded-xl border bg-slate-50 flex items-center justify-center overflow-hidden shadow-inner">
+                                        {viewingGauge.imageUrl ? (
+                                            <img src={viewingGauge.imageUrl} className="w-full h-full object-cover" />
+                                        ) : viewingGauge.materialType.toLowerCase().includes('rolo') || viewingGauge.gauge.toLowerCase().includes('rolo') ? (
+                                            <img src="/images/wire_coil.png" className="w-full h-full object-cover opacity-90" />
+                                        ) : viewingGauge.materialType.toLowerCase().includes('vergalhão') || viewingGauge.materialType.toLowerCase().includes('barra') || viewingGauge.packagingType === 'barra' ? (
+                                            <img src="/images/steel_bars.png" className="w-full h-full object-cover opacity-90" />
+                                        ) : (
+                                            <ScaleIcon className="h-12 w-12 text-slate-300" />
+                                        )}
+                                    </div>
+                                </div>
+                                {/* Primary Info */}
+                                <div className="flex-grow space-y-4">
+                                    <div>
+                                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Código do Produto</span>
+                                        <p className="text-lg font-mono font-bold text-blue-600">{viewingGauge.productCode || 'Sem código'}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Material / Grupo</span>
+                                        <p className="text-lg font-bold text-slate-800">{viewingGauge.materialType}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Bitola / Dimensão</span>
+                                        <p className="text-lg font-bold text-slate-900">{viewingGauge.gauge}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <hr className="border-slate-100" />
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Especificações Técnicas</span>
+                                    <p className="text-sm font-medium text-slate-700 bg-slate-50 p-2.5 rounded-lg border">
+                                        {viewingGauge.technicalDescription || 'Norma ABNT NBR 7480'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Configuração de Embalagem</span>
+                                    <p className="text-sm font-medium text-slate-700 bg-slate-50 p-2.5 rounded-lg border">
+                                        {viewingGauge.packagingType === 'rolo' ? 'Rolo / Bobina' : viewingGauge.packagingType === 'pacote' ? `Pacote (${viewingGauge.qtyPerPackaging} unidades)` : viewingGauge.packagingType === 'barra' ? 'Barra avulsa' : 'Granel'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Fator de Conversão</span>
+                                    <p className="text-sm font-medium text-slate-700 bg-slate-50 p-2.5 rounded-lg border">
+                                        {viewingGauge.weightPerMeter ? `${String(viewingGauge.weightPerMeter).replace('.', ',')} kg/m` : '---'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Preço de Compra</span>
+                                    <p className="text-sm font-bold text-slate-900 bg-slate-50 p-2.5 rounded-lg border">
+                                        {viewingGauge.purchasePrice ? `R$ ${viewingGauge.purchasePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / kg` : '-'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {/* Footer */}
+                        <div className="p-4 bg-slate-50 border-t flex justify-end">
+                            <button
+                                onClick={() => setViewingGauge(null)}
+                                className="bg-[#0F3F5C] hover:bg-[#0A2A3D] text-white font-bold py-2 px-6 rounded-xl transition"
+                            >
+                                Fechar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

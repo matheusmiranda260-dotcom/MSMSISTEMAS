@@ -117,6 +117,7 @@ export interface ConferenceLotData {
     pieceSize?: number;
     qtyPackages?: number;
     totalPieces?: number;
+    labelWeightInput?: string;
 }
 
 export interface ConferenceData {
@@ -385,6 +386,7 @@ export interface StockGauge {
     customFieldValue?: string;
     packagingType?: string;
     qtyPerPackaging?: number;
+    imageUrl?: string;
 }
 
 export interface GaugeComponent {
