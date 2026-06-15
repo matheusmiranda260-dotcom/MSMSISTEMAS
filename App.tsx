@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'; // Refresh Trigger
-import type { Page, User, Employee, StockItem, ConferenceData, ProductionOrderData, TransferRecord, Bitola, MachineType, PartsRequest, ShiftReport, ProductionRecord, TransferredLotInfo, ProcessedLot, DowntimeEvent, OperatorLog, TrelicaSelectedLots, WeighedPackage, FinishedProductItem, Ponta, PontaItem, FinishedGoodsTransferRecord, TransferredFinishedGoodInfo, KaizenProblem, Meeting, MeetingItem, MeetingCategory, StockMovement, DowntimeConfig, UserAccessLog, Partner } from './types';
+import type { Page, User, Employee, StockItem, ConferenceData, ProductionOrderData, TransferRecord, Bitola, MachineType, PartsRequest, ShiftReport, ProductionRecord, TransferredLotInfo, ProcessedLot, DowntimeEvent, OperatorLog, TrelicaSelectedLots, WeighedPackage, FinishedProductItem, Ponta, PontaItem, FinishedGoodsTransferRecord, TransferredFinishedGoodInfo, KaizenProblem, Meeting, MeetingItem, MeetingCategory, StockMovement, DowntimeConfig, UserAccessLog, Partner, MachineOrder } from './types';
 
 import Login from './components/Login';
 import MainMenu from './components/MainMenu';
@@ -99,6 +99,7 @@ const App: React.FC = () => {
     const [finishedGoodsTransfers, setFinishedGoodsTransfers] = useState<FinishedGoodsTransferRecord[]>([]);
     const [partsRequests, setPartsRequests] = useState<PartsRequest[]>([]);
     const [shiftReports, setShiftReports] = useState<ShiftReport[]>([]);
+    const [machineOrders, setMachineOrders] = useState<MachineOrder[]>([]);
 
     const [gauges, setGauges] = useState<StockGauge[]>([]);
     const [gaugeComponents, setGaugeComponents] = useState<GaugeComponent[]>([]);
@@ -163,7 +164,7 @@ const App: React.FC = () => {
                     fetchedUsers, fetchedEmployees, fetchedStock, fetchedConferences, fetchedTransfers,
                     fetchedOrders, fetchedFinishedGoods, fetchedPontas, fetchedFGTransfers,
                     fetchedParts, fetchedReports, fetchedProductionRecords, fetchedGauges, fetchedNotes, fetchedMeetings, fetchedCategories, fetchedDowntimeConfigs,
-                    fetchedAccessLogs, fetchedComponents, fetchedPartners
+                    fetchedAccessLogs, fetchedComponents, fetchedPartners, fetchedMachineOrders
                 ] = await Promise.all([
                     fetchTable<User>('app_users').catch(() => []),
                     fetchTable<Employee>('employees').catch(() => []),
@@ -185,7 +186,8 @@ const App: React.FC = () => {
                     fetchTable<DowntimeConfig>('downtime_configs').catch(() => []),
                     fetchTable<UserAccessLog>('user_access_logs').catch(() => []),
                     fetchTable<GaugeComponent>('gauge_components').catch(() => []),
-                    fetchTable<Partner>('partners').catch(() => [])
+                    fetchTable<Partner>('partners').catch(() => []),
+                    fetchTable<MachineOrder>('machine_orders').catch(() => [])
                 ]);
 
                 setUsers(fetchedUsers);
@@ -200,6 +202,7 @@ const App: React.FC = () => {
                 setFinishedGoodsTransfers(fetchedFGTransfers);
                 setPartsRequests(fetchedParts);
                 setShiftReports(fetchedReports);
+                setMachineOrders(fetchedMachineOrders);
 
                 let partnersToSet = fetchedPartners;
                 if (!fetchedPartners || fetchedPartners.length === 0) {
@@ -362,6 +365,7 @@ const App: React.FC = () => {
         setFinishedGoodsTransfers,
         setPartsRequests,
         setShiftReports,
+        setMachineOrders,
         setStickyNotes,
         setMeetings,
         setMeetingCategories,
@@ -2745,6 +2749,39 @@ const App: React.FC = () => {
         }
     };
 
+    /* ---- Machine Orders CRUD ---- */
+    const addMachineOrder = async (data: Partial<MachineOrder>): Promise<MachineOrder | null> => {
+        try {
+            const saved = await insertItem<MachineOrder>('machine_orders', data);
+            setMachineOrders(prev => [saved, ...prev]);
+            showNotification('Programação salva com sucesso!', 'success');
+            return saved;
+        } catch (error) {
+            showNotification('Erro ao salvar programação.', 'error');
+            return null;
+        }
+    };
+
+    const updateMachineOrder = async (orderId: string, updates: Partial<MachineOrder>) => {
+        try {
+            await updateItem('machine_orders', orderId, updates);
+            setMachineOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...updates } : o));
+            showNotification('Programação atualizada!', 'success');
+        } catch (error) {
+            showNotification('Erro ao atualizar programação.', 'error');
+        }
+    };
+
+    const deleteMachineOrder = async (orderId: string) => {
+        try {
+            await deleteItem('machine_orders', orderId);
+            setMachineOrders(prev => prev.filter(o => o.id !== orderId));
+            showNotification('Programação excluída!', 'success');
+        } catch (error) {
+            showNotification('Erro ao excluir programação.', 'error');
+        }
+    };
+
     const renderPage = () => {
         const mcProps = {
             setPage, stock, currentUser, registerProduction, productionOrders, shiftReports,
@@ -2788,7 +2825,14 @@ const App: React.FC = () => {
             case 'gaugesManager': return <GaugesManager gauges={gauges} stock={stock} onAdd={addGauge} onDelete={deleteGauge} onUpdate={updateGauge} gaugeComponents={gaugeComponents} onSaveComponents={saveGaugeComponents} currentUser={currentUser} />;
             case 'labelConfig': return <LabelConfiguration gauges={gauges} showNotification={showNotification} activeBrandingPartner={activeBrandingPartner} />;
             case 'pointingSystem': return <PointingSystem currentUser={currentUser} showNotification={showNotification} />;
-            case 'programarMaquinas': return <ProgramarMaquinas />;
+            case 'programarMaquinas': return (
+                <ProgramarMaquinas
+                    orders={machineOrders}
+                    onSave={addMachineOrder}
+                    onUpdate={updateMachineOrder}
+                    onDelete={deleteMachineOrder}
+                />
+            );
             case 'partnerConfig': return (
                 <PartnerConfig 
                     partners={partners} 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import type { MachineOrder, MachineOrderStatus } from '../types';
 
 /* ============================================================
    MACHINES DATA
@@ -18,37 +19,6 @@ const MACHINES: Machine[] = [
   { id: 'bancada', name: 'Bancada', gauges: ['16mm', '20mm', '25mm', '32mm'], color: 'purple' },
   { id: 'cortador', name: 'Cortador', gauges: ['16mm', '20mm', '25mm', '32mm'], color: 'rose' },
 ];
-
-const MACHINE_COLORS: Record<string, string> = {
-  emerald: 'text-emerald-700 bg-emerald-100 border-emerald-300',
-  blue: 'text-blue-700 bg-blue-100 border-blue-300',
-  indigo: 'text-indigo-700 bg-indigo-100 border-indigo-300',
-  amber: 'text-amber-700 bg-amber-100 border-amber-300',
-  purple: 'text-purple-700 bg-purple-100 border-purple-300',
-  rose: 'text-rose-700 bg-rose-100 border-rose-300',
-};
-
-/* ============================================================
-   TYPES
-   ============================================================ */
-type OrderStatus = 'scheduled' | 'in_progress' | 'completed' | 'paused';
-
-interface ProductionOrder {
-  id: string;
-  clientName: string;
-  machineId: string;
-  gauge: string;
-  quantity: number;
-  quantityUnit: 'kg' | 'ton' | 'm' | 'peças';
-  startDate: string;
-  endDate: string;
-  status: OrderStatus;
-  notes?: string;
-  createdAt: string;
-  orderCode?: string;
-  osQuantity?: number;
-  weight?: number;
-}
 
 /* ============================================================
    HELPERS
@@ -76,24 +46,11 @@ const formatDateReadable = (d: string) => {
   return p.length === 3 ? `${p[2]}/${p[1]}` : d;
 };
 
-const getOrderWeight = (o: ProductionOrder) => {
+const getOrderWeight = (o: MachineOrder) => {
   return o.weight || (o.quantityUnit === 'kg' ? o.quantity : o.quantityUnit === 'ton' ? o.quantity * 1000 : 0);
 };
 
-const DEFAULT_ORDERS: ProductionOrder[] = [
-  { id: 'ord_1', clientName: 'MATHEUS', machineId: 'dhalmar_6p', gauge: '5mm', quantity: 300, quantityUnit: 'kg', startDate: getRelativeDateStr(0), endDate: getRelativeDateStr(0), status: 'in_progress', notes: 'Programação de Bitola conforme planilha original.', createdAt: new Date().toISOString(), orderCode: '0-01', osQuantity: 20, weight: 300 },
-  { id: 'ord_2', clientName: 'JOSE', machineId: 'dhalmar_6p', gauge: '5mm', quantity: 400, quantityUnit: 'kg', startDate: getRelativeDateStr(0), endDate: getRelativeDateStr(0), status: 'scheduled', createdAt: new Date().toISOString(), orderCode: '0-02', osQuantity: 30, weight: 400 },
-  { id: 'ord_3', clientName: 'CARLOS', machineId: 'dhalmar_6p', gauge: '5mm', quantity: 200, quantityUnit: 'kg', startDate: getRelativeDateStr(0), endDate: getRelativeDateStr(0), status: 'scheduled', createdAt: new Date().toISOString(), orderCode: '0-03', osQuantity: 40, weight: 200 },
-  { id: 'ord_4', clientName: 'CHICO', machineId: 'dhalmar_6p', gauge: '5mm', quantity: 600, quantityUnit: 'kg', startDate: getRelativeDateStr(0), endDate: getRelativeDateStr(0), status: 'paused', createdAt: new Date().toISOString(), orderCode: '0-04', osQuantity: 50, weight: 600 },
-  { id: 'ord_5', clientName: 'ZE', machineId: 'dhalmar_6p', gauge: '5mm', quantity: 500, quantityUnit: 'kg', startDate: getRelativeDateStr(0), endDate: getRelativeDateStr(0), status: 'scheduled', createdAt: new Date().toISOString(), orderCode: '0-05', osQuantity: 60, weight: 500 },
-  { id: 'ord_6', clientName: 'Construtora Alfa', machineId: 'jjw', gauge: '6.3mm', quantity: 800, quantityUnit: 'kg', startDate: getRelativeDateStr(0), endDate: getRelativeDateStr(2), status: 'scheduled', notes: 'Corte regulado em barras padrão.', createdAt: new Date().toISOString(), orderCode: '0-11', osQuantity: 30, weight: 900 },
-  { id: 'ord_7', clientName: 'Metalúrgica Rezende', machineId: 'prima', gauge: '12.5mm', quantity: 1200, quantityUnit: 'kg', startDate: getRelativeDateStr(-1), endDate: getRelativeDateStr(1), status: 'in_progress', createdAt: new Date().toISOString(), orderCode: '0-15', osQuantity: 15, weight: 1200 },
-];
-
-/* ============================================================
-   STATUS STYLES
-   ============================================================ */
-const STATUS_STYLES: Record<OrderStatus, { label: string; bg: string; text: string; border: string }> = {
+const STATUS_STYLES: Record<MachineOrderStatus, { label: string; bg: string; text: string; border: string }> = {
   scheduled: { label: 'Programado', bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-200' },
   in_progress: { label: 'Em Produção', bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200' },
   completed: { label: 'Concluído', bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-200' },
@@ -101,24 +58,31 @@ const STATUS_STYLES: Record<OrderStatus, { label: string; bg: string; text: stri
 };
 
 /* ============================================================
+   PROPS
+   ============================================================ */
+interface ProgramarMaquinasProps {
+  orders: MachineOrder[];
+  onSave: (data: Partial<MachineOrder>) => Promise<MachineOrder | null>;
+  onUpdate: (orderId: string, updates: Partial<MachineOrder>) => Promise<void>;
+  onDelete: (orderId: string) => Promise<void>;
+}
+
+/* ============================================================
    PROGRAMAR MAQUINAS COMPONENT
    ============================================================ */
-export default function ProgramarMaquinas() {
-  const [orders, setOrders] = useState<ProductionOrder[]>(() => {
-    const saved = localStorage.getItem('msm_maquinas_orders');
-    return saved ? JSON.parse(saved) : DEFAULT_ORDERS;
-  });
+export default function ProgramarMaquinas({ orders, onSave, onUpdate, onDelete }: ProgramarMaquinasProps) {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [showForm, setShowForm] = useState(false);
-  const [editingOrder, setEditingOrder] = useState<ProductionOrder | null>(null);
+  const [editingOrder, setEditingOrder] = useState<MachineOrder | null>(null);
   const [showCapacities, setShowCapacities] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [localOrders, setLocalOrders] = useState<MachineOrder[]>(orders);
 
   useEffect(() => {
-    localStorage.setItem('msm_maquinas_orders', JSON.stringify(orders));
+    setLocalOrders(orders);
   }, [orders]);
 
-  /* ---- Machine Capacities ---- */
+  /* ---- Machine Capacities (localStorage only) ---- */
   const [capacities, setCapacities] = useState<Record<string, number>>(() => {
     const saved = localStorage.getItem('msm_maquinas_capacities');
     if (saved) return JSON.parse(saved);
@@ -134,12 +98,12 @@ export default function ProgramarMaquinas() {
   /* ---- Filters for selected date ---- */
   const dayOrders = useMemo(() => {
     const target = new Date(selectedDate + 'T00:00:00');
-    return orders.filter(o => {
+    return localOrders.filter(o => {
       const s = new Date(o.startDate + 'T00:00:00');
       const e = new Date(o.endDate + 'T00:00:00');
       return target >= s && target <= e;
     });
-  }, [orders, selectedDate]);
+  }, [localOrders, selectedDate]);
 
   const weekdayName = useMemo(() => {
     const d = new Date(selectedDate + 'T12:00:00');
@@ -147,23 +111,24 @@ export default function ProgramarMaquinas() {
   }, [selectedDate]);
 
   /* ---- Save / Edit / Delete ---- */
-  const saveOrder = (order: ProductionOrder) => {
-    setOrders(prev => {
-      const exists = prev.some(o => o.id === order.id);
-      return exists ? prev.map(o => o.id === order.id ? order : o) : [order, ...prev];
-    });
+  const handleSave = async (order: Partial<MachineOrder>) => {
+    if (order.id) {
+      await onUpdate(order.id, order as Partial<MachineOrder>);
+    } else {
+      await onSave(order);
+    }
     setShowForm(false);
     setEditingOrder(null);
   };
 
-  const deleteOrder = (id: string) => {
-    const o = orders.find(x => x.id === id);
+  const handleDelete = async (id: string) => {
+    const o = localOrders.find(x => x.id === id);
     if (!o || !window.confirm(`Excluir programação de "${o.clientName}"?`)) return;
-    setOrders(prev => prev.filter(x => x.id !== id));
+    await onDelete(id);
   };
 
-  const updateStatus = (id: string, status: OrderStatus) => {
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+  const handleUpdateStatus = async (id: string, status: MachineOrderStatus) => {
+    await onUpdate(id, { status } as Partial<MachineOrder>);
   };
 
   const openNewOrder = (date?: string, machineId?: string) => {
@@ -177,15 +142,20 @@ export default function ProgramarMaquinas() {
       quantityUnit: 'kg',
       startDate: date || selectedDate,
       endDate: date || selectedDate,
-      status: 'scheduled',
+      status: 'scheduled' as MachineOrderStatus,
       createdAt: new Date().toISOString(),
-    });
+    } as MachineOrder);
+    setShowForm(true);
+  };
+
+  const openEditOrder = (order: MachineOrder) => {
+    setEditingOrder(order);
     setShowForm(true);
   };
 
   /* ---- Backup ---- */
   const handleExport = () => {
-    const blob = new Blob([JSON.stringify(orders, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(localOrders, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -198,11 +168,13 @@ export default function ProgramarMaquinas() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
         const data = JSON.parse(ev.target?.result as string);
         if (Array.isArray(data)) {
-          setOrders(data);
+          for (const item of data) {
+            await onSave(item);
+          }
           alert('Programações importadas com sucesso!');
         } else alert('Arquivo inválido.');
       } catch { alert('Erro ao ler arquivo.'); }
@@ -217,7 +189,7 @@ export default function ProgramarMaquinas() {
 
   const gridData = useMemo(() => MACHINES.map(m => {
     const mOrders = dayOrders.filter(o => o.machineId === m.id);
-    const rows: (ProductionOrder | null)[] = [...mOrders];
+    const rows: (MachineOrder | null)[] = [...mOrders];
     while (rows.length < rowsPerMachine) rows.push(null);
     const proratedWeight = mOrders.reduce((sum, o) => {
       const w = getOrderWeight(o);
@@ -340,9 +312,6 @@ export default function ProgramarMaquinas() {
                     else if (order.status === 'paused') rowClass = 'bg-slate-50/50';
                   }
 
-                  const statusStyle = order ? STATUS_STYLES[order.status] : null;
-
-                  // Machine utilization style
                   let barColor = 'bg-indigo-500';
                   let utilizationLabel = `${utilizationPct}% ocupada`;
                   if (utilizationPct >= 100) { barColor = 'bg-rose-500 animate-pulse'; utilizationLabel = 'Sobrecarga'; }
@@ -350,7 +319,6 @@ export default function ProgramarMaquinas() {
 
                   return (
                     <tr key={`${machine.id}-${ri}`} className={`hover:bg-slate-50/30 transition border-b text-xs ${rowClass}`}>
-                      {/* Day column - spans all rows */}
                       {isFirstTableRow && (
                         <td rowSpan={totalTableRows} className="border bg-white text-center font-black text-slate-800 align-middle py-6 select-none">
                           <div className="flex flex-col items-center justify-center gap-1.5" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
@@ -360,7 +328,6 @@ export default function ProgramarMaquinas() {
                         </td>
                       )}
 
-                      {/* Machine column - spans 5 rows */}
                       {isFirstMachineRow && (
                         <td rowSpan={rowsPerMachine} className="border bg-slate-50/45 p-3.5 align-top">
                           <div className="flex flex-col gap-2 min-w-[155px]">
@@ -390,14 +357,12 @@ export default function ProgramarMaquinas() {
                         </td>
                       )}
 
-                      {/* Gauge column - spans 5 rows */}
                       {isFirstMachineRow && (
                         <td rowSpan={rowsPerMachine} className="border bg-slate-50/20 font-bold text-slate-700 text-center p-3 align-middle font-mono text-sm">
                           {machine.gauges.map(g => g.replace('mm', '')).join(' -- ')}
                         </td>
                       )}
 
-                      {/* Client */}
                       <td className="border p-2.5 font-semibold text-slate-800">
                         {order ? (
                           <div className="flex flex-col gap-1">
@@ -422,14 +387,12 @@ export default function ProgramarMaquinas() {
                         ) : <span className="text-slate-300 italic select-none">Vazio</span>}
                       </td>
 
-                      {/* OP Code */}
                       <td className="border p-2.5 text-center font-mono text-slate-700 font-bold">
                         {order ? (
                           <span>{order.orderCode || `OP-${order.id.slice(-3).toUpperCase()}`}</span>
                         ) : <span className="text-slate-300 select-none">-</span>}
                       </td>
 
-                      {/* OS Qty */}
                       <td className="border p-2.5 text-center font-semibold text-slate-800">
                         {order ? (() => {
                           const dur = getOrderDurationDays(order.startDate, order.endDate);
@@ -442,7 +405,6 @@ export default function ProgramarMaquinas() {
                         })() : <span className="text-slate-300 select-none">-</span>}
                       </td>
 
-                      {/* Weight */}
                       <td className="border p-2.5 text-right font-mono font-bold text-indigo-600">
                         {order ? (() => {
                           const dur = getOrderDurationDays(order.startDate, order.endDate);
@@ -455,18 +417,17 @@ export default function ProgramarMaquinas() {
                         })() : <span className="text-slate-300 select-none">-</span>}
                       </td>
 
-                      {/* Actions */}
                       <td className="border p-2 text-center align-middle">
                         {order ? (
                           <div className="flex items-center justify-center gap-1">
-                            <button onClick={() => { setEditingOrder(order); setShowForm(true); }}
+                            <button onClick={() => openEditOrder(order)}
                               className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600" title="Editar">✏️</button>
-                            <button onClick={() => updateStatus(order.id, order.status === 'in_progress' ? 'completed' : 'in_progress')}
+                            <button onClick={() => handleUpdateStatus(order.id, order.status === 'in_progress' ? 'completed' : 'in_progress')}
                               className={`p-1 rounded ${order.status === 'in_progress' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-50 text-emerald-700'}`}
                               title={order.status === 'in_progress' ? 'Concluir' : 'Iniciar'}>
                               {order.status === 'in_progress' ? '✅' : '▶️'}
                             </button>
-                            <button onClick={() => deleteOrder(order.id)}
+                            <button onClick={() => handleDelete(order.id)}
                               className="p-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-600" title="Excluir">🗑️</button>
                           </div>
                         ) : (
@@ -504,9 +465,9 @@ export default function ProgramarMaquinas() {
       {showForm && (
         <OrderFormModal
           order={editingOrder}
-          onSave={saveOrder}
+          onSave={handleSave}
           onClose={() => { setShowForm(false); setEditingOrder(null); }}
-          allOrders={orders}
+          allOrders={localOrders}
         />
       )}
     </div>
@@ -517,10 +478,10 @@ export default function ProgramarMaquinas() {
    ORDER FORM MODAL
    ============================================================ */
 interface OrderFormProps {
-  order: ProductionOrder | null;
-  onSave: (order: ProductionOrder) => void;
+  order: MachineOrder | null;
+  onSave: (order: Partial<MachineOrder>) => Promise<void>;
   onClose: () => void;
-  allOrders: ProductionOrder[];
+  allOrders: MachineOrder[];
 }
 
 function OrderFormModal({ order, onSave, onClose, allOrders }: OrderFormProps) {
@@ -531,7 +492,7 @@ function OrderFormModal({ order, onSave, onClose, allOrders }: OrderFormProps) {
   const [quantityUnit, setQuantityUnit] = useState<'kg' | 'ton' | 'm' | 'peças'>(order?.quantityUnit || 'kg');
   const [startDate, setStartDate] = useState(order?.startDate || getRelativeDateStr(0));
   const [endDate, setEndDate] = useState(order?.endDate || getRelativeDateStr(0));
-  const [status, setStatus] = useState<OrderStatus>(order?.status || 'scheduled');
+  const [status, setStatus] = useState<MachineOrderStatus>(order?.status || 'scheduled');
   const [notes, setNotes] = useState(order?.notes || '');
   const [orderCode, setOrderCode] = useState(order?.orderCode || '');
   const [osQuantity, setOsQuantity] = useState(order?.osQuantity || 1);
@@ -539,13 +500,11 @@ function OrderFormModal({ order, onSave, onClose, allOrders }: OrderFormProps) {
 
   const selectedMachine = MACHINES.find(m => m.id === machineId);
 
-  // Sync gauge when machine changes
   useEffect(() => {
     const m = MACHINES.find(x => x.id === machineId);
     if (m && !m.gauges.includes(gauge)) setGauge(m.gauges[0] || '');
   }, [machineId]);
 
-  // Conflict detection
   const conflicts = useMemo(() => {
     if (!machineId || !startDate || !endDate) return [];
     const start = new Date(startDate);
@@ -561,11 +520,11 @@ function OrderFormModal({ order, onSave, onClose, allOrders }: OrderFormProps) {
     });
   }, [machineId, startDate, endDate, allOrders, order]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientName.trim() || !machineId || !gauge || !startDate || !endDate) return;
     if (new Date(startDate) > new Date(endDate)) { alert('Data de início não pode ser posterior ao término.'); return; }
-    onSave({
+    await onSave({
       id: order?.id || `order_${Date.now()}`,
       clientName: clientName.trim(),
       machineId, gauge,
@@ -577,9 +536,10 @@ function OrderFormModal({ order, onSave, onClose, allOrders }: OrderFormProps) {
       osQuantity: Number(osQuantity),
       weight: Number(weight),
     });
+    onClose();
   };
 
-  const statuses: { id: OrderStatus; label: string }[] = [
+  const statuses: { id: MachineOrderStatus; label: string }[] = [
     { id: 'scheduled', label: 'Programado' },
     { id: 'in_progress', label: 'Em Produção' },
     { id: 'completed', label: 'Concluído' },
@@ -590,24 +550,21 @@ function OrderFormModal({ order, onSave, onClose, allOrders }: OrderFormProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto z-10 m-4">
-        {/* Header */}
         <div className="p-5 border-b flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-bold text-slate-800">{order ? 'Editar Programação' : 'Programar Produção'}</h3>
-            <p className="text-xs text-slate-500 mt-0.5">{order ? 'Altere os dados da programação' : 'Defina os detalhes para um novo cliente'}</p>
+            <h3 className="text-lg font-bold text-slate-800">{order?.id ? 'Editar Programação' : 'Programar Produção'}</h3>
+            <p className="text-xs text-slate-500 mt-0.5">{order?.id ? 'Altere os dados da programação' : 'Defina os detalhes para um novo cliente'}</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-2xl font-bold">&times;</button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          {/* Client */}
           <div>
             <label className="text-xs font-bold text-slate-600 uppercase mb-1 block">👤 Nome do Cliente *</label>
             <input type="text" required placeholder="Ex: Metalúrgica Silva" value={clientName} onChange={e => setClientName(e.target.value)}
               className="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none" />
           </div>
 
-          {/* Machine + Gauge */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold text-slate-600 uppercase mb-1 block">⚙️ Máquina *</label>
@@ -625,7 +582,6 @@ function OrderFormModal({ order, onSave, onClose, allOrders }: OrderFormProps) {
             </div>
           </div>
 
-          {/* Quantity + Unit */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold text-slate-600 uppercase mb-1 block"># Quantidade</label>
@@ -648,7 +604,6 @@ function OrderFormModal({ order, onSave, onClose, allOrders }: OrderFormProps) {
             </div>
           </div>
 
-          {/* Spreadsheet fields */}
           <div className="bg-slate-50 p-3.5 rounded-xl border space-y-3">
             <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600">📋 Dados da Planilha</span>
             <div>
@@ -670,7 +625,6 @@ function OrderFormModal({ order, onSave, onClose, allOrders }: OrderFormProps) {
             </div>
           </div>
 
-          {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold text-slate-600 uppercase mb-1 block">📅 Data Início *</label>
@@ -684,7 +638,6 @@ function OrderFormModal({ order, onSave, onClose, allOrders }: OrderFormProps) {
             </div>
           </div>
 
-          {/* Status */}
           <div>
             <label className="text-xs font-bold text-slate-600 uppercase mb-1 block">Status</label>
             <div className="grid grid-cols-2 gap-2">
@@ -697,14 +650,12 @@ function OrderFormModal({ order, onSave, onClose, allOrders }: OrderFormProps) {
             </div>
           </div>
 
-          {/* Notes */}
           <div>
             <label className="text-xs font-bold text-slate-600 uppercase mb-1 block">📝 Observações</label>
             <textarea placeholder="Ex: Exigências de embalagem, tolerância de bitola..." value={notes} onChange={e => setNotes(e.target.value)}
               rows={2} className="w-full px-3 py-2 border rounded-lg text-sm resize-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none" />
           </div>
 
-          {/* Conflicts */}
           {conflicts.length > 0 && (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1">
               <div className="flex items-start gap-2 text-amber-800 text-xs font-semibold">
@@ -719,13 +670,12 @@ function OrderFormModal({ order, onSave, onClose, allOrders }: OrderFormProps) {
             </div>
           )}
 
-          {/* Footer */}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
               className="flex-1 py-2 px-4 border rounded-lg text-slate-700 hover:bg-slate-50 text-sm font-bold">Cancelar</button>
             <button type="submit" disabled={!clientName.trim()}
               className="flex-1 py-2 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold shadow-sm">
-              {order ? 'Salvar Alterações' : 'Confirmar Programação'}
+              {order?.id ? 'Salvar Alterações' : 'Confirmar Programação'}
             </button>
           </div>
         </form>

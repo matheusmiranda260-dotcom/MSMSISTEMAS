@@ -6,7 +6,7 @@ import type {
     FinishedProductItem, PontaItem, FinishedGoodsTransferRecord,
     PartsRequest, ShiftReport, ProductionRecord,
     StickyNote, Meeting, MeetingCategory, DowntimeConfig, User,
-    UserAccessLog, StockGauge, GaugeComponent
+    UserAccessLog, StockGauge, GaugeComponent, MachineOrder
 } from '../types';
 import { mapToCamelCase } from '../services/supabaseService';
 
@@ -31,6 +31,7 @@ interface RealtimeSetters {
     setUsers?: React.Dispatch<React.SetStateAction<User[]>>;
     setAccessLogs?: React.Dispatch<React.SetStateAction<UserAccessLog[]>>;
     setGaugeComponents?: React.Dispatch<React.SetStateAction<GaugeComponent[]>>;
+    setMachineOrders?: React.Dispatch<React.SetStateAction<MachineOrder[]>>;
 }
 
 /**
@@ -262,6 +263,33 @@ export function useAllRealtimeSubscriptions(setters: RealtimeSetters, enabled: b
 
         channels.push(productionRecordsChannel);
         channelsRef.current = channels;
+
+        if (setters.setMachineOrders) {
+            const machineOrdersChannel = supabase
+                .channel('realtime-machine_orders')
+                .on('postgres_changes',
+                    { event: '*', schema: 'public', table: 'machine_orders' },
+                    (payload) => {
+                        const record = mapToCamelCase(payload.new) as MachineOrder;
+                        switch (payload.eventType) {
+                            case 'INSERT':
+                                setters.setMachineOrders!(prev => [...prev, record]);
+                                break;
+                            case 'UPDATE':
+                                setters.setMachineOrders!(prev => prev.map(r => r.id === record.id ? record : r));
+                                break;
+                            case 'DELETE':
+                                setters.setMachineOrders!(prev => prev.filter(r => r.id !== (payload.old as any).id));
+                                break;
+                        }
+                    }
+                )
+                .subscribe((status) => {
+                    console.log(`[Realtime] machine_orders status:`, status);
+                });
+
+            channels.push(machineOrdersChannel);
+        }
 
         console.log(`[Realtime] ${channels.length} subscriptions ativas`);
 

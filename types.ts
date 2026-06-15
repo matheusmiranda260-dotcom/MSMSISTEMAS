@@ -724,3 +724,22 @@ export interface Partner {
     createdAt?: string;
     updatedAt?: string;
 }
+
+export type MachineOrderStatus = 'scheduled' | 'in_progress' | 'completed' | 'paused';
+
+export interface MachineOrder {
+    id: string;
+    clientName: string;
+    machineId: string;
+    gauge: string;
+    quantity: number;
+    quantityUnit: 'kg' | 'ton' | 'm' | 'peças';
+    startDate: string;
+    endDate: string;
+    status: MachineOrderStatus;
+    notes?: string;
+    createdAt: string;
+    orderCode?: string;
+    osQuantity?: number;
+    weight?: number;
+}
