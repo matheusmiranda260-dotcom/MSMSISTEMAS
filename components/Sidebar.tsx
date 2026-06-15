@@ -57,6 +57,8 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
             setExpandedMenus(prev => prev.includes('stock') ? prev : [...prev, 'stock']);
         } else if (['desbobinadeiraDashboard', 'desbobinadeiraInProgress', 'desbobinadeiraPending', 'desbobinadeiraCompleted', 'desbobinadeiraReports'].includes(page)) {
             setExpandedMenus(prev => prev.includes('desbobinadeira') ? prev : [...prev, 'desbobinadeira']);
+        } else if (['programarMaquinas'].includes(page)) {
+            setExpandedMenus(prev => prev.includes('programarMaquinas') ? prev : [...prev, 'programarMaquinas']);
         } else if (['peopleManagement', 'continuousImprovement'].includes(page)) {
             setExpandedMenus(prev => prev.includes('people') ? prev : [...prev, 'people']);
         }
@@ -257,6 +259,14 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                         </div>
                     )}
                 </div>
+
+                {/* PROGRAMAÇÃO DE MÁQUINAS */}
+                {hasPermission('programarMaquinas') && (
+                    <div className="sidebar-category">
+                        <div className="sidebar-category-title">{isCollapsed ? '🔧' : '🔧 Programação'}</div>
+                        <MenuItem target="programarMaquinas" label="Programar Máquinas" icon={WrenchScrewdriverIcon} />
+                    </div>
+                )}
 
                 {/* GESTÃO */}
                 <div className="sidebar-category">
