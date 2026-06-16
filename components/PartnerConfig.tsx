@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { Partner } from '../types';
+import type { Partner, MachineConfig } from '../types';
 import { uploadFile } from '../services/supabaseService';
 
 interface PartnerConfigProps {
@@ -70,6 +70,27 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
     const [isActiveBranding, setIsActiveBranding] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
 
+    // Machine configuration state
+    const [machinesList, setMachinesList] = useState<MachineConfig[]>([]);
+    const [showMachineForm, setShowMachineForm] = useState(false);
+    const [editingMachineIdx, setEditingMachineIdx] = useState<number | null>(null);
+    const [machineName, setMachineName] = useState('');
+    const [machineCapacity, setMachineCapacity] = useState('');
+    const [machineGauge, setMachineGauge] = useState('');
+    const [machineShiftType, setMachineShiftType] = useState<'1turno' | '2turnos' | 'continuo'>('1turno');
+    const [machineShift1Start, setMachineShift1Start] = useState('');
+    const [machineShift1End, setMachineShift1End] = useState('');
+    const [machineShift2Start, setMachineShift2Start] = useState('');
+    const [machineShift2End, setMachineShift2End] = useState('');
+    const [machineHasLunch, setMachineHasLunch] = useState(false);
+    const [machineLunchStart, setMachineLunchStart] = useState('');
+    const [machineLunchEnd, setMachineLunchEnd] = useState('');
+    const [machineShift1Staff, setMachineShift1Staff] = useState<{ function: string; quantity: number }[]>([]);
+    const [machineShift2Staff, setMachineShift2Staff] = useState<{ function: string; quantity: number }[]>([]);
+    const [newStaffFunction, setNewStaffFunction] = useState('');
+    const [newStaffQuantity, setNewStaffQuantity] = useState('');
+    const [staffForShift, setStaffForShift] = useState<1 | 2>(1);
+
     const isGestor = currentUser?.role === 'admin' || currentUser?.role === 'gestor' || currentUser?.username === 'admin';
 
     // Handle image file upload using standard bucket 'kb-files'
@@ -92,6 +113,26 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
         }
     };
 
+    const resetMachineForm = () => {
+        setShowMachineForm(false);
+        setEditingMachineIdx(null);
+        setMachineName('');
+        setMachineCapacity('');
+        setMachineGauge('');
+        setMachineShiftType('1turno');
+        setMachineShift1Start('');
+        setMachineShift1End('');
+        setMachineShift2Start('');
+        setMachineShift2End('');
+        setMachineHasLunch(false);
+        setMachineLunchStart('');
+        setMachineLunchEnd('');
+        setMachineShift1Staff([]);
+        setMachineShift2Staff([]);
+        setNewStaffFunction('');
+        setNewStaffQuantity('');
+    };
+
     const handleReset = () => {
         setEditingId(null);
         setCompanyName('');
@@ -100,6 +141,45 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
         setServicesProvided('');
         setStartDate('');
         setIsActiveBranding(false);
+        setMachinesList([]);
+        resetMachineForm();
+    };
+
+    const handleSaveMachine = () => {
+        if (!machineName.trim()) {
+            showNotification('Nome da máquina é obrigatório.', 'error');
+            return;
+        }
+        if (!machineCapacity || parseFloat(machineCapacity) <= 0) {
+            showNotification('Capacidade produtiva deve ser maior que zero.', 'error');
+            return;
+        }
+
+        const machine: MachineConfig = {
+            name: machineName.trim(),
+            capacityKgPerHour: parseFloat(machineCapacity),
+            gaugeRange: machineGauge.trim(),
+            shiftType: machineShiftType,
+            shift1Start: machineShiftType !== 'continuo' ? machineShift1Start : undefined,
+            shift1End: machineShiftType !== 'continuo' ? machineShift1End : undefined,
+            shift2Start: machineShiftType === '2turnos' ? machineShift2Start : undefined,
+            shift2End: machineShiftType === '2turnos' ? machineShift2End : undefined,
+            hasLunchBreak: machineShiftType !== 'continuo' ? machineHasLunch : undefined,
+            lunchStart: machineShiftType !== 'continuo' && machineHasLunch ? machineLunchStart : undefined,
+            lunchEnd: machineShiftType !== 'continuo' && machineHasLunch ? machineLunchEnd : undefined,
+            shift1Staff: machineShiftType !== 'continuo' && machineShift1Staff.length > 0 ? machineShift1Staff : undefined,
+            shift2Staff: machineShiftType === '2turnos' && machineShift2Staff.length > 0 ? machineShift2Staff : undefined,
+        };
+
+        if (editingMachineIdx !== null) {
+            const updated = [...machinesList];
+            updated[editingMachineIdx] = machine;
+            setMachinesList(updated);
+        } else {
+            setMachinesList([...machinesList, machine]);
+        }
+
+        resetMachineForm();
     };
 
     const handleSave = async (e: React.FormEvent) => {
@@ -117,7 +197,8 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
                 materialQty: materialQty.trim() || undefined,
                 servicesProvided: servicesProvided.trim() || undefined,
                 startDate: startDate || undefined,
-                isActiveBranding
+                isActiveBranding,
+                machines: machinesList.length > 0 ? machinesList : undefined,
             };
 
             // If we are setting this partner as the active branding, we first turn off the branding of all others.
@@ -154,6 +235,7 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
         setServicesProvided(partner.servicesProvided || '');
         setStartDate(partner.startDate || '');
         setIsActiveBranding(!!partner.isActiveBranding);
+        setMachinesList(partner.machines || []);
         setViewMode('form');
     };
 
@@ -363,6 +445,290 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
                             </div>
                         </div>
 
+                        {/* MACHINE CONFIGURATION SECTION */}
+                        <div className="border-t border-slate-200">
+                            <div className="p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div>
+                                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Máquinas da Produção</h3>
+                                        <p className="text-[10px] text-slate-500 mt-0.5">Configure as máquinas, capacidades, bitolas e turnos</p>
+                                    </div>
+                                    {!showMachineForm && (
+                                        <button
+                                            type="button"
+                                            onClick={() => { resetMachineForm(); setShowMachineForm(true); }}
+                                            className="text-xs font-black py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm transition-all"
+                                        >
+                                            + Adicionar Máquina
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Machine list */}
+                                {machinesList.length > 0 && (
+                                    <div className="space-y-2 mb-4">
+                                        {machinesList.map((m, idx) => (
+                                            <div key={idx} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+                                                <div className="flex-1 grid grid-cols-6 gap-2 text-xs">
+                                                    <div>
+                                                        <span className="text-slate-400 font-bold block">Máquina</span>
+                                                        <span className="font-black text-slate-800">{m.name}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-slate-400 font-bold block">Capacidade</span>
+                                                        <span className="font-semibold">{m.capacityKgPerHour} kg/h</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-slate-400 font-bold block">Bitola</span>
+                                                        <span className="font-semibold">{m.gaugeRange || '-'}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-slate-400 font-bold block">Turno</span>
+                                                        <span className="font-semibold">
+                                                            {m.shiftType === 'continuo' ? 'Contínuo' : `${m.shiftType === '2turnos' ? '2 Turnos' : '1 Turno'} ${m.shift1Start || ''}-${m.shift1End || ''}${m.hasLunchBreak ? ' (c/ almoço)' : ''}`}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-slate-400 font-bold block">Funcionários</span>
+                                                        <span className="font-semibold">
+                                                            {(() => {
+                                                                const s1 = m.shift1Staff?.reduce((a, b) => a + b.quantity, 0) || 0;
+                                                                const s2 = m.shift2Staff?.reduce((a, b) => a + b.quantity, 0) || 0;
+                                                                const total = s1 + s2;
+                                                                return total > 0 ? `${total} func.` : '-';
+                                                            })()}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setEditingMachineIdx(idx);
+                                                                setMachineName(m.name);
+                                                                setMachineCapacity(String(m.capacityKgPerHour));
+                                                                setMachineGauge(m.gaugeRange);
+                                                                setMachineShiftType(m.shiftType);
+                                                                setMachineShift1Start(m.shift1Start || '');
+                                                                setMachineShift1End(m.shift1End || '');
+                                                                setMachineShift2Start(m.shift2Start || '');
+                                                                setMachineShift2End(m.shift2End || '');
+                                                                setMachineHasLunch(!!m.hasLunchBreak);
+                                                                setMachineLunchStart(m.lunchStart || '');
+                                                                setMachineLunchEnd(m.lunchEnd || '');
+                                                                setMachineShift1Staff(m.shift1Staff || []);
+                                                                setMachineShift2Staff(m.shift2Staff || []);
+                                                                setShowMachineForm(true);
+                                                            }}
+                                                            className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-lg transition-colors text-xs border border-blue-200"
+                                                            title="Editar Máquina"
+                                                        >
+                                                            <PencilIcon className="h-3.5 w-3.5 inline mr-1" /> Editar
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (confirm(`Excluir máquina "${m.name}"?`)) {
+                                                                    setMachinesList(machinesList.filter((_, i) => i !== idx));
+                                                                }
+                                                            }}
+                                                            className="p-1.5 hover:bg-red-50 text-red-500 rounded-lg transition-colors"
+                                                            title="Excluir Máquina"
+                                                        >
+                                                            <TrashIcon className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Machine sub-form */}
+                                {showMachineForm && (
+                                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                                        <h4 className="text-xs font-black text-slate-600 uppercase tracking-wider">
+                                            {editingMachineIdx !== null ? 'Editar Máquina' : 'Nova Máquina'}
+                                        </h4>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Nome da Máquina *</label>
+                                                <input type="text" value={machineName} onChange={e => setMachineName(e.target.value)}
+                                                    placeholder="Ex: Trefila 01" className="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Capacidade (kg/h) *</label>
+                                                <input type="number" step="0.01" min="0" value={machineCapacity} onChange={e => setMachineCapacity(e.target.value)}
+                                                    placeholder="Ex: 500" className="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Bitola (ex: 10mm-12,5mm)</label>
+                                                <input type="text" value={machineGauge} onChange={e => setMachineGauge(e.target.value)}
+                                                    placeholder="Ex: 10mm-12,5mm" className="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Tipo de Turno</label>
+                                            <div className="flex gap-2">
+                                                {(['1turno', '2turnos', 'continuo'] as const).map(t => (
+                                                    <button
+                                                        key={t}
+                                                        type="button"
+                                                        onClick={() => setMachineShiftType(t)}
+                                                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
+                                                            machineShiftType === t
+                                                                ? 'bg-blue-600 text-white shadow'
+                                                                : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-50'
+                                                        }`}
+                                                    >
+                                                        {t === '1turno' ? '1 Turno' : t === '2turnos' ? '2 Turnos' : 'Roda sem Parar'}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {machineShiftType !== 'continuo' && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div className="space-y-3 p-3 bg-white rounded-xl border border-slate-200">
+                                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Turno 1</span>
+                                                    <div className="flex gap-2">
+                                                        <input type="time" value={machineShift1Start} onChange={e => setMachineShift1Start(e.target.value)}
+                                                            className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                                        <span className="text-slate-400 self-center font-bold">-</span>
+                                                        <input type="time" value={machineShift1End} onChange={e => setMachineShift1End(e.target.value)}
+                                                            className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                                    </div>
+                                                </div>
+                                                {machineShiftType === '2turnos' && (
+                                                    <div className="space-y-3 p-3 bg-white rounded-xl border border-slate-200">
+                                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Turno 2</span>
+                                                        <div className="flex gap-2">
+                                                            <input type="time" value={machineShift2Start} onChange={e => setMachineShift2Start(e.target.value)}
+                                                                className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                                            <span className="text-slate-400 self-center font-bold">-</span>
+                                                            <input type="time" value={machineShift2End} onChange={e => setMachineShift2End(e.target.value)}
+                                                                className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {machineShiftType !== 'continuo' && (
+                                            <div className="flex items-center gap-4 flex-wrap">
+                                                <label className="flex items-center gap-2 cursor-pointer">
+                                                    <input type="checkbox" checked={machineHasLunch} onChange={e => setMachineHasLunch(e.target.checked)}
+                                                        className="rounded border-slate-300" />
+                                                    <span className="text-xs font-bold text-slate-700">Pausa para almoço</span>
+                                                </label>
+                                                {machineHasLunch && (
+                                                    <div className="flex items-center gap-2">
+                                                        <input type="time" value={machineLunchStart} onChange={e => setMachineLunchStart(e.target.value)}
+                                                            className="p-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                                        <span className="text-slate-400 font-bold">-</span>
+                                                        <input type="time" value={machineLunchEnd} onChange={e => setMachineLunchEnd(e.target.value)}
+                                                            className="p-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Staff per shift */}
+                                        {machineShiftType !== 'continuo' && (
+                                            <div>
+                                                <div className="flex gap-2 mb-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setStaffForShift(1)}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                                                            staffForShift === 1
+                                                                ? 'bg-blue-600 text-white shadow'
+                                                                : 'bg-white border border-slate-300 text-slate-600'
+                                                        }`}
+                                                    >
+                                                        Turno 1
+                                                    </button>
+                                                    {machineShiftType === '2turnos' && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setStaffForShift(2)}
+                                                            className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                                                                staffForShift === 2
+                                                                    ? 'bg-blue-600 text-white shadow'
+                                                                    : 'bg-white border border-slate-300 text-slate-600'
+                                                            }`}
+                                                        >
+                                                            Turno 2
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                <div className="bg-white rounded-xl border border-slate-200 p-3 space-y-2">
+                                                    {(staffForShift === 1 ? machineShift1Staff : machineShift2Staff).map((s, i) => (
+                                                        <div key={i} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+                                                            <span className="text-xs font-bold text-slate-700">{s.function}: <span className="text-blue-700">{s.quantity} funcionário(s)</span></span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const updated = (staffForShift === 1 ? machineShift1Staff : machineShift2Staff).filter((_, idx) => idx !== i);
+                                                                    staffForShift === 1 ? setMachineShift1Staff(updated) : setMachineShift2Staff(updated);
+                                                                }}
+                                                                className="text-red-400 hover:text-red-600"
+                                                            >
+                                                                <TrashIcon className="h-3.5 w-3.5" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                    {(staffForShift === 1 ? machineShift1Staff : machineShift2Staff).length === 0 && (
+                                                        <p className="text-xs text-slate-400 text-center py-2">Nenhum funcionário configurado para este turno.</p>
+                                                    )}
+                                                    <div className="flex items-center gap-2 pt-1">
+                                                        <input type="text" value={newStaffFunction} onChange={e => setNewStaffFunction(e.target.value)}
+                                                            placeholder="Função (ex: Operador)"
+                                                            className="flex-1 p-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                                        <input type="number" min="1" value={newStaffQuantity} onChange={e => setNewStaffQuantity(e.target.value)}
+                                                            placeholder="Qtd"
+                                                            className="w-20 p-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (!newStaffFunction.trim() || !newStaffQuantity || parseInt(newStaffQuantity) <= 0) {
+                                                                    showNotification('Preencha a função e quantidade.', 'error');
+                                                                    return;
+                                                                }
+                                                                const entry = { function: newStaffFunction.trim(), quantity: parseInt(newStaffQuantity) };
+                                                                if (staffForShift === 1) {
+                                                                    setMachineShift1Staff([...machineShift1Staff, entry]);
+                                                                } else {
+                                                                    setMachineShift2Staff([...machineShift2Staff, entry]);
+                                                                }
+                                                                setNewStaffFunction('');
+                                                                setNewStaffQuantity('');
+                                                            }}
+                                                            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition-all"
+                                                        >
+                                                            + Adicionar
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="flex justify-end gap-2 pt-2">
+                                            <button type="button" onClick={resetMachineForm}
+                                                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-50 transition-all">
+                                                Cancelar
+                                            </button>
+                                            <button type="button" onClick={handleSaveMachine}
+                                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-all">
+                                                {editingMachineIdx !== null ? 'Atualizar Máquina' : 'Adicionar Máquina'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
                         {/* Form Footer Action Buttons */}
                         <div className="p-6 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
                             <button
@@ -421,6 +787,7 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
                                             <th className="p-4 text-left">EMPRESA</th>
                                             <th className="p-4 text-left">SERVIÇOS PRESTADOS</th>
                                             <th className="p-4 text-left">MATERIAIS</th>
+                                            <th className="p-4 text-center">MÁQUINAS</th>
                                             <th className="p-4 text-left">DATA DE INÍCIO</th>
                                             <th className="p-4 text-center">BRANDING</th>
                                             {isGestor && <th className="p-4 text-center w-28">AÇÕES</th>}
@@ -460,6 +827,13 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
                                                 {/* Material quantity metadata */}
                                                 <td className="p-4 font-bold text-slate-800">
                                                     {p.materialQty || '-'}
+                                                </td>
+
+                                                {/* Machine count */}
+                                                <td className="p-4 text-center">
+                                                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-700 font-black text-xs">
+                                                        {p.machines?.length || 0}
+                                                    </span>
                                                 </td>
 
                                                 {/* Start date */}

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import { PencilIcon, XIcon, SearchIcon, CheckCircleIcon, PrinterIcon } from '../icons';
-import type { Employee, OrgUnit, OrgPosition, Evaluation } from '../../types';
+import type { Employee, OrgUnit, OrgPosition, Evaluation, Partner } from '../../types';
 import { insertItem, updateItem } from '../../services/supabaseService';
 
 // --- STATIC ORG CHART (Fixed Structure) ---
@@ -112,7 +112,8 @@ const OrgChart: React.FC<{
     triggerAddEmployee: (posId?: string, prefillSector?: string) => void;
     triggerEditEmployee: (emp: Employee) => void;
     evaluations: Evaluation[];
-}> = ({ employees, units, positions, reloadData, triggerAddEmployee, triggerEditEmployee }) => {
+    activeBrandingPartner?: Partner | null;
+}> = ({ employees, units, positions, reloadData, triggerAddEmployee, triggerEditEmployee, activeBrandingPartner }) => {
 
     const [shiftTimes, setShiftTimes] = useState<Record<string, string>>(() => {
         try { const s = localStorage.getItem('orgShiftTimes'); return s ? JSON.parse(s) : {}; } catch { return {}; }
@@ -383,7 +384,9 @@ const OrgChart: React.FC<{
                 {/* CABEÇALHO PADRÃO ITA */}
                 <div className="grid grid-cols-12 border border-[#002060]">
                     <div className="col-span-3 bg-white p-3 flex items-center justify-center border-r border-[#002060]">
-                        <img src="/ita-acos-logo.png" alt="Logo Grupo Ita Aços" className="h-14 md:h-16 object-contain" style={{ maxHeight: '60px' }} />
+                        {activeBrandingPartner?.logoUrl ? (
+                            <img src={activeBrandingPartner.logoUrl} alt={activeBrandingPartner.companyName} className="h-14 md:h-16 object-contain" style={{ maxHeight: '60px' }} />
+                        ) : null}
                     </div>
 
                     <div className="col-span-6 bg-white p-3 flex flex-col justify-center text-center gap-1">

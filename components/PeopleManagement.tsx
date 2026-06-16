@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PlusIcon, UserGroupIcon } from './icons';
-import type { Page, Employee, Evaluation, EmployeeAbsence, EmployeeVacation, User, OrgUnit, OrgPosition } from '../types';
+import type { Page, Employee, Evaluation, EmployeeAbsence, EmployeeVacation, User, OrgUnit, OrgPosition, Partner } from '../types';
 import { fetchTable, insertItem, deleteItem, fetchByColumn } from '../services/supabaseService';
 
 import DashboardRH from './PeopleManagement/DashboardRH';
@@ -12,9 +12,10 @@ import OrgChart from './PeopleManagement/OrgChart';
 interface PeopleManagementProps {
     setPage: (page: Page) => void;
     currentUser: User | null;
+    activeBrandingPartner?: Partner | null;
 }
 
-const PeopleManagement: React.FC<PeopleManagementProps> = ({ setPage, currentUser }) => {
+const PeopleManagement: React.FC<PeopleManagementProps> = ({ setPage, currentUser, activeBrandingPartner }) => {
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
     const [absences, setAbsences] = useState<EmployeeAbsence[]>([]);
@@ -239,6 +240,7 @@ const PeopleManagement: React.FC<PeopleManagementProps> = ({ setPage, currentUse
                     reloadData={loadData}
                     triggerAddEmployee={promptAndCreateEmployee}
                     triggerEditEmployee={(emp) => setSelectedEmployee({ emp })}
+                    activeBrandingPartner={activeBrandingPartner}
                 />
             ) : (
                 <DashboardRH

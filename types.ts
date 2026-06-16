@@ -1,6 +1,6 @@
 // types.ts
 
-export type Page = 'login' | 'menu' | 'stock' | 'stockAdd' | 'stockTransfer' | 'documents' | 'finishedGoods' | 'productionOrder' | 'productionDashboard' | 'meetingsTasks' | 'continuousImprovement' | 'peopleManagement' | 'reports' | 'userManagement' | 'gaugesManager' | 'partsManager' | 'workInstructions' | 'people' | 'finished_goods' | 'spare_parts' | 'quality' | 'instructions' | 'weighing' | 'meetings' | 'downtimeConfigs' | 'desbobinadeira' | 'desbobinadeiraDashboard' | 'desbobinadeiraInProgress' | 'desbobinadeiraPending' | 'desbobinadeiraCompleted' | 'desbobinadeiraReports' | 'productionOrderDesbobinadeira' | 'trefila' | 'trefilaInProgress' | 'trefilaPending' | 'trefilaCompleted' | 'trefilaReports' | 'trefilaParts' | 'trefilaWeighing' | 'trefilaRings' | 'trelica' | 'trelicaInProgress' | 'trelicaPending' | 'trelicaCompleted' | 'trelicaReports' | 'trelicaParts' | 'productionOrderTrelica' | 'labelConfig' | 'partnerConfig' | 'pointingSystem' | 'programarMaquinas';
+export type Page = 'login' | 'menu' | 'stock' | 'stockAdd' | 'stockTransfer' | 'documents' | 'finishedGoods' | 'productionOrder' | 'productionDashboard' | 'meetingsTasks' | 'continuousImprovement' | 'peopleManagement' | 'reports' | 'userManagement' | 'gaugesManager' | 'partsManager' | 'workInstructions' | 'people' | 'finished_goods' | 'spare_parts' | 'quality' | 'instructions' | 'weighing' | 'meetings' | 'downtimeConfigs' | 'desbobinadeira' | 'desbobinadeiraDashboard' | 'desbobinadeiraInProgress' | 'desbobinadeiraPending' | 'desbobinadeiraCompleted' | 'desbobinadeiraReports' | 'productionOrderDesbobinadeira' | 'trefila' | 'trefilaInProgress' | 'trefilaPending' | 'trefilaCompleted' | 'trefilaReports' | 'trefilaParts' | 'trefilaWeighing' | 'trefilaRings' | 'trelica' | 'trelicaInProgress' | 'trelicaPending' | 'trelicaCompleted' | 'trelicaReports' | 'trelicaParts' | 'productionOrderTrelica' | 'labelConfig' | 'partnerConfig' | 'pointingSystem' | 'programarMaquinas' | 'blank';
 
 export interface DowntimeConfig {
     id: string;
@@ -713,6 +713,27 @@ export interface TrefilaRingStock {
     quantity: number;
 }
 
+export interface ShiftStaff {
+    function: string;
+    quantity: number;
+}
+
+export interface MachineConfig {
+    name: string;
+    capacityKgPerHour: number;
+    gaugeRange: string;
+    shiftType: '1turno' | '2turnos' | 'continuo';
+    shift1Start?: string;
+    shift1End?: string;
+    shift2Start?: string;
+    shift2End?: string;
+    hasLunchBreak?: boolean;
+    lunchStart?: string;
+    lunchEnd?: string;
+    shift1Staff?: ShiftStaff[];
+    shift2Staff?: ShiftStaff[];
+}
+
 export interface Partner {
     id: string;
     companyName: string;
@@ -721,6 +742,7 @@ export interface Partner {
     servicesProvided?: string;
     startDate?: string;
     isActiveBranding?: boolean;
+    machines?: MachineConfig[];
     createdAt?: string;
     updatedAt?: string;
 }

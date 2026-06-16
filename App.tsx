@@ -26,7 +26,6 @@ import StockTransfer from './components/StockTransfer';
 import GaugesManager from './components/GaugesManager';
 import LabelConfiguration from './components/LabelConfiguration';
 import PointingSystem from './components/PointingSystem';
-import ProgramarMaquinas from './components/ProgramarMaquinas';
 import StickyNotes from './components/StickyNotes';
 import MeetingsTasks from './components/MeetingsTasks';
 import DocumentManager from './components/DocumentManager';
@@ -388,7 +387,7 @@ const App: React.FC = () => {
                 // If we have a stored user, direct them to dashboard unless they were already on a specific page
                 // (Using dashboard as safe default)
                 if (page === 'login') {
-                    setPage(user.role === 'gestor' || user.role === 'admin' ? 'productionDashboard' : 'menu');
+                    setPage('blank');
                 }
             } catch (e) {
                 console.error("Failed to parse stored user", e);
@@ -526,7 +525,7 @@ const App: React.FC = () => {
 
                 setCurrentUser(appUser);
                 localStorage.setItem('msm_user', JSON.stringify(appUser));
-                setPage(appUser.role === 'gestor' || appUser.role === 'admin' ? 'productionDashboard' : 'menu');
+                setPage('blank');
                 showNotification(`Bem-vindo, ${appUser.username}!`, 'success');
                 return;
             }
@@ -542,7 +541,7 @@ const App: React.FC = () => {
                 };
                 setCurrentUser(adminUser);
                 localStorage.setItem('msm_user', JSON.stringify(adminUser));
-                setPage('productionDashboard');
+                setPage('blank');
                 showNotification('Login realizado com sucesso (Modo Gestor).', 'success');
                 return;
             }
@@ -2812,6 +2811,7 @@ const App: React.FC = () => {
 
             case 'productionOrder': return <ProductionOrder setPage={setPage} stock={stock} productionOrders={productionOrders} addProductionOrder={addProductionOrder} showNotification={showNotification} updateProductionOrder={updateProductionOrder} deleteProductionOrder={deleteProductionOrder} gauges={gauges} currentUser={currentUser} />;
             case 'productionOrderDesbobinadeira': return <ProductionOrderDesbobinadeira setPage={setPage} stock={stock} productionOrders={productionOrders} addProductionOrder={addProductionOrder} showNotification={showNotification} updateProductionOrder={updateProductionOrder} deleteProductionOrder={deleteProductionOrder} gauges={gauges} currentUser={currentUser} />;
+            case 'blank': return <div style={{ height: '100vh', background: '#f0f2f5' }} />;
             case 'productionDashboard': return <ProductionDashboard setPage={setPage} productionOrders={productionOrders} stock={stock} currentUser={currentUser} downtimeConfigs={downtimeConfigs} />;
             case 'userManagement': return <UserManagement users={users} employees={employees} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} setPage={setPage} accessLogs={accessLogs} />;
             case 'finishedGoods': return <FinishedGoods finishedGoods={finishedGoods} pontasStock={pontasStock} setPage={setPage} finishedGoodsTransfers={finishedGoodsTransfers} createFinishedGoodsTransfer={createFinishedGoodsTransfer} onDelete={deleteFinishedGoods} onUpdateFinishedGood={updateFinishedGood} onUpdatePonta={updatePonta} currentUser={currentUser} users={users} />;
@@ -2820,12 +2820,11 @@ const App: React.FC = () => {
             case 'partsManager': return <SparePartsManager />;
             case 'continuousImprovement': return <ContinuousImprovement setPage={setPage} />;
             case 'workInstructions': return <WorkInstructions setPage={setPage} />;
-            case 'peopleManagement': return <PeopleManagement setPage={setPage} currentUser={currentUser} />;
+            case 'peopleManagement': return <PeopleManagement setPage={setPage} currentUser={currentUser} activeBrandingPartner={activeBrandingPartner} />;
             case 'documents': return <DocumentManager setPage={setPage} currentUser={currentUser} />;
             case 'gaugesManager': return <GaugesManager gauges={gauges} stock={stock} onAdd={addGauge} onDelete={deleteGauge} onUpdate={updateGauge} gaugeComponents={gaugeComponents} onSaveComponents={saveGaugeComponents} currentUser={currentUser} />;
             case 'labelConfig': return <LabelConfiguration gauges={gauges} showNotification={showNotification} activeBrandingPartner={activeBrandingPartner} />;
             case 'pointingSystem': return <PointingSystem currentUser={currentUser} showNotification={showNotification} />;
-            case 'programarMaquinas': return <ProgramarMaquinas />;
             case 'partnerConfig': return (
                 <PartnerConfig 
                     partners={partners} 
