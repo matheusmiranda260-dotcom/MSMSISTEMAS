@@ -57,30 +57,33 @@ const STATUS_STYLES: Record<MachineOrderStatus, { label: string; bg: string; tex
   paused: { label: 'Pausado', bg: 'bg-slate-100', text: 'text-slate-800', border: 'border-slate-200' },
 };
 
-/* ============================================================
-   PROPS
-   ============================================================ */
-interface ProgramarMaquinasProps {
-  orders: MachineOrder[];
-  onSave: (data: Partial<MachineOrder>) => Promise<MachineOrder | null>;
-  onUpdate: (orderId: string, updates: Partial<MachineOrder>) => Promise<void>;
-  onDelete: (orderId: string) => Promise<void>;
+const STORAGE_KEY = 'msm_maquinas_orders';
+
+function loadOrders(): MachineOrder[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveOrders(orders: MachineOrder[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
 }
 
 /* ============================================================
    PROGRAMAR MAQUINAS COMPONENT
    ============================================================ */
-export default function ProgramarMaquinas({ orders, onSave, onUpdate, onDelete }: ProgramarMaquinasProps) {
+export default function ProgramarMaquinas() {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [showForm, setShowForm] = useState(false);
   const [editingOrder, setEditingOrder] = useState<MachineOrder | null>(null);
   const [showCapacities, setShowCapacities] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [localOrders, setLocalOrders] = useState<MachineOrder[]>(orders);
+  const [localOrders, setLocalOrders] = useState<MachineOrder[]>(() => loadOrders());
 
   useEffect(() => {
-    setLocalOrders(orders);
-  }, [orders]);
+    saveOrders(localOrders);
+  }, [localOrders]);
 
   /* ---- Machine Capacities (localStorage only) ---- */
   const [capacities, setCapacities] = useState<Record<string, number>>(() => {
@@ -111,11 +114,27 @@ export default function ProgramarMaquinas({ orders, onSave, onUpdate, onDelete }
   }, [selectedDate]);
 
   /* ---- Save / Edit / Delete ---- */
-  const handleSave = async (order: Partial<MachineOrder>) => {
-    if (order.id) {
-      await onUpdate(order.id, order as Partial<MachineOrder>);
+  const handleSave = async (data: Partial<MachineOrder>) => {
+    if (data.id) {
+      setLocalOrders(prev => prev.map(o => o.id === data.id ? { ...o, ...data } as MachineOrder : o));
     } else {
-      await onSave(order);
+      const newOrder: MachineOrder = {
+        id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        clientName: data.clientName || '',
+        machineId: data.machineId || '',
+        gauge: data.gauge || '',
+        quantity: data.quantity || 0,
+        quantityUnit: (data.quantityUnit as MachineOrder['quantityUnit']) || 'kg',
+        startDate: data.startDate || '',
+        endDate: data.endDate || '',
+        status: (data.status as MachineOrderStatus) || 'scheduled',
+        notes: data.notes,
+        createdAt: data.createdAt || new Date().toISOString(),
+        orderCode: data.orderCode,
+        osQuantity: data.osQuantity,
+        weight: data.weight,
+      };
+      setLocalOrders(prev => [newOrder, ...prev]);
     }
     setShowForm(false);
     setEditingOrder(null);
@@ -124,26 +143,26 @@ export default function ProgramarMaquinas({ orders, onSave, onUpdate, onDelete }
   const handleDelete = async (id: string) => {
     const o = localOrders.find(x => x.id === id);
     if (!o || !window.confirm(`Excluir programação de "${o.clientName}"?`)) return;
-    await onDelete(id);
+    setLocalOrders(prev => prev.filter(x => x.id !== id));
   };
 
   const handleUpdateStatus = async (id: string, status: MachineOrderStatus) => {
-    await onUpdate(id, { status } as Partial<MachineOrder>);
+    setLocalOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
   };
 
-  const openNewOrder = (date?: string, machineId?: string) => {
+    const openNewOrder = (date?: string, machineId?: string) => {
     const m = machineId ? MACHINES.find(x => x.id === machineId) : MACHINES[0];
     setEditingOrder({
-      id: '',
-      clientName: '',
-      machineId: machineId || MACHINES[0].id,
-      gauge: m?.gauges[0] || '',
-      quantity: 100,
-      quantityUnit: 'kg',
-      startDate: date || selectedDate,
-      endDate: date || selectedDate,
-      status: 'scheduled' as MachineOrderStatus,
-      createdAt: new Date().toISOString(),
+        id: undefined as unknown as string,
+        clientName: '',
+        machineId: machineId || MACHINES[0].id,
+        gauge: m?.gauges[0] || '',
+        quantity: 100,
+        quantityUnit: 'kg',
+        startDate: date || selectedDate,
+        endDate: date || selectedDate,
+        status: 'scheduled' as MachineOrderStatus,
+        createdAt: new Date().toISOString(),
     } as MachineOrder);
     setShowForm(true);
   };
@@ -172,9 +191,7 @@ export default function ProgramarMaquinas({ orders, onSave, onUpdate, onDelete }
       try {
         const data = JSON.parse(ev.target?.result as string);
         if (Array.isArray(data)) {
-          for (const item of data) {
-            await onSave(item);
-          }
+          setLocalOrders(prev => [...data, ...prev]);
           alert('Programações importadas com sucesso!');
         } else alert('Arquivo inválido.');
       } catch { alert('Erro ao ler arquivo.'); }
@@ -524,18 +541,23 @@ function OrderFormModal({ order, onSave, onClose, allOrders }: OrderFormProps) {
     e.preventDefault();
     if (!clientName.trim() || !machineId || !gauge || !startDate || !endDate) return;
     if (new Date(startDate) > new Date(endDate)) { alert('Data de início não pode ser posterior ao término.'); return; }
-    await onSave({
-      id: order?.id || `order_${Date.now()}`,
+    const data: Partial<MachineOrder> = {
       clientName: clientName.trim(),
       machineId, gauge,
       quantity: Number(quantity), quantityUnit,
       startDate, endDate, status,
       notes: notes.trim() || undefined,
-      createdAt: order?.createdAt || new Date().toISOString(),
       orderCode: orderCode.trim() || undefined,
       osQuantity: Number(osQuantity),
       weight: Number(weight),
-    });
+    };
+    if (order?.id) {
+      data.id = order.id;
+      data.createdAt = order.createdAt;
+    } else {
+      data.createdAt = new Date().toISOString();
+    }
+    await onSave(data);
     onClose();
   };
 
