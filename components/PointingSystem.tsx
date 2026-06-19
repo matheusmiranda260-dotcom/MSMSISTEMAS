@@ -18,6 +18,9 @@ interface FerroItem {
     ladoD: string;
     ladoE: string;
     obs: string;
+    drawingType?: string;
+    estriboShape?: string;
+    espacamento?: string;
 }
 
 interface ProductItem {
@@ -360,6 +363,43 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     const [ferroLadoE, setFerroLadoE] = useState('');
     const [ferroObs, setFerroObs] = useState('');
 
+    // Estribos sub-modal states
+    const [showEstribosModal, setShowEstribosModal] = useState(false);
+    const [estriboTargetProdIdx, setEstriboTargetProdIdx] = useState(-1);
+    const [estriboTargetColunaNome, setEstriboTargetColunaNome] = useState('');
+    const [estriboNomeElemento, setEstriboNomeElemento] = useState('');
+    const [estriboEspacamento, setEstriboEspacamento] = useState('');
+    const [estriboQtde, setEstriboQtde] = useState('');
+    const [estriboBitola, setEstriboBitola] = useState('');
+    const [estriboCalcAutomatico, setEstriboCalcAutomatico] = useState(false);
+    const [estriboShapeType, setEstriboShapeType] = useState('Padrão');
+    const [estriboLadoA, setEstriboLadoA] = useState('');
+    const [estriboLadoB, setEstriboLadoB] = useState('');
+    const [estriboLadoC, setEstriboLadoC] = useState('');
+    const [estriboLadoD, setEstriboLadoD] = useState('');
+    const [estriboLadoE, setEstriboLadoE] = useState('');
+    const [estriboObs, setEstriboObs] = useState('');
+
+    // Trava sub-modal states
+    const [showTravaModal, setShowTravaModal] = useState(false);
+    const [travaTargetProdIdx, setTravaTargetProdIdx] = useState(-1);
+    const [travaTargetColunaNome, setTravaTargetColunaNome] = useState('');
+    const [travaEditId, setTravaEditId] = useState<string | null>(null);
+    const [travaShapeId, setTravaShapeId] = useState(1);
+    const [travaNomeElemento, setTravaNomeElemento] = useState('TRAVA');
+    const [travaQtde, setTravaQtde] = useState('');
+    const [travaBitola, setTravaBitola] = useState('');
+    const [travaLadoA, setTravaLadoA] = useState('');
+    const [travaLadoB, setTravaLadoB] = useState('');
+    const [travaLadoC, setTravaLadoC] = useState('');
+    const [travaLadoD, setTravaLadoD] = useState('');
+    const [travaLadoE, setTravaLadoE] = useState('');
+    const [travaObs, setTravaObs] = useState('');
+
+    const [editingColunaId, setEditingColunaId] = useState<string | null>(null);
+    const [ferroModalTitle, setFerroModalTitle] = useState('Ferros Principais');
+    const [ferroEditId, setFerroEditId] = useState<string | null>(null);
+
     const BITOLA_OPTIONS = [
         { label: '3/8" - 10.0 mm', kgm: 0.617 },
         { label: '1/2" - 12.5 mm', kgm: 0.963 },
@@ -379,7 +419,441 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
 
     const PONTA_OPTIONS = ['SEM PONTA', 'AFUNILADO', 'NEGATIVADA PARA DENTRO', 'NEGATIVADA PARA FORA', 'GANCHO PARA DENTRO', 'GANCHO PARA FORA'];
 
-    // Helper: render the bar shape SVG based on ponta selections
+    const getTravaRequiredSides = (shape: number) => {
+        switch(shape) {
+            case 1: return ['A'];
+            case 2: return ['A', 'B', 'C'];
+            case 3: return ['A', 'B', 'C'];
+            case 4: return ['A', 'B', 'C'];
+            case 5: return ['A', 'B'];
+            case 6: return ['A', 'B', 'C'];
+            case 7: return ['A', 'B', 'C'];
+            case 8: return ['A', 'B', 'C', 'D', 'E'];
+            default: return ['A'];
+        }
+    };
+
+    const renderTravaSVG = (shape: number, A?: string, B?: string, C?: string, D?: string, E?: string) => {
+        const W = 100;
+        const H = 60;
+        let p = '';
+        const labels = [];
+        
+        switch (shape) {
+            case 1:
+                p = "M 10,30 L 90,30";
+                labels.push({ x: 50, y: 20, t: 'A', v: A });
+                break;
+            case 2:
+                p = "M 10,45 L 30,45 L 30,15 L 70,15 L 70,45 L 90,45";
+                labels.push({ x: 20, y: 55, t: 'A', v: A });
+                labels.push({ x: 20, y: 30, t: 'B', v: B });
+                labels.push({ x: 50, y: 10, t: 'C', v: C });
+                break;
+            case 3:
+                p = "M 30,30 L 20,30 L 20,50 L 80,50 L 80,30 L 70,30";
+                labels.push({ x: 25, y: 25, t: 'A', v: A });
+                labels.push({ x: 10, y: 40, t: 'B', v: B });
+                labels.push({ x: 50, y: 45, t: 'C', v: C });
+                break;
+            case 4:
+                p = "M 10,50 L 40,50 L 60,10 L 90,10";
+                labels.push({ x: 25, y: 58, t: 'C', v: C });
+                labels.push({ x: 40, y: 30, t: 'B', v: B });
+                labels.push({ x: 75, y: 5, t: 'A', v: A });
+                break;
+            case 5:
+                p = "M 10,40 L 10,20 L 90,20";
+                labels.push({ x: 5, y: 30, t: 'B', v: B });
+                labels.push({ x: 50, y: 15, t: 'A', v: A });
+                break;
+            case 6:
+                p = "M 20,15 L 20,45 L 80,45 L 80,15";
+                labels.push({ x: 10, y: 30, t: 'A', v: A });
+                labels.push({ x: 50, y: 55, t: 'B', v: B });
+                labels.push({ x: 90, y: 30, t: 'C', v: C });
+                break;
+            case 7:
+                p = "M 10,45 L 40,45 L 60,15 L 90,15";
+                labels.push({ x: 25, y: 55, t: 'A', v: A });
+                labels.push({ x: 50, y: 25, t: 'B', v: B });
+                labels.push({ x: 75, y: 25, t: 'C', v: C });
+                break;
+            case 8:
+                p = "M 10,45 L 30,45 L 30,15 L 70,15 L 70,45 L 90,45";
+                labels.push({ x: 20, y: 55, t: 'A', v: A });
+                labels.push({ x: 20, y: 30, t: 'B', v: B });
+                labels.push({ x: 50, y: 10, t: 'C', v: C });
+                labels.push({ x: 80, y: 30, t: 'D', v: D });
+                labels.push({ x: 80, y: 55, t: 'E', v: E });
+                break;
+        }
+
+        return (
+            <svg viewBox={"0 0 " + W + " " + H} className="w-full h-full min-h-[40px] max-h-[80px] overflow-visible">
+                <path d={p} stroke="#1e293b" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                {labels.map((lbl, i) => (
+                    <text key={i} x={lbl.x} y={lbl.y} fontSize="8" fontWeight="bold" fill="#dc2626" textAnchor="middle">
+                        {lbl.v || lbl.t}
+                    </text>
+                ))}
+            </svg>
+        );
+    };
+
+    const renderEstriboSVG = (lados: string, shapeType?: string, A?: string, B?: string, C?: string, D?: string, E?: string) => {
+        const fs = 14;
+        
+        if (lados === '3 LADOS') {
+            return (
+                <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                    <polygon points="80,30 30,120 130,120" fill="none" stroke="#777" strokeWidth="4" />
+                    <text x="115" y="70" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                    <text x="80" y="140" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{B || 'B'}</text>
+                </svg>
+            );
+        }
+        
+        if (lados === '4 LADOS') {
+            if (shapeType === 'Padrão, definir dobras finais') {
+                return (
+                    <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="50" y="50" width="70" height="70" rx="4" fill="none" stroke="#777" strokeWidth="4" />
+                        <text x="85" y="140" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                        <text x="135" y="90" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{B || 'B'}</text>
+                        <path d="M 50,50 L 30,50" fill="none" stroke="#f00" strokeWidth="3" strokeDasharray="4,3" />
+                        <path d="M 50,50 L 50,30" fill="none" stroke="#f00" strokeWidth="3" strokeDasharray="4,3" />
+                        <text x="35" y="40" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#f00">{C || 'C'}</text>
+                    </svg>
+                );
+            }
+            if (shapeType === 'Transpasse em X') {
+                return (
+                    <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="50" y="50" width="70" height="70" rx="4" fill="none" stroke="#777" strokeWidth="4" />
+                        <path d="M 50,50 L 25,50" fill="none" stroke="#f00" strokeWidth="3" strokeDasharray="4,3" />
+                        <path d="M 50,50 L 50,25" fill="none" stroke="#f00" strokeWidth="3" strokeDasharray="4,3" />
+                        <text x="85" y="140" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                        <text x="135" y="90" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{B || 'B'}</text>
+                        <text x="85" y="20" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#f00">{C || 'C'}</text>
+                        <text x="20" y="90" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#f00">{D || 'D'}</text>
+                    </svg>
+                );
+            }
+            if (shapeType === 'Estribo de travamento') {
+                return (
+                    <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 50,70 L 50,110 L 110,110 L 110,70" fill="none" stroke="#777" strokeWidth="4" strokeLinejoin="round" />
+                        <path d="M 110,70 L 80,70 L 80,90" fill="none" stroke="#777" strokeWidth="4" strokeLinejoin="round" />
+                        <path d="M 50,70 L 50,50 L 70,50" fill="none" stroke="#777" strokeWidth="4" strokeLinejoin="round" />
+                        <text x="125" y="95" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                        <text x="80" y="130" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{B || 'B'}</text>
+                        <text x="65" y="40" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{C || 'C'}</text>
+                        <text x="95" y="60" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{D || 'D'}</text>
+                    </svg>
+                );
+            }
+            if (shapeType === 'Estribo de travamento 2') {
+                return (
+                    <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 45,60 L 45,115 L 115,115 L 115,45 L 60,45" fill="none" stroke="#777" strokeWidth="4" strokeLinejoin="round" />
+                        <path d="M 45,60 L 60,75" fill="none" stroke="#777" strokeWidth="4" />
+                        <path d="M 60,45 L 45,30" fill="none" stroke="#f00" strokeWidth="3" strokeDasharray="4,3" />
+                        <text x="80" y="135" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                        <text x="130" y="85" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{B || 'B'}</text>
+                        <text x="80" y="35" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{C || 'C'}</text>
+                        <text x="30" y="90" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{D || 'D'}</text>
+                        <text x="40" y="20" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#f00">{E || 'E'}</text>
+                    </svg>
+                );
+            }
+            return (
+                <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="45" y="45" width="70" height="70" rx="4" fill="none" stroke="#777" strokeWidth="4" />
+                    <text x="80" y="35" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                    <text x="80" y="135" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                    <text x="25" y="85" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{B || 'B'}</text>
+                    <text x="130" y="85" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{B || 'B'}</text>
+                </svg>
+            );
+        }
+
+        if (lados === '6 LADOS') {
+            return (
+                <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                    <polygon points="50,30 110,30 140,80 110,130 50,130 20,80" fill="none" stroke="#777" strokeWidth="4" />
+                    <text x="80" y="20" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                    <text x="135" y="45" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{B || 'B'}</text>
+                    <text x="135" y="125" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{C || 'C'}</text>
+                </svg>
+            );
+        }
+
+        if (lados === '8 LADOS') {
+            return (
+                <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                    <polygon points="60,20 100,20 130,50 130,90 100,120 60,120 30,90 30,50" fill="none" stroke="#777" strokeWidth="4" />
+                    <text x="80" y="10" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                    <text x="125" y="30" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{B || 'B'}</text>
+                    <text x="145" y="75" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{C || 'C'}</text>
+                    <text x="125" y="115" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{D || 'D'}</text>
+                </svg>
+            );
+        }
+
+        if (lados === 'REDONDA') {
+            if (shapeType === 'Definir transpasse') {
+                return (
+                    <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="80" cy="80" r="50" fill="none" stroke="#777" strokeWidth="4" />
+                        <path d="M 128,65 A 55,55 0 0,1 128,95" fill="none" stroke="#f00" strokeWidth="4" strokeDasharray="4,3" />
+                        <text x="80" y="20" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                        <text x="145" y="85" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{B || 'B'}</text>
+                    </svg>
+                );
+            }
+            if (shapeType === 'Transpasse Dobrado') {
+                return (
+                    <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="80" cy="80" r="50" fill="none" stroke="#777" strokeWidth="4" />
+                        <path d="M 125,55 A 40,40 0 0,1 125,105" fill="none" stroke="#f00" strokeWidth="4" strokeDasharray="4,3" />
+                        <path d="M 128,65 L 110,65" fill="none" stroke="#f00" strokeWidth="4" strokeDasharray="4,3" />
+                        <path d="M 128,95 L 110,95" fill="none" stroke="#f00" strokeWidth="4" strokeDasharray="4,3" />
+                        <text x="80" y="20" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                        <text x="145" y="85" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{B || 'B'}</text>
+                        <text x="100" y="85" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{C || 'C'}</text>
+                    </svg>
+                );
+            }
+            return (
+                <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="80" cy="80" r="50" fill="none" stroke="#777" strokeWidth="4" />
+                    <text x="80" y="20" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                </svg>
+            );
+        }
+
+        return null;
+    };
+
+    const getFerroTotalLengthCm = (ferro: FerroItem, colDescription: string): number => {
+        const a = parseFloat(ferro.ladoA) || 0;
+        const b = parseFloat(ferro.ladoB) || 0;
+        const c = parseFloat(ferro.ladoC) || 0;
+        const d = parseFloat(ferro.ladoD) || 0;
+        const e = parseFloat(ferro.ladoE) || 0;
+        
+        if (ferro.drawingType === 'Estribo') {
+            const shapeType = ferro.estriboShape || 'Padrão';
+            const m = colDescription.match(/(\d+ LADOS|REDONDA)/);
+            const ladosDesc = m ? m[1] : '4 LADOS';
+            
+            if (ladosDesc === 'REDONDA') {
+                if (shapeType === 'Definir transpasse') return (a * Math.PI) + b;
+                if (shapeType === 'Transpasse Dobrado') return (a * Math.PI) + b + c;
+                return (a * Math.PI) + 15;
+            }
+            if (ladosDesc === '3 LADOS') {
+                return a + (b * 2) + 10;
+            }
+            if (ladosDesc === '4 LADOS') {
+                if (shapeType === 'Padrão, definir dobras finais') return (a * 2) + (b * 2) + (c * 2);
+                if (shapeType === 'Transpasse em X') return (a * 2) + (b * 2) + c + d;
+                if (shapeType === 'Estribo de travamento') return a + b + c + d + 10;
+                if (shapeType === 'Estribo de travamento 2') return a + b + c + d + (e * 2);
+                return (a * 2) + (b * 2) + 10;
+            }
+            if (ladosDesc === '6 LADOS') {
+                return (a * 2) + (b * 2) + (c * 2) + 10;
+            }
+            if (ladosDesc === '8 LADOS') {
+                return (a * 2) + (b * 2) + (c * 2) + (d * 2) + 10;
+            }
+            return a + b + c + d + 10;
+        }
+        
+        if (ferro.drawingType === 'Trava') {
+            const shape = Number(ferro.estriboShape) || 1;
+            switch(shape) {
+                case 1: return a;
+                case 2: return a + b + c;
+                case 3: return a + b + c;
+                case 4: return a + b + c;
+                case 5: return a + b;
+                case 6: return a + b + c;
+                case 7: return a + b + c;
+                case 8: return a + b + c + d + e;
+                default: return a;
+            }
+        }
+        
+        return a + b + c + d + e;
+    };
+
+    const recalcProduct = (p: ProductItem): ProductItem => {
+        if (!p.ferros || p.ferros.length === 0) {
+            return Object.assign({}, p, { length: 0, weight: 0, price: 0 });
+        }
+        
+        let totalKg = 0;
+        let principalLength = 0;
+        
+        p.ferros.forEach(f => {
+            const totalCm = getFerroTotalLengthCm(f, p.description);
+            const factor = f.bitolaKgm || parseFloat(f.bitola.split(',')[1]) || 0;
+            const weight = (totalCm / 100) * factor * f.qtde;
+            totalKg += weight;
+            
+            if (f.drawingType !== 'Estribo' && f.drawingType !== 'Trava') {
+                const lenM = (parseFloat(f.ladoA) || 0) / 100;
+                if (lenM > principalLength) {
+                    principalLength = lenM;
+                }
+            }
+        });
+        
+        if (principalLength === 0 && p.ferros.length > 0) {
+            principalLength = (parseFloat(p.ferros[0].ladoA) || 0) / 100;
+        }
+
+        return Object.assign({}, p, {
+            length: parseFloat(principalLength.toFixed(2)),
+            weight: parseFloat(totalKg.toFixed(2)),
+            price: parseFloat((totalKg * 8.5).toFixed(2)) // R$ 8.50 per kg
+        });
+    };
+
+    const getFormattedTitleParts = (item: ProductItem): string[] => {
+        const desc = item.description || '';
+        
+        const isColuna = desc.startsWith('COLUNA');
+        const isPillar = desc.startsWith('PILAR');
+        const isViga = desc.startsWith('VIGA');
+        const isBroca = desc.startsWith('BROCA');
+        const isSapata = desc.startsWith('SAPATA');
+        const isStructural = isColuna || isPillar || isViga || isBroca || isSapata;
+        
+        if (!isStructural) return [desc];
+
+        const parts = desc.split(' ');
+        const category = parts[0] || 'COLUNA';
+        
+        let name = '';
+        let amarracao = 'AMARRADA';
+        let lados = '4 LADOS';
+        
+        const amarracaoIdx = parts.findIndex(p => p === 'AMARRADA' || p === 'SOLDADA');
+        if (amarracaoIdx !== -1) {
+            amarracao = parts[amarracaoIdx];
+            name = parts.slice(1, amarracaoIdx).join(' ');
+        } else {
+            name = parts[1] || '';
+        }
+
+        const ladosIdx = parts.findIndex(p => p.includes('LADOS') || p === 'REDONDA');
+        if (ladosIdx !== -1) {
+            if (parts[ladosIdx] === 'REDONDA') {
+                lados = 'REDONDA';
+            } else {
+                lados = (parts[ladosIdx - 1] || '') + ' ' + parts[ladosIdx];
+            }
+        }
+
+        let lengthText = '';
+        if (item.length > 0) {
+            lengthText = `${item.length}M`;
+        } else {
+            const principal = (item.ferros || []).find(f => f.drawingType !== 'Estribo' && f.drawingType !== 'Trava');
+            if (principal && principal.ladoA) {
+                const lenM = (parseFloat(principal.ladoA) || 0) / 100;
+                if (lenM > 0) {
+                    lengthText = `${lenM}M`;
+                }
+            }
+        }
+
+        const estribo = (item.ferros || []).find(f => f.drawingType === 'Estribo');
+        let dimText = '';
+        let espText = '';
+        if (estribo) {
+            if (lados === 'REDONDA') {
+                dimText = estribo.ladoA ? `Ø${estribo.ladoA}` : '';
+            } else {
+                const a = estribo.ladoA || '';
+                const b = estribo.ladoB || '';
+                if (a && b) {
+                    dimText = `${a}x${b}`;
+                } else if (a) {
+                    dimText = `${a}`;
+                }
+            }
+            
+            if (estribo.espacamento) {
+                espText = `ESP ${estribo.espacamento} CM`;
+            }
+        }
+
+        return [
+            category,
+            name,
+            amarracao,
+            lengthText,
+            lados,
+            dimText,
+            espText
+        ].filter(Boolean).map(s => s.toUpperCase());
+    };
+
+    const renderColumnProfileSVG = (lados: string) => {
+        const fs = 14;
+        if (lados === 'REDONDA') {
+            return (
+                <svg viewBox="0 0 160 160" className="w-full h-full max-h-[100px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="80" cy="80" r="50" fill="none" stroke="#777" strokeWidth="4" />
+                    <text x="80" y="20" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">A</text>
+                </svg>
+            );
+        }
+        if (lados === '3 LADOS') {
+            return (
+                <svg viewBox="0 0 160 160" className="w-full h-full max-h-[100px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                    <polygon points="80,30 30,120 130,120" fill="none" stroke="#777" strokeWidth="4" />
+                    <text x="115" y="70" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">A</text>
+                    <text x="80" y="140" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">B</text>
+                </svg>
+            );
+        }
+        if (lados === '6 LADOS') {
+            return (
+                <svg viewBox="0 0 160 160" className="w-full h-full max-h-[100px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                    <polygon points="50,30 110,30 140,80 110,130 50,130 20,80" fill="none" stroke="#777" strokeWidth="4" />
+                    <text x="80" y="20" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">A</text>
+                    <text x="135" y="45" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">B</text>
+                    <text x="135" y="125" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">C</text>
+                </svg>
+            );
+        }
+        if (lados === '8 LADOS') {
+            return (
+                <svg viewBox="0 0 160 160" className="w-full h-full max-h-[100px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                    <polygon points="60,20 100,20 130,50 130,90 100,120 60,120 30,90 30,50" fill="none" stroke="#777" strokeWidth="4" />
+                    <text x="80" y="10" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">A</text>
+                    <text x="125" y="30" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">B</text>
+                    <text x="145" y="75" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">C</text>
+                    <text x="125" y="115" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">D</text>
+                </svg>
+            );
+        }
+        // default: 4 LADOS
+        return (
+            <svg viewBox="0 0 160 160" className="w-full h-full max-h-[100px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                <rect x="45" y="45" width="70" height="70" rx="4" fill="none" stroke="#777" strokeWidth="4" />
+                <text x="80" y="35" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">A</text>
+                <text x="130" y="85" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">B</text>
+            </svg>
+        );
+    };
+
     const renderBarDiagramSVG = (
         pontaEsq: string, pontaDir: string,
         ladoA: string, ladoB: string, ladoD: string,
@@ -410,51 +884,60 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                 {/* Main bar */}
                 <line x1={lX} y1={mainY} x2={rX} y2={mainY} stroke="#333" strokeWidth="2.5"/>
                 {/* A label below */}
-                <text x={(lX+rX)/2} y={mainY + fs + 4} textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#444">A</text>
-                {ladoA && <text x={(lX+rX)/2} y={mainY + fs*2 + 5} textAnchor="middle" fontSize={fsDim} fill="#777">{ladoA}</text>}
+                <text x={(lX+rX)/2} y={mainY + fs + 4} textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#444">
+                    {ladoA || 'A'}
+                </text>
 
                 {/* LEFT arm - goes UP (PARA DENTRO) */}
                 {leftUp && <>
                     <line x1={lX} y1={mainY} x2={lX} y2={topY} stroke="#333" strokeWidth="2.5"/>
                     {pontaEsq === 'GANCHO PARA DENTRO' && <line x1={lX} y1={topY} x2={lX+hook} y2={topY} stroke="#333" strokeWidth="2.5"/>}
-                    {!small && <text x={lX-14} y={midY+fs/2} textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#444">D</text>}
-                    {ladoD && <text x={lX-14} y={midY + fs + 4} textAnchor="middle" fontSize={fsDim} fill="#777">{ladoD}</text>}
+                    <text x={lX-14} y={midY+fs/2} textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#444">
+                        {ladoD || 'D'}
+                    </text>
                 </>}
 
                 {/* LEFT arm - goes DOWN (PARA FORA) */}
                 {leftDown && <>
                     <line x1={lX} y1={mainY} x2={lX} y2={botY} stroke="#333" strokeWidth="2.5"/>
                     {pontaEsq === 'GANCHO PARA FORA' && <line x1={lX} y1={botY} x2={lX+hook} y2={botY} stroke="#333" strokeWidth="2.5"/>}
-                    {!small && <text x={lX-14} y={midYb+fs/2} textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#444">D</text>}
-                    {ladoD && <text x={lX-14} y={midYb + fs + 4} textAnchor="middle" fontSize={fsDim} fill="#777">{ladoD}</text>}
+                    <text x={lX-14} y={midYb+fs/2} textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#444">
+                        {ladoD || 'D'}
+                    </text>
                 </>}
 
                 {/* LEFT - AFUNILADO */}
                 {leftAful && <>
                     <line x1={lX} y1={mainY} x2={lX-12} y2={mainY-20} stroke="#333" strokeWidth="2"/>
-                    {!small && <text x={lX-20} y={mainY-8} textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#444">D</text>}
+                    <text x={lX-20} y={mainY-8} textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#444">
+                        {ladoD || 'D'}
+                    </text>
                 </>}
 
                 {/* RIGHT arm - goes UP (PARA DENTRO) */}
                 {rightUp && <>
                     <line x1={rX} y1={mainY} x2={rX} y2={topY} stroke="#333" strokeWidth="2.5"/>
                     {pontaDir === 'GANCHO PARA DENTRO' && <line x1={rX} y1={topY} x2={rX-hook} y2={topY} stroke="#333" strokeWidth="2.5"/>}
-                    {!small && <text x={rX+14} y={midY+fs/2} textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#444">B</text>}
-                    {ladoB && <text x={rX+14} y={midY + fs + 4} textAnchor="middle" fontSize={fsDim} fill="#777">{ladoB}</text>}
+                    <text x={rX+14} y={midY+fs/2} textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#444">
+                        {ladoB || 'B'}
+                    </text>
                 </>}
 
                 {/* RIGHT arm - goes DOWN (PARA FORA) */}
                 {rightDown && <>
                     <line x1={rX} y1={mainY} x2={rX} y2={botY} stroke="#333" strokeWidth="2.5"/>
                     {pontaDir === 'GANCHO PARA FORA' && <line x1={rX} y1={botY} x2={rX-hook} y2={botY} stroke="#333" strokeWidth="2.5"/>}
-                    {!small && <text x={rX+14} y={midYb+fs/2} textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#444">B</text>}
-                    {ladoB && <text x={rX+14} y={midYb + fs + 4} textAnchor="middle" fontSize={fsDim} fill="#777">{ladoB}</text>}
+                    <text x={rX+14} y={midYb+fs/2} textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#444">
+                        {ladoB || 'B'}
+                    </text>
                 </>}
 
                 {/* RIGHT - AFUNILADO */}
                 {rightAful && <>
                     <line x1={rX} y1={mainY} x2={rX+12} y2={mainY-20} stroke="#333" strokeWidth="2"/>
-                    {!small && <text x={rX+20} y={mainY-8} textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#444">B</text>}
+                    <text x={rX+20} y={mainY-8} textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#444">
+                        {ladoB || 'B'}
+                    </text>
                 </>}
             </svg>
         );
@@ -851,8 +1334,6 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                 <th className="p-4 text-center font-bold text-xs uppercase w-28">Vendedor</th>
                                 <th className="p-4 font-bold text-xs uppercase">Cliente</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-36">Preço</th>
-                                <th className="p-4 text-center font-bold text-xs uppercase w-32">Tipo</th>
-                                <th className="p-4 text-center font-bold text-xs uppercase w-36">Previsão Término</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-48">Ações</th>
                             </tr>
                         </thead>
@@ -874,12 +1355,6 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                     <td className="p-4 text-center font-black text-slate-900 text-sm">
                                         {q.price > 0 ? `R$ ${q.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00'}
                                         <div className="text-[9px] font-bold text-slate-500 uppercase tracking-tight mt-0.5 italic">{q.status}</div>
-                                    </td>
-                                    <td className="p-4 text-center font-extrabold text-slate-700 text-xs uppercase">
-                                        {q.hardwareType || '-'}
-                                    </td>
-                                    <td className="p-4 text-center font-bold text-slate-600 text-xs">
-                                        {q.forecastDate}
                                     </td>
                                     <td className="p-4 text-center">
                                         <select
@@ -1197,28 +1672,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                     </div>
 
                                     {/* Additional configurations */}
-                                    <div className="grid grid-cols-2 gap-4 border-t pt-4">
-                                        <div>
-                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Previsão de Término</label>
-                                            <input 
-                                                type="date" 
-                                                value={newForecast} 
-                                                onChange={(e) => setNewForecast(e.target.value)}
-                                                className="w-full p-2.5 border border-slate-300 rounded text-xs font-bold bg-white" 
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Tipo de Ferragem</label>
-                                            <select 
-                                                value={newHardwareType} 
-                                                onChange={(e) => setNewHardwareType(e.target.value)}
-                                                className="w-full p-2.5 border border-slate-300 rounded text-xs font-bold bg-white cursor-pointer"
-                                            >
-                                                <option value="FERRAGEM">FERRAGEM</option>
-                                                <option value="">Nenhum (Vazio)</option>
-                                            </select>
-                                        </div>
-                                    </div>
+                                    {/* Removed Tipo de Ferragem and Previsão de Término as requested */}
 
                                     {/* Footer Buttons */}
                                     <div className="flex justify-start gap-3 pt-3 border-t">
@@ -1669,28 +2123,205 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                             const isColuna = item.description.startsWith('COLUNA');
                                             const isPillar = item.description.startsWith('PILAR');
                                             const isStructural = isColuna || isPillar;
-                                            const incomplete = isStructural; // red alert when structural has no bars
-                                            const isOpen = openDropdownIdx === idx;
+                                            
+                                            // Dynamic minimum principal reinforcement count based on sides
+                                            const matchLados = item.description.match(/(\d+ LADOS|REDONDA)/);
+                                            const ladosDesc = matchLados ? matchLados[1] : '4 LADOS';
+                                            let minPrincipalFerros = 4;
+                                            if (ladosDesc === '3 LADOS') minPrincipalFerros = 3;
+                                            else if (ladosDesc === '4 LADOS') minPrincipalFerros = 4;
+                                            else if (ladosDesc === '6 LADOS') minPrincipalFerros = 6;
+                                            else if (ladosDesc === '8 LADOS') minPrincipalFerros = 8;
+                                            else if (ladosDesc === 'REDONDA') minPrincipalFerros = 3;
+                                            
+                                            const principalFerrosCount = (item.ferros || [])
+                                                .filter(f => f.drawingType !== 'Estribo' && f.drawingType !== 'Trava')
+                                                .reduce((sum, f) => sum + f.qtde, 0);
+                                            const hasEnoughPrincipalFerros = principalFerrosCount >= minPrincipalFerros;
+                                            const hasEstribos = (item.ferros || []).some(f => f.drawingType === 'Estribo' && f.qtde > 0);
+                                            
+                                            const incomplete = isStructural && (!hasEnoughPrincipalFerros || !hasEstribos);
+                                            
                                             return (
                                                 <div
                                                     key={item.id}
-                                                    className={`border rounded-lg overflow-visible relative ${incomplete ? 'bg-red-50 border-red-300' : 'bg-emerald-50/60 border-emerald-200'}`}
+                                                    className={`border rounded-lg overflow-hidden relative shadow-sm flex flex-col mb-4 ${
+                                                        incomplete
+                                                            ? 'bg-red-50/50 border-red-200'
+                                                            : 'bg-emerald-50/30 border-emerald-200'
+                                                    }`}
                                                 >
-                                                    <div className="flex items-start gap-3 px-3 py-2.5">
-                                                        {/* Number badge */}
-                                                        <div className={`w-6 h-6 rounded-full text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5 ${incomplete ? 'bg-red-500' : 'bg-emerald-600'}`}>
-                                                            {idx + 1}
+                                                    {/* Ribbon corner completion badge */}
+                                                    <div className="absolute top-0 right-0 overflow-hidden w-24 h-24 pointer-events-none z-10">
+                                                        <div
+                                                            className={`absolute top-[22px] right-[-24px] transform rotate-45 text-center text-[7px] font-black tracking-widest text-white py-1 w-24 uppercase shadow-sm ${
+                                                                incomplete ? 'bg-red-500' : 'bg-emerald-600'
+                                                            }`}
+                                                        >
+                                                            {incomplete ? 'INCOMPLETO' : 'COMPLETO'}
                                                         </div>
-                                                        {/* Content */}
-                                                        <div className="flex-grow min-w-0">
-                                                            {/* Approx price */}
-                                                            {item.ferros && item.ferros.length > 0 && (
-                                                                <div className="text-right shrink-0">
-                                                                    <div className="text-[10px] font-black text-slate-600 whitespace-nowrap">
+                                                    </div>
+
+                                                    {/* Card Header */}
+                                                    <div
+                                                        className={`flex flex-wrap items-center justify-between px-4 py-3 border-b shrink-0 ${
+                                                            incomplete
+                                                                ? 'bg-red-100/60 border-red-200'
+                                                                : 'bg-emerald-100/60 border-emerald-200'
+                                                        }`}
+                                                    >
+                                                        {/* Left side: title + badge */}
+                                                        <div className="flex items-center gap-2 max-w-[50%] md:max-w-[60%]">
+                                                            <span
+                                                                className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-white text-[10px] font-bold shrink-0 ${
+                                                                    incomplete ? 'bg-red-500' : 'bg-emerald-600'
+                                                                }`}
+                                                            >
+                                                                {idx + 1}
+                                                            </span>
+                                                            <div className="flex flex-wrap gap-1.5 items-center">
+                                                                {getFormattedTitleParts(item).map((part, i) => (
+                                                                    <span key={i} className="bg-slate-200/70 border border-slate-300 text-slate-800 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wide">
+                                                                        {part}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Center side: Actions Select */}
+                                                        <div className="flex-1 max-w-[200px] px-2">
+                                                            <select
+                                                                value=""
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    if (!val) return;
+                                                                    
+                                                                    if (val === 'edit') {
+                                                                        const isStructural = item.description.startsWith('COLUNA') || item.description.startsWith('VIGA') || item.description.startsWith('PILAR') || item.description.startsWith('BROCA') || item.description.startsWith('SAPATA');
+                                                                        if (isStructural) {
+                                                                            const parts = item.description.split(' ');
+                                                                            const namePart = (parts[1] !== 'AMARRADA' && parts[1] !== 'SOLDADA') ? parts[1] : '';
+                                                                            const typeIndex = parts.indexOf('AMARRADA') !== -1 ? parts.indexOf('AMARRADA') : parts.indexOf('SOLDADA');
+                                                                            const tipoAmarracao = parts[typeIndex] || 'AMARRADA';
+                                                                            const ladosIndex = parts.findIndex(p => p.includes('LADOS') || p === 'REDONDA');
+                                                                            const qtdeLados = parts[ladosIndex] || '4 LADOS';
+                                                                            
+                                                                            const areaMatch = item.description.match(/x (\d+)\s*(?:\/\s*(\d+))?\s*CM/);
+                                                                            const area1 = areaMatch ? areaMatch[1] : '';
+                                                                            const area2 = areaMatch && areaMatch[2] ? areaMatch[2] : '';
+                                                                            
+                                                                            const obsMatch = item.description.match(/OBS:\s*(.*)/);
+                                                                            const obs = obsMatch ? obsMatch[1].trim() : '';
+
+                                                                            setColunaName(namePart);
+                                                                            setColunaQtde(String(item.qty));
+                                                                            setColunaTipoAmarracao(tipoAmarracao as any);
+                                                                            setColunaQtdeLados(qtdeLados);
+                                                                            setColunaAreaSemEstr1(area1);
+                                                                            setColunaAreaSemEstr2(area2);
+                                                                            setColunaObs(obs);
+                                                                            setEditingColunaId(item.id);
+                                                                            setShowColunaModal(true);
+                                                                        } else {
+                                                                            setActiveCategory(item.description.split(' ')[0]);
+                                                                            setQtyInput(item.qty);
+                                                                            setLenInput(item.length);
+                                                                            setWeightInput(item.weight);
+                                                                            setEditingColunaId(item.id);
+                                                                        }
+                                                                    } else if (val === 'delete') {
+                                                                        setTempProducts(prev => prev.filter((_, i) => i !== idx));
+                                                                    } else if (val === 'add_ferros') {
+                                                                        const parts = item.description.split(' ');
+                                                                        setFerroTargetProdIdx(idx);
+                                                                        setFerroTargetColunaNome(parts.length > 1 ? parts[1] : '');
+                                                                        setFerroNomeElemento('FERROS PRINCIPAIS');
+                                                                        setFerroQtde('');
+                                                                        setFerroBitola('');
+                                                                        setFerroPontaEsq('SEM PONTA');
+                                                                        setFerroPontaDir('SEM PONTA');
+                                                                        setFerroLadoA('');
+                                                                        setFerroLadoB('');
+                                                                        setFerroLadoC('');
+                                                                        setFerroLadoD('');
+                                                                        setFerroLadoE('');
+                                                                        setFerroObs('');
+                                                                        setFerroModalTitle('Ferros Principais');
+                                                                        setShowFerrosModal(true);
+                                                                    } else if (val === 'add_estribos') {
+                                                                        const parts = item.description.split(' ');
+                                                                        setEstriboTargetProdIdx(idx);
+                                                                        setEstriboTargetColunaNome(parts.length > 1 ? parts[1] : '');
+                                                                        setEstriboNomeElemento('ESTRIBOS');
+                                                                        setEstriboEspacamento('');
+                                                                        setEstriboQtde('');
+                                                                        setEstriboBitola('');
+                                                                        setEstriboCalcAutomatico(false);
+                                                                        setEstriboShapeType('Padrão');
+                                                                        setEstriboLadoA('');
+                                                                        setEstriboLadoB('');
+                                                                        setEstriboLadoC('');
+                                                                        setEstriboLadoD('');
+                                                                        setEstriboLadoE('');
+                                                                        setEstriboObs('');
+                                                                        setShowEstribosModal(true);
+                                                                    } else if (val === 'add_trava') {
+                                                                        const parts = item.description.split(' ');
+                                                                        setTravaTargetProdIdx(idx);
+                                                                        setTravaTargetColunaNome(parts.length > 1 ? parts[1] : '');
+                                                                        setTravaNomeElemento('TRAVA');
+                                                                        setTravaQtde('');
+                                                                        setTravaBitola('');
+                                                                        setTravaShapeId(1);
+                                                                        setTravaLadoA('');
+                                                                        setTravaLadoB('');
+                                                                        setTravaLadoC('');
+                                                                        setTravaLadoD('');
+                                                                        setTravaLadoE('');
+                                                                        setTravaObs('');
+                                                                        setShowTravaModal(true);
+                                                                    } else if (val === 'add_costelas' || val === 'add_reforcos' || val === 'add_2camada') {
+                                                                        const optionLabel = val === 'add_costelas' ? 'Costelas' : val === 'add_reforcos' ? 'Reforços' : '2ª Camada';
+                                                                        const parts = item.description.split(' ');
+                                                                        setFerroTargetProdIdx(idx);
+                                                                        setFerroTargetColunaNome(parts.length > 1 ? parts[1] : '');
+                                                                        setFerroNomeElemento(optionLabel.toUpperCase());
+                                                                        setFerroQtde('');
+                                                                        setFerroBitola('');
+                                                                        setFerroPontaEsq('SEM PONTA');
+                                                                        setFerroPontaDir('SEM PONTA');
+                                                                        setFerroLadoA('');
+                                                                        setFerroLadoB('');
+                                                                        setFerroLadoC('');
+                                                                        setFerroLadoD('');
+                                                                        setFerroLadoE('');
+                                                                        setFerroObs('');
+                                                                        setFerroModalTitle(optionLabel);
+                                                                        setShowFerrosModal(true);
+                                                                    }
+                                                                }}
+                                                                className="w-full bg-white border border-slate-300 hover:border-slate-400 rounded px-2 py-1 text-[10px] font-bold text-slate-700 focus:outline-none cursor-pointer"
+                                                            >
+                                                                <option value="">Ações...</option>
+                                                                <option value="edit">✏️ Editar Peça</option>
+                                                                <option value="delete">❌ Excluir Peça</option>
+                                                                <option value="add_ferros">➕ Ferros Principais</option>
+                                                                <option value="add_estribos">➕ Estribos</option>
+                                                                <option value="add_costelas">➕ Costelas</option>
+                                                                <option value="add_reforcos">➕ Reforços</option>
+                                                                <option value="add_2camada">➕ 2ª Camada</option>
+                                                                <option value="add_trava">➕ Trava</option>
+                                                            </select>
+                                                        </div>
+
+                                                        {/* Right side: Price + Weight */}
+                                                        <div className="text-right pr-14 shrink-0 flex flex-col justify-center">
+                                                            {item.ferros && item.ferros.length > 0 ? (
+                                                                <>
+                                                                    <div className="text-xs font-black text-slate-800">
                                                                         {(() => {
                                                                             const totalKg = (item.ferros || []).reduce((sum, f) => {
-                                                                                const sides = [f.ladoA, f.ladoB, f.ladoC, f.ladoD, f.ladoE].filter(Boolean);
-                                                                                const totalCm = sides.reduce((s, v) => s + (parseFloat(v) || 0), 0);
+                                                                                const totalCm = getFerroTotalLengthCm(f, item.description);
                                                                                 const factor = parseFloat(f.bitola.split(',')[1]) || 0;
                                                                                 return sum + (totalCm / 100) * factor * f.qtde;
                                                                             }, 0);
@@ -1698,187 +2329,256 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                             return `Aprox. R$ ${price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                                                                         })()}
                                                                     </div>
-                                                                </div>
-                                                            )}
-                                                            <div className="text-sky-700 font-extrabold text-xs leading-snug uppercase tracking-wide">
-                                                                {item.description}
-                                                            </div>
-                                                            {isStructural && (
-                                                                <>
-                                                                    <div className="text-red-500 text-[10px] font-bold mt-0.5">Sem ferros principais suficientes</div>
-                                                                    <div className="text-red-500 text-[10px] font-bold">Sem estribos suficientes</div>
+                                                                    <div className="text-[9px] font-bold text-blue-600">
+                                                                        {(() => {
+                                                                            const totalKg = (item.ferros || []).reduce((sum, f) => {
+                                                                                const totalCm = getFerroTotalLengthCm(f, item.description);
+                                                                                const factor = parseFloat(f.bitola.split(',')[1]) || 0;
+                                                                                return sum + (totalCm / 100) * factor * f.qtde;
+                                                                            }, 0);
+                                                                            return `Peso Total = ${totalKg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`;
+                                                                        })()}
+                                                                    </div>
                                                                 </>
-                                                            )}
-                                                            {!isStructural && item.weight > 0 && (
-                                                                <div className="text-slate-500 text-[10px] font-semibold mt-0.5">
-                                                                    Qtd: {item.qty} | Peso: {item.weight.toFixed(2)} kg | R$ {item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        {/* Dropdown trigger */}
-                                                        <div className="relative shrink-0">
-                                                            <button
-                                                                onClick={() => setOpenDropdownIdx(isOpen ? null : idx)}
-                                                                className="flex items-center gap-1 border border-slate-300 bg-white hover:bg-slate-50 rounded px-2 py-1 text-[10px] font-bold text-slate-600 transition"
-                                                            >
-                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
-                                                            </button>
-
-                                                            {/* Dropdown menu */}
-                                                            {isOpen && (
-                                                                <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded shadow-xl z-[70] w-52 py-1 text-xs">
-                                                                    {/* Red header bar */}
-                                                                    <div className="bg-red-500 h-1.5 rounded-t mx-1 mb-1" />
-
-                                                                    {/* Edit actions */}
-                                                                    <button className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 font-semibold text-slate-700">
-                                                                        <span>✏️</span> Editar
-                                                                    </button>
-                                                                    <button className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 font-semibold text-slate-700">
-                                                                        <span>📋</span> Duplicar
-                                                                    </button>
-                                                                    <button className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 font-semibold text-slate-700">
-                                                                        <span>🔒</span> Bloquear
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setTempProducts(prev => prev.filter((_, i) => i !== idx));
-                                                                            setOpenDropdownIdx(null);
-                                                                        }}
-                                                                        className="w-full text-left px-3 py-1.5 hover:bg-red-50 flex items-center gap-2 font-bold text-red-600"
-                                                                    >
-                                                                        <span>✕</span> Excluir
-                                                                    </button>
-
-                                                                    <div className="border-t border-slate-100 my-1" />
-
-                                                                    {/* Add steel components */}
-                                                                    {/* Ferros Principais - opens dedicated modal */}
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            const prod = tempProducts[idx];
-                                                                            const parts = prod.description.split(' ');
-                                                                            setFerroTargetProdIdx(idx);
-                                                                            setFerroTargetColunaNome(parts.length > 1 ? parts[1] : '');
-                                            setFerroNomeElemento('');
-                                            setFerroQtde('');
-                                            setFerroBitola('');
-                                            setFerroPontaEsq('');
-                                            setFerroPontaDir('');
-                                            setFerroLadoA('');
-                                                                            setFerroLadoB('');
-                                                                            setFerroLadoC('');
-                                                                            setFerroLadoD('');
-                                                                            setFerroLadoE('');
-                                                                            setFerroObs('');
-                                                                            setOpenDropdownIdx(null);
-                                                                            setShowFerrosModal(true);
-                                                                        }}
-                                                                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-center gap-2 font-semibold text-slate-700"
-                                                                    >
-                                                                        <span className="text-blue-600 font-black">+</span> Ferros Principais
-                                                                    </button>
-                                                                    {['Estribos', 'Costelas', 'Reforços', '2ª Camada', 'Trava'].map(option => (
-                                                                        <button
-                                                                            key={option}
-                                                                            className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-center gap-2 font-semibold text-slate-700"
-                                                                        >
-                                                                            <span className="text-blue-600 font-black">+</span> {option}
-                                                                        </button>
-                                                                    ))}
-
-                                                                    <div className="border-t border-slate-100 my-1" />
-
-                                                                    {/* Extra options */}
-                                                                    <button className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 font-semibold text-slate-500">
-                                                                        <span>🖼️</span> Alterar Bitolas
-                                                                    </button>
-                                                                    <button className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 font-semibold text-slate-500">
-                                                                        <span>🔄</span> Copiar para Corte e Dobra
-                                                                    </button>
-                                                                    <button className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 font-semibold text-slate-500">
-                                                                        <span>📎</span> Anexar Desenho
-                                                                    </button>
-                                                                </div>
+                                                            ) : (
+                                                                <div className="text-xs font-black text-slate-400">R$ 0,00</div>
                                                             )}
                                                         </div>
                                                     </div>
 
-                                                    {/* Ferros table (shown when ferros exist) */}
-                                                    {item.ferros && item.ferros.length > 0 && (
-                                                        <div className="border-t border-red-200 overflow-x-auto">
-                                                            <table className="w-full text-[10px] min-w-[800px]">
-                                                                <thead className="bg-[#0F3F5C] text-white">
-                                                                    <tr>
-                                                                        <th className="px-2 py-1.5 text-center font-bold">img</th>
-                                                                        <th className="px-2 py-1.5 text-center font-bold">nome elemento</th>
-                                                                        <th className="px-2 py-1.5 text-center font-bold">qtde</th>
-                                                                        <th className="px-2 py-1.5 text-center font-bold">tipo</th>
-                                                                        <th className="px-2 py-1.5 text-center font-bold">bitola</th>
-                                                                        <th className="px-2 py-1.5 text-center font-bold">esp estr.</th>
-                                                                        <th className="px-2 py-1.5 text-center font-bold">area s/ est.</th>
-                                                                        <th className="px-2 py-1.5 text-center font-bold">ponta</th>
-                                                                        <th className="px-2 py-1.5 text-center font-bold">obs</th>
-                                                                        <th className="px-2 py-1.5 text-center font-bold">calculos</th>
-                                                                        <th className="px-2 py-1.5 text-center font-bold">açao</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    {item.ferros.map((ferro, fIdx) => {
-                                                                        const sides = [ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE].filter(Boolean);
-                                                                        const totalLen = sides.reduce((s, v) => s + (parseFloat(v) || 0), 0);
-                                                                        const areaMatch = item.description.match(/x (\d+) CM/);
-                                                                        const areaVal = areaMatch ? areaMatch[1] : '';
-                                                                        const areaText = areaVal ? `${areaVal} CM S/ ESTR LADO DIREITO + ${areaVal} CM S/ ESTR LADO ESQUERDO` : '-';
-                                                                        const pontaText = (ferro.pontaEsquerdo === 'SEM PONTA' && ferro.pontaDireito === 'SEM PONTA') ? 'SEM PONTAS' : `ESQ: ${ferro.pontaEsquerdo} / DIR: ${ferro.pontaDireito}`;
-                                                                        return (
-                                                                            <tr key={ferro.id} className="border-b border-slate-100 bg-white hover:bg-slate-50">
-                                                                                {/* img - dynamic bar shape */}
-                                                                                <td className="px-2 py-1.5 text-center">
-                                                                                    {renderBarDiagramSVG(
-                                                                                        ferro.pontaEsquerdo, ferro.pontaDireito,
-                                                                                        ferro.ladoA, ferro.ladoB, ferro.ladoD,
-                                                                                        true
-                                                                                    )}
-                                                                                </td>
-                                                                                <td className="px-2 py-1.5 text-center font-bold text-slate-700">{ferro.nomeElemento}</td>
-                                                                                <td className="px-2 py-1.5 text-center font-bold text-slate-700">{ferro.qtde}</td>
-                                                                                <td className="px-2 py-1.5 text-center text-slate-600">FERROS</td>
-                                                                                <td className="px-2 py-1.5 text-center font-bold">{ferro.bitola.split(',')[0]}</td>
-                                                                                <td className="px-2 py-1.5 text-center text-slate-500">-</td>
-                                                                                <td className="px-2 py-1.5 text-center text-slate-600" style={{maxWidth: '180px'}}>{areaText}</td>
-                                                                                <td className="px-2 py-1.5 text-center text-slate-600">{getPontaText(ferro.pontaEsquerdo, ferro.pontaDireito)}</td>
-                                                                                <td className="px-2 py-1.5 text-center text-slate-500">{ferro.obs || '-'}</td>
-                                                                                <td className="px-2 py-1.5 text-left">
-                                                                                    <div className="text-slate-500">Tamanho total:</div>
-                                                                                    <div className="text-slate-500">linear</div>
-                                                                                    <div className="text-slate-500">unidade:</div>
-                                                                                    <div className="font-black text-slate-800">{totalLen} cm</div>
-                                                                                </td>
-                                                                                <td className="px-2 py-1.5 text-center">
-                                                                                    <div className="flex flex-col items-center gap-1">
-                                                                                        <div className="flex gap-1">
-                                                                                            <button className="text-[10px] font-bold text-slate-600 hover:underline">Editar</button>
-                                                                                            <span className="text-slate-300">|</span>
-                                                                                            <button className="text-[10px] font-bold text-slate-600 hover:underline">Copiar</button>
-                                                                                        </div>
-                                                                                        <button
-                                                                                            onClick={() => setTempProducts(prev => prev.map((p, pi) =>
-                                                                                                pi === idx ? { ...p, ferros: (p.ferros || []).filter((_, fi) => fi !== fIdx) } : p
-                                                                                            ))}
-                                                                                            className="bg-red-500 hover:bg-red-600 text-white text-[9px] font-bold py-0.5 px-2 rounded transition"
-                                                                                        >
-                                                                                            Excluir
-                                                                                        </button>
-                                                                                    </div>
-                                                                                </td>
-                                                                            </tr>
-                                                                        );
-                                                                    })}
-                                                                </tbody>
-                                                            </table>
+                                                    {/* Card Body */}
+                                                    <div className="flex flex-col md:flex-row items-stretch bg-white">
+                                                        {/* Profile Diagram (Left Column) */}
+                                                        <div className="w-full md:w-[130px] shrink-0 border-b md:border-b-0 md:border-r border-slate-200 flex items-center justify-center p-3.5 bg-slate-50/30">
+                                                            <div className="w-full flex flex-col items-center gap-1.5 text-center">
+                                                                {renderColumnProfileSVG(ladosDesc)}
+                                                            </div>
                                                         </div>
-                                                    )}
+
+                                                        {/* Table (Right Column) */}
+                                                        <div className="flex-grow min-w-0 overflow-x-auto">
+                                                            {isStructural && (
+                                                                <div className="p-2 space-y-1 bg-amber-50/40 border-b border-slate-100">
+                                                                    {!hasEnoughPrincipalFerros && (
+                                                                        <div className="text-red-500 text-[9px] font-bold">⚠️ Sem ferros principais suficientes (Mínimo {minPrincipalFerros} para {ladosDesc})</div>
+                                                                    )}
+                                                                    {!hasEstribos && (
+                                                                        <div className="text-red-500 text-[9px] font-bold">⚠️ Sem estribos suficientes</div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+
+                                                            {item.ferros && item.ferros.length > 0 ? (
+                                                                <table className="w-full text-[10px] min-w-[780px]">
+                                                                    <thead className="bg-[#0F3F5C] text-white">
+                                                                        <tr>
+                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Img</th>
+                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Elemento</th>
+                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Qtde</th>
+                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Tipo</th>
+                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Bitola</th>
+                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Esp. Estr.</th>
+                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Área s/ Est.</th>
+                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Ponta</th>
+                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Obs</th>
+                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Cálculos</th>
+                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Ações</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {item.ferros.map((ferro, fIdx) => {
+                                                                            const areaMatch = item.description.match(/x (\d+)\s*(?:\/\s*(\d+))?\s*CM/);
+                                                                            const areaVal = areaMatch ? areaMatch[1] : '';
+                                                                            const areaText = areaVal ? `${areaVal} CM S/ ESTR` : '-';
+                                                                            
+                                                                            return (
+                                                                                <tr key={ferro.id} className="border-b border-slate-100 bg-white hover:bg-slate-50 transition-colors">
+                                                                                    {/* img */}
+                                                                                    <td className="px-2 py-1.5 text-center w-24">
+                                                                                        <div className="flex items-center justify-center min-h-[50px]">
+                                                                                            {ferro.drawingType === 'Estribo'
+                                                                                                ? <div className="scale-75 origin-center">{renderEstriboSVG(ladosDesc, ferro.estriboShape || 'Padrão', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE)}</div>
+                                                                                                : ferro.drawingType === 'Trava'
+                                                                                                ? <div className="scale-75 origin-center">{renderTravaSVG(Number(ferro.estriboShape) || 1, ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE)}</div>
+                                                                                                : renderBarDiagramSVG(
+                                                                                                    ferro.pontaEsquerdo, ferro.pontaDireito,
+                                                                                                    ferro.ladoA, ferro.ladoB, ferro.ladoD,
+                                                                                                    true
+                                                                                                )}
+                                                                                        </div>
+                                                                                    </td>
+
+                                                                                    {/* nome elemento */}
+                                                                                    <td className="px-2 py-1.5 text-center font-bold text-slate-700">{ferro.nomeElemento}</td>
+
+                                                                                    {/* qtde - centered gray badge */}
+                                                                                    <td className="px-2 py-1.5 text-center">
+                                                                                        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-slate-500 text-white font-bold text-[9px] min-w-[20px]">
+                                                                                            {ferro.qtde}
+                                                                                        </span>
+                                                                                    </td>
+
+                                                                                    {/* tipo */}
+                                                                                    <td className="px-2 py-1.5 text-center text-slate-600 font-semibold">
+                                                                                        {ferro.drawingType === 'Estribo' ? 'ESTRIBOS' : ferro.drawingType === 'Trava' ? 'TRAVA' : 'FERROS'}
+                                                                                    </td>
+
+                                                                                    {/* bitola */}
+                                                                                    <td className="px-2 py-1.5 text-center font-bold text-slate-700">
+                                                                                        {ferro.bitola.split(',')[0]}
+                                                                                    </td>
+
+                                                                                    {/* esp estr. */}
+                                                                                    <td className="px-2 py-1.5 text-center text-slate-600 font-bold">
+                                                                                        {ferro.drawingType === 'Estribo' ? (ferro.espacamento ? ferro.espacamento + ' CM' : '-') : '-'}
+                                                                                    </td>
+
+                                                                                    {/* area s/ est. */}
+                                                                                    <td className="px-2 py-1.5 text-center text-slate-600" style={{ maxWidth: '120px' }}>
+                                                                                        {ferro.drawingType === 'Estribo' ? '-' : areaText}
+                                                                                    </td>
+
+                                                                                    {/* ponta */}
+                                                                                    <td className="px-2 py-1.5 text-center text-slate-600">
+                                                                                        {ferro.drawingType === 'Estribo' || ferro.drawingType === 'Trava' ? '-' : getPontaText(ferro.pontaEsquerdo, ferro.pontaDireito)}
+                                                                                    </td>
+
+                                                                                    {/* obs */}
+                                                                                    <td className="px-2 py-1.5 text-center text-slate-500 italic max-w-[100px] truncate">{ferro.obs || '-'}</td>
+
+                                                                                    {/* calculos fraction layout */}
+                                                                                    <td className="px-2 py-1.5 text-center w-28">
+                                                                                        <div className="flex flex-col items-center justify-center text-center">
+                                                                                            <span className="text-[8px] text-slate-400 font-semibold leading-tight">Tamanho linear</span>
+                                                                                            <span className="text-[8px] text-slate-400 font-semibold leading-tight">unitário:</span>
+                                                                                            <div className="w-12 border-b border-slate-200 my-0.5"></div>
+                                                                                            <span className="font-extrabold text-slate-800 text-[10px]">{getFerroTotalLengthCm(ferro, item.description)} cm</span>
+                                                                                        </div>
+                                                                                    </td>
+
+                                                                                    {/* acao horizontal styled buttons */}
+                                                                                    <td className="px-2 py-1.5 text-center w-36">
+                                                                                        <div className="flex items-center justify-center gap-1.5">
+                                                                                            <button
+                                                                                                onClick={() => {
+                                                                                                    if (ferro.drawingType === 'Estribo') {
+                                                                                                        setEstriboTargetProdIdx(idx);
+                                                                                                        const prod = tempProducts[idx];
+                                                                                                        const parts = prod.description.split(' ');
+                                                                                                        setEstriboTargetColunaNome(parts.length > 1 ? parts[1] : '');
+                                                                                                        setEstriboNomeElemento(ferro.nomeElemento);
+                                                                                                        setEstriboEspacamento(ferro.espacamento || '');
+                                                                                                        setEstriboQtde(String(ferro.qtde));
+                                                                                                        setEstriboBitola(ferro.bitola);
+                                                                                                        setEstriboCalcAutomatico(false);
+                                                                                                        setEstriboShapeType(ferro.estriboShape || 'Padrão');
+                                                                                                        setEstriboLadoA(ferro.ladoA);
+                                                                                                        setEstriboLadoB(ferro.ladoB);
+                                                                                                        setEstriboLadoC(ferro.ladoC);
+                                                                                                        setEstriboLadoD(ferro.ladoD);
+                                                                                                        setEstriboLadoE(ferro.ladoE || '');
+                                                                                                        setEstriboObs(ferro.obs);
+                                                                                                        setFerroEditId(ferro.id);
+                                                                                                        setShowEstribosModal(true);
+                                                                                                    } else if (ferro.drawingType === 'Trava') {
+                                                                                                        setTravaTargetProdIdx(idx);
+                                                                                                        const prod = tempProducts[idx];
+                                                                                                        const parts = prod.description.split(' ');
+                                                                                                        setTravaTargetColunaNome(parts.length > 1 ? parts[1] : '');
+                                                                                                        setTravaNomeElemento(ferro.nomeElemento);
+                                                                                                        setTravaQtde(String(ferro.qtde));
+                                                                                                        setTravaBitola(ferro.bitola);
+                                                                                                        setTravaShapeId(Number(ferro.estriboShape) || 1);
+                                                                                                        setTravaLadoA(ferro.ladoA);
+                                                                                                        setTravaLadoB(ferro.ladoB);
+                                                                                                        setTravaLadoC(ferro.ladoC);
+                                                                                                        setTravaLadoD(ferro.ladoD);
+                                                                                                        setTravaLadoE(ferro.ladoE || '');
+                                                                                                        setTravaObs(ferro.obs);
+                                                                                                        setTravaEditId(ferro.id);
+                                                                                                        setShowTravaModal(true);
+                                                                                                    } else {
+                                                                                                        setFerroTargetProdIdx(idx);
+                                                                                                        const prod = tempProducts[idx];
+                                                                                                        const parts = prod.description.split(' ');
+                                                                                                        setFerroTargetColunaNome(parts.length > 1 ? parts[1] : '');
+                                                                                                        setFerroNomeElemento(ferro.nomeElemento);
+                                                                                                        setFerroQtde(String(ferro.qtde));
+                                                                                                        setFerroBitola(ferro.bitola);
+                                                                                                        setFerroPontaEsq(ferro.pontaEsquerdo);
+                                                                                                        setFerroPontaDir(ferro.pontaDireito);
+                                                                                                        setFerroLadoA(ferro.ladoA);
+                                                                                                        setFerroLadoB(ferro.ladoB);
+                                                                                                        setFerroLadoC(ferro.ladoC);
+                                                                                                        setFerroLadoD(ferro.ladoD);
+                                                                                                        setFerroLadoE(ferro.ladoE || '');
+                                                                                                        setFerroObs(ferro.obs);
+                                                                                                        setFerroModalTitle(ferro.nomeElemento);
+                                                                                                        setFerroEditId(ferro.id);
+                                                                                                        setShowFerrosModal(true);
+                                                                                                    }
+                                                                                                }}
+                                                                                                className="bg-orange-500 hover:bg-orange-600 border border-orange-600 text-white font-semibold py-1 px-2.5 rounded text-[10px] transition shadow-sm"
+                                                                                            >
+                                                                                                Editar
+                                                                                            </button>
+                                                                                            <button
+                                                                                                onClick={() => {
+                                                                                                    const copied = {
+                                                                                                        id: String(Date.now() + Math.random()),
+                                                                                                        nomeElemento: ferro.nomeElemento + ' (CÓPIA)',
+                                                                                                        qtde: ferro.qtde,
+                                                                                                        bitola: ferro.bitola,
+                                                                                                        bitolaKgm: ferro.bitolaKgm,
+                                                                                                        pontaEsquerdo: ferro.pontaEsquerdo,
+                                                                                                        pontaDireito: ferro.pontaDireito,
+                                                                                                        ladoA: ferro.ladoA,
+                                                                                                        ladoB: ferro.ladoB,
+                                                                                                        ladoC: ferro.ladoC,
+                                                                                                        ladoD: ferro.ladoD,
+                                                                                                        ladoE: ferro.ladoE,
+                                                                                                        obs: ferro.obs,
+                                                                                                        drawingType: ferro.drawingType,
+                                                                                                        estriboShape: ferro.estriboShape,
+                                                                                                        espacamento: ferro.espacamento
+                                                                                                    };
+                                                                                                    const updated = tempProducts.map((p, pi) =>
+                                                                                                        pi === idx ? recalcProduct(Object.assign({}, p, { ferros: [...(p.ferros || []), copied] })) : p
+                                                                                                    );
+                                                                                                    setTempProducts(updated);
+                                                                                                    if (activeQuote) handleProductSave(activeQuote.id, updated);
+                                                                                                    showNotification('Elemento copiado!', 'success');
+                                                                                                }}
+                                                                                                className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-semibold py-1 px-2.5 rounded text-[10px] transition shadow-sm"
+                                                                                            >
+                                                                                                Duplicar
+                                                                                            </button>
+                                                                                            <button
+                                                                                                onClick={() => {
+                                                                                                    const updated = tempProducts.map((p, pi) =>
+                                                                                                        pi === idx ? recalcProduct(Object.assign({}, p, { ferros: (p.ferros || []).filter((_, fi) => fi !== fIdx) })) : p
+                                                                                                    );
+                                                                                                    setTempProducts(updated);
+                                                                                                    if (activeQuote) handleProductSave(activeQuote.id, updated);
+                                                                                                }}
+                                                                                                className="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-2.5 rounded text-[10px] transition shadow-sm"
+                                                                                            >
+                                                                                                Excluir
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                </tr>
+                                                                            );
+                                                                        })}
+                                                                    </tbody>
+                                                                </table>
+                                                            ) : (
+                                                                <div className="p-8 text-center text-slate-400 font-semibold">
+                                                                    Nenhum componente adicionado a esta peça.
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             );
                                         })}
@@ -2046,28 +2746,47 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                             }
                                             const bitolaKgm = parseFloat(ferroBitola.split(',')[1]) || 0.617;
                                             const bitolaLabel = ferroBitola.split(',')[0];
-                                            const newFerro: FerroItem = {
-                                                id: String(Date.now() + Math.random()),
-                                                nomeElemento: ferroNomeElemento,
-                                                qtde: parseInt(ferroQtde),
-                                                bitola: `${bitolaLabel},${bitolaKgm}`,
-                                                bitolaKgm,
-                                                pontaEsquerdo: ferroPontaEsq,
-                                                pontaDireito: ferroPontaDir,
-                                                ladoA: ferroLadoA,
-                                                ladoB: ferroLadoB,
-                                                ladoC: ferroLadoC,
-                                                ladoD: ferroLadoD,
-                                                ladoE: ferroLadoE,
-                                                obs: ferroObs,
-                                            };
-                                            setTempProducts(prev => prev.map((p, pi) =>
-                                                pi === ferroTargetProdIdx
-                                                    ? { ...p, ferros: [...(p.ferros || []), newFerro] }
-                                                    : p
-                                            ));
+                                            
+                                            let updated;
+                                            if (ferroEditId) {
+                                                updated = tempProducts.map((p, pi) =>
+                                                    pi === ferroTargetProdIdx
+                                                        ? recalcProduct(Object.assign({}, p, {
+                                                            ferros: (p.ferros || []).map(f =>
+                                                                f.id === ferroEditId
+                                                                    ? Object.assign({}, f, { nomeElemento: ferroNomeElemento, qtde: parseInt(ferroQtde), bitola: bitolaLabel + ',' + bitolaKgm, bitolaKgm, pontaEsquerdo: ferroPontaEsq, pontaDireito: ferroPontaDir, ladoA: ferroLadoA, ladoB: ferroLadoB, ladoC: ferroLadoC, ladoD: ferroLadoD, ladoE: ferroLadoE, obs: ferroObs })
+                                                                    : f
+                                                            )
+                                                        }))
+                                                        : p
+                                                );
+                                            } else {
+                                                const newFerro = {
+                                                    id: String(Date.now() + Math.random()),
+                                                    nomeElemento: ferroNomeElemento || 'FERRO',
+                                                    qtde: parseInt(ferroQtde),
+                                                    bitola: bitolaLabel + ',' + bitolaKgm,
+                                                    bitolaKgm,
+                                                    pontaEsquerdo: ferroPontaEsq,
+                                                    pontaDireito: ferroPontaDir,
+                                                    ladoA: ferroLadoA,
+                                                    ladoB: ferroLadoB,
+                                                    ladoC: ferroLadoC,
+                                                    ladoD: ferroLadoD,
+                                                    ladoE: ferroLadoE,
+                                                    obs: ferroObs,
+                                                };
+                                                updated = tempProducts.map((p, pi) =>
+                                                    pi === ferroTargetProdIdx
+                                                        ? recalcProduct(Object.assign({}, p, { ferros: [...(p.ferros || []), newFerro] }))
+                                                        : p
+                                                );
+                                            }
+                                            setTempProducts(updated);
+                                            if (activeQuote) handleProductSave(activeQuote.id, updated);
                                             setShowFerrosModal(false);
-                                            showNotification('Ferro principal adicionado!', 'success');
+                                            setFerroEditId(null);
+                                            showNotification(ferroEditId ? 'Elemento atualizado!' : 'Elemento adicionado!', 'success');
                                         }}
                                         className="bg-[#1565C0] hover:bg-[#0D47A1] text-white font-extrabold py-2 px-5 rounded text-sm transition shadow"
                                     >
@@ -2081,13 +2800,577 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                         </div>
                     )}
 
+                    
+                    {/* MODAL: Trava sub-modal */}
+                    {showTravaModal && (() => {
+                        const requiredSides = getTravaRequiredSides(travaShapeId);
+                        
+                        return (
+                            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
+                                <div className="bg-white rounded shadow-2xl w-full max-w-2xl border border-slate-300 animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[95vh]">
+                                    {/* Header */}
+                                    <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 shrink-0">
+                                        <h3 className="text-base font-black text-slate-800 uppercase tracking-wider">
+                                            {travaEditId ? 'EDITAR TRAVA' : 'TRAVAS'}
+                                        </h3>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setShowTravaModal(false); setTravaEditId(null); }}
+                                            className="text-slate-400 hover:text-slate-700 text-xl font-bold w-6 h-6 flex items-center justify-center border border-slate-200 rounded transition"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+
+                                    <div className="p-5 overflow-y-auto space-y-6">
+                                        {/* Row 1: Nome Elemento, Qtde, Bitola */}
+                                        <div className="grid grid-cols-12 gap-3 items-end">
+                                            <div className="col-span-5">
+                                                <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">NOME ELEMENTO:</label>
+                                                <div className={"flex items-stretch border rounded overflow-hidden " + (travaNomeElemento ? 'border-emerald-400' : 'border-red-400')}>
+                                                    <div className={"w-6 border-r flex items-center justify-center shrink-0 " + (travaNomeElemento ? 'bg-emerald-100 border-emerald-300' : 'bg-red-100 border-red-300')}>
+                                                        <span className={"font-black text-[10px] " + (travaNomeElemento ? 'text-emerald-600' : 'text-red-600')}>#</span>
+                                                    </div>
+                                                    <input type="text" placeholder="OPCIONAL" value={travaNomeElemento} onChange={e => setTravaNomeElemento(e.target.value)}
+                                                        className="w-full px-2 py-1.5 text-xs font-bold outline-none bg-transparent text-slate-800" />
+                                                </div>
+                                            </div>
+                                            <div className="col-span-3">
+                                                <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">QTDE:</label>
+                                                <div className={"flex items-stretch border rounded overflow-hidden " + (travaQtde ? 'border-emerald-400' : 'border-red-400')}>
+                                                    <div className={"w-6 border-r flex items-center justify-center shrink-0 " + (travaQtde ? 'bg-emerald-100 border-emerald-300' : 'bg-red-100 border-red-300')}>
+                                                        <span className={"font-black text-[10px] " + (travaQtde ? 'text-emerald-600' : 'text-red-600')}>#</span>
+                                                    </div>
+                                                    <input type="number" min="1" value={travaQtde} onChange={e => setTravaQtde(e.target.value)}
+                                                        className="w-full px-2 py-1.5 text-xs font-bold outline-none bg-transparent text-slate-800 text-center" />
+                                                </div>
+                                            </div>
+                                            <div className="col-span-4">
+                                                <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">BITOLA:</label>
+                                                <div className={"flex items-stretch border rounded overflow-hidden " + (travaBitola ? 'border-emerald-400' : 'border-red-400')}>
+                                                    <div className={"w-6 border-r flex items-center justify-center shrink-0 " + (travaBitola ? 'bg-emerald-100 border-emerald-300' : 'bg-red-100 border-red-300')}>
+                                                        <span className={"font-black text-[10px] " + (travaBitola ? 'text-emerald-600' : 'text-red-600')}>#</span>
+                                                    </div>
+                                                    <select value={travaBitola} onChange={e => setTravaBitola(e.target.value)}
+                                                        className="w-full px-2 py-1.5 text-[10px] font-bold outline-none bg-transparent cursor-pointer text-slate-800">
+                                                        <option value="">Selecione...</option>
+                                                        {BITOLA_OPTIONS.map(b => (
+                                                            <option key={b.label} value={b.label + ',' + b.kgm}>{b.label}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Row 2: Formatos Grid */}
+                                        <div className="grid grid-cols-4 gap-4 p-4 border border-slate-200 rounded-lg bg-slate-50">
+                                            {[1, 2, 3, 4, 5, 6, 7, 8].map(shape => (
+                                                <label key={shape} className={"flex flex-col items-center gap-2 cursor-pointer p-2 rounded-lg border-2 transition-all " + (travaShapeId === shape ? 'border-blue-500 bg-blue-50' : 'border-transparent hover:border-slate-300')}>
+                                                    <div className="h-16 w-full pointer-events-none">
+                                                        {renderTravaSVG(shape)}
+                                                    </div>
+                                                    <input 
+                                                        type="radio" 
+                                                        name="travaShape" 
+                                                        checked={travaShapeId === shape} 
+                                                        onChange={() => setTravaShapeId(shape)}
+                                                        className="w-4 h-4 accent-blue-600"
+                                                    />
+                                                </label>
+                                            ))}
+                                        </div>
+
+                                        {/* Row 3: Campos de Lados */}
+                                        <div className="flex flex-wrap gap-3">
+                                            {requiredSides.includes('A') && (
+                                                <div className="w-24">
+                                                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">LADO A (CM)</label>
+                                                    <div className={"flex items-stretch border rounded overflow-hidden " + (travaLadoA ? 'border-emerald-400' : 'border-red-400')}>
+                                                        <div className={"w-5 border-r flex items-center justify-center shrink-0 " + (travaLadoA ? 'bg-emerald-100 border-emerald-300' : 'bg-red-100 border-red-300')}>
+                                                            <span className={"font-black text-[9px] " + (travaLadoA ? 'text-emerald-600' : 'text-red-600')}>#</span>
+                                                        </div>
+                                                        <input type="number" value={travaLadoA} onChange={e => setTravaLadoA(e.target.value)}
+                                                            className="w-full px-1 py-1 text-xs font-bold outline-none bg-transparent text-slate-800 text-center" />
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {requiredSides.includes('B') && (
+                                                <div className="w-24">
+                                                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">LADO B (CM)</label>
+                                                    <div className={"flex items-stretch border rounded overflow-hidden " + (travaLadoB ? 'border-emerald-400' : 'border-red-400')}>
+                                                        <div className={"w-5 border-r flex items-center justify-center shrink-0 " + (travaLadoB ? 'bg-emerald-100 border-emerald-300' : 'bg-red-100 border-red-300')}>
+                                                            <span className={"font-black text-[9px] " + (travaLadoB ? 'text-emerald-600' : 'text-red-600')}>#</span>
+                                                        </div>
+                                                        <input type="number" value={travaLadoB} onChange={e => setTravaLadoB(e.target.value)}
+                                                            className="w-full px-1 py-1 text-xs font-bold outline-none bg-transparent text-slate-800 text-center" />
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {requiredSides.includes('C') && (
+                                                <div className="w-24">
+                                                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">LADO C (CM)</label>
+                                                    <div className={"flex items-stretch border rounded overflow-hidden " + (travaLadoC ? 'border-emerald-400' : 'border-red-400')}>
+                                                        <div className={"w-5 border-r flex items-center justify-center shrink-0 " + (travaLadoC ? 'bg-emerald-100 border-emerald-300' : 'bg-red-100 border-red-300')}>
+                                                            <span className={"font-black text-[9px] " + (travaLadoC ? 'text-emerald-600' : 'text-red-600')}>#</span>
+                                                        </div>
+                                                        <input type="number" value={travaLadoC} onChange={e => setTravaLadoC(e.target.value)}
+                                                            className="w-full px-1 py-1 text-xs font-bold outline-none bg-transparent text-slate-800 text-center" />
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {requiredSides.includes('D') && (
+                                                <div className="w-24">
+                                                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">LADO D (CM)</label>
+                                                    <div className={"flex items-stretch border rounded overflow-hidden " + (travaLadoD ? 'border-emerald-400' : 'border-red-400')}>
+                                                        <div className={"w-5 border-r flex items-center justify-center shrink-0 " + (travaLadoD ? 'bg-emerald-100 border-emerald-300' : 'bg-red-100 border-red-300')}>
+                                                            <span className={"font-black text-[9px] " + (travaLadoD ? 'text-emerald-600' : 'text-red-600')}>#</span>
+                                                        </div>
+                                                        <input type="number" value={travaLadoD} onChange={e => setTravaLadoD(e.target.value)}
+                                                            className="w-full px-1 py-1 text-xs font-bold outline-none bg-transparent text-slate-800 text-center" />
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {requiredSides.includes('E') && (
+                                                <div className="w-24">
+                                                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">LADO E (CM)</label>
+                                                    <div className={"flex items-stretch border rounded overflow-hidden " + (travaLadoE ? 'border-emerald-400' : 'border-red-400')}>
+                                                        <div className={"w-5 border-r flex items-center justify-center shrink-0 " + (travaLadoE ? 'bg-emerald-100 border-emerald-300' : 'bg-red-100 border-red-300')}>
+                                                            <span className={"font-black text-[9px] " + (travaLadoE ? 'text-emerald-600' : 'text-red-600')}>#</span>
+                                                        </div>
+                                                        <input type="number" value={travaLadoE} onChange={e => setTravaLadoE(e.target.value)}
+                                                            className="w-full px-1 py-1 text-xs font-bold outline-none bg-transparent text-slate-800 text-center" />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Row 4: Observação */}
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">OBSERVAÇÃO:</label>
+                                            <div className="flex items-stretch border border-slate-300 rounded overflow-hidden">
+                                                <div className="w-6 bg-slate-100 border-r border-slate-300 flex items-center justify-center shrink-0">
+                                                    <span className="font-black text-[10px] text-slate-500">#</span>
+                                                </div>
+                                                <input type="text" placeholder="OPCIONAL" value={travaObs} onChange={e => setTravaObs(e.target.value)}
+                                                    className="w-full px-2 py-1.5 text-xs font-bold outline-none bg-transparent text-slate-800" />
+                                            </div>
+                                        </div>
+
+                                    </div>
+
+                                    {/* Footer */}
+                                    <div className="flex justify-start gap-3 px-5 py-4 border-t border-slate-200 bg-slate-50 shrink-0">
+                                        <button
+                                            type="button"
+                                            disabled={!travaQtde || !travaBitola}
+                                            onClick={() => {
+                                                if (!travaQtde || !travaBitola) return;
+                                                const [bitolaLabel, bitolaKgmStr] = travaBitola.split(',');
+                                                const bitolaKgm = parseFloat(bitolaKgmStr) || 0;
+
+                                                if (travaEditId) {
+                                                    const updated = tempProducts.map((p, pi) =>
+                                                        pi === travaTargetProdIdx
+                                                            ? recalcProduct(Object.assign({}, p, {
+                                                                ferros: (p.ferros || []).map(f =>
+                                                                    f.id === travaEditId
+                                                                        ? Object.assign({}, f, {
+                                                                            nomeElemento: travaNomeElemento || 'TRAVA',
+                                                                            qtde: parseInt(travaQtde) || 1,
+                                                                            bitola: travaBitola,
+                                                                            bitolaKgm,
+                                                                            estriboShape: String(travaShapeId),
+                                                                            ladoA: travaLadoA,
+                                                                            ladoB: travaLadoB,
+                                                                            ladoC: travaLadoC,
+                                                                            ladoD: travaLadoD,
+                                                                            ladoE: travaLadoE,
+                                                                            obs: travaObs,
+                                                                        })
+                                                                        : f
+                                                                )
+                                                            }))
+                                                            : p
+                                                    );
+                                                    setTempProducts(updated);
+                                                    if (activeQuote) handleProductSave(activeQuote.id, updated);
+                                                    setShowTravaModal(false);
+                                                    setTravaEditId(null);
+                                                    showNotification('Trava atualizada!', 'success');
+                                                } else {
+                                                    const newTrava = {
+                                                        id: String(Date.now() + Math.random()),
+                                                        nomeElemento: travaNomeElemento || 'TRAVA',
+                                                        qtde: parseInt(travaQtde) || 1,
+                                                        bitola: travaBitola,
+                                                        bitolaKgm,
+                                                        drawingType: 'Trava',
+                                                        estriboShape: String(travaShapeId),
+                                                        ladoA: travaLadoA,
+                                                        ladoB: travaLadoB,
+                                                        ladoC: travaLadoC,
+                                                        ladoD: travaLadoD,
+                                                        ladoE: travaLadoE,
+                                                        obs: travaObs,
+                                                    };
+                                                    const updated = tempProducts.map((p, pi) =>
+                                                        pi === travaTargetProdIdx
+                                                            ? recalcProduct(Object.assign({}, p, { ferros: [...(p.ferros || []), newTrava] }))
+                                                            : p
+                                                    );
+                                                    setTempProducts(updated);
+                                                    if (activeQuote) handleProductSave(activeQuote.id, updated);
+                                                    setShowTravaModal(false);
+                                                    showNotification('Trava adicionada!', 'success');
+                                                }
+                                            }}
+                                            className="bg-[#1565C0] hover:bg-[#0D47A1] disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold py-2 px-5 rounded text-sm transition shadow"
+                                        >
+                                            {travaEditId ? 'atualizar' : 'salvar elemento'}
+                                        </button>
+                                        <button type="button" onClick={() => { setShowTravaModal(false); setTravaEditId(null); }} className="text-slate-600 hover:text-slate-800 font-bold py-2 px-4 text-sm transition bg-slate-200 hover:bg-slate-300 rounded">
+                                            cancelar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {/* MODAL: Estribos sub-modal */}
+                    {showEstribosModal && (() => {
+                        const prod = tempProducts[estriboTargetProdIdx];
+                        let lados = '4 LADOS';
+                        if (prod) {
+                            const m = prod.description.match(/(\d+ LADOS|REDONDA)/);
+                            if (m) lados = m[1];
+                        }
+
+                        return (
+                            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
+                                <div className="bg-white shadow-2xl w-full max-w-4xl flex flex-col max-h-[95vh]">
+                                    {/* Header */}
+                                    <div className="flex items-center justify-between px-6 py-4 shrink-0">
+                                        <h3 className="text-lg text-slate-500 uppercase tracking-wide">
+                                            ESTRIBOS PARA <span className="font-bold text-slate-700 underline">{estriboTargetColunaNome}</span>
+                                        </h3>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowEstribosModal(false)}
+                                            className="text-slate-400 hover:text-slate-600 border border-slate-200 w-8 h-8 flex items-center justify-center bg-slate-50 text-xl font-bold"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                    <hr className="border-slate-100 shrink-0" />
+
+                                    <div className="p-6 overflow-y-auto flex flex-col gap-6">
+                                        {/* Row 1: Nome, Espac, Qtde, Bitola */}
+                                        <div className="space-y-4 shrink-0">
+                                            <div className="w-full md:w-1/2">
+                                                <label className="block text-xs font-black text-slate-600 uppercase mb-1">NOME ELEMENTO:</label>
+                                                <div className="flex items-stretch border border-red-300 rounded overflow-hidden h-9">
+                                                    <div className="w-8 bg-red-50 border-r border-red-300 flex items-center justify-center shrink-0">
+                                                        <span className="font-black text-xs text-red-600">✘</span>
+                                                    </div>
+                                                    <input type="text" placeholder="OPCIONAL" value={estriboNomeElemento} onChange={e => setEstriboNomeElemento(e.target.value.toUpperCase())} className="w-full px-2 text-sm text-slate-700 outline-none" />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                <div>
+                                                    <label className="block text-xs font-black text-slate-600 uppercase mb-1">ESPAÇ. ESTRIBOS (CM):</label>
+                                                    <div className="flex items-stretch border border-red-300 rounded overflow-hidden h-9">
+                                                        <div className="w-8 bg-red-50 border-r border-red-300 flex items-center justify-center shrink-0">
+                                                            <span className="font-black text-xs text-red-600">✘</span>
+                                                        </div>
+                                                        <input type="number" value={estriboEspacamento} onChange={e => {
+                                                            const val = e.target.value;
+                                                            setEstriboEspacamento(val);
+                                                            if (estriboCalcAutomatico && val && prod) {
+                                                                const principal = (prod.ferros || []).find(f => f.drawingType !== 'Estribo' && f.drawingType !== 'Trava');
+                                                                if (principal && principal.ladoA) {
+                                                                    const compCm = parseFloat(principal.ladoA);
+                                                                    const espac = parseFloat(val);
+                                                                    if (!isNaN(compCm) && !isNaN(espac) && espac > 0) {
+                                                                        setEstriboQtde(Math.ceil(compCm / espac).toString());
+                                                                    }
+                                                                }
+                                                            }
+                                                        }} className="w-full px-2 text-sm text-slate-700 outline-none" />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-black text-slate-600 uppercase mb-1">QTDE. ESTRIBOS:</label>
+                                                    <div className="flex items-stretch border border-red-300 rounded overflow-hidden h-9">
+                                                        <div className="w-8 bg-red-50 border-r border-red-300 flex items-center justify-center shrink-0">
+                                                            <span className="font-black text-xs text-red-600">✘</span>
+                                                        </div>
+                                                        <input type="number" min="1" value={estriboQtde} onChange={e => { setEstriboQtde(e.target.value); setEstriboCalcAutomatico(false); }} className="w-full px-2 text-sm text-slate-700 outline-none" />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-black text-slate-600 uppercase mb-1">BITOLA:</label>
+                                                    <div className="flex items-stretch border border-blue-600 rounded overflow-hidden h-9">
+                                                        <div className="w-8 bg-red-50 border-r border-red-300 flex items-center justify-center shrink-0">
+                                                            <span className="font-black text-xs text-red-600">✘</span>
+                                                        </div>
+                                                        <select value={estriboBitola} onChange={e => setEstriboBitola(e.target.value)} className="w-full px-2 text-sm font-bold text-blue-800 outline-none cursor-pointer bg-white">
+                                                            <option value="">Selecione...</option>
+                                                            {BITOLA_OPTIONS.map(opt => (
+                                                                <option key={opt.label} value={opt.label + ',' + opt.kgm}>{opt.label}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <input type="checkbox" checked={estriboCalcAutomatico} onChange={e => {
+                                                    const checked = e.target.checked;
+                                                    setEstriboCalcAutomatico(checked);
+                                                    if (checked && estriboEspacamento && prod && prod.ferros && prod.ferros.length > 0) {
+                                                        const principal = prod.ferros.find(f => f.drawingType !== 'Estribo' && f.drawingType !== 'Trava');
+                                                        if (principal && principal.ladoA) {
+                                                            const compCm = parseFloat(principal.ladoA);
+                                                            const espac = parseFloat(estriboEspacamento);
+                                                            if (!isNaN(compCm) && !isNaN(espac) && espac > 0) {
+                                                                setEstriboQtde(Math.ceil(compCm / espac).toString());
+                                                            }
+                                                        } else {
+                                                            showNotification('Não há ferro principal com comprimento (Lado A) para o cálculo.', 'warning');
+                                                            setEstriboCalcAutomatico(false);
+                                                        }
+                                                    }
+                                                }} className="w-4 h-4 accent-slate-400" />
+                                                <span className="text-xs font-bold text-slate-500">Cálculo automático <span className="font-normal">(Espaçamento deve estar preenchido)</span></span>
+                                            </div>
+                                        </div>
+
+                                        <hr className="border-slate-300 border-t-2 shrink-0" />
+
+                                        {/* Row 2: Selecione o estribo */}
+                                        <div className="shrink-0">
+                                            <p className="text-xs text-slate-600 mb-3">Selecione o estribo que será usado (AMARRADA):</p>
+                                            
+                                            {lados === '4 LADOS' && (
+                                                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 max-w-4xl">
+                                                    {['Padrão', 'Padrão, definir dobras finais', 'Transpasse em X', 'Estribo de travamento', 'Estribo de travamento 2'].map(opt => (
+                                                        <label key={opt} className={"flex flex-col items-center justify-between gap-3 cursor-pointer p-4 rounded border transition-all " + (estriboShapeType === opt ? 'border-slate-400 bg-slate-50' : 'border-slate-200')}>
+                                                            <div className="h-24 w-full flex items-center justify-center pointer-events-none">
+                                                                {renderEstriboSVG(lados, opt)}
+                                                            </div>
+                                                            <div className="flex flex-col items-center gap-1">
+                                                                <input type="radio" name="estriboShapeType" checked={estriboShapeType === opt} onChange={() => setEstriboShapeType(opt)} className="w-4 h-4 accent-blue-600" />
+                                                                <span className="text-[10px] font-bold text-slate-500 text-center">{opt}</span>
+                                                            </div>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            
+                                            {lados === 'REDONDA' && (
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 max-w-xl">
+                                                    {['Padrão', 'Definir transpasse', 'Transpasse Dobrado'].map(opt => (
+                                                        <label key={opt} className={"flex flex-col items-center justify-between gap-3 cursor-pointer p-4 rounded border transition-all " + (estriboShapeType === opt ? 'border-slate-400 bg-slate-50' : 'border-slate-200')}>
+                                                            <div className="h-24 w-full flex items-center justify-center pointer-events-none">
+                                                                {renderEstriboSVG(lados, opt)}
+                                                            </div>
+                                                            <div className="flex flex-col items-center gap-1">
+                                                                <input type="radio" name="estriboShapeType" checked={estriboShapeType === opt} onChange={() => setEstriboShapeType(opt)} className="w-4 h-4 accent-blue-600" />
+                                                                <span className="text-[10px] font-bold text-slate-500 text-center">{opt}</span>
+                                                            </div>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {(lados === '3 LADOS' || lados === '6 LADOS' || lados === '8 LADOS') && (
+                                                <div className="flex items-center justify-center py-6 max-w-sm border rounded bg-slate-50">
+                                                    <div className="h-32 w-full flex items-center justify-center">
+                                                        {renderEstriboSVG(lados, estriboShapeType)}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Row 3: Lados A-E Dinâmicos */}
+                                        <div className="flex flex-wrap gap-4 mt-2 shrink-0">
+                                            {(() => {
+                                                const fields = [];
+                                                
+                                                if (lados === 'REDONDA') {
+                                                    fields.push({ label: 'Diâmetro (cm)', val: estriboLadoA, set: setEstriboLadoA, required: true });
+                                                    if (estriboShapeType === 'Definir transpasse') {
+                                                        fields.push({ label: 'Transpasse B (cm)', val: estriboLadoB, set: setEstriboLadoB, required: true });
+                                                    }
+                                                    if (estriboShapeType === 'Transpasse Dobrado') {
+                                                        fields.push({ label: 'Transpasse B (cm)', val: estriboLadoB, set: setEstriboLadoB, required: true });
+                                                        fields.push({ label: 'Dobra C (cm)', val: estriboLadoC, set: setEstriboLadoC, required: true });
+                                                    }
+                                                } else if (lados === '3 LADOS') {
+                                                    fields.push({ label: 'Lado A (cm)', val: estriboLadoA, set: setEstriboLadoA, required: true });
+                                                    fields.push({ label: 'Lado B (cm)', val: estriboLadoB, set: setEstriboLadoB, required: true });
+                                                } else if (lados === '4 LADOS') {
+                                                    fields.push({ label: 'Lado A (cm)', val: estriboLadoA, set: setEstriboLadoA, required: true });
+                                                    fields.push({ label: 'Lado B (cm)', val: estriboLadoB, set: setEstriboLadoB, required: true });
+                                                    
+                                                    if (estriboShapeType === 'Padrão, definir dobras finais') {
+                                                        fields.push({ label: 'Dobra C (cm)', val: estriboLadoC, set: setEstriboLadoC, required: true });
+                                                    } else if (estriboShapeType === 'Transpasse em X') {
+                                                        fields.push({ label: 'Dobra C (cm)', val: estriboLadoC, set: setEstriboLadoC, required: true });
+                                                        fields.push({ label: 'Dobra D (cm)', val: estriboLadoD, set: setEstriboLadoD, required: true });
+                                                    } else if (estriboShapeType === 'Estribo de travamento') {
+                                                        fields.push({ label: 'Dobra C (cm)', val: estriboLadoC, set: setEstriboLadoC, required: true });
+                                                        fields.push({ label: 'Dobra D (cm)', val: estriboLadoD, set: setEstriboLadoD, required: true });
+                                                    } else if (estriboShapeType === 'Estribo de travamento 2') {
+                                                        fields.push({ label: 'Dobra C (cm)', val: estriboLadoC, set: setEstriboLadoC, required: true });
+                                                        fields.push({ label: 'Dobra D (cm)', val: estriboLadoD, set: setEstriboLadoD, required: true });
+                                                        fields.push({ label: 'Lado E (cm)', val: estriboLadoE, set: setEstriboLadoE, required: true });
+                                                    }
+                                                } else if (lados === '6 LADOS') {
+                                                    fields.push({ label: 'Lado A (cm)', val: estriboLadoA, set: setEstriboLadoA, required: true });
+                                                    fields.push({ label: 'Lado B (cm)', val: estriboLadoB, set: setEstriboLadoB, required: true });
+                                                    fields.push({ label: 'Lado C (cm)', val: estriboLadoC, set: setEstriboLadoC, required: true });
+                                                } else if (lados === '8 LADOS') {
+                                                    fields.push({ label: 'Lado A (cm)', val: estriboLadoA, set: setEstriboLadoA, required: true });
+                                                    fields.push({ label: 'Lado B (cm)', val: estriboLadoB, set: setEstriboLadoB, required: true });
+                                                    fields.push({ label: 'Lado C (cm)', val: estriboLadoC, set: setEstriboLadoC, required: true });
+                                                    fields.push({ label: 'Lado D (cm)', val: estriboLadoD, set: setEstriboLadoD, required: true });
+                                                }
+                                                
+                                                return fields.map(({ label, val, set, required }) => (
+                                                    <div key={label} className="w-36">
+                                                        <label className="block text-xs font-black text-slate-600 uppercase mb-1">{label}</label>
+                                                        <div className={"flex items-stretch border rounded overflow-hidden h-9 " + (val ? 'border-emerald-600' : 'border-slate-300')}>
+                                                            <div className="w-8 bg-emerald-50 border-r border-emerald-600 flex items-center justify-center shrink-0">
+                                                                <span className="font-black text-sm text-emerald-600">✓</span>
+                                                            </div>
+                                                            <input type="number" value={val} onChange={e => set(e.target.value)}
+                                                                className="w-full px-2 text-sm text-blue-800 outline-none" />
+                                                        </div>
+                                                    </div>
+                                                ));
+                                            })()}
+                                        </div>
+                                        {lados === '3 LADOS' && (
+                                            <p className="text-sm font-bold text-slate-600 mt-1 shrink-0">
+                                                O <span className="underline">Lado B</span> não pode ser maior que o <span className="underline">Lado A</span> em estribos com 3 lados
+                                            </p>
+                                        )}
+
+                                        <hr className="border-slate-300 border-t-2 shrink-0" />
+
+                                        {/* Observação */}
+                                        <div className="shrink-0">
+                                            <label className="block text-xs font-black text-slate-600 uppercase mb-1">OBSERVAÇÃO:</label>
+                                            <div className="flex items-stretch border border-red-300 rounded overflow-hidden h-9">
+                                                <div className="w-8 bg-red-50 border-r border-red-300 flex items-center justify-center shrink-0">
+                                                    <span className="font-black text-xs text-red-600">✘</span>
+                                                </div>
+                                                <input type="text" placeholder="OPCIONAL" value={estriboObs} onChange={e => setEstriboObs(e.target.value)} className="w-full px-2 text-sm text-slate-700 outline-none" />
+                                            </div>
+                                        </div>
+
+                                    </div>
+
+                                    {/* Footer */}
+                                    <div className="px-6 py-4 flex gap-2 border-t border-slate-200 bg-slate-50 shrink-0">
+                                        <button
+                                            type="button"
+                                            disabled={!estriboQtde || !estriboBitola || !estriboLadoA}
+                                            onClick={() => {
+                                                if (!estriboQtde || !estriboBitola || !estriboLadoA) return;
+                                                
+                                                if (lados === '3 LADOS') {
+                                                    const a = parseFloat(estriboLadoA) || 0;
+                                                    const b = parseFloat(estriboLadoB) || 0;
+                                                    if (b > a) {
+                                                        showNotification('O Lado B não pode ser maior que o Lado A em estribos com 3 lados.', 'error');
+                                                        return;
+                                                    }
+                                                }
+
+                                                const [bitolaLabel, bitolaKgmStr] = estriboBitola.split(',');
+                                                const bitolaKgm = parseFloat(bitolaKgmStr) || 0;
+
+                                                let updated;
+                                                if (ferroEditId) {
+                                                    updated = tempProducts.map((p, pi) =>
+                                                        pi === estriboTargetProdIdx
+                                                            ? recalcProduct(Object.assign({}, p, {
+                                                                ferros: (p.ferros || []).map(f =>
+                                                                    f.id === ferroEditId
+                                                                        ? Object.assign({}, f, {
+                                                                            nomeElemento: estriboNomeElemento || 'ESTRIBO',
+                                                                            qtde: parseInt(estriboQtde) || 1,
+                                                                            bitola: estriboBitola,
+                                                                            bitolaKgm,
+                                                                            estriboShape: estriboShapeType,
+                                                                            espacamento: estriboEspacamento,
+                                                                            ladoA: estriboLadoA,
+                                                                            ladoB: estriboLadoB,
+                                                                            ladoC: estriboLadoC,
+                                                                            ladoD: estriboLadoD,
+                                                                            ladoE: estriboLadoE,
+                                                                            obs: estriboObs,
+                                                                        })
+                                                                        : f
+                                                                )
+                                                            }))
+                                                            : p
+                                                    );
+                                                    setFerroEditId(null);
+                                                } else {
+                                                    const newEstribo = {
+                                                        id: String(Date.now() + Math.random()),
+                                                        nomeElemento: estriboNomeElemento || 'ESTRIBO',
+                                                        qtde: parseInt(estriboQtde) || 1,
+                                                        bitola: estriboBitola,
+                                                        bitolaKgm,
+                                                        drawingType: 'Estribo',
+                                                        estriboShape: estriboShapeType,
+                                                        espacamento: estriboEspacamento,
+                                                        ladoA: estriboLadoA,
+                                                        ladoB: estriboLadoB,
+                                                        ladoC: estriboLadoC,
+                                                        ladoD: estriboLadoD,
+                                                        ladoE: estriboLadoE,
+                                                        obs: estriboObs,
+                                                    };
+                                                    updated = tempProducts.map((p, pi) =>
+                                                        pi === estriboTargetProdIdx
+                                                            ? recalcProduct(Object.assign({}, p, { ferros: [...(p.ferros || []), newEstribo] }))
+                                                            : p
+                                                    );
+                                                }
+                                                setTempProducts(updated);
+                                                if (activeQuote) handleProductSave(activeQuote.id, updated);
+                                                setShowEstribosModal(false);
+                                                showNotification(ferroEditId ? 'Estribo updated!' : 'Estribo added!', 'success');
+                                            }}
+                                            className="bg-[#1565C0] hover:bg-[#0D47A1] disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold py-2 px-5 rounded text-sm transition shadow"
+                                        >
+                                            {ferroEditId ? 'ATUALIZAR' : 'SALVAR ELEMENTO'}
+                                        </button>
+                                        <button type="button" onClick={() => { setShowEstribosModal(false); setFerroEditId(null); }} className="text-slate-600 hover:text-slate-800 font-bold py-2 px-4 text-sm transition bg-slate-200 hover:bg-slate-300 rounded">
+                                            CANCELAR
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
                     {/* MODAL: Coluna sub-modal */}
                     {showColunaModal && (
                         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
                             <div className="bg-white rounded shadow-2xl w-full max-w-2xl border border-slate-300 animate-in fade-in zoom-in-95 duration-150">
                                 {/* Header */}
                                 <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
-                                    <h3 className="text-base font-black text-slate-800 uppercase tracking-wider">Coluna</h3>
+                                    <h3 className="text-base font-black text-slate-800 uppercase tracking-wider">
+                                        {editingColunaId ? 'Editar Coluna' : 'Coluna'}
+                                    </h3>
                                     <button
                                         type="button"
                                         onClick={() => setShowColunaModal(false)}
@@ -2177,9 +3460,11 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                     onChange={e => setColunaQtdeLados(e.target.value)}
                                                     className="w-full px-2 py-1.5 text-xs font-bold text-emerald-700 outline-none bg-transparent cursor-pointer"
                                                 >
-                                                    <option value="4 LADOS">4 LADOS</option>
                                                     <option value="3 LADOS">3 LADOS</option>
-                                                    <option value="2 LADOS">2 LADOS</option>
+                                                    <option value="4 LADOS">4 LADOS</option>
+                                                    <option value="6 LADOS">6 LADOS</option>
+                                                    <option value="8 LADOS">8 LADOS</option>
+                                                    <option value="REDONDA">REDONDA</option>
                                                 </select>
                                             </div>
                                         </div>
@@ -2271,10 +3556,11 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                             }
                                             const qty = parseInt(colunaQtde);
                                             const nomePart = colunaName ? colunaName.toUpperCase() : '';
-                                            const areaVal = colunaAreaSemEstr1 || 'ESP';
-                                            const obsPart = colunaObs ? ` OBS: ${colunaObs.toUpperCase()}` : '';
-                                            const description = `COLUNA ${nomePart} ${colunaTipoAmarracao} ${colunaQtdeLados} x ${areaVal} CM${obsPart}`.replace(/\s+/g, ' ').trim();
-                                            const newProd: ProductItem = {
+                                            const areaVal1 = colunaAreaSemEstr1 || 'ESP';
+                                            const areaVal2 = colunaAreaSemEstr2 ? ' / ' + colunaAreaSemEstr2 + ' CM' : '';
+                                            const obsPart = colunaObs ? ' OBS: ' + colunaObs.toUpperCase() : '';
+                                            const description = ('COLUNA ' + nomePart + ' ' + colunaTipoAmarracao + ' ' + colunaQtdeLados + ' x ' + areaVal1 + ' CM' + areaVal2 + obsPart).replace(/\s+/g, ' ').trim();
+                                            const newProd = {
                                                 id: String(Date.now() + Math.random()),
                                                 description,
                                                 qty,
@@ -2283,9 +3569,19 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                 weight: 0,
                                                 price: 0
                                             };
-                                            setTempProducts(prev => [...prev, newProd]);
+                                            let updated;
+                                            if (editingColunaId) {
+                                                updated = tempProducts.map(p =>
+                                                    p.id === editingColunaId ? recalcProduct(Object.assign({}, p, { description, qty })) : p
+                                                );
+                                            } else {
+                                                updated = [...tempProducts, newProd];
+                                            }
+                                            setTempProducts(updated);
+                                            if (activeQuote) handleProductSave(activeQuote.id, updated);
+                                            setEditingColunaId(null);
                                             setShowColunaModal(false);
-                                            showNotification('Coluna adicionada ao orçamento!', 'success');
+                                            showNotification(editingColunaId ? 'Coluna atualizada!' : 'Coluna adicionada ao orçamento!', 'success');
                                         }}
                                         className="bg-[#1565C0] hover:bg-[#0D47A1] text-white font-extrabold py-2 px-5 rounded text-sm transition shadow"
                                     >
@@ -2293,7 +3589,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => setShowColunaModal(false)}
+                                        onClick={() => { setShowColunaModal(false); setEditingColunaId(null); }}
                                         className="text-slate-600 hover:text-slate-800 font-bold py-2 px-4 text-sm transition"
                                     >
                                         Cancelar
@@ -2398,7 +3694,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                     </div>
                                     <div className="text-right">
                                         <h2 className="text-md font-black text-slate-900 uppercase">ORÇAMENTO Nº {activeQuote.id}</h2>
-                                        <p className="text-[10px] text-slate-500 font-bold">Data: {activeQuote.date} • Previsão: {activeQuote.forecastDate}</p>
+                                        <p className="text-[10px] text-slate-500 font-bold">Data: {activeQuote.date}</p>
                                     </div>
                                 </div>
 
@@ -2421,7 +3717,6 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                     <div>
                                         <span className="block text-[9px] font-black text-slate-400 uppercase">Vendedor responsável</span>
                                         <span className="font-extrabold text-slate-900">{activeQuote.salesperson}</span>
-                                        <span className="block text-[10px] text-slate-500 mt-0.5">Ferragem: {activeQuote.hardwareType || 'NÃO'}</span>
                                     </div>
                                 </div>
 

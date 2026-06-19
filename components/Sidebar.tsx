@@ -260,14 +260,6 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                     )}
                 </div>
 
-                {/* PROGRAMAÇÃO DE MÁQUINAS */}
-                {hasPermission('programarMaquinas') && (
-                    <div className="sidebar-category">
-                        <div className="sidebar-category-title">{isCollapsed ? '🔧' : '🔧 Programação'}</div>
-                        <MenuItem target="programarMaquinas" label="Programar Máquinas" icon={WrenchScrewdriverIcon} />
-                    </div>
-                )}
-
                 {/* GESTÃO */}
                 <div className="sidebar-category">
                     <div className="sidebar-category-title">{isCollapsed ? '🧰' : '🧰 Gestão'}</div>

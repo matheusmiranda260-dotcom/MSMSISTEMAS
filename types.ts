@@ -734,15 +734,35 @@ export interface MachineConfig {
     shift2Staff?: ShiftStaff[];
 }
 
+export interface ArmadoEmployee {
+    name: string;
+    function: string;
+}
+
+export interface ArmadoTeam {
+    name: string;
+    employees: ArmadoEmployee[];
+}
+
 export interface Partner {
     id: string;
     companyName: string;
+    cnpj?: string;
+    nomeFantasia?: string;
+    razaoSocial?: string;
+    endereco?: string;
+    telefone?: string;
+    email?: string;
     logoUrl?: string;
     materialQty?: string;
     servicesProvided?: string;
     startDate?: string;
     isActiveBranding?: boolean;
     machines?: MachineConfig[];
+    armadoTeams?: ArmadoTeam[];
+    armadoDailyKg?: number;
+    armadoDailyMeters?: number;
+    pcpEmployees?: ArmadoEmployee[];
     createdAt?: string;
     updatedAt?: string;
 }

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { Partner, MachineConfig } from '../types';
+import type { Partner, MachineConfig, ArmadoTeam, ArmadoEmployee } from '../types';
 import { uploadFile } from '../services/supabaseService';
 
 interface PartnerConfigProps {
@@ -63,6 +63,12 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
 
     // Form inputs state
     const [companyName, setCompanyName] = useState('');
+    const [cnpj, setCnpj] = useState('');
+    const [nomeFantasia, setNomeFantasia] = useState('');
+    const [razaoSocial, setRazaoSocial] = useState('');
+    const [endereco, setEndereco] = useState('');
+    const [telefone, setTelefone] = useState('');
+    const [email, setEmail] = useState('');
     const [logoUrl, setLogoUrl] = useState('');
     const [materialQty, setMaterialQty] = useState('');
     const [servicesProvided, setServicesProvided] = useState('');
@@ -90,6 +96,22 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
     const [newStaffFunction, setNewStaffFunction] = useState('');
     const [newStaffQuantity, setNewStaffQuantity] = useState('');
     const [staffForShift, setStaffForShift] = useState<1 | 2>(1);
+
+    // Armado section state
+    const [armadoTeams, setArmadoTeams] = useState<ArmadoTeam[]>([]);
+    const [armadoDailyKg, setArmadoDailyKg] = useState('');
+    const [armadoDailyMeters, setArmadoDailyMeters] = useState('');
+    const [showArmadoTeamForm, setShowArmadoTeamForm] = useState(false);
+    const [editingArmadoTeamIdx, setEditingArmadoTeamIdx] = useState<number | null>(null);
+    const [armadoTeamName, setArmadoTeamName] = useState('');
+    const [armadoEmployees, setArmadoEmployees] = useState<ArmadoEmployee[]>([]);
+    const [armadoEmployeeName, setArmadoEmployeeName] = useState('');
+    const [armadoEmployeeFunction, setArmadoEmployeeFunction] = useState('');
+
+    // PCP section state
+    const [pcpEmployees, setPcpEmployees] = useState<ArmadoEmployee[]>([]);
+    const [pcpEmployeeName, setPcpEmployeeName] = useState('');
+    const [pcpEmployeeFunction, setPcpEmployeeFunction] = useState('');
 
     const isGestor = currentUser?.role === 'admin' || currentUser?.role === 'gestor' || currentUser?.username === 'admin';
 
@@ -133,16 +155,38 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
         setNewStaffQuantity('');
     };
 
+    const resetArmadoTeamForm = () => {
+        setShowArmadoTeamForm(false);
+        setEditingArmadoTeamIdx(null);
+        setArmadoTeamName('');
+        setArmadoEmployees([]);
+        setArmadoEmployeeName('');
+        setArmadoEmployeeFunction('');
+    };
+
     const handleReset = () => {
         setEditingId(null);
         setCompanyName('');
+        setCnpj('');
+        setNomeFantasia('');
+        setRazaoSocial('');
+        setEndereco('');
+        setTelefone('');
+        setEmail('');
         setLogoUrl('');
         setMaterialQty('');
         setServicesProvided('');
         setStartDate('');
         setIsActiveBranding(false);
         setMachinesList([]);
+        setArmadoTeams([]);
+        setArmadoDailyKg('');
+        setArmadoDailyMeters('');
+        setPcpEmployees([]);
+        setPcpEmployeeName('');
+        setPcpEmployeeFunction('');
         resetMachineForm();
+        resetArmadoTeamForm();
     };
 
     const handleSaveMachine = () => {
@@ -193,12 +237,22 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
         try {
             const partnerData = {
                 companyName: companyName.trim(),
+                cnpj: cnpj.trim() || undefined,
+                nomeFantasia: nomeFantasia.trim() || undefined,
+                razaoSocial: razaoSocial.trim() || undefined,
+                endereco: endereco.trim() || undefined,
+                telefone: telefone.trim() || undefined,
+                email: email.trim() || undefined,
                 logoUrl: logoUrl.trim() || undefined,
                 materialQty: materialQty.trim() || undefined,
                 servicesProvided: servicesProvided.trim() || undefined,
                 startDate: startDate || undefined,
                 isActiveBranding,
                 machines: machinesList.length > 0 ? machinesList : undefined,
+                armadoTeams: armadoTeams.length > 0 ? armadoTeams : undefined,
+                armadoDailyKg: armadoDailyKg ? parseFloat(armadoDailyKg) : undefined,
+                armadoDailyMeters: armadoDailyMeters ? parseFloat(armadoDailyMeters) : undefined,
+                pcpEmployees: pcpEmployees.length > 0 ? pcpEmployees : undefined,
             };
 
             // If we are setting this partner as the active branding, we first turn off the branding of all others.
@@ -230,12 +284,22 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
     const handleStartEdit = (partner: Partner) => {
         setEditingId(partner.id);
         setCompanyName(partner.companyName);
+        setCnpj(partner.cnpj || '');
+        setNomeFantasia(partner.nomeFantasia || '');
+        setRazaoSocial(partner.razaoSocial || '');
+        setEndereco(partner.endereco || '');
+        setTelefone(partner.telefone || '');
+        setEmail(partner.email || '');
         setLogoUrl(partner.logoUrl || '');
         setMaterialQty(partner.materialQty || '');
         setServicesProvided(partner.servicesProvided || '');
         setStartDate(partner.startDate || '');
         setIsActiveBranding(!!partner.isActiveBranding);
         setMachinesList(partner.machines || []);
+        setArmadoTeams(partner.armadoTeams || []);
+        setArmadoDailyKg(partner.armadoDailyKg ? String(partner.armadoDailyKg) : '');
+        setArmadoDailyMeters(partner.armadoDailyMeters ? String(partner.armadoDailyMeters) : '');
+        setPcpEmployees(partner.pcpEmployees || []);
         setViewMode('form');
     };
 
@@ -260,6 +324,12 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
             const searchLower = searchTerm.toLowerCase();
             return (
                 p.companyName.toLowerCase().includes(searchLower) ||
+                (p.cnpj || '').toLowerCase().includes(searchLower) ||
+                (p.nomeFantasia || '').toLowerCase().includes(searchLower) ||
+                (p.razaoSocial || '').toLowerCase().includes(searchLower) ||
+                (p.endereco || '').toLowerCase().includes(searchLower) ||
+                (p.telefone || '').toLowerCase().includes(searchLower) ||
+                (p.email || '').toLowerCase().includes(searchLower) ||
                 (p.servicesProvided || '').toLowerCase().includes(searchLower) ||
                 (p.materialQty || '').toLowerCase().includes(searchLower)
             );
@@ -378,6 +448,84 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
                                         onChange={e => setCompanyName(e.target.value)}
                                         placeholder="Ex: Armaço Ferragem Armada Ltda"
                                         required
+                                        className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-semibold"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                        CNPJ
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={cnpj}
+                                        onChange={e => setCnpj(e.target.value)}
+                                        placeholder="Ex: 00.000.000/0001-00"
+                                        className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-semibold"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                        Nome Fantasia
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={nomeFantasia}
+                                        onChange={e => setNomeFantasia(e.target.value)}
+                                        placeholder="Ex: Armaço Ferragens"
+                                        className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-semibold"
+                                    />
+                                </div>
+
+                                <div className="sm:col-span-2">
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                        Razão Social
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={razaoSocial}
+                                        onChange={e => setRazaoSocial(e.target.value)}
+                                        placeholder="Ex: Armaço Ferragem Armada Ltda"
+                                        className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-semibold"
+                                    />
+                                </div>
+
+                                <div className="sm:col-span-2">
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                        Endereço
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={endereco}
+                                        onChange={e => setEndereco(e.target.value)}
+                                        placeholder="Ex: Rua Exemplo, 123 - Bairro, Cidade - UF"
+                                        className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-semibold"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                        Telefone
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={telefone}
+                                        onChange={e => setTelefone(e.target.value)}
+                                        placeholder="Ex: (11) 99999-9999"
+                                        className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-semibold"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                        Email
+                                    </label>
+                                    <input
+                                        type="email"
+                                        value={email}
+                                        onChange={e => setEmail(e.target.value)}
+                                        placeholder="Ex: contato@armaco.com.br"
                                         className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-semibold"
                                     />
                                 </div>
@@ -726,6 +874,263 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        </div>
+
+                        {/* ARMADO SECTION */}
+                        <div className="border-t border-slate-200">
+                            <div className="p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div>
+                                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Setor de Armado</h3>
+                                        <p className="text-[10px] text-slate-500 mt-0.5">Configure as equipes, funcionários e metas diárias do setor de armado</p>
+                                    </div>
+                                </div>
+
+                                {/* Daily goals */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Meta Diária (kg/dia)</label>
+                                        <input type="number" step="0.01" min="0" value={armadoDailyKg} onChange={e => setArmadoDailyKg(e.target.value)}
+                                            placeholder="Ex: 5000" className="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Meta Diária (metros/dia)</label>
+                                        <input type="number" step="0.01" min="0" value={armadoDailyMeters} onChange={e => setArmadoDailyMeters(e.target.value)}
+                                            placeholder="Ex: 1000" className="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                    </div>
+                                </div>
+
+                                {/* Armado teams list */}
+                                {armadoTeams.length > 0 && (
+                                    <div className="space-y-2 mb-4">
+                                        {armadoTeams.map((team, idx) => (
+                                            <div key={idx} className="flex items-start justify-between bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+                                                <div className="flex-1 grid grid-cols-3 gap-2 text-xs">
+                                                    <div>
+                                                        <span className="text-slate-400 font-bold block">Equipe</span>
+                                                        <span className="font-black text-slate-800">{team.name}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-slate-400 font-bold block">Funcionários</span>
+                                                        <span className="font-semibold">{team.employees.length > 0 ? `${team.employees.length} func.` : '-'}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-slate-400 font-bold block">Funções</span>
+                                                        <span className="font-semibold">{team.employees.map(e => `${e.name} (${e.function})`).join(', ') || '-'}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 ml-2 shrink-0">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setEditingArmadoTeamIdx(idx);
+                                                            setArmadoTeamName(team.name);
+                                                            setArmadoEmployees(team.employees);
+                                                            setShowArmadoTeamForm(true);
+                                                        }}
+                                                        className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-lg transition-colors text-xs border border-blue-200"
+                                                        title="Editar Equipe"
+                                                    >
+                                                        <PencilIcon className="h-3.5 w-3.5 inline mr-1" /> Editar
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (confirm(`Excluir equipe "${team.name}"?`)) {
+                                                                setArmadoTeams(armadoTeams.filter((_, i) => i !== idx));
+                                                            }
+                                                        }}
+                                                        className="p-1.5 hover:bg-red-50 text-red-500 rounded-lg transition-colors"
+                                                        title="Excluir Equipe"
+                                                    >
+                                                        <TrashIcon className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Armado team form */}
+                                {showArmadoTeamForm && (
+                                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                                        <h4 className="text-xs font-black text-slate-600 uppercase tracking-wider">
+                                            {editingArmadoTeamIdx !== null ? 'Editar Equipe' : 'Nova Equipe'}
+                                        </h4>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Nome da Equipe *</label>
+                                            <input type="text" value={armadoTeamName} onChange={e => setArmadoTeamName(e.target.value)}
+                                                placeholder="Ex: Equipe A" className="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                        </div>
+
+                                        {/* Employees within team */}
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Funcionários da Equipe</label>
+                                            <div className="bg-white rounded-xl border border-slate-200 p-3 space-y-2">
+                                                {armadoEmployees.map((emp, i) => (
+                                                    <div key={i} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+                                                        <span className="text-xs font-bold text-slate-700">
+                                                            {emp.name} <span className="text-blue-700">- {emp.function}</span>
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setArmadoEmployees(armadoEmployees.filter((_, idx) => idx !== i));
+                                                            }}
+                                                            className="text-red-400 hover:text-red-600"
+                                                        >
+                                                            <TrashIcon className="h-3.5 w-3.5" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                {armadoEmployees.length === 0 && (
+                                                    <p className="text-xs text-slate-400 text-center py-2">Nenhum funcionário cadastrado nesta equipe.</p>
+                                                )}
+                                                <div className="flex items-center gap-2 pt-1">
+                                                    <input type="text" value={armadoEmployeeName} onChange={e => setArmadoEmployeeName(e.target.value)}
+                                                        placeholder="Nome do funcionário"
+                                                        className="flex-1 p-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                                    <input type="text" value={armadoEmployeeFunction} onChange={e => setArmadoEmployeeFunction(e.target.value)}
+                                                        placeholder="Função"
+                                                        className="flex-1 p-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (!armadoEmployeeName.trim() || !armadoEmployeeFunction.trim()) {
+                                                                showNotification('Preencha o nome e a função do funcionário.', 'error');
+                                                                return;
+                                                            }
+                                                            setArmadoEmployees([...armadoEmployees, { name: armadoEmployeeName.trim(), function: armadoEmployeeFunction.trim() }]);
+                                                            setArmadoEmployeeName('');
+                                                            setArmadoEmployeeFunction('');
+                                                        }}
+                                                        className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition-all"
+                                                    >
+                                                        + Adicionar
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-end gap-2 pt-2">
+                                            <button type="button" onClick={resetArmadoTeamForm}
+                                                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-50 transition-all">
+                                                Cancelar
+                                            </button>
+                                            <button type="button" onClick={() => {
+                                                if (!armadoTeamName.trim()) {
+                                                    showNotification('Nome da equipe é obrigatório.', 'error');
+                                                    return;
+                                                }
+                                                const team: ArmadoTeam = {
+                                                    name: armadoTeamName.trim(),
+                                                    employees: armadoEmployees,
+                                                };
+                                                if (editingArmadoTeamIdx !== null) {
+                                                    const updated = [...armadoTeams];
+                                                    updated[editingArmadoTeamIdx] = team;
+                                                    setArmadoTeams(updated);
+                                                } else {
+                                                    setArmadoTeams([...armadoTeams, team]);
+                                                }
+                                                resetArmadoTeamForm();
+                                            }}
+                                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-all">
+                                                {editingArmadoTeamIdx !== null ? 'Atualizar Equipe' : 'Adicionar Equipe'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Add team button */}
+                                {!showArmadoTeamForm && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { resetArmadoTeamForm(); setShowArmadoTeamForm(true); }}
+                                        className="text-xs font-black py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm transition-all"
+                                    >
+                                        + Adicionar Equipe
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* PCP SECTION */}
+                        <div className="border-t border-slate-200">
+                            <div className="p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div>
+                                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Setor de PCP</h3>
+                                        <p className="text-[10px] text-slate-500 mt-0.5">Planejamento e Controle de Produção — cadastre os funcionários e suas funções</p>
+                                    </div>
+                                </div>
+
+                                {/* PCP employees list */}
+                                {pcpEmployees.length > 0 && (
+                                    <div className="space-y-2 mb-4">
+                                        {pcpEmployees.map((emp, idx) => (
+                                            <div key={idx} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+                                                <div className="flex-1 grid grid-cols-2 gap-2 text-xs">
+                                                    <div>
+                                                        <span className="text-slate-400 font-bold block">Funcionário</span>
+                                                        <span className="font-black text-slate-800">{emp.name}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-slate-400 font-bold block">Função</span>
+                                                        <span className="font-semibold">{emp.function}</span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (confirm(`Remover "${emp.name}" do PCP?`)) {
+                                                            setPcpEmployees(pcpEmployees.filter((_, i) => i !== idx));
+                                                        }
+                                                    }}
+                                                    className="p-1.5 hover:bg-red-50 text-red-500 rounded-lg transition-colors ml-2 shrink-0"
+                                                    title="Remover Funcionário"
+                                                >
+                                                    <TrashIcon className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* PCP employee form */}
+                                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                                    <h4 className="text-xs font-black text-slate-600 uppercase tracking-wider">Adicionar Funcionário</h4>
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-1">
+                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Nome</label>
+                                            <input type="text" value={pcpEmployeeName} onChange={e => setPcpEmployeeName(e.target.value)}
+                                                placeholder="Nome do funcionário"
+                                                className="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Função</label>
+                                            <input type="text" value={pcpEmployeeFunction} onChange={e => setPcpEmployeeFunction(e.target.value)}
+                                                placeholder="Ex: Programador"
+                                                className="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (!pcpEmployeeName.trim() || !pcpEmployeeFunction.trim()) {
+                                                    showNotification('Preencha o nome e a função do funcionário.', 'error');
+                                                    return;
+                                                }
+                                                setPcpEmployees([...pcpEmployees, { name: pcpEmployeeName.trim(), function: pcpEmployeeFunction.trim() }]);
+                                                setPcpEmployeeName('');
+                                                setPcpEmployeeFunction('');
+                                            }}
+                                            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-all mt-5"
+                                        >
+                                            + Adicionar
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

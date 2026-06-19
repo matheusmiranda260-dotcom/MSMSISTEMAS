@@ -730,7 +730,22 @@ const MachineStatusView: React.FC<MachineStatusViewProps> = ({ machineType, acti
                                                 const end = e.resumeTime ? new Date(e.resumeTime) : null;
                                                 const duration = (end ? end.getTime() : now.getTime()) - start.getTime();
                                                 
-                                                return (
+    if (machineType === 'Trefila 1') {
+        return (
+            <div className="tactical-card rounded-[2.5rem] border border-dashed border-slate-600 flex flex-col items-center justify-center h-full text-slate-500 bg-slate-900/50">
+                <WrenchScrewdriverIcon className="h-24 w-24 text-slate-700 mb-6" />
+                <h2 className="text-3xl font-black text-white tracking-tight leading-none mb-2">TREFILA 1</h2>
+                <p className="text-sm font-bold uppercase tracking-wider text-emerald-400 neon-text-green animate-pulse">
+                    Em Desenvolvimento
+                </p>
+                <p className="text-xs text-slate-400 mt-4 text-center">
+                    Este módulo está sendo aprimorado. Em breve, novas funcionalidades!
+                </p>
+            </div>
+        );
+    }
+
+    return (
                                                     <tr key={i} className="hover:bg-indigo-500/5 transition-colors group/row">
                                                         <td className="p-5 px-8 font-mono text-slate-200 text-sm font-bold">
                                                             {start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -1063,7 +1078,12 @@ const ProductionDashboard: React.FC<ProductionDashboardProps> = ({ setPage, prod
             </header>
 
             <div className={`flex-1 grid grid-cols-1 ${visibleMachines.length > 1 ? 'xl:grid-cols-2' : ''} gap-6 lg:gap-8 pb-8`}>
-                {visibleMachines.map(m => {
+                 {visibleMachines.map(m => {
+                    // Temporariamente desabilita o card da Trefila 1 e exibe 'Em Desenvolvimento'
+                    if (m.startsWith('Trefila')) {
+                        return null; // Exclui o card da Trefila 1
+                    }
+
                     const machineOrders = productionOrders.filter(o => {
                         const isExact = o.machine === m;
                         const isLegacyTrefilaTo1 = (o.machine === 'Trefila' && m === 'Trefila 1');

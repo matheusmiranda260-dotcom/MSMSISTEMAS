@@ -51,12 +51,6 @@ const permissionCategories = [
         ]
     },
     {
-        title: '🔧 Programação',
-        permissions: [
-            { page: 'programarMaquinas', label: 'Programar Máquinas' },
-        ]
-    },
-    {
         title: '🧪 Qualidade e Suporte',
         permissions: [
             { page: 'laboratory', label: '🔬 Laboratório (Ensaios e Testes)' },
