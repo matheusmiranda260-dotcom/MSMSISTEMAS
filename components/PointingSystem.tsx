@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Page, User } from '../types';
+import type { Page, User, StockGauge, EstriboModel } from '../types';
+import { DEFAULT_ESTRIBO_MODELS } from '../types';
+import EstriboDrawingBoard from './EstriboDrawingBoard';
 import { 
     PencilIcon, TrashIcon, ArrowLeftIcon 
 } from './icons';
@@ -10,6 +12,7 @@ interface FerroItem {
     qtde: number;
     bitola: string;
     bitolaKgm: number;
+    bitolaPrice?: number;
     pontaEsquerdo: string;
     pontaDireito: string;
     ladoA: string;
@@ -17,6 +20,7 @@ interface FerroItem {
     ladoC: string;
     ladoD: string;
     ladoE: string;
+    ladoF?: string;
     obs: string;
     drawingType?: string;
     estriboShape?: string;
@@ -32,6 +36,9 @@ interface ProductItem {
     weight: number;
     price: number;
     ferros?: FerroItem[];
+    locked?: boolean;
+    attachmentName?: string;
+    attachmentData?: string;
 }
 
 interface Quote {
@@ -72,6 +79,7 @@ const MOCK_CLIENTS: ClientLookup[] = [
 interface PointingSystemProps {
     currentUser: User | null;
     showNotification: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
+    gauges?: StockGauge[];
 }
 
 const INITIAL_QUOTES: Quote[] = [
@@ -232,15 +240,70 @@ const INITIAL_QUOTES: Quote[] = [
     }
 ];
 
-const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotification }) => {
+interface BitolaConfig {
+    id: string;
+    label: string;
+    kgm: number;
+    price: number;
+    amarrado: boolean;
+    corteDobra: boolean;
+}
+
+const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotification, gauges }) => {
     const [quotes, setQuotes] = useState<Quote[]>(() => {
         const saved = localStorage.getItem('msm_quotes');
         return saved ? JSON.parse(saved) : INITIAL_QUOTES;
     });
 
+    const [bitolas, setBitolas] = useState<BitolaConfig[]>(() => {
+        const saved = localStorage.getItem('msm_bitolas');
+        if (saved) return JSON.parse(saved);
+        return [
+            { id: '1', label: '3/8" - 10.0 mm', kgm: 0.617, amarrado: true, corteDobra: true },
+            { id: '2', label: '1/2" - 12.5 mm', kgm: 0.963, amarrado: true, corteDobra: true },
+            { id: '3', label: '5/8" - 16.0 mm', kgm: 1.578, amarrado: true, corteDobra: true },
+            { id: '4', label: '3/4" - 19.0 mm', kgm: 2.234, amarrado: true, corteDobra: true },
+            { id: '5', label: '7/8" - 22.2 mm', kgm: 3.045, amarrado: true, corteDobra: true },
+            { id: '6', label: '1" - 25.4 mm', kgm: 3.984, amarrado: true, corteDobra: true },
+            { id: '7', label: 'CA60 5.0 mm', kgm: 0.154, amarrado: true, corteDobra: true },
+            { id: '8', label: 'CA60 6.3 mm', kgm: 0.245, amarrado: true, corteDobra: true },
+            { id: '9', label: 'CA60 8.0 mm', kgm: 0.395, amarrado: true, corteDobra: true },
+            { id: '10', label: 'CA50 10.0 mm', kgm: 0.617, amarrado: true, corteDobra: true },
+            { id: '11', label: 'CA50 12.5 mm', kgm: 0.963, amarrado: true, corteDobra: true },
+            { id: '12', label: 'CA50 16.0 mm', kgm: 1.578, amarrado: true, corteDobra: true },
+            { id: '13', label: 'CA50 20.0 mm', kgm: 2.466, amarrado: true, corteDobra: true },
+            { id: '14', label: 'CA50 25.0 mm', kgm: 3.853, amarrado: true, corteDobra: true },
+        ];
+    });
+
+    const [showSettingsModal, setShowSettingsModal] = useState(false);
+    const [settingsTab, setSettingsTab] = useState<'bitolas' | 'estribos'>('bitolas');
+
     useEffect(() => {
         localStorage.setItem('msm_quotes', JSON.stringify(quotes));
     }, [quotes]);
+
+    useEffect(() => {
+        localStorage.setItem('msm_bitolas', JSON.stringify(bitolas));
+    }, [bitolas]);
+
+    const [estriboModels, setEstriboModels] = useState<EstriboModel[]>(() => {
+        const saved = localStorage.getItem('msm_estribos');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                return parsed.map((m: any) => ({
+                    ...m,
+                    applications: m.applications || ['Coluna', 'Pilar', 'Broca', 'Viga Superior', 'Viga Baldrame', 'Sapata', 'Corte e Dobra', 'Outros']
+                }));
+            } catch (e) { }
+        }
+        return DEFAULT_ESTRIBO_MODELS;
+    });
+
+    useEffect(() => {
+        localStorage.setItem('msm_estribos', JSON.stringify(estriboModels));
+    }, [estriboModels]);
 
     // Filter & Order State
     const [search, setSearch] = useState('');
@@ -337,8 +400,9 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     const [freightPrice, setFreightPrice] = useState(150.0);
     const [freightObs, setFreightObs] = useState('');
 
-    // Coluna sub-modal states
+    // Coluna / Structural sub-modal states
     const [showColunaModal, setShowColunaModal] = useState(false);
+    const [structuralCategory, setStructuralCategory] = useState('COLUNA');
     const [colunaName, setColunaName] = useState('');
     const [colunaQtde, setColunaQtde] = useState('');
     const [colunaTipoAmarracao, setColunaTipoAmarracao] = useState<'AMARRADA' | 'SOLDADA'>('AMARRADA');
@@ -346,6 +410,24 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     const [colunaAreaSemEstr1, setColunaAreaSemEstr1] = useState('');
     const [colunaAreaSemEstr2, setColunaAreaSemEstr2] = useState('');
     const [colunaObs, setColunaObs] = useState('');
+
+
+    // Sapata sub-modal states
+    const [showSapataModal, setShowSapataModal] = useState(false);
+    const [sapataName, setSapataName] = useState('');
+    const [sapataQtde, setSapataQtde] = useState('');
+    const [sapataTipo, setSapataTipo] = useState<'FECHADA' | 'ABERTA'>('FECHADA');
+    const [sapataLength, setSapataLength] = useState('');
+    const [sapataWidth, setSapataWidth] = useState('');
+    const [sapataHeight, setSapataHeight] = useState('');
+    const [sapataObs, setSapataObs] = useState('');
+    const [editingSapataId, setEditingSapataId] = useState<string | null>(null);
+
+    // Corte e Dobra sub-modal states
+    const [showCorteDobraModal, setShowCorteDobraModal] = useState(false);
+    const [corteDobraName, setCorteDobraName] = useState('');
+    const [corteDobraObs, setCorteDobraObs] = useState('');
+    const [editingCorteDobraId, setEditingCorteDobraId] = useState<string | null>(null);
 
     // Ferros Principais sub-modal states
     const [showFerrosModal, setShowFerrosModal] = useState(false);
@@ -378,6 +460,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     const [estriboLadoC, setEstriboLadoC] = useState('');
     const [estriboLadoD, setEstriboLadoD] = useState('');
     const [estriboLadoE, setEstriboLadoE] = useState('');
+    const [estriboLadoF, setEstriboLadoF] = useState('');
     const [estriboObs, setEstriboObs] = useState('');
 
     // Trava sub-modal states
@@ -396,26 +479,42 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     const [travaLadoE, setTravaLadoE] = useState('');
     const [travaObs, setTravaObs] = useState('');
 
+    const [settingsEstriboArea, setSettingsEstriboArea] = useState('Coluna');
+    const [settingsEstriboCat, setSettingsEstriboCat] = useState('4 LADOS');
+    const [drawingBoardTarget, setDrawingBoardTarget] = useState<EstriboModel | null>(null);
+
     const [editingColunaId, setEditingColunaId] = useState<string | null>(null);
     const [ferroModalTitle, setFerroModalTitle] = useState('Ferros Principais');
     const [ferroEditId, setFerroEditId] = useState<string | null>(null);
 
-    const BITOLA_OPTIONS = [
-        { label: '3/8" - 10.0 mm', kgm: 0.617 },
-        { label: '1/2" - 12.5 mm', kgm: 0.963 },
-        { label: '5/8" - 16.0 mm', kgm: 1.578 },
-        { label: '3/4" - 19.0 mm', kgm: 2.234 },
-        { label: '7/8" - 22.2 mm', kgm: 3.045 },
-        { label: '1" - 25.4 mm',   kgm: 3.984 },
-        { label: 'CA60 5.0 mm',    kgm: 0.154 },
-        { label: 'CA60 6.3 mm',    kgm: 0.245 },
-        { label: 'CA60 8.0 mm',    kgm: 0.395 },
-        { label: 'CA50 10.0 mm',   kgm: 0.617 },
-        { label: 'CA50 12.5 mm',   kgm: 0.963 },
-        { label: 'CA50 16.0 mm',   kgm: 1.578 },
-        { label: 'CA50 20.0 mm',   kgm: 2.466 },
-        { label: 'CA50 25.0 mm',   kgm: 3.853 },
-    ];
+    // Corte e Dobra elements states
+    const [openActionDropdownId, setOpenActionDropdownId] = useState<string | null>(null);
+    const [showElementoModal, setShowElementoModal] = useState(false);
+    const [elementoTargetProdIdx, setElementoTargetProdIdx] = useState(-1);
+    const [elementoTargetGroupNome, setElementoTargetGroupNome] = useState('');
+    const [elementoNomeElemento, setElementoNomeElemento] = useState('');
+    const [elementoQtde, setElementoQtde] = useState('');
+    const [elementoBitola, setElementoBitola] = useState('');
+    const [elementoShapeId, setElementoShapeId] = useState('');
+    const [elementoLadoA, setElementoLadoA] = useState('');
+    const [elementoLadoB, setElementoLadoB] = useState('');
+    const [elementoLadoC, setElementoLadoC] = useState('');
+    const [elementoLadoD, setElementoLadoD] = useState('');
+    const [elementoLadoE, setElementoLadoE] = useState('');
+    const [elementoLadoF, setElementoLadoF] = useState('');
+    const [elementoObs, setElementoObs] = useState('');
+    const [elementoEditId, setElementoEditId] = useState<string | null>(null);
+
+    // Alterar Bitolas states
+    const [showAlterarBitolasModal, setShowAlterarBitolasModal] = useState(false);
+    const [alterarBitolasTargetIdx, setAlterarBitolasTargetIdx] = useState(-1);
+    const [alterarBitolasValue, setAlterarBitolasValue] = useState('');
+
+    // Anexar Desenho / Attachment Preview states
+    const [showPreviewAttachmentModal, setShowPreviewAttachmentModal] = useState(false);
+    const [previewAttachmentName, setPreviewAttachmentName] = useState('');
+    const [previewAttachmentData, setPreviewAttachmentData] = useState('');
+    const [anexarDesenhoTargetIdx, setAnexarDesenhoTargetIdx] = useState(-1);
 
     const PONTA_OPTIONS = ['SEM PONTA', 'AFUNILADO', 'NEGATIVADA PARA DENTRO', 'NEGATIVADA PARA FORA', 'GANCHO PARA DENTRO', 'GANCHO PARA FORA'];
 
@@ -501,10 +600,63 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         );
     };
 
-    const renderEstriboSVG = (lados: string, shapeType?: string, A?: string, B?: string, C?: string, D?: string, E?: string) => {
+    const renderEstriboSVG = (lados: string, shapeType?: string, A?: string, B?: string, C?: string, D?: string, E?: string, F?: string) => {
         const fs = 14;
         
-        if (lados === '3 LADOS') {
+        const model = estriboModels.find(m => m.id === shapeType || (m.name === shapeType && m.category === lados));
+        let template = shapeType;
+        let effectiveLados = lados;
+        
+        if (model) {
+            if (model.customDrawingData && model.customDrawingData.points) {
+                const { points, labels } = model.customDrawingData;
+                return (
+                    <svg viewBox="0 0 400 400" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                        {points.length > 0 && (
+                            <polyline 
+                                points={points.map(p => `${p.x},${p.y}`).join(' ')} 
+                                fill="none" 
+                                stroke="#1e293b" 
+                                strokeWidth="12"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            />
+                        )}
+                        {labels.map((l, i) => {
+                            let val = l.text;
+                            if (l.text === 'A') val = A || 'A';
+                            else if (l.text === 'B') val = B || 'B';
+                            else if (l.text === 'C') val = C || 'C';
+                            else if (l.text === 'D') val = D || 'D';
+                            else if (l.text === 'E') val = E || 'E';
+                            else if (l.text === 'F') val = F || 'F';
+
+                            return (
+                                <g key={i} transform={`translate(${l.x}, ${l.y})`}>
+                                    <text x="0" y="12" textAnchor="middle" fontSize="38" fontWeight="bold" fill="#1e293b">{val}</text>
+                                </g>
+                            );
+                        })}
+                    </svg>
+                );
+            }
+
+            if (model.customImageBase64) {
+                return (
+                    <img src={model.customImageBase64} alt="Estribo Customizado" className="w-full h-full max-h-[120px] object-contain" />
+                );
+            }
+            template = model.svgTemplate;
+            if (template === 'padrao_4_lados') { effectiveLados = '4 LADOS'; template = 'Padrão'; }
+            else if (template === 'formato_l') { effectiveLados = '4 LADOS'; template = 'L'; }
+            else if (template === 'formato_reto') { effectiveLados = '4 LADOS'; template = 'Reto'; }
+            else if (template === 'formato_u') { effectiveLados = '4 LADOS'; template = 'U'; }
+            else if (template === 'padrao_3_lados') { effectiveLados = '3 LADOS'; template = 'Padrão'; }
+            else if (template === 'redonda_padrao') { effectiveLados = 'REDONDA'; template = 'Padrão'; }
+            else if (template === 'generico') { effectiveLados = '4 LADOS'; template = 'Especial'; }
+        }
+        
+        if (effectiveLados === '3 LADOS') {
             return (
                 <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
                     <polygon points="80,30 30,120 130,120" fill="none" stroke="#777" strokeWidth="4" />
@@ -514,8 +666,84 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
             );
         }
         
-        if (lados === '4 LADOS') {
-            if (shapeType === 'Padrão, definir dobras finais') {
+        if (effectiveLados === '4 LADOS') {
+            if (template === 'L') {
+                return (
+                    <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 40,40 L 40,120 L 120,120" fill="none" stroke="#777" strokeWidth="4" strokeLinejoin="round" />
+                        <text x="80" y="140" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                        <text x="25" y="80" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{B || 'B'}</text>
+                    </svg>
+                );
+            }
+            if (template === 'Reto') {
+                return (
+                    <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                        <line x1="30" y1="80" x2="130" y2="80" stroke="#777" strokeWidth="4" />
+                        <text x="80" y="70" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                    </svg>
+                );
+            }
+            if (template === 'Padrão') {
+                const heightVal = C || B || 'C';
+                return (
+                    <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="45" y="45" width="70" height="70" rx="4" fill="none" stroke="#777" strokeWidth="4" />
+                        <text x="80" y="35" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                        <text x="80" y="135" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                        <text x="25" y="85" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{heightVal}</text>
+                        <text x="130" y="85" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{heightVal}</text>
+                    </svg>
+                );
+            }
+            if (template === 'U') {
+                return (
+                    <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 45,50 L 45,115 L 115,115 L 115,50" fill="none" stroke="#777" strokeWidth="4" strokeLinejoin="round" />
+                        <text x="80" y="135" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                        <text x="25" y="85" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{C || 'C'}</text>
+                        <text x="130" y="85" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{C || 'C'}</text>
+                    </svg>
+                );
+            }
+            if (template === 'U Dobras Ext') {
+                return (
+                    <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 30,50 L 50,50 L 50,115 L 110,115 L 110,50 L 130,50" fill="none" stroke="#777" strokeWidth="4" strokeLinejoin="round" />
+                        <text x="80" y="135" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                        <text x="35" y="85" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{C || 'C'}</text>
+                        <text x="125" y="85" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{C || 'C'}</text>
+                        <text x="120" y="40" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{D || 'D'}</text>
+                        <text x="40" y="40" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{D || 'D'}</text>
+                    </svg>
+                );
+            }
+            if (template === 'U Dobras Int') {
+                return (
+                    <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 65,50 L 50,50 L 50,115 L 110,115 L 110,50 L 95,50" fill="none" stroke="#777" strokeWidth="4" strokeLinejoin="round" />
+                        <text x="80" y="135" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                        <text x="35" y="85" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{C || 'C'}</text>
+                        <text x="125" y="85" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{C || 'C'}</text>
+                        <text x="102" y="40" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{D || 'D'}</text>
+                        <text x="58" y="40" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#f00">{E || 'E'}</text>
+                    </svg>
+                );
+            }
+            if (template === 'Especial') {
+                return (
+                    <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 25,70 L 40,70 L 40,115 L 65,115 L 65,50 L 95,50 L 95,115 L 120,115 L 120,70 L 135,70" fill="none" stroke="#777" strokeWidth="4" strokeLinejoin="round" />
+                        <text x="110" y="130" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{A || 'A'}</text>
+                        <text x="135" y="95" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{B || 'B'}</text>
+                        <text x="80" y="40" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{C || 'C'}</text>
+                        <text x="128" y="60" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{D || 'D'}</text>
+                        <text x="32" y="60" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#f00">{E || 'E'}</text>
+                        <text x="53" y="85" textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#000">{F || 'F'}</text>
+                    </svg>
+                );
+            }
+            if (template === 'Padrão, definir dobras finais') {
                 return (
                     <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
                         <rect x="50" y="50" width="70" height="70" rx="4" fill="none" stroke="#777" strokeWidth="4" />
@@ -527,7 +755,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                     </svg>
                 );
             }
-            if (shapeType === 'Transpasse em X') {
+            if (template === 'Transpasse em X') {
                 return (
                     <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
                         <rect x="50" y="50" width="70" height="70" rx="4" fill="none" stroke="#777" strokeWidth="4" />
@@ -540,7 +768,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                     </svg>
                 );
             }
-            if (shapeType === 'Estribo de travamento') {
+            if (template === 'Estribo de travamento') {
                 return (
                     <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
                         <path d="M 50,70 L 50,110 L 110,110 L 110,70" fill="none" stroke="#777" strokeWidth="4" strokeLinejoin="round" />
@@ -553,7 +781,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                     </svg>
                 );
             }
-            if (shapeType === 'Estribo de travamento 2') {
+            if (template === 'Estribo de travamento 2') {
                 return (
                     <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
                         <path d="M 45,60 L 45,115 L 115,115 L 115,45 L 60,45" fill="none" stroke="#777" strokeWidth="4" strokeLinejoin="round" />
@@ -578,7 +806,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
             );
         }
 
-        if (lados === '6 LADOS') {
+        if (effectiveLados === '6 LADOS') {
             return (
                 <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
                     <polygon points="50,30 110,30 140,80 110,130 50,130 20,80" fill="none" stroke="#777" strokeWidth="4" />
@@ -589,7 +817,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
             );
         }
 
-        if (lados === '8 LADOS') {
+        if (effectiveLados === '8 LADOS') {
             return (
                 <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
                     <polygon points="60,20 100,20 130,50 130,90 100,120 60,120 30,90 30,50" fill="none" stroke="#777" strokeWidth="4" />
@@ -601,8 +829,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
             );
         }
 
-        if (lados === 'REDONDA') {
-            if (shapeType === 'Definir transpasse') {
+        if (effectiveLados === 'REDONDA') {
+            if (template === 'Definir transpasse') {
                 return (
                     <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
                         <circle cx="80" cy="80" r="50" fill="none" stroke="#777" strokeWidth="4" />
@@ -612,7 +840,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                     </svg>
                 );
             }
-            if (shapeType === 'Transpasse Dobrado') {
+            if (template === 'Transpasse Dobrado') {
                 return (
                     <svg viewBox="0 0 160 160" className="w-full h-full max-h-[120px] overflow-visible" xmlns="http://www.w3.org/2000/svg">
                         <circle cx="80" cy="80" r="50" fill="none" stroke="#777" strokeWidth="4" />
@@ -643,33 +871,35 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         const d = parseFloat(ferro.ladoD) || 0;
         const e = parseFloat(ferro.ladoE) || 0;
         
-        if (ferro.drawingType === 'Estribo') {
+        if (ferro.drawingType === 'Estribo' || ferro.drawingType === 'CorteDobra') {
             const shapeType = ferro.estriboShape || 'Padrão';
             const m = colDescription.match(/(\d+ LADOS|REDONDA)/);
             const ladosDesc = m ? m[1] : '4 LADOS';
             
-            if (ladosDesc === 'REDONDA') {
-                if (shapeType === 'Definir transpasse') return (a * Math.PI) + b;
-                if (shapeType === 'Transpasse Dobrado') return (a * Math.PI) + b + c;
-                return (a * Math.PI) + 15;
+            const model = estriboModels.find(m => m.id === shapeType || (m.name === shapeType && m.category === ladosDesc));
+            
+            if (model) {
+                const f = parseFloat(ferro.ladoF) || 0;
+                try {
+                    let expression = model.formula
+                        .replace(/Math\.PI/g, Math.PI.toString())
+                        .replace(/\bA\b/g, a.toString())
+                        .replace(/\bB\b/g, b.toString())
+                        .replace(/\bC\b/g, c.toString())
+                        .replace(/\bD\b/g, d.toString())
+                        .replace(/\bE\b/g, e.toString())
+                        .replace(/\bF\b/g, f.toString());
+                    return new Function('return ' + expression)() || 0;
+                } catch (err) {
+                    console.error("Erro ao avaliar fórmula de estribo", model.formula, err);
+                    return 0;
+                }
+            } else {
+                // Fallback safe defaults if model not found
+                if (ladosDesc === 'REDONDA') return (a * Math.PI) + 15;
+                if (ladosDesc === '3 LADOS') return a + (b * 2) + 10;
+                return (a * 2) + (b * 2) + 10; // Default 4 Lados
             }
-            if (ladosDesc === '3 LADOS') {
-                return a + (b * 2) + 10;
-            }
-            if (ladosDesc === '4 LADOS') {
-                if (shapeType === 'Padrão, definir dobras finais') return (a * 2) + (b * 2) + (c * 2);
-                if (shapeType === 'Transpasse em X') return (a * 2) + (b * 2) + c + d;
-                if (shapeType === 'Estribo de travamento') return a + b + c + d + 10;
-                if (shapeType === 'Estribo de travamento 2') return a + b + c + d + (e * 2);
-                return (a * 2) + (b * 2) + 10;
-            }
-            if (ladosDesc === '6 LADOS') {
-                return (a * 2) + (b * 2) + (c * 2) + 10;
-            }
-            if (ladosDesc === '8 LADOS') {
-                return (a * 2) + (b * 2) + (c * 2) + (d * 2) + 10;
-            }
-            return a + b + c + d + 10;
         }
         
         if (ferro.drawingType === 'Trava') {
@@ -696,13 +926,16 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         }
         
         let totalKg = 0;
+        let totalPrice = 0;
         let principalLength = 0;
         
         p.ferros.forEach(f => {
             const totalCm = getFerroTotalLengthCm(f, p.description);
             const factor = f.bitolaKgm || parseFloat(f.bitola.split(',')[1]) || 0;
+            const priceFactor = f.bitolaPrice || parseFloat(f.bitola.split(',')[2]) || 0;
             const weight = (totalCm / 100) * factor * f.qtde;
             totalKg += weight;
+            totalPrice += weight * priceFactor;
             
             if (f.drawingType !== 'Estribo' && f.drawingType !== 'Trava') {
                 const lenM = (parseFloat(f.ladoA) || 0) / 100;
@@ -719,7 +952,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         return Object.assign({}, p, {
             length: parseFloat(principalLength.toFixed(2)),
             weight: parseFloat(totalKg.toFixed(2)),
-            price: parseFloat((totalKg * 8.5).toFixed(2)) // R$ 8.50 per kg
+            price: parseFloat((totalPrice > 0 ? totalPrice : (totalKg * 8.5)).toFixed(2))
         });
     };
 
@@ -1237,6 +1470,12 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                     <p className="text-xs text-slate-500 font-bold uppercase mt-1">MSM Sistemas • Setor Comercial</p>
                 </div>
                 <div className="flex gap-3">
+                    <button 
+                        onClick={() => setShowSettingsModal(true)}
+                        className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold py-2 px-4 rounded-xl transition-all shadow-sm flex items-center gap-2 text-sm"
+                    >
+                        <span>⚙️ Configurações</span>
+                    </button>
                     <button 
                         onClick={() => setIsAddOpen(true)}
                         className="bg-sky-600 hover:bg-sky-700 text-white font-extrabold py-2 px-5 rounded-xl transition-all shadow-md flex items-center gap-2 text-sm"
@@ -1888,7 +2127,29 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                             type="button"
                                             key={cat}
                                             onClick={() => {
-                                                if (cat === 'Coluna') {
+                                                
+                                                if (cat === 'Sapata') {
+                                                    setSapataName('');
+                                                    setSapataQtde('');
+                                                    setSapataTipo('FECHADA');
+                                                    setSapataLength('');
+                                                    setSapataWidth('');
+                                                    setSapataHeight('');
+                                                    setSapataObs('');
+                                                    setShowSapataModal(true);
+                                                    return;
+                                                }
+                                                if (cat === 'Corte e Dobra') {
+                                                    setCorteDobraName('');
+                                                    setCorteDobraObs('');
+                                                    setEditingCorteDobraId(null);
+                                                    setShowCorteDobraModal(true);
+                                                    return;
+                                                }
+                                                const structuralTypes = ['Coluna', 'Pilar', 'Broca', 'Viga', 'Viga Superior', 'Viga Baldrame'];
+
+                                                if (structuralTypes.includes(cat)) {
+                                                    setStructuralCategory(cat.toUpperCase());
                                                     setColunaName('');
                                                     setColunaQtde('');
                                                     setColunaTipoAmarracao('AMARRADA');
@@ -2122,7 +2383,21 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                         {tempProducts.map((item, idx) => {
                                             const isColuna = item.description.startsWith('COLUNA');
                                             const isPillar = item.description.startsWith('PILAR');
+                                            const isSapata = item.description.startsWith('SAPATA');
+                                            const isCorteDobra = item.description.startsWith('CORTE E DOBRA');
                                             const isStructural = isColuna || isPillar;
+                                            
+                                            let sapataC = '';
+                                            let sapataL = '';
+                                            let sapataA = '';
+                                            if (isSapata) {
+                                                const dimMatch = item.description.match(/(\d+)x(\d+)x(\d+)/);
+                                                if (dimMatch) {
+                                                    sapataC = dimMatch[1];
+                                                    sapataL = dimMatch[2];
+                                                    sapataA = dimMatch[3];
+                                                }
+                                            }
                                             
                                             // Dynamic minimum principal reinforcement count based on sides
                                             const matchLados = item.description.match(/(\d+ LADOS|REDONDA)/);
@@ -2140,7 +2415,56 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                             const hasEnoughPrincipalFerros = principalFerrosCount >= minPrincipalFerros;
                                             const hasEstribos = (item.ferros || []).some(f => f.drawingType === 'Estribo' && f.qtde > 0);
                                             
-                                            const incomplete = isStructural && (!hasEnoughPrincipalFerros || !hasEstribos);
+                                            // Sapata completeness check
+                                            let isSapataIncomplete = false;
+                                            let missingSapataEstribo1 = false;
+                                            let missingSapataEstribo2 = false;
+                                            let sapataEstribo1Name = '';
+                                            let sapataEstribo2Name = '';
+                                            
+                                            if (isSapata && sapataC && sapataL && sapataA) {
+                                                const w1 = parseFloat(sapataC) || 0;
+                                                const w2 = parseFloat(sapataL) || 0;
+                                                const h = parseFloat(sapataA) || 0;
+                                                
+                                                sapataEstribo1Name = `${sapataC}x${sapataA}`;
+                                                sapataEstribo2Name = `${sapataL}x${sapataA}`;
+                                                
+                                                const isMatch = (f: any, w: number, heightVal: number) => {
+                                                    if (f.drawingType !== 'Estribo' || !(f.qtde > 0)) return false;
+                                                    const a = parseFloat(f.ladoA) || 0;
+                                                    const b = parseFloat(f.ladoB) || 0;
+                                                    const c = parseFloat(f.ladoC) || 0;
+                                                    const d = parseFloat(f.ladoD) || 0;
+                                                    const e = parseFloat(f.ladoE) || 0;
+                                                    const fVal = parseFloat(f.ladoF) || 0;
+                                                    
+                                                    // Standard action adds side A and side C
+                                                    if ((a === w && c === heightVal) || (a === heightVal && c === w)) return true;
+                                                     
+                                                    const hasW = a === w || b === w || c === w || d === w || e === w || fVal === w;
+                                                    const hasH = a === heightVal || b === heightVal || c === heightVal || d === heightVal || e === heightVal || fVal === heightVal;
+                                                    if (hasW && hasH) return true;
+                                                     
+                                                    const nameLower = (f.nomeElemento || '').toLowerCase();
+                                                    if (nameLower.includes(`${w}x${heightVal}`) || nameLower.includes(`${heightVal}x${w}`)) return true;
+                                                     
+                                                    return false;
+                                                };
+                                                
+                                                const hasEstribo1 = (item.ferros || []).some(f => isMatch(f, w1, h));
+                                                missingSapataEstribo1 = !hasEstribo1;
+                                                
+                                                if (w1 !== w2) {
+                                                    const hasEstribo2 = (item.ferros || []).some(f => isMatch(f, w2, h));
+                                                    missingSapataEstribo2 = !hasEstribo2;
+                                                }
+                                                
+                                                isSapataIncomplete = missingSapataEstribo1 || missingSapataEstribo2;
+                                            }
+                                            
+                                            const hasAnyElement = (item.ferros || []).length > 0;
+                                            const incomplete = !hasAnyElement || (isStructural && (!hasEnoughPrincipalFerros || !hasEstribos)) || isSapataIncomplete;
                                             
                                             return (
                                                 <div
@@ -2197,10 +2521,63 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                     if (!val) return;
                                                                     
                                                                     if (val === 'edit') {
-                                                                        const isStructural = item.description.startsWith('COLUNA') || item.description.startsWith('VIGA') || item.description.startsWith('PILAR') || item.description.startsWith('BROCA') || item.description.startsWith('SAPATA');
-                                                                        if (isStructural) {
-                                                                            const parts = item.description.split(' ');
-                                                                            const namePart = (parts[1] !== 'AMARRADA' && parts[1] !== 'SOLDADA') ? parts[1] : '';
+                                                                        
+                                                                        const isSapata = item.description.startsWith('SAPATA');
+                                                                        const isCorteDobra = item.description.startsWith('CORTE E DOBRA');
+                                                                        const isStructural = item.description.startsWith('COLUNA') || item.description.startsWith('VIGA') || item.description.startsWith('PILAR') || item.description.startsWith('BROCA');
+                                                                        
+                                                                        if (isSapata) {
+                                                                            const dimMatch = item.description.match(/(\d+)x(\d+)x(\d+)/);
+                                                                            if (dimMatch) {
+                                                                                setSapataLength(dimMatch[1]);
+                                                                                setSapataWidth(dimMatch[2]);
+                                                                                setSapataHeight(dimMatch[3]);
+                                                                            }
+                                                                            const isFechada = item.description.includes('FECHADA');
+                                                                            setSapataTipo(isFechada ? 'FECHADA' : 'ABERTA');
+                                                                            setSapataQtde(String(item.qty));
+                                                                            
+                                                                            const obsMatch = item.description.match(/OBS:\s*(.*)/);
+                                                                            setSapataObs(obsMatch ? obsMatch[1].trim() : '');
+                                                                            
+                                                                            // Extract name
+                                                                            let name = '';
+                                                                            const typeKeyword = isFechada ? 'FECHADA' : 'ABERTA';
+                                                                            const shapeKeyword = item.description.includes('QUADRADA') ? 'QUADRADA' : (item.description.includes('RETANGULAR') ? 'RETANGULAR' : '');
+                                                                            
+                                                                            const prefixEnd = item.description.indexOf(shapeKeyword) + shapeKeyword.length;
+                                                                            const typeIndex = item.description.indexOf(typeKeyword);
+                                                                            if (prefixEnd > -1 && typeIndex > prefixEnd) {
+                                                                                name = item.description.substring(prefixEnd, typeIndex).trim();
+                                                                            }
+                                                                            setSapataName(name);
+                                                                            setEditingSapataId(item.id);
+                                                                            setShowSapataModal(true);
+                                                                        } else if (isCorteDobra) {
+                                                                            const obsMatch = item.description.match(/OBS:\s*(.*)/);
+                                                                            setCorteDobraObs(obsMatch ? obsMatch[1].trim() : '');
+                                                                            let name = '';
+                                                                            let descWithoutObs = item.description;
+                                                                            if (obsMatch) {
+                                                                                descWithoutObs = descWithoutObs.substring(0, descWithoutObs.indexOf('OBS:')).trim();
+                                                                            }
+                                                                            const prefixLength = 'CORTE E DOBRA'.length;
+                                                                            if (descWithoutObs.length > prefixLength) {
+                                                                                name = descWithoutObs.substring(prefixLength).trim();
+                                                                            }
+                                                                            setCorteDobraName(name);
+                                                                            setEditingCorteDobraId(item.id);
+                                                                            setShowCorteDobraModal(true);
+                                                                        } else if (isStructural) {
+                                                                            let structCat = 'COLUNA';
+                                                                            ['VIGA SUPERIOR', 'VIGA BALDRAME', 'VIGA', 'PILAR', 'BROCA', 'COLUNA'].forEach(c => {
+                                                                                if (item.description.startsWith(c)) structCat = c;
+                                                                            });
+                                                                            
+                                                                            const remainingDesc = item.description.substring(structCat.length).trim();
+                                                                            const parts = remainingDesc.split(' ');
+                                                                            const namePart = (parts[0] !== 'AMARRADA' && parts[0] !== 'SOLDADA') ? parts[0] : '';
+                                                                            
                                                                             const typeIndex = parts.indexOf('AMARRADA') !== -1 ? parts.indexOf('AMARRADA') : parts.indexOf('SOLDADA');
                                                                             const tipoAmarracao = parts[typeIndex] || 'AMARRADA';
                                                                             const ladosIndex = parts.findIndex(p => p.includes('LADOS') || p === 'REDONDA');
@@ -2220,6 +2597,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                             setColunaAreaSemEstr1(area1);
                                                                             setColunaAreaSemEstr2(area2);
                                                                             setColunaObs(obs);
+                                                                            setStructuralCategory(structCat);
                                                                             setEditingColunaId(item.id);
                                                                             setShowColunaModal(true);
                                                                         } else {
@@ -2231,6 +2609,65 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                         }
                                                                     } else if (val === 'delete') {
                                                                         setTempProducts(prev => prev.filter((_, i) => i !== idx));
+                                                                    } else if (val.startsWith('sapata_estribo_')) {
+                                                                        const [, , dim1, dim2] = val.split('_');
+                                                                        
+                                                                        const isFechada = item.description.includes('FECHADA');
+                                                                        const typeKeyword = isFechada ? 'FECHADA' : 'ABERTA';
+                                                                        const shapeKeyword = item.description.includes('QUADRADA') ? 'QUADRADA' : (item.description.includes('RETANGULAR') ? 'RETANGULAR' : '');
+                                                                        let sapataNameVal = '';
+                                                                        const prefixEnd = item.description.indexOf(shapeKeyword) + shapeKeyword.length;
+                                                                        const typeIndex = item.description.indexOf(typeKeyword);
+                                                                        if (prefixEnd > -1 && typeIndex > prefixEnd) {
+                                                                            sapataNameVal = item.description.substring(prefixEnd, typeIndex).trim();
+                                                                        }
+                                                                        const displayName = `SAPATA ${shapeKeyword}${sapataNameVal ? ' ' + sapataNameVal : ''}`;
+
+                                                                        setEstriboTargetProdIdx(idx);
+                                                                        setEstriboTargetColunaNome(displayName);
+                                                                        setEstriboNomeElemento(`ESTRIBOS ${dim1}x${dim2}`);
+                                                                        setEstriboEspacamento('');
+                                                                        setEstriboQtde('');
+                                                                        setEstriboBitola('');
+                                                                        setEstriboCalcAutomatico(false);
+                                                                        setEstriboShapeType('Padrão');
+                                                                        setEstriboLadoA(dim1);
+                                                                        setEstriboLadoB(dim2);
+                                                                        setEstriboLadoC(dim2);
+                                                                        setEstriboLadoD('');
+                                                                        setEstriboLadoE('');
+                                                                        setEstriboLadoF('');
+                                                                        setEstriboObs('');
+                                                                        setShowEstribosModal(true);
+                                                                    } else if (val.startsWith('sapata_costela_')) {
+                                                                        const [, , dim1, dim2] = val.split('_');
+                                                                        
+                                                                        const isFechada = item.description.includes('FECHADA');
+                                                                        const typeKeyword = isFechada ? 'FECHADA' : 'ABERTA';
+                                                                        const shapeKeyword = item.description.includes('QUADRADA') ? 'QUADRADA' : (item.description.includes('RETANGULAR') ? 'RETANGULAR' : '');
+                                                                        let sapataNameVal = '';
+                                                                        const prefixEnd = item.description.indexOf(shapeKeyword) + shapeKeyword.length;
+                                                                        const typeIndex = item.description.indexOf(typeKeyword);
+                                                                        if (prefixEnd > -1 && typeIndex > prefixEnd) {
+                                                                            sapataNameVal = item.description.substring(prefixEnd, typeIndex).trim();
+                                                                        }
+                                                                        const displayName = `SAPATA ${shapeKeyword}${sapataNameVal ? ' ' + sapataNameVal : ''}`;
+
+                                                                        setFerroTargetProdIdx(idx);
+                                                                        setFerroTargetColunaNome(displayName);
+                                                                        setFerroNomeElemento(`COSTELAS ${dim1}x${dim2}`);
+                                                                        setFerroQtde('');
+                                                                        setFerroBitola('');
+                                                                        setFerroPontaEsq('SEM PONTA');
+                                                                        setFerroPontaDir('SEM PONTA');
+                                                                        setFerroLadoA(dim1);
+                                                                        setFerroLadoB(dim2);
+                                                                        setFerroLadoC('');
+                                                                        setFerroLadoD('');
+                                                                        setFerroLadoE('');
+                                                                        setFerroObs('');
+                                                                        setFerroModalTitle('Costelas');
+                                                                        setShowFerrosModal(true);
                                                                     } else if (val === 'add_ferros') {
                                                                         const parts = item.description.split(' ');
                                                                         setFerroTargetProdIdx(idx);
@@ -2263,6 +2700,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                         setEstriboLadoC('');
                                                                         setEstriboLadoD('');
                                                                         setEstriboLadoE('');
+                                                                        setEstriboLadoF('');
                                                                         setEstriboObs('');
                                                                         setShowEstribosModal(true);
                                                                     } else if (val === 'add_trava') {
@@ -2298,19 +2736,104 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                         setFerroObs('');
                                                                         setFerroModalTitle(optionLabel);
                                                                         setShowFerrosModal(true);
+                                                                    } else if (val === 'cd_add_elemento') {
+                                                                        setElementoTargetProdIdx(idx);
+                                                                        let cdGroupName = item.description;
+                                                                        const obsIdx2 = cdGroupName.indexOf(' OBS:');
+                                                                        if (obsIdx2 !== -1) cdGroupName = cdGroupName.substring(0, obsIdx2);
+                                                                        setElementoTargetGroupNome(cdGroupName);
+                                                                        setElementoNomeElemento('');
+                                                                        setElementoQtde('');
+                                                                        setElementoBitola('');
+                                                                        setElementoShapeId('');
+                                                                        setElementoLadoA('');
+                                                                        setElementoLadoB('');
+                                                                        setElementoLadoC('');
+                                                                        setElementoLadoD('');
+                                                                        setElementoLadoE('');
+                                                                        setElementoLadoF('');
+                                                                        setElementoObs('');
+                                                                        setElementoEditId(null);
+                                                                        setShowElementoModal(true);
+                                                                    } else if (val === 'cd_alterar_bitolas') {
+                                                                        setAlterarBitolasTargetIdx(idx);
+                                                                        setAlterarBitolasValue('');
+                                                                        setShowAlterarBitolasModal(true);
+                                                                    } else if (val === 'cd_anexar_desenho') {
+                                                                        setAnexarDesenhoTargetIdx(idx);
+                                                                        const fileInput = document.createElement('input');
+                                                                        fileInput.type = 'file';
+                                                                        fileInput.accept = 'image/*,.pdf';
+                                                                        fileInput.onchange = (ev) => {
+                                                                            const file = (ev.target as HTMLInputElement).files?.[0];
+                                                                            if (!file) return;
+                                                                            const reader = new FileReader();
+                                                                            reader.onload = (e) => {
+                                                                                const data = e.target?.result as string;
+                                                                                const updated = tempProducts.map((p, pi) =>
+                                                                                    pi === idx ? { ...p, attachmentName: file.name, attachmentData: data } : p
+                                                                                );
+                                                                                setTempProducts(updated);
+                                                                                if (activeQuote) handleProductSave(activeQuote.id, updated);
+                                                                                showNotification('Desenho anexado com sucesso!', 'success');
+                                                                            };
+                                                                            reader.readAsDataURL(file);
+                                                                        };
+                                                                        fileInput.click();
+                                                                    } else if (val === 'cd_duplicar') {
+                                                                        const copied = {
+                                                                            ...item,
+                                                                            id: String(Date.now() + Math.random()),
+                                                                            ferros: (item.ferros || []).map(f => ({ ...f, id: String(Date.now() + Math.random()) }))
+                                                                        };
+                                                                        const updated = [...tempProducts, copied];
+                                                                        setTempProducts(updated);
+                                                                        if (activeQuote) handleProductSave(activeQuote.id, updated);
+                                                                        showNotification('Peça duplicada!', 'success');
+                                                                    } else if (val === 'cd_bloquear') {
+                                                                        const updated = tempProducts.map((p, pi) =>
+                                                                            pi === idx ? { ...p, locked: !p.locked } : p
+                                                                        );
+                                                                        setTempProducts(updated);
+                                                                        if (activeQuote) handleProductSave(activeQuote.id, updated);
+                                                                        showNotification(item.locked ? 'Peça desbloqueada!' : 'Peça bloqueada!', 'info');
                                                                     }
                                                                 }}
                                                                 className="w-full bg-white border border-slate-300 hover:border-slate-400 rounded px-2 py-1 text-[10px] font-bold text-slate-700 focus:outline-none cursor-pointer"
                                                             >
                                                                 <option value="">Ações...</option>
                                                                 <option value="edit">✏️ Editar Peça</option>
-                                                                <option value="delete">❌ Excluir Peça</option>
-                                                                <option value="add_ferros">➕ Ferros Principais</option>
-                                                                <option value="add_estribos">➕ Estribos</option>
-                                                                <option value="add_costelas">➕ Costelas</option>
-                                                                <option value="add_reforcos">➕ Reforços</option>
-                                                                <option value="add_2camada">➕ 2ª Camada</option>
-                                                                <option value="add_trava">➕ Trava</option>
+                                                                {!item.locked && <option value="delete">❌ Excluir Peça</option>}
+                                                                {isCorteDobra ? (
+                                                                    <>
+                                                                        <option value="cd_add_elemento">➕ + Elemento</option>
+                                                                        <option value="cd_alterar_bitolas">🔩 Alterar Bitolas</option>
+                                                                        <option value="cd_anexar_desenho">📎 Anexar Desenho</option>
+                                                                        <option value="cd_duplicar">📋 Duplicar Peça</option>
+                                                                        <option value="cd_bloquear">{item.locked ? '🔓 Desbloquear' : '🔒 Bloquear'}</option>
+                                                                    </>
+                                                                ) : isSapata ? (
+                                                                    <>
+                                                                        {sapataC && sapataA && (
+                                                                            <option value={`sapata_estribo_${sapataC}_${sapataA}`}>➕ Estribos {sapataC}x{sapataA}</option>
+                                                                        )}
+                                                                        {sapataL && sapataA && sapataC !== sapataL && (
+                                                                            <option value={`sapata_estribo_${sapataL}_${sapataA}`}>➕ Estribos {sapataL}x{sapataA}</option>
+                                                                        )}
+                                                                        {sapataC && sapataL && (
+                                                                            <option value={`sapata_costela_${sapataC}_${sapataL}`}>➕ Costelas {sapataC}x{sapataL}</option>
+                                                                        )}
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <option value="add_ferros">➕ Ferros Principais</option>
+                                                                        <option value="add_estribos">➕ Estribos</option>
+                                                                        <option value="add_costelas">➕ Costelas</option>
+                                                                        <option value="add_reforcos">➕ Reforços</option>
+                                                                        <option value="add_2camada">➕ 2ª Camada</option>
+                                                                        <option value="add_trava">➕ Trava</option>
+                                                                    </>
+                                                                )}
                                                             </select>
                                                         </div>
 
@@ -2347,6 +2870,116 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                     </div>
 
                                                     {/* Card Body */}
+                                                    {isCorteDobra ? (
+                                                        /* Corte e Dobra Card Body */
+                                                        <div className="bg-white">
+                                                            {/* Attachment badge */}
+                                                            {item.attachmentName && (
+                                                                <div className="px-3 py-1.5 bg-sky-50 border-b border-sky-100 flex items-center gap-2">
+                                                                    <span className="text-[10px] font-bold text-sky-700">📎 {item.attachmentName}</span>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setPreviewAttachmentName(item.attachmentName || '');
+                                                                            setPreviewAttachmentData(item.attachmentData || '');
+                                                                            setShowPreviewAttachmentModal(true);
+                                                                        }}
+                                                                        className="text-[9px] font-bold text-sky-600 underline"
+                                                                    >Ver</button>
+                                                                </div>
+                                                            )}
+                                                            {item.locked && (
+                                                                <div className="px-3 py-1 bg-amber-50 border-b border-amber-100 text-[10px] font-bold text-amber-700">🔒 Peça bloqueada — use Ações {'>'} Desbloquear para editar</div>
+                                                            )}
+                                                            {item.ferros && item.ferros.length > 0 ? (
+                                                                <table className="w-full text-[10px] min-w-[640px]">
+                                                                    <thead className="bg-[#0F3F5C] text-white">
+                                                                        <tr>
+                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Img</th>
+                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Elemento</th>
+                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Qtde</th>
+                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Bitola</th>
+                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Comp. Linear</th>
+                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Obs</th>
+                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Ações</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {item.ferros.map((ferro, fIdx) => (
+                                                                            <tr key={ferro.id} className="border-b border-slate-100 bg-white hover:bg-slate-50">
+                                                                                <td className="px-2 py-2 text-center w-24">
+                                                                                    <div className="flex items-center justify-center min-h-[50px]">
+                                                                                        <div className="scale-75 origin-center">
+                                                                                            {renderEstriboSVG('4 LADOS', ferro.estriboShape || 'Padrão', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, ferro.ladoF) || renderBarDiagramSVG(ferro.pontaEsquerdo, ferro.pontaDireito, ferro.ladoA, ferro.ladoB, ferro.ladoD, true)}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </td>
+                                                                                <td className="px-2 py-2 text-center font-bold text-slate-800">{ferro.nomeElemento || '-'}</td>
+                                                                                <td className="px-2 py-2 text-center">
+                                                                                    <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-slate-500 text-white font-bold text-[9px] min-w-[20px]">{ferro.qtde}</span>
+                                                                                </td>
+                                                                                <td className="px-2 py-2 text-center font-bold text-slate-700">{ferro.bitola.split(',')[0]}</td>
+                                                                                <td className="px-2 py-2 text-center font-mono text-slate-700">
+                                                                                    {(() => {
+                                                                                        const a = parseFloat(ferro.ladoA) || 0;
+                                                                                        const b = parseFloat(ferro.ladoB) || 0;
+                                                                                        const c = parseFloat(ferro.ladoC) || 0;
+                                                                                        const d = parseFloat(ferro.ladoD) || 0;
+                                                                                        const e = parseFloat(ferro.ladoE) || 0;
+                                                                                        const f = parseFloat(ferro.ladoF || '') || 0;
+                                                                                        return getFerroTotalLengthCm(ferro, item.description) + ' cm';
+                                                                                    })()}
+                                                                                </td>
+                                                                                <td className="px-2 py-2 text-center text-slate-500 italic max-w-[80px] truncate">{ferro.obs || '-'}</td>
+                                                                                <td className="px-2 py-2 text-center">
+                                                                                    {!item.locked && (
+                                                                                        <div className="flex items-center justify-center gap-1">
+                                                                                            <button
+                                                                                                onClick={() => {
+                                                                                                    setElementoTargetProdIdx(idx);
+                                                                                                    let cdGroupName2 = item.description;
+                                                                                                    const obsIdx3 = cdGroupName2.indexOf(' OBS:');
+                                                                                                    if (obsIdx3 !== -1) cdGroupName2 = cdGroupName2.substring(0, obsIdx3);
+                                                                                                    setElementoTargetGroupNome(cdGroupName2);
+                                                                                                    setElementoNomeElemento(ferro.nomeElemento);
+                                                                                                    setElementoQtde(String(ferro.qtde));
+                                                                                                    setElementoBitola(ferro.bitola);
+                                                                                                    setElementoShapeId(ferro.estriboShape || '');
+                                                                                                    setElementoLadoA(ferro.ladoA);
+                                                                                                    setElementoLadoB(ferro.ladoB);
+                                                                                                    setElementoLadoC(ferro.ladoC);
+                                                                                                    setElementoLadoD(ferro.ladoD);
+                                                                                                    setElementoLadoE(ferro.ladoE);
+                                                                                                    setElementoLadoF(ferro.ladoF || '');
+                                                                                                    setElementoObs(ferro.obs);
+                                                                                                    setElementoEditId(ferro.id);
+                                                                                                    setShowElementoModal(true);
+                                                                                                }}
+                                                                                                className="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-1 px-2 rounded text-[9px]"
+                                                                                            >Editar</button>
+                                                                                            <button
+                                                                                                onClick={() => {
+                                                                                                    const updated = tempProducts.map((p, pi) =>
+                                                                                                        pi === idx ? recalcProduct({ ...p, ferros: (p.ferros || []).filter((_, fi) => fi !== fIdx) }) : p
+                                                                                                    );
+                                                                                                    setTempProducts(updated);
+                                                                                                    if (activeQuote) handleProductSave(activeQuote.id, updated);
+                                                                                                }}
+                                                                                                className="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-2 rounded text-[9px]"
+                                                                                            >Excluir</button>
+                                                                                        </div>
+                                                                                    )}
+                                                                                </td>
+                                                                            </tr>
+                                                                        ))}
+                                                                    </tbody>
+                                                                </table>
+                                                            ) : (
+                                                                <div className="p-8 text-center text-slate-400 font-semibold">
+                                                                    Nenhum elemento adicionado. Use <strong>Ações → + Elemento</strong> para começar.
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
                                                     <div className="flex flex-col md:flex-row items-stretch bg-white">
                                                         {/* Profile Diagram (Left Column) */}
                                                         <div className="w-full md:w-[130px] shrink-0 border-b md:border-b-0 md:border-r border-slate-200 flex items-center justify-center p-3.5 bg-slate-50/30">
@@ -2357,13 +2990,19 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
 
                                                         {/* Table (Right Column) */}
                                                         <div className="flex-grow min-w-0 overflow-x-auto">
-                                                            {isStructural && (
+                                                            {(isStructural || isSapata) && (
                                                                 <div className="p-2 space-y-1 bg-amber-50/40 border-b border-slate-100">
-                                                                    {!hasEnoughPrincipalFerros && (
+                                                                    {isStructural && !hasEnoughPrincipalFerros && (
                                                                         <div className="text-red-500 text-[9px] font-bold">⚠️ Sem ferros principais suficientes (Mínimo {minPrincipalFerros} para {ladosDesc})</div>
                                                                     )}
-                                                                    {!hasEstribos && (
+                                                                    {isStructural && !hasEstribos && (
                                                                         <div className="text-red-500 text-[9px] font-bold">⚠️ Sem estribos suficientes</div>
+                                                                    )}
+                                                                    {isSapata && missingSapataEstribo1 && (
+                                                                        <div className="text-red-500 text-[9px] font-bold">⚠️ Falta estribo {sapataC === sapataL ? '' : 'maior '}({sapataEstribo1Name})</div>
+                                                                    )}
+                                                                    {isSapata && missingSapataEstribo2 && (
+                                                                        <div className="text-red-500 text-[9px] font-bold">⚠️ Falta estribo menor ({sapataEstribo2Name})</div>
                                                                     )}
                                                                 </div>
                                                             )}
@@ -2397,7 +3036,9 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                                     <td className="px-2 py-1.5 text-center w-24">
                                                                                         <div className="flex items-center justify-center min-h-[50px]">
                                                                                             {ferro.drawingType === 'Estribo'
-                                                                                                ? <div className="scale-75 origin-center">{renderEstriboSVG(ladosDesc, ferro.estriboShape || 'Padrão', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE)}</div>
+                                                                                                ? <div className="scale-75 origin-center">{renderEstriboSVG(ladosDesc, ferro.estriboShape || 'Padrão', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, ferro.ladoF)}</div>
+                                                                                                : ferro.drawingType === 'CorteDobra'
+                                                                                                ? <div className="scale-75 origin-center">{renderEstriboSVG(ladosDesc, ferro.estriboShape || 'Padrão', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, ferro.ladoF) || renderBarDiagramSVG(ferro.pontaEsquerdo, ferro.pontaDireito, ferro.ladoA, ferro.ladoB, ferro.ladoD, true)}</div>
                                                                                                 : ferro.drawingType === 'Trava'
                                                                                                 ? <div className="scale-75 origin-center">{renderTravaSVG(Number(ferro.estriboShape) || 1, ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE)}</div>
                                                                                                 : renderBarDiagramSVG(
@@ -2420,7 +3061,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
 
                                                                                     {/* tipo */}
                                                                                     <td className="px-2 py-1.5 text-center text-slate-600 font-semibold">
-                                                                                        {ferro.drawingType === 'Estribo' ? 'ESTRIBOS' : ferro.drawingType === 'Trava' ? 'TRAVA' : 'FERROS'}
+                                                                                        {ferro.drawingType === 'Estribo' ? 'ESTRIBOS' : ferro.drawingType === 'Trava' ? 'TRAVA' : ferro.drawingType === 'CorteDobra' ? 'ELEMENTO' : 'FERROS'}
                                                                                     </td>
 
                                                                                     {/* bitola */}
@@ -2440,7 +3081,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
 
                                                                                     {/* ponta */}
                                                                                     <td className="px-2 py-1.5 text-center text-slate-600">
-                                                                                        {ferro.drawingType === 'Estribo' || ferro.drawingType === 'Trava' ? '-' : getPontaText(ferro.pontaEsquerdo, ferro.pontaDireito)}
+                                                                                        {ferro.drawingType === 'Estribo' || ferro.drawingType === 'Trava' || ferro.drawingType === 'CorteDobra' ? '-' : getPontaText(ferro.pontaEsquerdo, ferro.pontaDireito)}
                                                                                     </td>
 
                                                                                     {/* obs */}
@@ -2474,9 +3115,10 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                                                         setEstriboShapeType(ferro.estriboShape || 'Padrão');
                                                                                                         setEstriboLadoA(ferro.ladoA);
                                                                                                         setEstriboLadoB(ferro.ladoB);
-                                                                                                        setEstriboLadoC(ferro.ladoC);
+                                                                                                        setEstriboLadoC(ferro.ladoC || ferro.ladoB);
                                                                                                         setEstriboLadoD(ferro.ladoD);
                                                                                                         setEstriboLadoE(ferro.ladoE || '');
+                                                                                                        setEstriboLadoF(ferro.ladoF || '');
                                                                                                         setEstriboObs(ferro.obs);
                                                                                                         setFerroEditId(ferro.id);
                                                                                                         setShowEstribosModal(true);
@@ -2579,6 +3221,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                             )}
                                                         </div>
                                                     </div>
+                                                    )}
                                                 </div>
                                             );
                                         })}
@@ -2607,7 +3250,289 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                         </div>
                     )}
 
+                    {/* MODAL: + Elemento (Corte e Dobra) */}
+                    {showElementoModal && (
+                        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+                            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl border border-slate-300 overflow-y-auto max-h-[95vh]">
+                                <div className="flex items-center justify-between px-5 py-3 bg-[#0F3F5C] text-white rounded-t-xl">
+                                    <h3 className="text-sm font-black uppercase tracking-wider">
+                                        {elementoEditId ? '✏️ Editar Elemento' : '➕ Novo Elemento'} — <span className="underline">{elementoTargetGroupNome}</span>
+                                    </h3>
+                                    <button type="button" onClick={() => setShowElementoModal(false)} className="text-white text-xl font-bold w-7 h-7 flex items-center justify-center border border-white/40 rounded">×</button>
+                                </div>
+                                <div className="p-5 space-y-4">
+                                    <div className="grid grid-cols-12 gap-3 items-end">
+                                        <div className="col-span-4">
+                                            <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">Nome do Elemento (opcional):</label>
+                                            <div className="flex items-stretch border border-slate-300 rounded overflow-hidden">
+                                                <div className="w-8 bg-slate-100 border-r border-slate-200 flex items-center justify-center shrink-0">
+                                                    <span className="font-black text-xs text-slate-400">Nº</span>
+                                                </div>
+                                                <input type="text" value={elementoNomeElemento} onChange={e => setElementoNomeElemento(e.target.value)}
+                                                    placeholder="Ex: BARRA PRINCIPAL"
+                                                    className="w-full px-2 py-1.5 text-xs font-bold outline-none bg-transparent text-slate-800" />
+                                            </div>
+                                        </div>
+                                        <div className="col-span-3">
+                                            <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">Quantidade:</label>
+                                            <div className={`flex items-stretch border rounded overflow-hidden ${elementoQtde ? 'border-emerald-400' : 'border-red-400'}`}>
+                                                <div className={`w-8 border-r flex items-center justify-center shrink-0 ${elementoQtde ? 'bg-emerald-100 border-emerald-300' : 'bg-red-100 border-red-300'}`}>
+                                                    <span className={`font-black text-xs ${elementoQtde ? 'text-emerald-600' : 'text-red-600'}`}>{elementoQtde ? '✓' : '✕'}</span>
+                                                </div>
+                                                <input type="number" min="1" value={elementoQtde} onChange={e => setElementoQtde(e.target.value)}
+                                                    className={`w-full px-2 py-1.5 text-xs font-bold outline-none bg-transparent text-center ${elementoQtde ? 'text-slate-800' : 'text-red-500'}`} />
+                                            </div>
+                                        </div>
+                                        <div className="col-span-5">
+                                            <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">Bitola:</label>
+                                            <div className={`flex items-stretch border rounded overflow-hidden ${elementoBitola ? 'border-emerald-400' : 'border-red-400'}`}>
+                                                <div className={`w-8 border-r flex items-center justify-center shrink-0 ${elementoBitola ? 'bg-emerald-100 border-emerald-300' : 'bg-red-100 border-red-300'}`}>
+                                                    <span className={`font-black text-xs ${elementoBitola ? 'text-emerald-600' : 'text-red-600'}`}>{elementoBitola ? '✓' : '✕'}</span>
+                                                </div>
+                                                <select value={elementoBitola} onChange={e => setElementoBitola(e.target.value)}
+                                                    className={`w-full px-2 py-1.5 text-xs font-bold outline-none bg-transparent cursor-pointer ${elementoBitola ? 'text-emerald-700' : 'text-red-500'}`}>
+                                                    <option value="">Selecione...</option>
+                                                    {bitolas.filter(b => b.corteDobra).map(b => (
+                                                        <option key={b.label} value={`${b.label},${b.kgm},${b.price || 0}`}>{b.label}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="shrink-0">
+                                        <p className="text-xs text-slate-600 mb-3">Selecione o formato para Corte e Dobra:</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {estriboModels.filter(m => m.applications.includes('Corte e Dobra')).map(opt => (
+                                                <label key={opt.id} className={"flex flex-col items-center justify-between gap-3 cursor-pointer p-4 rounded border transition-all min-w-[120px] " + (elementoShapeId === opt.id ? 'border-slate-400 bg-slate-50' : 'border-slate-200')}>
+                                                    <div className="h-24 w-full flex items-center justify-center pointer-events-none">
+                                                        {renderEstriboSVG(opt.category, opt.name)}
+                                                    </div>
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <input type="radio" name="elementoShapeId" checked={elementoShapeId === opt.id} onChange={() => setElementoShapeId(opt.id)} className="w-4 h-4 accent-blue-600" />
+                                                        <span className="text-[10px] font-bold text-slate-500 text-center">{opt.name}</span>
+                                                    </div>
+                                                </label>
+                                            ))}
+                                            {estriboModels.filter(m => m.applications.includes('Corte e Dobra')).length === 0 && (
+                                                <div className="text-sm text-slate-500 italic p-4">Nenhum modelo configurado para Corte e Dobra. Cadastre em Configurações {'>'} Estribos.</div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-4 mt-2 shrink-0">
+                                        {(() => {
+                                            const fields: { label: string, val: string, set: (v: string) => void, required: boolean }[] = [];
+                                            
+                                            const model = estriboModels.find(m => m.id === elementoShapeId && m.applications.includes('Corte e Dobra'));
+                                            
+                                            if (model && model.requiredSides && model.requiredSides.length > 0) {
+                                                model.requiredSides.forEach(side => {
+                                                    const isA = side === 'A';
+                                                    const isDiam = isA && model.category === 'REDONDA';
+                                                    const labelStr = isDiam ? 'Diâmetro (cm)' : `Lado ${side} (cm)`;
+                                                    
+                                                    if (side === 'A') fields.push({ label: labelStr, val: elementoLadoA, set: setElementoLadoA, required: true });
+                                                    if (side === 'B') fields.push({ label: labelStr, val: elementoLadoB, set: setElementoLadoB, required: true });
+                                                    if (side === 'C') fields.push({ label: labelStr, val: elementoLadoC, set: setElementoLadoC, required: true });
+                                                    if (side === 'D') fields.push({ label: labelStr, val: elementoLadoD, set: setElementoLadoD, required: true });
+                                                    if (side === 'E') fields.push({ label: labelStr, val: elementoLadoE, set: setElementoLadoE, required: true });
+                                                    if (side === 'F') fields.push({ label: labelStr, val: elementoLadoF, set: setElementoLadoF, required: true });
+                                                });
+                                            } else {
+                                                // Fallback to all 6 sides optional if no model selected or model has no sides
+                                                fields.push({ label: 'Lado A (cm)', val: elementoLadoA, set: setElementoLadoA, required: false });
+                                                fields.push({ label: 'Lado B (cm)', val: elementoLadoB, set: setElementoLadoB, required: false });
+                                                fields.push({ label: 'Lado C (cm)', val: elementoLadoC, set: setElementoLadoC, required: false });
+                                                fields.push({ label: 'Lado D (cm)', val: elementoLadoD, set: setElementoLadoD, required: false });
+                                                fields.push({ label: 'Lado E (cm)', val: elementoLadoE, set: setElementoLadoE, required: false });
+                                                fields.push({ label: 'Lado F (cm)', val: elementoLadoF, set: setElementoLadoF, required: false });
+                                            }
+                                            
+                                            return fields.map(({ label, val, set, required }) => (
+                                                <div key={label} className="w-48">
+                                                    <label className="block text-xs font-black text-slate-600 uppercase mb-1">{label}</label>
+                                                    <div className={"flex items-stretch border rounded overflow-hidden h-9 " + (val ? 'border-emerald-400' : required ? 'border-red-400' : 'border-slate-300')}>
+                                                        <div className={"w-8 border-r flex items-center justify-center shrink-0 " + (val ? 'bg-emerald-100 border-emerald-300' : required ? 'bg-red-100 border-red-300' : 'bg-slate-50 border-slate-200')}>
+                                                            <span className={"font-black text-xs " + (val ? 'text-emerald-600' : required ? 'text-red-600' : 'text-slate-400')}>{val ? '✓' : required ? '✘' : '—'}</span>
+                                                        </div>
+                                                        <input type="number" value={val} onChange={e => set(e.target.value)}
+                                                            className="w-full px-2 text-sm text-blue-800 outline-none bg-transparent" />
+                                                    </div>
+                                                </div>
+                                            ));
+                                        })()}
+                                    </div>
+
+                                    <div className="bg-slate-50 border border-slate-200 rounded p-2.5 flex justify-between items-center">
+                                        <span className="text-[10px] font-bold text-slate-600 uppercase">Comprimento Linear Total:</span>
+                                        <span className="text-sm font-black text-slate-900">
+                                            {(() => {
+                                                const a = parseFloat(elementoLadoA) || 0;
+                                                const b = parseFloat(elementoLadoB) || 0;
+                                                const c = parseFloat(elementoLadoC) || 0;
+                                                const d = parseFloat(elementoLadoD) || 0;
+                                                const e = parseFloat(elementoLadoE) || 0;
+                                                const f = parseFloat(elementoLadoF) || 0;
+                                                return (a + b + c + d + e + f).toFixed(1) + ' cm';
+                                            })()}
+                                        </span>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">Observação (opcional):</label>
+                                        <div className="flex items-stretch border border-slate-300 rounded overflow-hidden">
+                                            <div className="w-8 bg-slate-100 border-r border-slate-200 flex items-center justify-center shrink-0">
+                                                <span className="font-black text-xs text-slate-400">✕</span>
+                                            </div>
+                                            <input type="text" placeholder="OPCIONAL" value={elementoObs} onChange={e => setElementoObs(e.target.value)}
+                                                className="w-full px-2 py-1.5 text-xs font-semibold text-slate-700 placeholder-slate-400 outline-none bg-transparent" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="px-5 py-3 border-t border-slate-200 flex items-center justify-end gap-3">
+                                    <button type="button" onClick={() => setShowElementoModal(false)}
+                                        className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-1.5 px-4 rounded text-xs">
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (!elementoQtde || !elementoBitola) {
+                                                showNotification('Preencha Quantidade e Bitola obrigatórios.', 'warning');
+                                                return;
+                                            }
+                                            const bitolaKgmVal = parseFloat(elementoBitola.split(',')[1]) || 0;
+                                            const newFerro: FerroItem = {
+                                                id: elementoEditId || String(Date.now() + Math.random()),
+                                                nomeElemento: elementoNomeElemento || 'ELEMENTO',
+                                                qtde: parseInt(elementoQtde) || 1,
+                                                bitola: elementoBitola,
+                                                bitolaKgm: bitolaKgmVal,
+                                                pontaEsquerdo: 'SEM PONTA',
+                                                pontaDireito: 'SEM PONTA',
+                                                ladoA: elementoLadoA,
+                                                ladoB: elementoLadoB,
+                                                ladoC: elementoLadoC,
+                                                ladoD: elementoLadoD,
+                                                ladoE: elementoLadoE,
+                                                ladoF: elementoLadoF,
+                                                obs: elementoObs,
+                                                drawingType: 'CorteDobra',
+                                                estriboShape: elementoShapeId,
+                                            };
+                                            const updated = tempProducts.map((p, pi) => {
+                                                if (pi !== elementoTargetProdIdx) return p;
+                                                let ferros = p.ferros || [];
+                                                if (elementoEditId) {
+                                                    ferros = ferros.map(f => f.id === elementoEditId ? newFerro : f);
+                                                } else {
+                                                    ferros = [...ferros, newFerro];
+                                                }
+                                                return recalcProduct({ ...p, ferros });
+                                            });
+                                            setTempProducts(updated);
+                                            if (activeQuote) handleProductSave(activeQuote.id, updated);
+                                            setShowElementoModal(false);
+                                            showNotification(elementoEditId ? 'Elemento atualizado!' : 'Elemento adicionado!', 'success');
+                                        }}
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-1.5 px-5 rounded text-xs"
+                                    >
+                                        {elementoEditId ? 'Salvar Alterações' : 'Adicionar Elemento'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAL: Alterar Bitolas em Lote */}
+                    {showAlterarBitolasModal && (
+                        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+                            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md border border-slate-300">
+                                <div className="flex items-center justify-between px-5 py-3 bg-[#0F3F5C] text-white rounded-t-xl">
+                                    <h3 className="text-sm font-black uppercase tracking-wider">🔩 Alterar Bitolas em Lote</h3>
+                                    <button type="button" onClick={() => setShowAlterarBitolasModal(false)} className="text-white text-xl font-bold w-7 h-7 flex items-center justify-center border border-white/40 rounded">×</button>
+                                </div>
+                                <div className="p-5 space-y-4">
+                                    <p className="text-xs text-slate-600 font-semibold">Selecione a nova bitola para aplicar a <strong>todos os elementos</strong> desta peça:</p>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">Nova Bitola:</label>
+                                        <select value={alterarBitolasValue} onChange={e => setAlterarBitolasValue(e.target.value)}
+                                            className="w-full border border-slate-300 rounded px-3 py-2 text-xs font-bold text-slate-700 outline-none cursor-pointer">
+                                            <option value="">Selecione...</option>
+                                            {bitolas.map(b => (
+                                                <option key={b.label} value={`${b.label},${b.kgm},${b.price || 0}`}>{b.label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="px-5 py-3 border-t border-slate-200 flex justify-end gap-3">
+                                    <button type="button" onClick={() => setShowAlterarBitolasModal(false)}
+                                        className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-1.5 px-4 rounded text-xs">
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (!alterarBitolasValue) {
+                                                showNotification('Selecione uma bitola.', 'warning');
+                                                return;
+                                            }
+                                            const newKgm = parseFloat(alterarBitolasValue.split(',')[1]) || 0;
+                                            const updated = tempProducts.map((p, pi) => {
+                                                if (pi !== alterarBitolasTargetIdx) return p;
+                                                const ferros = (p.ferros || []).map(f => ({ ...f, bitola: alterarBitolasValue, bitolaKgm: newKgm }));
+                                                return recalcProduct({ ...p, ferros });
+                                            });
+                                            setTempProducts(updated);
+                                            if (activeQuote) handleProductSave(activeQuote.id, updated);
+                                            setShowAlterarBitolasModal(false);
+                                            showNotification('Bitolas alteradas em todos os elementos!', 'success');
+                                        }}
+                                        className="bg-[#0F3F5C] hover:bg-sky-900 text-white font-extrabold py-1.5 px-5 rounded text-xs"
+                                    >
+                                        Aplicar a Todos
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAL: Preview Desenho Técnico */}
+                    {showPreviewAttachmentModal && (
+                        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" onClick={() => setShowPreviewAttachmentModal(false)}>
+                            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl border border-slate-300 overflow-hidden" onClick={e => e.stopPropagation()}>
+                                <div className="flex items-center justify-between px-5 py-3 bg-[#0F3F5C] text-white rounded-t-xl">
+                                    <h3 className="text-sm font-black uppercase tracking-wider">📎 {previewAttachmentName}</h3>
+                                    <button type="button" onClick={() => setShowPreviewAttachmentModal(false)} className="text-white text-xl font-bold w-7 h-7 flex items-center justify-center border border-white/40 rounded">×</button>
+                                </div>
+                                <div className="p-4 flex items-center justify-center min-h-[300px] bg-slate-100">
+                                    {previewAttachmentData.startsWith('data:image') ? (
+                                        <img src={previewAttachmentData} alt={previewAttachmentName} className="max-w-full max-h-[60vh] object-contain rounded shadow" />
+                                    ) : (
+                                        <div className="text-center text-slate-500 space-y-3">
+                                            <div className="text-4xl">📄</div>
+                                            <p className="font-semibold text-sm">{previewAttachmentName}</p>
+                                            <a href={previewAttachmentData} download={previewAttachmentName}
+                                                className="inline-block bg-sky-600 text-white font-bold py-2 px-4 rounded text-xs">
+                                                ⬇️ Baixar Arquivo
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="px-5 py-3 border-t flex justify-end">
+                                    <button type="button" onClick={() => setShowPreviewAttachmentModal(false)}
+                                        className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-1.5 px-4 rounded text-xs">
+                                        Fechar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* MODAL: Ferros Principais */}
+
                     {showFerrosModal && (
                         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
                             <div className="bg-white rounded shadow-2xl w-full max-w-3xl border border-slate-300 overflow-y-auto max-h-[95vh]">
@@ -2655,8 +3580,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                 <select value={ferroBitola} onChange={e => setFerroBitola(e.target.value)}
                                                     className={`w-full px-2 py-1.5 text-xs font-bold outline-none bg-transparent cursor-pointer ${ferroBitola ? 'text-emerald-700' : 'text-red-500'}`}>
                                                     <option value="">Selecione...</option>
-                                                    {BITOLA_OPTIONS.map(b => (
-                                                        <option key={b.label} value={`${b.label},${b.kgm}`}>{b.label}</option>
+                                                    {bitolas.filter(b => b.amarrado).map(b => (
+                                                        <option key={b.label} value={`${b.label},${b.kgm},${b.price || 0}`}>{b.label}</option>
                                                     ))}
                                                 </select>
                                             </div>
@@ -2854,8 +3779,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                     <select value={travaBitola} onChange={e => setTravaBitola(e.target.value)}
                                                         className="w-full px-2 py-1.5 text-[10px] font-bold outline-none bg-transparent cursor-pointer text-slate-800">
                                                         <option value="">Selecione...</option>
-                                                        {BITOLA_OPTIONS.map(b => (
-                                                            <option key={b.label} value={b.label + ',' + b.kgm}>{b.label}</option>
+                                                        {bitolas.filter(b => b.amarrado).map(b => (
+                                                            <option key={b.label} value={`${b.label},${b.kgm},${b.price || 0}`}>{b.label}</option>
                                                         ))}
                                                     </select>
                                                 </div>
@@ -3041,10 +3966,65 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                     {showEstribosModal && (() => {
                         const prod = tempProducts[estriboTargetProdIdx];
                         let lados = '4 LADOS';
+                        let parentAreaName = 'Outros';
                         if (prod) {
                             const m = prod.description.match(/(\d+ LADOS|REDONDA)/);
                             if (m) lados = m[1];
+                            
+                            const descUpper = prod.description.toUpperCase();
+                            if (descUpper.startsWith('COLUNA')) parentAreaName = 'Coluna';
+                            else if (descUpper.startsWith('PILAR')) parentAreaName = 'Pilar';
+                            else if (descUpper.startsWith('BROCA')) parentAreaName = 'Broca';
+                            else if (descUpper.startsWith('VIGA SUPERIOR')) parentAreaName = 'Viga Superior';
+                            else if (descUpper.startsWith('VIGA BALDRAME')) parentAreaName = 'Viga Baldrame';
+                            else if (descUpper.startsWith('VIGA')) parentAreaName = 'Viga Superior';
+                            else if (descUpper.startsWith('SAPATA')) parentAreaName = 'Sapata';
+                            else if (descUpper.startsWith('CORTE E DOBRA')) parentAreaName = 'Corte e Dobra';
                         }
+
+                        const isEstriboFormValid = () => {
+                            if (!estriboQtde || !estriboBitola) return false;
+                            const model = estriboModels.find(m => m.name === estriboShapeType && m.category === lados);
+                            if (model && model.requiredSides) {
+                                for (const side of model.requiredSides) {
+                                    if (side === 'A' && !estriboLadoA) return false;
+                                    if (side === 'B' && !estriboLadoB) return false;
+                                    if (side === 'C' && !estriboLadoC) return false;
+                                    if (side === 'D' && !estriboLadoD) return false;
+                                    if (side === 'E' && !estriboLadoE) return false;
+                                    if (side === 'F' && !estriboLadoF) return false;
+                                }
+                                return true;
+                            }
+                            
+                            // Fallback logic
+                            if (lados === 'REDONDA') {
+                                if (!estriboLadoA) return false;
+                                if (estriboShapeType === 'Definir transpasse' && !estriboLadoB) return false;
+                                if (estriboShapeType === 'Transpasse Dobrado' && (!estriboLadoB || !estriboLadoC)) return false;
+                            } else if (lados === '3 LADOS') {
+                                if (!estriboLadoA || !estriboLadoB) return false;
+                            } else if (lados === '4 LADOS') {
+                                if (estriboShapeType === 'L') {
+                                    if (!estriboLadoA || !estriboLadoB) return false;
+                                } else if (estriboShapeType === 'Reto') {
+                                    if (!estriboLadoA) return false;
+                                } else if (estriboShapeType === 'Padrão' || estriboShapeType === 'U') {
+                                    if (!estriboLadoA || !estriboLadoC) return false;
+                                } else if (estriboShapeType === 'U Dobras Ext') {
+                                    if (!estriboLadoA || !estriboLadoC || !estriboLadoD) return false;
+                                } else if (estriboShapeType === 'U Dobras Int') {
+                                    if (!estriboLadoA || !estriboLadoC || !estriboLadoD || !estriboLadoE) return false;
+                                } else if (estriboShapeType === 'Especial') {
+                                    if (!estriboLadoA || !estriboLadoB || !estriboLadoC || !estriboLadoD || !estriboLadoE || !estriboLadoF) return false;
+                                } else {
+                                    if (!estriboLadoA || !estriboLadoB) return false;
+                                }
+                            } else {
+                                if (!estriboLadoA || !estriboLadoB || !estriboLadoC) return false;
+                            }
+                            return true;
+                        };
 
                         return (
                             <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
@@ -3117,8 +4097,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                         </div>
                                                         <select value={estriboBitola} onChange={e => setEstriboBitola(e.target.value)} className="w-full px-2 text-sm font-bold text-blue-800 outline-none cursor-pointer bg-white">
                                                             <option value="">Selecione...</option>
-                                                            {BITOLA_OPTIONS.map(opt => (
-                                                                <option key={opt.label} value={opt.label + ',' + opt.kgm}>{opt.label}</option>
+                                                            {bitolas.filter(b => b.amarrado).map(opt => (
+                                                                <option key={opt.label} value={`${opt.label},${opt.kgm},${opt.price || 0}`}>{opt.label}</option>
                                                             ))}
                                                         </select>
                                                     </div>
@@ -3153,101 +4133,59 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                         <div className="shrink-0">
                                             <p className="text-xs text-slate-600 mb-3">Selecione o estribo que será usado (AMARRADA):</p>
                                             
-                                            {lados === '4 LADOS' && (
-                                                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 max-w-4xl">
-                                                    {['Padrão', 'Padrão, definir dobras finais', 'Transpasse em X', 'Estribo de travamento', 'Estribo de travamento 2'].map(opt => (
-                                                        <label key={opt} className={"flex flex-col items-center justify-between gap-3 cursor-pointer p-4 rounded border transition-all " + (estriboShapeType === opt ? 'border-slate-400 bg-slate-50' : 'border-slate-200')}>
-                                                            <div className="h-24 w-full flex items-center justify-center pointer-events-none">
-                                                                {renderEstriboSVG(lados, opt)}
-                                                            </div>
-                                                            <div className="flex flex-col items-center gap-1">
-                                                                <input type="radio" name="estriboShapeType" checked={estriboShapeType === opt} onChange={() => setEstriboShapeType(opt)} className="w-4 h-4 accent-blue-600" />
-                                                                <span className="text-[10px] font-bold text-slate-500 text-center">{opt}</span>
-                                                            </div>
-                                                        </label>
-                                                    ))}
-                                                </div>
-                                            )}
-                                            
-                                            {lados === 'REDONDA' && (
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 max-w-xl">
-                                                    {['Padrão', 'Definir transpasse', 'Transpasse Dobrado'].map(opt => (
-                                                        <label key={opt} className={"flex flex-col items-center justify-between gap-3 cursor-pointer p-4 rounded border transition-all " + (estriboShapeType === opt ? 'border-slate-400 bg-slate-50' : 'border-slate-200')}>
-                                                            <div className="h-24 w-full flex items-center justify-center pointer-events-none">
-                                                                {renderEstriboSVG(lados, opt)}
-                                                            </div>
-                                                            <div className="flex flex-col items-center gap-1">
-                                                                <input type="radio" name="estriboShapeType" checked={estriboShapeType === opt} onChange={() => setEstriboShapeType(opt)} className="w-4 h-4 accent-blue-600" />
-                                                                <span className="text-[10px] font-bold text-slate-500 text-center">{opt}</span>
-                                                            </div>
-                                                        </label>
-                                                    ))}
-                                                </div>
-                                            )}
-
-                                            {(lados === '3 LADOS' || lados === '6 LADOS' || lados === '8 LADOS') && (
-                                                <div className="flex items-center justify-center py-6 max-w-sm border rounded bg-slate-50">
-                                                    <div className="h-32 w-full flex items-center justify-center">
-                                                        {renderEstriboSVG(lados, estriboShapeType)}
-                                                    </div>
-                                                </div>
-                                            )}
+                                            <div className="flex flex-wrap gap-2">
+                                                {estriboModels.filter(m => m.category === lados && m.applications.includes(parentAreaName)).map(opt => (
+                                                    <label key={opt.id} className={"flex flex-col items-center justify-between gap-3 cursor-pointer p-4 rounded border transition-all min-w-[120px] " + (estriboShapeType === opt.name ? 'border-slate-400 bg-slate-50' : 'border-slate-200')}>
+                                                        <div className="h-24 w-full flex items-center justify-center pointer-events-none">
+                                                            {renderEstriboSVG(lados, opt.name)}
+                                                        </div>
+                                                        <div className="flex flex-col items-center gap-1">
+                                                            <input type="radio" name="estriboShapeType" checked={estriboShapeType === opt.name} onChange={() => setEstriboShapeType(opt.name)} className="w-4 h-4 accent-blue-600" />
+                                                            <span className="text-[10px] font-bold text-slate-500 text-center">{opt.name}</span>
+                                                        </div>
+                                                    </label>
+                                                ))}
+                                                {estriboModels.filter(m => m.category === lados && m.applications.includes(parentAreaName)).length === 0 && (
+                                                    <div className="text-sm text-slate-500 italic p-4">Nenhum modelo configurado para esta área ({parentAreaName}) e categoria ({lados}).</div>
+                                                )}
+                                            </div>
                                         </div>
 
                                         {/* Row 3: Lados A-E Dinâmicos */}
                                         <div className="flex flex-wrap gap-4 mt-2 shrink-0">
                                             {(() => {
-                                                const fields = [];
+                                                const fields: { label: string, val: string, set: (v: string) => void, required: boolean }[] = [];
                                                 
-                                                if (lados === 'REDONDA') {
-                                                    fields.push({ label: 'Diâmetro (cm)', val: estriboLadoA, set: setEstriboLadoA, required: true });
-                                                    if (estriboShapeType === 'Definir transpasse') {
-                                                        fields.push({ label: 'Transpasse B (cm)', val: estriboLadoB, set: setEstriboLadoB, required: true });
-                                                    }
-                                                    if (estriboShapeType === 'Transpasse Dobrado') {
-                                                        fields.push({ label: 'Transpasse B (cm)', val: estriboLadoB, set: setEstriboLadoB, required: true });
-                                                        fields.push({ label: 'Dobra C (cm)', val: estriboLadoC, set: setEstriboLadoC, required: true });
-                                                    }
-                                                } else if (lados === '3 LADOS') {
+                                                const model = estriboModels.find(m => m.name === estriboShapeType && m.category === lados);
+                                                
+                                                if (model && model.requiredSides) {
+                                                    model.requiredSides.forEach(side => {
+                                                        const isA = side === 'A';
+                                                        const isDiam = isA && lados === 'REDONDA';
+                                                        const labelStr = isDiam ? 'Diâmetro (cm)' : `Lado ${side} (cm)`;
+                                                        
+                                                        if (side === 'A') fields.push({ label: labelStr, val: estriboLadoA, set: setEstriboLadoA, required: true });
+                                                        if (side === 'B') fields.push({ label: labelStr, val: estriboLadoB, set: setEstriboLadoB, required: true });
+                                                        if (side === 'C') fields.push({ label: labelStr, val: estriboLadoC, set: setEstriboLadoC, required: true });
+                                                        if (side === 'D') fields.push({ label: labelStr, val: estriboLadoD, set: setEstriboLadoD, required: true });
+                                                        if (side === 'E') fields.push({ label: labelStr, val: estriboLadoE, set: setEstriboLadoE, required: true });
+                                                        if (side === 'F') fields.push({ label: labelStr, val: estriboLadoF, set: setEstriboLadoF, required: true });
+                                                    });
+                                                } else {
+                                                    // Fallback
                                                     fields.push({ label: 'Lado A (cm)', val: estriboLadoA, set: setEstriboLadoA, required: true });
                                                     fields.push({ label: 'Lado B (cm)', val: estriboLadoB, set: setEstriboLadoB, required: true });
-                                                } else if (lados === '4 LADOS') {
-                                                    fields.push({ label: 'Lado A (cm)', val: estriboLadoA, set: setEstriboLadoA, required: true });
-                                                    fields.push({ label: 'Lado B (cm)', val: estriboLadoB, set: setEstriboLadoB, required: true });
-                                                    
-                                                    if (estriboShapeType === 'Padrão, definir dobras finais') {
-                                                        fields.push({ label: 'Dobra C (cm)', val: estriboLadoC, set: setEstriboLadoC, required: true });
-                                                    } else if (estriboShapeType === 'Transpasse em X') {
-                                                        fields.push({ label: 'Dobra C (cm)', val: estriboLadoC, set: setEstriboLadoC, required: true });
-                                                        fields.push({ label: 'Dobra D (cm)', val: estriboLadoD, set: setEstriboLadoD, required: true });
-                                                    } else if (estriboShapeType === 'Estribo de travamento') {
-                                                        fields.push({ label: 'Dobra C (cm)', val: estriboLadoC, set: setEstriboLadoC, required: true });
-                                                        fields.push({ label: 'Dobra D (cm)', val: estriboLadoD, set: setEstriboLadoD, required: true });
-                                                    } else if (estriboShapeType === 'Estribo de travamento 2') {
-                                                        fields.push({ label: 'Dobra C (cm)', val: estriboLadoC, set: setEstriboLadoC, required: true });
-                                                        fields.push({ label: 'Dobra D (cm)', val: estriboLadoD, set: setEstriboLadoD, required: true });
-                                                        fields.push({ label: 'Lado E (cm)', val: estriboLadoE, set: setEstriboLadoE, required: true });
-                                                    }
-                                                } else if (lados === '6 LADOS') {
-                                                    fields.push({ label: 'Lado A (cm)', val: estriboLadoA, set: setEstriboLadoA, required: true });
-                                                    fields.push({ label: 'Lado B (cm)', val: estriboLadoB, set: setEstriboLadoB, required: true });
-                                                    fields.push({ label: 'Lado C (cm)', val: estriboLadoC, set: setEstriboLadoC, required: true });
-                                                } else if (lados === '8 LADOS') {
-                                                    fields.push({ label: 'Lado A (cm)', val: estriboLadoA, set: setEstriboLadoA, required: true });
-                                                    fields.push({ label: 'Lado B (cm)', val: estriboLadoB, set: setEstriboLadoB, required: true });
-                                                    fields.push({ label: 'Lado C (cm)', val: estriboLadoC, set: setEstriboLadoC, required: true });
-                                                    fields.push({ label: 'Lado D (cm)', val: estriboLadoD, set: setEstriboLadoD, required: true });
                                                 }
                                                 
                                                 return fields.map(({ label, val, set, required }) => (
-                                                    <div key={label} className="w-36">
+                                                    <div key={label} className="w-48">
                                                         <label className="block text-xs font-black text-slate-600 uppercase mb-1">{label}</label>
-                                                        <div className={"flex items-stretch border rounded overflow-hidden h-9 " + (val ? 'border-emerald-600' : 'border-slate-300')}>
-                                                            <div className="w-8 bg-emerald-50 border-r border-emerald-600 flex items-center justify-center shrink-0">
-                                                                <span className="font-black text-sm text-emerald-600">✓</span>
+                                                        <div className={"flex items-stretch border rounded overflow-hidden h-9 " + (val ? 'border-emerald-400' : required ? 'border-red-400' : 'border-slate-300')}>
+                                                            <div className={"w-8 border-r flex items-center justify-center shrink-0 " + (val ? 'bg-emerald-100 border-emerald-300' : required ? 'bg-red-100 border-red-300' : 'bg-slate-50 border-slate-200')}>
+                                                                <span className={"font-black text-xs " + (val ? 'text-emerald-600' : required ? 'text-red-600' : 'text-slate-400')}>{val ? '✓' : '✘'}</span>
                                                             </div>
                                                             <input type="number" value={val} onChange={e => set(e.target.value)}
-                                                                className="w-full px-2 text-sm text-blue-800 outline-none" />
+                                                                className="w-full px-2 text-sm text-blue-800 outline-none bg-transparent" />
                                                         </div>
                                                     </div>
                                                 ));
@@ -3278,9 +4216,9 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                     <div className="px-6 py-4 flex gap-2 border-t border-slate-200 bg-slate-50 shrink-0">
                                         <button
                                             type="button"
-                                            disabled={!estriboQtde || !estriboBitola || !estriboLadoA}
+                                            disabled={!isEstriboFormValid()}
                                             onClick={() => {
-                                                if (!estriboQtde || !estriboBitola || !estriboLadoA) return;
+                                                if (!isEstriboFormValid()) return;
                                                 
                                                 if (lados === '3 LADOS') {
                                                     const a = parseFloat(estriboLadoA) || 0;
@@ -3313,6 +4251,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                             ladoC: estriboLadoC,
                                                                             ladoD: estriboLadoD,
                                                                             ladoE: estriboLadoE,
+                                                                            ladoF: estriboLadoF,
                                                                             obs: estriboObs,
                                                                         })
                                                                         : f
@@ -3336,6 +4275,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                         ladoC: estriboLadoC,
                                                         ladoD: estriboLadoD,
                                                         ladoE: estriboLadoE,
+                                                        ladoF: estriboLadoF,
                                                         obs: estriboObs,
                                                     };
                                                     updated = tempProducts.map((p, pi) =>
@@ -3362,6 +4302,348 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                         );
                     })()}
 
+                    
+                    {/* MODAL: Sapata */}
+                    {showSapataModal && (
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                            <div className="bg-white rounded shadow-2xl w-full max-w-2xl border border-slate-300 animate-in fade-in zoom-in-95 duration-150">
+                                {/* Header */}
+                                <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+                                    <h3 className="text-base font-black text-slate-800 uppercase tracking-wider">
+                                        {editingSapataId ? 'Editar Sapata' : 'Sapata'}
+                                    </h3>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSapataModal(false)}
+                                        className="text-slate-500 hover:text-slate-800 text-xl font-bold w-7 h-7 flex items-center justify-center border border-slate-300 rounded"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+
+                                <div className="p-5 space-y-4">
+                                    {/* Row 1 */}
+                                    <div className="grid grid-cols-12 gap-4 items-start">
+                                        <div className="col-span-8">
+                                            <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">NOME DA SAPATA:</label>
+                                            <div className="flex items-stretch border border-red-400 rounded overflow-hidden">
+                                                <div className="w-8 bg-red-100 border-r border-red-300 flex items-center justify-center shrink-0">
+                                                    <span className="text-red-600 font-black text-xs">✕</span>
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    placeholder="OPCIONAL"
+                                                    value={sapataName}
+                                                    onChange={e => setSapataName(e.target.value.toUpperCase())}
+                                                    className="w-full px-2 py-1.5 text-xs font-semibold text-slate-800 outline-none bg-transparent"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="col-span-4">
+                                            <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">QTDE.:</label>
+                                            <div className={`flex items-stretch border rounded overflow-hidden ${sapataQtde ? 'border-emerald-400' : 'border-red-400'}`}>
+                                                <div className={`w-8 border-r flex items-center justify-center shrink-0 ${sapataQtde ? 'bg-emerald-100 border-emerald-300' : 'bg-red-100 border-red-300'}`}>
+                                                    <span className={`font-black text-xs ${sapataQtde ? 'text-emerald-600' : 'text-red-600'}`}>{}</span>
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={sapataQtde}
+                                                    onChange={e => setSapataQtde(e.target.value)}
+                                                    className={`w-full px-2 py-1.5 text-xs font-bold outline-none bg-transparent text-center ${sapataQtde ? 'text-slate-800' : 'text-red-500'}`}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Center Content: Type & SVG */}
+                                    <div className="flex flex-row items-center gap-6 py-4">
+                                        <div className="flex flex-col gap-2">
+                                            <label className="block text-[10px] font-black text-slate-600 uppercase">TIPO SAPATA:</label>
+                                            <div className="flex gap-4">
+                                                <label className="flex items-center gap-2 cursor-pointer border rounded px-3 py-1.5 hover:bg-slate-50">
+                                                    <input
+                                                        type="radio"
+                                                        name="sapataTipo"
+                                                        checked={sapataTipo === 'FECHADA'}
+                                                        onChange={() => setSapataTipo('FECHADA')}
+                                                        className="accent-blue-600 w-3.5 h-3.5"
+                                                    />
+                                                    <span className="text-xs font-bold text-slate-700">FECHADA</span>
+                                                </label>
+                                                <label className="flex items-center gap-2 cursor-pointer border rounded px-3 py-1.5 hover:bg-slate-50">
+                                                    <input
+                                                        type="radio"
+                                                        name="sapataTipo"
+                                                        checked={sapataTipo === 'ABERTA'}
+                                                        onChange={() => setSapataTipo('ABERTA')}
+                                                        className="accent-blue-600 w-3.5 h-3.5"
+                                                    />
+                                                    <span className="text-xs font-bold text-slate-700">ABERTA</span>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex-1 flex justify-center relative">
+                                            <div className="relative w-[200px] h-[100px]">
+                                                {/* Simple 3D Box Representation */}
+                                                <svg viewBox="0 0 200 100" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                                                    <g fill="none" stroke="#64748b" strokeWidth="2" strokeLinejoin="round">
+                                                        {/* Back face */}
+                                                        <rect x="50" y="20" width="100" height="40" />
+                                                        {/* Front face */}
+                                                        <rect x="20" y="50" width="100" height="40" />
+                                                        {/* Connecting lines */}
+                                                        <line x1="20" y1="50" x2="50" y2="20" />
+                                                        <line x1="120" y1="50" x2="150" y2="20" />
+                                                        <line x1="20" y1="90" x2="50" y2="60" />
+                                                        <line x1="120" y1="90" x2="150" y2="60" />
+                                                        
+                                                        {/* Inner grid lines for reinforcement look */}
+                                                        <line x1="53" y1="50" x2="83" y2="20" />
+                                                        <line x1="86" y1="50" x2="116" y2="20" />
+                                                        <line x1="53" y1="90" x2="53" y2="50" />
+                                                        <line x1="86" y1="90" x2="86" y2="50" />
+                                                        <line x1="83" y1="60" x2="83" y2="20" />
+                                                        <line x1="116" y1="60" x2="116" y2="20" />
+                                                        <line x1="20" y1="70" x2="120" y2="70" />
+                                                        <line x1="50" y1="40" x2="150" y2="40" />
+                                                    </g>
+                                                </svg>
+                                                <div className="absolute top-0 left-1/2 -translate-x-1/2 -mt-2 text-[10px] font-black tracking-wide bg-white px-1">COMPRIMENTO</div>
+                                                <div className="absolute right-0 top-1/2 -translate-y-1/2 -mr-8 text-[10px] font-black tracking-wide">LARGURA</div>
+                                                <div className="absolute right-0 bottom-0 mr-2 mb-2 text-[10px] font-black tracking-wide">ALTURA</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Row 3: Dimensions */}
+                                    <div className="grid grid-cols-3 gap-4 items-start">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">COMPRIMENTO (cm):</label>
+                                            <div className={`flex items-stretch border rounded overflow-hidden ${sapataLength ? 'border-emerald-400' : 'border-red-400'}`}>
+                                                <div className={`w-8 border-r flex items-center justify-center shrink-0 ${sapataLength ? 'bg-emerald-100 border-emerald-300' : 'bg-red-100 border-red-300'}`}>
+                                                    <span className={`font-black text-xs ${sapataLength ? 'text-emerald-600' : 'text-red-600'}`}>{}</span>
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    value={sapataLength}
+                                                    onChange={e => setSapataLength(e.target.value)}
+                                                    className="w-full px-2 py-1.5 text-xs font-bold outline-none bg-transparent"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">LARGURA (cm):</label>
+                                            <div className={`flex items-stretch border rounded overflow-hidden ${sapataWidth ? 'border-emerald-400' : 'border-red-400'}`}>
+                                                <div className={`w-8 border-r flex items-center justify-center shrink-0 ${sapataWidth ? 'bg-emerald-100 border-emerald-300' : 'bg-red-100 border-red-300'}`}>
+                                                    <span className={`font-black text-xs ${sapataWidth ? 'text-emerald-600' : 'text-red-600'}`}>{}</span>
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    value={sapataWidth}
+                                                    onChange={e => setSapataWidth(e.target.value)}
+                                                    className="w-full px-2 py-1.5 text-xs font-bold outline-none bg-transparent"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">ALTURA (cm):</label>
+                                            <div className={`flex items-stretch border rounded overflow-hidden ${sapataHeight ? 'border-emerald-400' : 'border-red-400'}`}>
+                                                <div className={`w-8 border-r flex items-center justify-center shrink-0 ${sapataHeight ? 'bg-emerald-100 border-emerald-300' : 'bg-red-100 border-red-300'}`}>
+                                                    <span className={`font-black text-xs ${sapataHeight ? 'text-emerald-600' : 'text-red-600'}`}>{}</span>
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    value={sapataHeight}
+                                                    onChange={e => setSapataHeight(e.target.value)}
+                                                    className="w-full px-2 py-1.5 text-xs font-bold outline-none bg-transparent"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Row 4: Observacao */}
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">OBSERVAÇÃO:</label>
+                                        <div className="flex items-stretch border border-red-400 rounded overflow-hidden">
+                                            <div className="w-8 bg-red-100 border-r border-red-300 flex items-center justify-center shrink-0">
+                                                <span className="text-red-600 font-black text-xs">✕</span>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="OPCIONAL"
+                                                value={sapataObs}
+                                                onChange={e => setSapataObs(e.target.value)}
+                                                className="w-full px-2 py-1.5 text-xs font-semibold text-slate-800 outline-none bg-transparent"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Footer */}
+                                <div className="flex justify-start gap-3 px-5 py-4 border-t border-slate-200 bg-slate-50 shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (!sapataQtde || !sapataLength || !sapataWidth || !sapataHeight) {
+                                                showNotification('Preencha as quantidades e as três dimensões.', 'warning');
+                                                return;
+                                            }
+                                            const qty = parseInt(sapataQtde) || 1;
+                                            const shapeStr = sapataLength === sapataWidth ? 'QUADRADA' : 'RETANGULAR';
+                                            const nameStr = sapataName ? ' ' + sapataName : '';
+                                            const obsStr = sapataObs ? ' OBS: ' + sapataObs.toUpperCase() : '';
+                                            const description = `SAPATA ${shapeStr}${nameStr} ${sapataTipo} ${sapataLength}x${sapataWidth}x${sapataHeight}${obsStr}`.replace(/\s+/g, ' ').trim();
+                                            
+                                            const newProd = {
+                                                id: String(Date.now() + Math.random()),
+                                                description,
+                                                qty,
+                                                length: 0,
+                                                weightPerMeter: 0,
+                                                weight: 0,
+                                                price: 0
+                                            };
+                                            
+                                            let updated;
+                                            if (editingSapataId) {
+                                                updated = tempProducts.map(p =>
+                                                    p.id === editingSapataId ? recalcProduct(Object.assign({}, p, { description, qty })) : p
+                                                );
+                                            } else {
+                                                updated = [...tempProducts, newProd];
+                                            }
+                                            
+                                            setTempProducts(updated);
+                                            if (activeQuote) handleProductSave(activeQuote.id, updated);
+                                            setEditingSapataId(null);
+                                            setShowSapataModal(false);
+                                            showNotification(editingSapataId ? 'Sapata atualizada!' : 'Sapata adicionada!', 'success');
+                                        }}
+                                        className="bg-[#1565C0] hover:bg-[#0D47A1] text-white font-extrabold py-2 px-5 rounded text-sm transition shadow"
+                                    >
+                                        Salvar Peça
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setShowSapataModal(false); setEditingSapataId(null); }}
+                                        className="text-slate-600 hover:text-slate-800 font-bold py-2 px-4 text-sm transition border bg-slate-100 hover:bg-slate-200"
+                                    >
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAL: Corte e Dobra sub-modal */}
+                    {showCorteDobraModal && (
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                            <div className="bg-white rounded shadow-2xl w-full max-w-md border border-slate-300 animate-in fade-in zoom-in-95 duration-150">
+                                {/* Header */}
+                                <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+                                    <h3 className="text-base font-black text-slate-800 uppercase tracking-wider">
+                                        {editingCorteDobraId ? 'Editar Corte e Dobra' : 'Corte e Dobra'}
+                                    </h3>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowCorteDobraModal(false)}
+                                        className="text-slate-500 hover:text-slate-800 text-xl font-bold w-7 h-7 flex items-center justify-center border border-slate-300 rounded"
+                                    >
+                                        &times;
+                                    </button>
+                                </div>
+
+                                {/* Body */}
+                                <div className="px-5 py-4 space-y-4">
+                                    {/* Name / Group Input */}
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">NOME DO GRUPO <span className="text-red-500">*</span></label>
+                                        <div className="flex border border-slate-300 rounded overflow-hidden">
+                                            <div className="bg-slate-100 px-3 flex items-center justify-center border-r border-slate-300 text-slate-500">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder=""
+                                                value={corteDobraName}
+                                                onChange={e => setCorteDobraName(e.target.value)}
+                                                className="w-full px-2 py-1.5 text-xs font-bold text-slate-800 outline-none bg-transparent uppercase"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Observation */}
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">OBSERVAÇÃO</label>
+                                        <div className="flex border border-slate-300 rounded overflow-hidden">
+                                            <input
+                                                type="text"
+                                                placeholder="OPCIONAL"
+                                                value={corteDobraObs}
+                                                onChange={e => setCorteDobraObs(e.target.value)}
+                                                className="w-full px-2 py-1.5 text-xs font-semibold text-slate-800 outline-none bg-transparent uppercase"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Footer */}
+                                <div className="flex justify-start gap-3 px-5 py-4 border-t border-slate-200 bg-slate-50 shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (!corteDobraName) {
+                                                showNotification('Preencha o nome do grupo.', 'warning');
+                                                return;
+                                            }
+                                            const nameStr = corteDobraName ? ' ' + corteDobraName : '';
+                                            const obsStr = corteDobraObs ? ' OBS: ' + corteDobraObs.toUpperCase() : '';
+                                            const description = `CORTE E DOBRA${nameStr}${obsStr}`.replace(/\s+/g, ' ').trim();
+                                            
+                                            const newProd = {
+                                                id: String(Date.now() + Math.random()),
+                                                description,
+                                                qty: 1,
+                                                length: 0,
+                                                weightPerMeter: 0,
+                                                weight: 0,
+                                                price: 0
+                                            };
+                                            
+                                            let updated;
+                                            if (editingCorteDobraId) {
+                                                updated = tempProducts.map(p =>
+                                                    p.id === editingCorteDobraId ? recalcProduct(Object.assign({}, p, { description })) : p
+                                                );
+                                            } else {
+                                                updated = [...tempProducts, newProd];
+                                            }
+                                            
+                                            setTempProducts(updated);
+                                            if (activeQuote) handleProductSave(activeQuote.id, updated);
+                                            setEditingCorteDobraId(null);
+                                            setShowCorteDobraModal(false);
+                                            showNotification(editingCorteDobraId ? 'Corte e Dobra atualizado!' : 'Corte e Dobra adicionado!', 'success');
+                                        }}
+                                        className="bg-[#1565C0] hover:bg-[#0D47A1] text-white font-extrabold py-2 px-5 rounded text-sm transition shadow"
+                                    >
+                                        Salvar Peça
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setShowCorteDobraModal(false); setEditingCorteDobraId(null); }}
+                                        className="text-slate-600 hover:text-slate-800 font-bold py-2 px-4 text-sm transition border bg-slate-100 hover:bg-slate-200"
+                                    >
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* MODAL: Coluna sub-modal */}
                     {showColunaModal && (
                         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -3369,7 +4651,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                 {/* Header */}
                                 <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
                                     <h3 className="text-base font-black text-slate-800 uppercase tracking-wider">
-                                        {editingColunaId ? 'Editar Coluna' : 'Coluna'}
+                                        {editingColunaId ? `Editar ${structuralCategory}` : structuralCategory}
                                     </h3>
                                     <button
                                         type="button"
@@ -3385,7 +4667,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                     <div className="grid grid-cols-12 gap-3 items-start">
                                         {/* Nome da Coluna */}
                                         <div className="col-span-4">
-                                            <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">Nome da Coluna:</label>
+                                            <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">Nome da Peça:</label>
                                             <div className="flex items-stretch border border-red-400 rounded overflow-hidden">
                                                 <div className="w-8 bg-red-100 border-r border-red-300 flex items-center justify-center shrink-0">
                                                     <span className="text-red-600 font-black text-xs">✕</span>
@@ -3551,7 +4833,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                         type="button"
                                         onClick={() => {
                                             if (!colunaQtde || parseInt(colunaQtde) <= 0) {
-                                                showNotification('Informe a quantidade de colunas.', 'warning');
+                                                showNotification('Informe a quantidade de peças.', 'warning');
                                                 return;
                                             }
                                             const qty = parseInt(colunaQtde);
@@ -3559,7 +4841,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                             const areaVal1 = colunaAreaSemEstr1 || 'ESP';
                                             const areaVal2 = colunaAreaSemEstr2 ? ' / ' + colunaAreaSemEstr2 + ' CM' : '';
                                             const obsPart = colunaObs ? ' OBS: ' + colunaObs.toUpperCase() : '';
-                                            const description = ('COLUNA ' + nomePart + ' ' + colunaTipoAmarracao + ' ' + colunaQtdeLados + ' x ' + areaVal1 + ' CM' + areaVal2 + obsPart).replace(/\s+/g, ' ').trim();
+                                            const description = (structuralCategory + (nomePart ? ' ' + nomePart : '') + ' ' + colunaTipoAmarracao + ' ' + colunaQtdeLados + ' x ' + areaVal1 + ' CM' + areaVal2 + obsPart).replace(/\s+/g, ' ').trim();
                                             const newProd = {
                                                 id: String(Date.now() + Math.random()),
                                                 description,
@@ -3581,7 +4863,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                             if (activeQuote) handleProductSave(activeQuote.id, updated);
                                             setEditingColunaId(null);
                                             setShowColunaModal(false);
-                                            showNotification(editingColunaId ? 'Coluna atualizada!' : 'Coluna adicionada ao orçamento!', 'success');
+                                            showNotification(editingColunaId ? 'Peça atualizada!' : 'Peça adicionada ao orçamento!', 'success');
                                         }}
                                         className="bg-[#1565C0] hover:bg-[#0D47A1] text-white font-extrabold py-2 px-5 rounded text-sm transition shadow"
                                     >
@@ -3881,6 +5163,347 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                         </div>
                     )}
                 </div>
+            )}
+            {/* MODAL: Configurações de Sistema */}
+            {showSettingsModal && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh]">
+                        <div className="bg-slate-800 text-white py-4 px-6 flex justify-between items-center rounded-t-2xl shrink-0">
+                            <h2 className="text-xl font-black flex items-center gap-2">
+                                ⚙️ Configurações de Sistema
+                            </h2>
+                            <button onClick={() => setShowSettingsModal(false)} className="text-white hover:text-slate-300 text-2xl font-bold">&times;</button>
+                        </div>
+                        <div className="flex bg-slate-100 border-b">
+                            <button 
+                                onClick={() => setSettingsTab('bitolas')}
+                                className={`flex-1 py-3 font-bold text-sm text-center border-b-2 transition-colors ${settingsTab === 'bitolas' ? 'border-sky-500 text-sky-700 bg-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                            >
+                                Controle de Bitolas
+                            </button>
+                            <button 
+                                onClick={() => setSettingsTab('estribos')}
+                                className={`flex-1 py-3 font-bold text-sm text-center border-b-2 transition-colors ${settingsTab === 'estribos' ? 'border-sky-500 text-sky-700 bg-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                            >
+                                Modelos de Estribos
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto flex-grow bg-slate-50">
+                            {settingsTab === 'bitolas' ? (
+                                <div>
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-bold text-slate-800">Controle de Bitolas</h3>
+                                <button 
+                                    onClick={() => setBitolas([...bitolas, { id: Date.now().toString(), label: 'Nova Bitola', kgm: 0, price: 0, amarrado: true, corteDobra: true }])}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-sm transition-colors shadow"
+                                >
+                                    + Adicionar Bitola
+                                </button>
+                            </div>
+                            
+                            <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-slate-100 text-slate-700 border-b">
+                                            <th className="p-3 font-bold text-sm">Bitola (Label)</th>
+                                            <th className="p-3 font-bold text-sm w-32">Peso (kg/m)</th>
+                                            <th className="p-3 font-bold text-sm w-32">Preço (R$)</th>
+                                            <th className="p-3 font-bold text-sm w-32 text-center">Amarrados</th>
+                                            <th className="p-3 font-bold text-sm w-32 text-center">Corte/Dobra</th>
+                                            <th className="p-3 font-bold text-sm w-24 text-center">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {bitolas.map((b, idx) => (
+                                            <tr key={b.id} className="hover:bg-slate-50 transition-colors">
+                                                <td className="p-2">
+                                                    <select
+                                                        value={b.id}
+                                                        onChange={(e) => {
+                                                            const selected = gauges?.find(g => g.id === e.target.value);
+                                                            const newBitolas = [...bitolas];
+                                                            if (selected) {
+                                                                newBitolas[idx].id = selected.id;
+                                                                newBitolas[idx].label = `${selected.materialType} ${selected.gauge}`;
+                                                                newBitolas[idx].kgm = selected.weightPerMeter || 0;
+                                                                newBitolas[idx].price = selected.purchasePrice || 0;
+                                                            }
+                                                            setBitolas(newBitolas);
+                                                        }}
+                                                        className="w-full border rounded px-2 py-1.5 text-sm font-semibold outline-none focus:border-sky-500 bg-white"
+                                                    >
+                                                        <option value={b.id}>{b.label}</option>
+                                                        {gauges?.map(g => (
+                                                            <option key={g.id} value={g.id}>{g.materialType} - {g.gauge}</option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+                                                <td className="p-2">
+                                                    <input type="number" step="0.001" value={b.kgm} readOnly className="w-full border-none rounded px-2 py-1 text-sm bg-transparent outline-none text-center" />
+                                                </td>
+                                                <td className="p-2">
+                                                    <input type="number" step="0.01" value={b.price || 0} readOnly className="w-full border-none rounded px-2 py-1 text-sm bg-transparent outline-none text-center" />
+                                                </td>
+                                                <td className="p-2 text-center">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={b.amarrado}
+                                                        onChange={(e) => {
+                                                            const newBitolas = [...bitolas];
+                                                            newBitolas[idx].amarrado = e.target.checked;
+                                                            setBitolas(newBitolas);
+                                                        }}
+                                                        className="w-5 h-5 accent-emerald-600 cursor-pointer"
+                                                    />
+                                                </td>
+                                                <td className="p-2 text-center">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={b.corteDobra}
+                                                        onChange={(e) => {
+                                                            const newBitolas = [...bitolas];
+                                                            newBitolas[idx].corteDobra = e.target.checked;
+                                                            setBitolas(newBitolas);
+                                                        }}
+                                                        className="w-5 h-5 accent-emerald-600 cursor-pointer"
+                                                    />
+                                                </td>
+                                                <td className="p-2 text-center">
+                                                    <button 
+                                                        onClick={() => {
+                                                            const newBitolas = bitolas.filter((_, i) => i !== idx);
+                                                            setBitolas(newBitolas);
+                                                        }}
+                                                        className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition-colors"
+                                                        title="Excluir"
+                                                    >
+                                                        <TrashIcon />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                                </div>
+                            ) : (
+                                <div>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-lg font-bold text-slate-800">Modelos de Estribos</h3>
+                                        <button 
+                                            onClick={() => setEstriboModels([...estriboModels, { id: 'est_novo_' + Date.now(), name: 'Novo Estribo', category: settingsEstriboCat, formula: 'A + B', requiredSides: ['A', 'B'], svgTemplate: 'generico', applications: [settingsEstriboArea] }])}
+                                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-sm transition-colors shadow"
+                                        >
+                                            + Adicionar Modelo
+                                        </button>
+                                    </div>
+
+                                    <div className="mb-4 space-y-2">
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Área de Aplicação</p>
+                                        <div className="flex gap-2 overflow-x-auto pb-2">
+                                            {['Coluna', 'Pilar', 'Broca', 'Viga Superior', 'Viga Baldrame', 'Sapata', 'Corte e Dobra', 'Outros'].map(area => (
+                                                <button
+                                                    key={area}
+                                                    onClick={() => setSettingsEstriboArea(area)}
+                                                    className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors ${settingsEstriboArea === area ? 'bg-blue-600 text-white shadow' : 'bg-white text-slate-600 hover:bg-slate-50 border'}`}
+                                                >
+                                                    {area}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider pt-2">Formato</p>
+                                        <div className="flex gap-2">
+                                            {['3 LADOS', '4 LADOS', '6 LADOS', '8 LADOS', 'REDONDA'].map(cat => (
+                                                <button
+                                                    key={cat}
+                                                    onClick={() => setSettingsEstriboCat(cat)}
+                                                    className={`px-3 py-1.5 rounded text-xs font-bold transition-colors ${settingsEstriboCat === cat ? 'bg-slate-700 text-white shadow' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                                                >
+                                                    {cat}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="bg-slate-100 text-slate-700 border-b">
+                                                    <th className="p-3 font-bold text-xs w-48">Nome do Modelo</th>
+                                                    <th className="p-3 font-bold text-xs">Fórmula Matemática</th>
+                                                    <th className="p-3 font-bold text-xs w-32">Lados Req.</th>
+                                                    <th className="p-3 font-bold text-xs w-48">Aparece em:</th>
+                                                    <th className="p-3 font-bold text-xs w-36">Desenho</th>
+                                                    <th className="p-3 font-bold text-xs w-16 text-center">Excluir</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {estriboModels.filter(m => m.category === settingsEstriboCat && m.applications.includes(settingsEstriboArea)).map((est) => {
+                                                    const idx = estriboModels.findIndex(m => m.id === est.id);
+                                                    return (
+                                                    <tr key={est.id} className="hover:bg-slate-50 transition-colors">
+                                                        <td className="p-2">
+                                                            <input 
+                                                                type="text" 
+                                                                value={est.name} 
+                                                                onChange={(e) => {
+                                                                    const newModels = [...estriboModels];
+                                                                    newModels[idx].name = e.target.value;
+                                                                    setEstriboModels(newModels);
+                                                                }} 
+                                                                className="w-full border rounded px-2 py-1.5 text-xs font-semibold outline-none focus:border-sky-500" 
+                                                            />
+                                                        </td>
+                                                        <td className="p-2">
+                                                            <input 
+                                                                type="text" 
+                                                                value={est.formula} 
+                                                                onChange={(e) => {
+                                                                    const newModels = [...estriboModels];
+                                                                    newModels[idx].formula = e.target.value;
+                                                                    setEstriboModels(newModels);
+                                                                }} 
+                                                                className="w-full border rounded px-2 py-1.5 text-xs font-semibold outline-none focus:border-sky-500" 
+                                                                placeholder="Ex: (A*2)+B"
+                                                            />
+                                                        </td>
+                                                        <td className="p-2">
+                                                            <input 
+                                                                type="text" 
+                                                                value={est.requiredSides.join(', ')} 
+                                                                onChange={(e) => {
+                                                                    const newModels = [...estriboModels];
+                                                                    newModels[idx].requiredSides = e.target.value.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+                                                                    setEstriboModels(newModels);
+                                                                }} 
+                                                                className="w-full border rounded px-2 py-1.5 text-xs font-semibold outline-none focus:border-sky-500" 
+                                                                placeholder="A, B"
+                                                            />
+                                                        </td>
+                                                        <td className="p-2">
+                                                            <div className="flex flex-wrap gap-1 max-w-[200px]">
+                                                                {['Coluna', 'Pilar', 'Broca', 'Viga Superior', 'Viga Baldrame', 'Sapata', 'Corte e Dobra', 'Outros'].map(app => (
+                                                                    <label key={app} className={`cursor-pointer px-1.5 py-0.5 rounded text-[9px] font-bold border transition-colors ${est.applications.includes(app) ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'}`}>
+                                                                        <input 
+                                                                            type="checkbox"
+                                                                            className="hidden"
+                                                                            checked={est.applications.includes(app)}
+                                                                            onChange={(e) => {
+                                                                                const newModels = [...estriboModels];
+                                                                                if (e.target.checked) {
+                                                                                    if (!newModels[idx].applications.includes(app)) newModels[idx].applications.push(app);
+                                                                                } else {
+                                                                                    newModels[idx].applications = newModels[idx].applications.filter(a => a !== app);
+                                                                                }
+                                                                                setEstriboModels(newModels);
+                                                                            }}
+                                                                        />
+                                                                        {app}
+                                                                    </label>
+                                                                ))}
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-2">
+                                                            <div className="flex flex-col gap-1 w-32">
+                                                                <div className="h-16 border rounded bg-white flex items-center justify-center p-1 relative group">
+                                                                    <div className="pointer-events-none w-full h-full flex items-center justify-center">
+                                                                        {renderEstriboSVG(est.category, est.name)}
+                                                                    </div>
+                                                                    {est.customImageBase64 && (
+                                                                        <button 
+                                                                            onClick={(e) => {
+                                                                                e.preventDefault();
+                                                                                const newModels = [...estriboModels];
+                                                                                newModels[idx].customImageBase64 = undefined;
+                                                                                setEstriboModels(newModels);
+                                                                            }}
+                                                                            className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"
+                                                                            title="Remover Imagem"
+                                                                        >
+                                                                            <TrashIcon className="w-3 h-3" />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                                {!est.customImageBase64 && (
+                                                                    <select
+                                                                        value={est.svgTemplate}
+                                                                        onChange={(e) => {
+                                                                            const newModels = [...estriboModels];
+                                                                            newModels[idx].svgTemplate = e.target.value;
+                                                                            setEstriboModels(newModels);
+                                                                        }}
+                                                                        className="w-full border rounded px-1 py-1 text-[10px] font-semibold outline-none focus:border-sky-500 bg-white"
+                                                                    >
+                                                                        <option value="padrao_4_lados">Padrão 4 L</option>
+                                                                        <option value="formato_l">Formato L</option>
+                                                                        <option value="formato_reto">Reto</option>
+                                                                        <option value="formato_u">Formato U</option>
+                                                                        <option value="padrao_3_lados">Padrão 3 L</option>
+                                                                        <option value="redonda_padrao">Redonda</option>
+                                                                        <option value="generico">Genérico</option>
+                                                                    </select>
+                                                                )}
+                                                                <label className="cursor-pointer text-[10px] text-center bg-slate-200 hover:bg-slate-300 text-slate-700 py-1 rounded transition-colors w-full inline-block">
+                                                                    Anexar Imagem
+                                                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => {
+                                                                        const file = e.target.files?.[0];
+                                                                        if (file) {
+                                                                            const reader = new FileReader();
+                                                                            reader.onload = (ev) => {
+                                                                                const newModels = [...estriboModels];
+                                                                                newModels[idx].customImageBase64 = ev.target?.result as string;
+                                                                                setEstriboModels(newModels);
+                                                                            };
+                                                                            reader.readAsDataURL(file);
+                                                                        }
+                                                                    }} />
+                                                                </label>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-2 text-center">
+                                                            <div className="flex flex-col gap-1 items-center">
+                                                                <button
+                                                                    onClick={() => setDrawingBoardTarget(est)}
+                                                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors w-full flex items-center justify-center gap-1"
+                                                                    title="Desenhar Manualmente"
+                                                                >
+                                                                    <PencilIcon className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setEstriboModels(estriboModels.filter((_, i) => i !== idx));
+                                                                    }}
+                                                                    className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors w-full flex items-center justify-center gap-1"
+                                                                    title="Remover Modelo"
+                                                                >
+                                                                    <TrashIcon className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {drawingBoardTarget && (
+                <EstriboDrawingBoard
+                    initialData={drawingBoardTarget.customDrawingData || null}
+                    requiredSides={drawingBoardTarget.requiredSides}
+                    onSave={(data) => {
+                        const newModels = estriboModels.map(m => m.id === drawingBoardTarget.id ? { ...m, customDrawingData: data } : m);
+                        setEstriboModels(newModels);
+                        setDrawingBoardTarget(null);
+                    }}
+                    onClose={() => setDrawingBoardTarget(null)}
+                />
             )}
         </div>
     );

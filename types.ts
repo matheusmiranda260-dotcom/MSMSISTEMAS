@@ -35,6 +35,56 @@ export type MaterialType = 'Fio Máquina' | 'Sucata' | 'CA-60' | 'CA-50';
 
 export type Bitola = string; // e.g., '3.40', '4,20', '8.00'
 
+export interface DrawingPoint {
+    x: number;
+    y: number;
+}
+
+export interface DrawingLabel {
+    text: string;
+    x: number;
+    y: number;
+}
+
+export interface DrawingData {
+    points: DrawingPoint[];
+    labels: DrawingLabel[];
+}
+
+export interface EstriboModel {
+    id: string;
+    name: string;
+    category: string;
+    formula: string;
+    requiredSides: string[];
+    svgTemplate: string;
+    customImageBase64?: string;
+    customDrawingData?: DrawingData;
+    applications: string[];
+}
+
+const ALL_APPLICATIONS = ['Coluna', 'Pilar', 'Broca', 'Viga Superior', 'Viga Baldrame', 'Sapata', 'Corte e Dobra', 'Outros'];
+
+export const DEFAULT_ESTRIBO_MODELS: EstriboModel[] = [
+    { id: 'est_red_1', name: 'Padrão', category: 'REDONDA', formula: '(A * Math.PI) + 15', requiredSides: ['A'], svgTemplate: 'redonda_padrao', applications: ALL_APPLICATIONS },
+    { id: 'est_red_2', name: 'Definir transpasse', category: 'REDONDA', formula: '(A * Math.PI) + B', requiredSides: ['A', 'B'], svgTemplate: 'redonda_padrao', applications: ALL_APPLICATIONS },
+    { id: 'est_red_3', name: 'Transpasse Dobrado', category: 'REDONDA', formula: '(A * Math.PI) + B + C', requiredSides: ['A', 'B', 'C'], svgTemplate: 'redonda_padrao', applications: ALL_APPLICATIONS },
+    { id: 'est_3l_1', name: 'Padrão', category: '3 LADOS', formula: 'A + (B * 2) + 10', requiredSides: ['A', 'B'], svgTemplate: 'padrao_3_lados', applications: ALL_APPLICATIONS },
+    { id: 'est_4l_1', name: 'Padrão', category: '4 LADOS', formula: '(A * 2) + ((C || B) * 2) + 10', requiredSides: ['A', 'B', 'C'], svgTemplate: 'padrao_4_lados', applications: ALL_APPLICATIONS },
+    { id: 'est_4l_2', name: 'L', category: '4 LADOS', formula: 'A + B', requiredSides: ['A', 'B'], svgTemplate: 'formato_l', applications: ALL_APPLICATIONS },
+    { id: 'est_4l_3', name: 'Reto', category: '4 LADOS', formula: 'A', requiredSides: ['A'], svgTemplate: 'formato_reto', applications: ALL_APPLICATIONS },
+    { id: 'est_4l_4', name: 'U', category: '4 LADOS', formula: 'A + (C * 2)', requiredSides: ['A', 'C'], svgTemplate: 'formato_u', applications: ALL_APPLICATIONS },
+    { id: 'est_4l_5', name: 'U Dobras Ext', category: '4 LADOS', formula: 'A + (C * 2) + (D * 2)', requiredSides: ['A', 'C', 'D'], svgTemplate: 'formato_u', applications: ALL_APPLICATIONS },
+    { id: 'est_4l_6', name: 'U Dobras Int', category: '4 LADOS', formula: 'A + (C * 2) + D + E', requiredSides: ['A', 'C', 'D', 'E'], svgTemplate: 'formato_u', applications: ALL_APPLICATIONS },
+    { id: 'est_4l_7', name: 'Especial', category: '4 LADOS', formula: 'E + (B * 2) + (A * 2) + (F * 2) + C + D', requiredSides: ['A', 'B', 'C', 'D', 'E', 'F'], svgTemplate: 'generico', applications: ALL_APPLICATIONS },
+    { id: 'est_4l_8', name: 'Padrão, definir dobras finais', category: '4 LADOS', formula: '(A * 2) + (B * 2) + (C * 2)', requiredSides: ['A', 'B', 'C'], svgTemplate: 'padrao_4_lados', applications: ALL_APPLICATIONS },
+    { id: 'est_4l_9', name: 'Transpasse em X', category: '4 LADOS', formula: '(A * 2) + (B * 2) + C + D', requiredSides: ['A', 'B', 'C', 'D'], svgTemplate: 'padrao_4_lados', applications: ALL_APPLICATIONS },
+    { id: 'est_4l_10', name: 'Estribo de travamento', category: '4 LADOS', formula: 'A + B + C + D + 10', requiredSides: ['A', 'B', 'C', 'D'], svgTemplate: 'padrao_4_lados', applications: ALL_APPLICATIONS },
+    { id: 'est_4l_11', name: 'Estribo de travamento 2', category: '4 LADOS', formula: 'A + B + C + D + (E * 2)', requiredSides: ['A', 'B', 'C', 'D', 'E'], svgTemplate: 'padrao_4_lados', applications: ALL_APPLICATIONS },
+    { id: 'est_6l_1', name: 'Padrão', category: '6 LADOS', formula: '(A * 2) + (B * 2) + (C * 2) + 10', requiredSides: ['A', 'B', 'C'], svgTemplate: 'generico', applications: ALL_APPLICATIONS },
+    { id: 'est_8l_1', name: 'Padrão', category: '8 LADOS', formula: '(A * 2) + (B * 2) + (C * 2) + (D * 2) + 10', requiredSides: ['A', 'B', 'C', 'D'], svgTemplate: 'generico', applications: ALL_APPLICATIONS }
+];
+
 export interface User {
     id: string;
     username: string;
