@@ -95,6 +95,8 @@ interface Quote {
     descontoPercent?: number;
     descontoReal?: number;
     condicoesPagamento?: string;
+    arameKg?: number;
+    aramePreco?: number;
 }
 
 interface ClientLookup {
@@ -313,8 +315,22 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         ];
     });
 
+    interface ArameConfig {
+        ptsPorKg: number;
+        precoPorKg: number;
+    }
+    const [arameConfig, setArameConfig] = useState<ArameConfig>(() => {
+        const saved = localStorage.getItem('msm_arame_config');
+        if (saved) return JSON.parse(saved);
+        return { ptsPorKg: 256, precoPorKg: 10 };
+    });
+
+    useEffect(() => {
+        localStorage.setItem('msm_arame_config', JSON.stringify(arameConfig));
+    }, [arameConfig]);
+
     const [showSettingsModal, setShowSettingsModal] = useState(false);
-    const [settingsTab, setSettingsTab] = useState<'bitolas' | 'estribos' | 'ferros'>('bitolas');
+    const [settingsTab, setSettingsTab] = useState<'bitolas' | 'estribos' | 'ferros' | 'arame'>('bitolas');
 
     useEffect(() => {
         localStorage.setItem('msm_quotes', JSON.stringify(quotes));
@@ -1280,6 +1296,17 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     const [checkoutDescontoPercent, setCheckoutDescontoPercent] = useState('');
     const [checkoutDescontoReal, setCheckoutDescontoReal] = useState('');
     const [checkoutCondicoesPagamento, setCheckoutCondicoesPagamento] = useState('');
+    const [checkoutArameKg, setCheckoutArameKg] = useState('');
+    const [checkoutAramePreco, setCheckoutAramePreco] = useState('');
+    const [checkoutIncludeArame, setCheckoutIncludeArame] = useState(true);
+
+    const getQuoteTotalPoints = (quote: Quote) => {
+        return quote.products.reduce((acc, p) => {
+            const qtdEstribos = (p.ferros || []).filter(f => f.nomeElemento.toUpperCase().includes('ESTRIB') || f.nomeElemento.toUpperCase().includes('TRAVA')).reduce((sum, f) => sum + f.qtde, 0);
+            const qtdFerros = (p.ferros || []).filter(f => f.nomeElemento.toUpperCase().includes('FERRO') || f.nomeElemento.toUpperCase().includes('COSTELA') || f.nomeElemento.toUpperCase().includes('REFORÇO') || f.nomeElemento.toUpperCase().includes('2ª CAMADA')).reduce((sum, f) => sum + f.qtde, 0);
+            return acc + (qtdEstribos * qtdFerros * p.qty);
+        }, 0);
+    };
 
     const checkoutData = useMemo(() => {
         if (!activeQuote) return { rows: [], finalTotalPrice: 0, finalTotalPriceAdjusted: 0, finalTotalAcrescimo: 0, finalTotalDesconto: 0 };
@@ -1331,16 +1358,37 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
             finalTotalPrice += precoTotal;
             finalTotalPriceAdjusted += precoTotalAjustado;
 
-            return {
+            rows.push({
                 codMerco, label, roundedBars, exactBars, bPrice, precoUnAjustado, precoTotal, precoTotalAjustado, pesoUn, pesoTotal
-            };
+            });
         });
+
+        const finalArameKg = checkoutIncludeArame ? (parseFloat(checkoutArameKg) || 0) : 0;
+        const finalAramePreco = finalArameKg * (parseFloat(checkoutAramePreco) || 0);
+
+        if (finalArameKg > 0) {
+            rows.push({
+                isArame: true,
+                codMerco: '-',
+                label: `Arame Recozido (Ref: ${getQuoteTotalPoints(activeQuote)} Pts)`,
+                roundedBars: 0,
+                exactBars: 0,
+                bPrice: parseFloat(checkoutAramePreco) || 0,
+                precoUnAjustado: parseFloat(checkoutAramePreco) || 0,
+                precoTotal: finalAramePreco,
+                precoTotalAjustado: finalAramePreco,
+                pesoUn: 1,
+                pesoTotal: finalArameKg
+            });
+            finalTotalPrice += finalAramePreco;
+            finalTotalPriceAdjusted += finalAramePreco;
+        }
 
         const finalTotalAcrescimo = finalTotalPriceAdjusted > finalTotalPrice ? finalTotalPriceAdjusted - finalTotalPrice : 0;
         const finalTotalDesconto = finalTotalPrice > finalTotalPriceAdjusted ? finalTotalPrice - finalTotalPriceAdjusted : 0;
 
         return { rows, finalTotalPrice, finalTotalPriceAdjusted, finalTotalAcrescimo, finalTotalDesconto };
-    }, [activeQuote, bitolas, gauges, checkoutAcrescimoPercent, checkoutAcrescimoReal, checkoutDescontoPercent, checkoutDescontoReal]);
+    }, [activeQuote, bitolas, gauges, checkoutAcrescimoPercent, checkoutAcrescimoReal, checkoutDescontoPercent, checkoutDescontoReal, checkoutArameKg, checkoutAramePreco, checkoutIncludeArame]);
 
     const STEEL_SPECS = [
         { label: 'CA50 10.00mm (0.617 kg/m)', factor: 0.617, spec: 'CA50 10.00mm' },
@@ -2212,6 +2260,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                             newQuotes[qIdx].descontoPercent = parseFloat(checkoutDescontoPercent) || 0;
                                             newQuotes[qIdx].descontoReal = parseFloat(checkoutDescontoReal) || 0;
                                             newQuotes[qIdx].condicoesPagamento = checkoutCondicoesPagamento;
+                                            newQuotes[qIdx].arameKg = checkoutIncludeArame ? parseFloat(checkoutArameKg) || 0 : 0;
+                                            newQuotes[qIdx].aramePreco = parseFloat(checkoutAramePreco) || 0;
                                             setQuotes(newQuotes);
                                         }
                                         setActiveModal({ type: 'products', quoteId: activeQuote.id });
@@ -2242,6 +2292,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                     descontoPercent: parseFloat(checkoutDescontoPercent) || 0,
                                                     descontoReal: parseFloat(checkoutDescontoReal) || 0,
                                                     condicoesPagamento: checkoutCondicoesPagamento,
+                                                    arameKg: checkoutIncludeArame ? parseFloat(checkoutArameKg) || 0 : 0,
+                                                    aramePreco: parseFloat(checkoutAramePreco) || 0,
                                                     status: 'Orçamento Finalizado'
                                                 };
                                             }
@@ -3556,6 +3608,12 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                         setCheckoutDescontoPercent(activeQuote.descontoPercent?.toString() || '');
                                         setCheckoutDescontoReal(activeQuote.descontoReal?.toString() || '');
                                         setCheckoutCondicoesPagamento(activeQuote.condicoesPagamento || '');
+
+                                        const pts = getQuoteTotalPoints(activeQuote);
+                                        const kgBase = pts / (arameConfig?.ptsPorKg || 256);
+                                        setCheckoutArameKg(activeQuote.arameKg?.toString() || (kgBase > 0 ? kgBase.toFixed(2) : ''));
+                                        setCheckoutAramePreco(activeQuote.aramePreco?.toString() || arameConfig?.precoPorKg?.toString() || '10');
+
                                         setActiveModal({ type: 'checkout', quoteId: activeQuote.id });
                                     }}
                                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 px-7 rounded text-sm transition shadow-sm"
