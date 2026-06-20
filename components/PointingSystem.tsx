@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Page, User, StockGauge, EstriboModel, FerroModel, Partner } from '../types';
-import { DEFAULT_ESTRIBO_MODELS, DEFAULT_FERRO_MODELS } from '../types';
+import type { Page, User, StockGauge, EstriboModel, FerroModel, Partner, TravaModel } from '../types';
+import { DEFAULT_ESTRIBO_MODELS, DEFAULT_FERRO_MODELS, DEFAULT_TRAVA_MODELS } from '../types';
 import EstriboDrawingBoard from './EstriboDrawingBoard';
 import { 
     PencilIcon, TrashIcon, ArrowLeftIcon 
@@ -330,7 +330,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     }, [arameConfig]);
 
     const [showSettingsModal, setShowSettingsModal] = useState(false);
-    const [settingsTab, setSettingsTab] = useState<'bitolas' | 'estribos' | 'ferros' | 'arame'>('bitolas');
+    const [settingsTab, setSettingsTab] = useState<'bitolas' | 'estribos' | 'ferros' | 'arame' | 'travas'>('bitolas');
 
     useEffect(() => {
         localStorage.setItem('msm_quotes', JSON.stringify(quotes));
@@ -372,6 +372,20 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         localStorage.setItem('msm_ferros', JSON.stringify(ferroModels));
     }, [ferroModels]);
 
+    const [travaModels, setTravaModels] = useState<TravaModel[]>(() => {
+        const saved = localStorage.getItem('msm_travas');
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch (e) { }
+        }
+        return DEFAULT_TRAVA_MODELS;
+    });
+
+    useEffect(() => {
+        localStorage.setItem('msm_travas', JSON.stringify(travaModels));
+    }, [travaModels]);
+
     // Filter & Order State
     const [search, setSearch] = useState('');
     const [orderBy, setOrderBy] = useState<'id' | 'clientCode'>('id');
@@ -379,7 +393,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
 
     // Modals control
     const [activeModal, setActiveModal] = useState<{
-        type: 'client' | 'salesperson' | 'notes' | 'products' | 'price' | 'duplicate' | 'print' | 'printFull' | 'printSteel' | 'history' | 'delete';
+        type: 'client' | 'salesperson' | 'notes' | 'products' | 'price' | 'duplicate' | 'print' | 'printFull' | 'printSteel' | 'print_orcamento' | 'checkout' | 'history' | 'delete';
         quoteId: string;
     } | null>(null);
 
@@ -587,6 +601,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
 
 
     const getTravaRequiredSides = (shape: number) => {
+        const model = (travaModels || []).find(m => m.shapeId === shape);
+        if (model) return model.requiredSides;
         switch(shape) {
             case 1: return ['A'];
             case 2: return ['A', 'B', 'C'];
@@ -973,6 +989,21 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         
         if (ferro.drawingType === 'Trava') {
             const shape = Number(ferro.estriboShape) || 1;
+            const model = (travaModels || []).find(m => m.shapeId === shape);
+            if (model) {
+                try {
+                    let expression = model.formula
+                        .replace(/Math\.PI/g, Math.PI.toString())
+                        .replace(/\bA\b/g, a.toString())
+                        .replace(/\bB\b/g, b.toString())
+                        .replace(/\bC\b/g, c.toString())
+                        .replace(/\bD\b/g, d.toString())
+                        .replace(/\bE\b/g, e.toString());
+                    return new Function('return ' + expression)() || 0;
+                } catch (err) {
+                    console.error("Erro ao avaliar fórmula de trava", model.formula, err);
+                }
+            }
             switch(shape) {
                 case 1: return a;
                 case 2: return a + b + c;
@@ -1021,8 +1052,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         
         p.ferros.forEach(f => {
             const totalCm = getFerroTotalLengthCm(f, p.description);
-            const factor = f.bitolaKgm || parseFloat(f.bitola.split(',')[1]) || 0;
-            const priceFactor = f.bitolaPrice || parseFloat(f.bitola.split(',')[2]) || 0;
+            const factor = f.bitolaKgm || parseFloat((f.bitola || '').split(',')[1]) || 0;
+            const priceFactor = f.bitolaPrice || parseFloat((f.bitola || '').split(',')[2]) || 0;
             const weight = (totalCm / 100) * factor * f.qtde;
             totalKg += weight;
             totalPrice += weight * priceFactor;
@@ -1301,10 +1332,12 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     const [checkoutIncludeArame, setCheckoutIncludeArame] = useState(true);
 
     const getQuoteTotalPoints = (quote: Quote) => {
+        if (!quote || !Array.isArray(quote.products)) return 0;
         return quote.products.reduce((acc, p) => {
-            const qtdEstribos = (p.ferros || []).filter(f => f.nomeElemento.toUpperCase().includes('ESTRIB') || f.nomeElemento.toUpperCase().includes('TRAVA')).reduce((sum, f) => sum + f.qtde, 0);
-            const qtdFerros = (p.ferros || []).filter(f => f.nomeElemento.toUpperCase().includes('FERRO') || f.nomeElemento.toUpperCase().includes('COSTELA') || f.nomeElemento.toUpperCase().includes('REFORÇO') || f.nomeElemento.toUpperCase().includes('2ª CAMADA')).reduce((sum, f) => sum + f.qtde, 0);
-            return acc + (qtdEstribos * qtdFerros * p.qty);
+            if (!p || !Array.isArray(p.ferros)) return acc;
+            const qtdEstribos = p.ferros.filter(f => f && f.nomeElemento && (f.nomeElemento.toUpperCase().includes('ESTRIB') || f.nomeElemento.toUpperCase().includes('TRAVA'))).reduce((sum, f) => sum + (f.qtde || 0), 0);
+            const qtdFerros = p.ferros.filter(f => f && f.nomeElemento && (f.nomeElemento.toUpperCase().includes('FERRO') || f.nomeElemento.toUpperCase().includes('COSTELA') || f.nomeElemento.toUpperCase().includes('REFORÇO') || f.nomeElemento.toUpperCase().includes('2ª CAMADA'))).reduce((sum, f) => sum + (f.qtde || 0), 0);
+            return acc + (qtdEstribos * qtdFerros * (p.qty || 1));
         }, 0);
     };
 
@@ -1333,7 +1366,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         const dP = parseFloat(checkoutDescontoPercent) || 0;
         const dR = parseFloat(checkoutDescontoReal) || 0;
 
-        const rows = Object.values(groups).map((g) => {
+        const rows: any[] = [];
+        Object.values(groups).forEach((g) => {
             const exactBars = g.totalLinearMeters / 12;
             const roundedBars = Math.max(1, Math.round(exactBars));
             
@@ -1782,7 +1816,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                         <tbody>
                             {filteredQuotes.map((q) => (
                                 <tr key={q.id} className={`${getRowClass(q.status, q.price)} transition-colors`}>
-                                    <td className="p-4 text-center font-black text-slate-900 text-sm">{q.id}</td>
+                                    <td className="p-4 text-center font-black text-slate-900 text-sm">{String(q.id).padStart(7, '0')}</td>
                                     <td className="p-4 text-center font-bold text-slate-600 text-xs">{q.date}</td>
                                     <td className="p-4 text-center font-bold text-slate-700 text-xs">{q.salesperson}</td>
                                     <td className="p-4">
@@ -1812,15 +1846,10 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                             <option value="">Ações...</option>
                                             <option value="client">📝 Editar Cliente</option>
                                             <option value="salesperson">👤 Editar Vendedor</option>
-                                            <option value="notes">📌 Editar Lembretes</option>
                                             <option value="products">🛠️ Editar Produtos</option>
                                             <option value="price">💰 Editar Preço</option>
                                             <option value="duplicate">📋 Duplicar Orçamento</option>
                                             <option value="print_orcamento">🖨️ Imprimir Modelo Cliente</option>
-                                            <option value="print">🖨️ Imprimir Tabela Padrão</option>
-                                            <option value="printFull">🖨️ Imprimir Completo</option>
-                                            <option value="printSteel">🖨️ Resumo do Aço</option>
-                                            <option value="history">📜 Ver Histórico</option>
                                             <option value="delete">🗑️ Excluir Orçamento</option>
                                         </select>
                                     </td>
@@ -2142,10 +2171,10 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
             )}
 
             {/* MOCK ACTIONS MODALS */}
-            {activeModal && activeQuote && (
+            {activeModal && (
                 <div className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex ${activeModal.type === 'products' ? 'p-0 overflow-hidden' : 'items-center justify-center p-4'}`}>
                     {/* MODAL: Checkout / Preço */}
-                    {activeModal.type === 'checkout' && (
+                    {activeModal.type === 'checkout' && activeQuote && (
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[95vh] border border-slate-300">
                             <div className="bg-[#E6EEF2] p-4 border-b flex justify-center items-center rounded-t-2xl">
                                 <h3 className="font-medium text-2xl text-[#1A4B6B]">Preço</h3>
@@ -2313,7 +2342,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                     )}
 
                     {/* MODAL: Editar Cliente */}
-                    {activeModal.type === 'client' && (
+                    {activeModal.type === 'client' && activeQuote && (
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
                             <div className="bg-[#0F3F5C] p-4 text-white flex justify-between items-center">
                                 <h3 className="font-bold text-lg">📝 Editar Dados do Cliente</h3>
@@ -2379,7 +2408,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                     )}
 
                     {/* MODAL: Editar Vendedor */}
-                    {activeModal.type === 'salesperson' && (
+                    {activeModal.type === 'salesperson' && activeQuote && (
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs overflow-hidden animate-in fade-in zoom-in-95 duration-150">
                             <div className="bg-[#0F3F5C] p-4 text-white flex justify-between items-center">
                                 <h3 className="font-bold text-md">👤 Reatribuir Vendedor</h3>
@@ -2417,7 +2446,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                     )}
 
                     {/* MODAL: Editar Lembretes */}
-                    {activeModal.type === 'notes' && (
+                    {activeModal.type === 'notes' && activeQuote && (
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[80vh]">
                             <div className="bg-[#0F3F5C] p-4 text-white flex justify-between items-center shrink-0">
                                 <h3 className="font-bold text-lg">📌 Notas e Lembretes - Orçamento {activeQuote.id}</h3>
@@ -2477,12 +2506,12 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                     )}
 
                     {/* MODAL: Editar Produtos (Calcula preço pelo sistema) */}
-                    {activeModal.type === 'products' && (
+                    {activeModal.type === 'products' && activeQuote && (
                         <div className="bg-white shadow-2xl flex-1 rounded-none animate-in fade-in duration-150 flex flex-col min-h-0">
                             {/* Custom header bar centered and matching design */}
                             <div className="bg-slate-200 py-3.5 px-5 border-b border-slate-300 flex justify-between items-center shrink-0">
                                 <div className="flex-1 text-center font-display text-slate-800 text-lg font-bold tracking-tight">
-                                    ORÇAMENTO Nº {activeQuote.id}
+                                    ORÇAMENTO Nº {String(activeQuote.id).padStart(7, '0')}
                                     <div className="text-xs text-slate-500 font-extrabold uppercase mt-0.5">
                                         (CÓD {activeQuote.clientCode}) {activeQuote.clientName}
                                     </div>
@@ -3206,15 +3235,15 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                             </select>
                                                         </div>
 
-                                                        {/* Right side: Price + Weight */}
-                                                        <div className="text-right pr-14 shrink-0 flex flex-col justify-center">
+                                                        {/* Right side: Price + Weight + Pontos */}
+                                                        <div className="text-right pr-14 shrink-0 flex flex-col justify-center gap-0.5">
                                                             {item.ferros && item.ferros.length > 0 ? (
                                                                 <>
                                                                     <div className="text-xs font-black text-slate-800">
                                                                         {(() => {
                                                                             const totalKg = (item.ferros || []).reduce((sum, f) => {
                                                                                 const totalCm = getFerroTotalLengthCm(f, item.description);
-                                                                                const factor = parseFloat(f.bitola.split(',')[1]) || 0;
+                                                                                const factor = parseFloat((f.bitola || '').split(',')[1]) || 0;
                                                                                 return sum + (totalCm / 100) * factor * f.qtde;
                                                                             }, 0);
                                                                             const price = totalKg * 8.5;
@@ -3225,10 +3254,18 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                         {(() => {
                                                                             const totalKg = (item.ferros || []).reduce((sum, f) => {
                                                                                 const totalCm = getFerroTotalLengthCm(f, item.description);
-                                                                                const factor = parseFloat(f.bitola.split(',')[1]) || 0;
+                                                                                const factor = parseFloat((f.bitola || '').split(',')[1]) || 0;
                                                                                 return sum + (totalCm / 100) * factor * f.qtde;
                                                                             }, 0);
                                                                             return `Peso Total = ${totalKg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`;
+                                                                        })()}
+                                                                    </div>
+                                                                    <div className="text-[9px] font-bold text-amber-600">
+                                                                        {(() => {
+                                                                            const qtdEstribos = (item.ferros || []).filter(f => f && f.nomeElemento && (f.nomeElemento.toUpperCase().includes('ESTRIB') || f.nomeElemento.toUpperCase().includes('TRAVA'))).reduce((sum, f) => sum + (f.qtde || 0), 0);
+                                                                            const qtdFerros = (item.ferros || []).filter(f => f && f.nomeElemento && (f.nomeElemento.toUpperCase().includes('FERRO') || f.nomeElemento.toUpperCase().includes('COSTELA') || f.nomeElemento.toUpperCase().includes('REFORÇO') || f.nomeElemento.toUpperCase().includes('2ª CAMADA'))).reduce((sum, f) => sum + (f.qtde || 0), 0);
+                                                                            const pts = qtdEstribos * qtdFerros * (item.qty || 1);
+                                                                            return pts > 0 ? `🔗 ${pts} pontos de arame` : '';
                                                                         })()}
                                                                     </div>
                                                                 </>
@@ -3263,31 +3300,33 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                 <table className="w-full text-[10px] min-w-[640px]">
                                                                     <thead className="bg-[#0F3F5C] text-white">
                                                                         <tr>
-                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Img</th>
-                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Elemento</th>
-                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Qtde</th>
-                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Bitola</th>
-                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Comp. Linear</th>
-                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Obs</th>
-                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Ações</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide w-12">OS</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide">Img</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide">Elemento</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide">Qtde</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide">Bitola</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide">Comp. Linear</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide">Obs</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide">Ações</th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody>
                                                                         {item.ferros.map((ferro, fIdx) => (
-                                                                            <tr key={ferro.id} className="border-b border-slate-100 bg-white hover:bg-slate-50">
-                                                                                <td className="px-2 py-2 text-center w-36">
-                                                                                    <div className="flex items-center justify-center min-h-[70px]">
+                                                                            <tr key={ferro.id} className="bg-white hover:bg-slate-50">
+                                                                                <td className="px-2 py-0.5 text-center font-bold text-slate-500 text-[10px]">OS:{String(fIdx + 1).padStart(2, '0')}</td>
+                                                                                <td className="px-2 py-0.5 text-center w-36">
+                                                                                    <div className="flex items-center justify-center min-h-[50px]">
                                                                                         <div className="scale-110 origin-center">
                                                                                             {renderEstriboSVG('4 LADOS', ferro.estriboShape || ferro.ferroModelId || 'Padrão', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, ferro.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === ferro.ferroModelId)?.name || '', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, true)}
                                                                                         </div>
                                                                                     </div>
                                                                                 </td>
-                                                                                <td className="px-2 py-2 text-center font-bold text-slate-800">{ferro.nomeElemento || '-'}</td>
-                                                                                <td className="px-2 py-2 text-center">
+                                                                                <td className="px-2 py-0.5 text-center font-bold text-slate-800">{ferro.nomeElemento || '-'}</td>
+                                                                                <td className="px-2 py-0.5 text-center">
                                                                                     <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-slate-500 text-white font-bold text-[9px] min-w-[20px]">{ferro.qtde}</span>
                                                                                 </td>
-                                                                                <td className="px-2 py-2 text-center font-bold text-slate-700">{ferro.bitola.split(',')[0]}</td>
-                                                                                <td className="px-2 py-2 text-center font-mono text-slate-700">
+                                                                                <td className="px-2 py-0.5 text-center font-bold text-slate-700">{(ferro.bitola || '').split(',')[0]}</td>
+                                                                                <td className="px-2 py-0.5 text-center font-mono text-slate-700">
                                                                                     {(() => {
                                                                                         const a = parseFloat(ferro.ladoA) || 0;
                                                                                         const b = parseFloat(ferro.ladoB) || 0;
@@ -3298,8 +3337,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                                         return getFerroTotalLengthCm(ferro, item.description) + ' cm';
                                                                                     })()}
                                                                                 </td>
-                                                                                <td className="px-2 py-2 text-center text-slate-500 italic max-w-[80px] truncate">{ferro.obs || '-'}</td>
-                                                                                <td className="px-2 py-2 text-center">
+                                                                                <td className="px-2 py-0.5 text-center text-slate-500 italic max-w-[80px] truncate">{ferro.obs || '-'}</td>
+                                                                                <td className="px-2 py-0.5 text-center">
                                                                                     {!item.locked && (
                                                                                         <div className="flex items-center justify-center gap-1">
                                                                                             <button
@@ -3380,17 +3419,18 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                 <table className="w-full text-[10px] min-w-[780px]">
                                                                     <thead className="bg-[#0F3F5C] text-white">
                                                                         <tr>
-                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Img</th>
-                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Elemento</th>
-                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Qtde</th>
-                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Tipo</th>
-                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Bitola</th>
-                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Esp. Estr.</th>
-                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Área s/ Est.</th>
-                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Ponta</th>
-                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Obs</th>
-                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Cálculos</th>
-                                                                            <th className="px-2 py-1.5 text-center font-bold uppercase text-[9px] tracking-wide">Ações</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide w-12">OS</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide">Img</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide">Elemento</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide">Qtde</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide">Tipo</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide">Bitola</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide">Esp. Estr.</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide">Área s/ Est.</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide">Ponta</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide">Obs</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide">Cálculos</th>
+                                                                            <th className="px-2 py-0.5 text-center font-bold uppercase text-[9px] tracking-wide">Ações</th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody>
@@ -3400,10 +3440,11 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                             const areaText = areaVal ? `${areaVal} CM S/ ESTR` : '-';
                                                                             
                                                                             return (
-                                                                                <tr key={ferro.id} className="border-b border-slate-100 bg-white hover:bg-slate-50 transition-colors">
+                                                                                <tr key={ferro.id} className="bg-white hover:bg-slate-50 transition-colors">
+                                                                                    <td className="px-2 py-0.5 text-center font-bold text-slate-500 text-[10px]">OS:{String(fIdx + 1).padStart(2, '0')}</td>
                                                                                     {/* img */}
-                                                                                    <td className="px-2 py-1.5 text-center w-36">
-                                                                                        <div className="flex items-center justify-center min-h-[70px]">
+                                                                                    <td className="px-2 py-0.5 text-center w-36">
+                                                                                        <div className="flex items-center justify-center min-h-[50px]">
                                                                                             {ferro.drawingType === 'Estribo'
                                                                                                 ? <div className="scale-110 origin-center">{renderEstriboSVG(ladosDesc, ferro.estriboShape || 'Padrão', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, ferro.ladoF)}</div>
                                                                                                 : ferro.drawingType === 'CorteDobra'
@@ -3415,45 +3456,45 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                                     </td>
 
                                                                                     {/* nome elemento */}
-                                                                                    <td className="px-2 py-1.5 text-center font-bold text-slate-700">{ferro.nomeElemento}</td>
+                                                                                    <td className="px-2 py-0.5 text-center font-bold text-slate-700">{ferro.nomeElemento}</td>
 
                                                                                     {/* qtde - centered gray badge */}
-                                                                                    <td className="px-2 py-1.5 text-center">
+                                                                                    <td className="px-2 py-0.5 text-center">
                                                                                         <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-slate-500 text-white font-bold text-[9px] min-w-[20px]">
                                                                                             {ferro.qtde}
                                                                                         </span>
                                                                                     </td>
 
                                                                                     {/* tipo */}
-                                                                                    <td className="px-2 py-1.5 text-center text-slate-600 font-semibold">
+                                                                                    <td className="px-2 py-0.5 text-center text-slate-600 font-semibold">
                                                                                         {ferro.drawingType === 'Estribo' ? 'ESTRIBOS' : ferro.drawingType === 'Trava' ? 'TRAVA' : ferro.drawingType === 'CorteDobra' ? 'ELEMENTO' : 'FERROS'}
                                                                                     </td>
 
                                                                                     {/* bitola */}
-                                                                                    <td className="px-2 py-1.5 text-center font-bold text-slate-700">
-                                                                                        {ferro.bitola.split(',')[0]}
+                                                                                    <td className="px-2 py-0.5 text-center font-bold text-slate-700">
+                                                                                        {(ferro.bitola || '').split(',')[0]}
                                                                                     </td>
 
                                                                                     {/* esp estr. */}
-                                                                                    <td className="px-2 py-1.5 text-center text-slate-600 font-bold">
+                                                                                    <td className="px-2 py-0.5 text-center text-slate-600 font-bold">
                                                                                         {ferro.drawingType === 'Estribo' ? (ferro.espacamento ? ferro.espacamento + ' CM' : '-') : '-'}
                                                                                     </td>
 
                                                                                     {/* area s/ est. */}
-                                                                                    <td className="px-2 py-1.5 text-center text-slate-600" style={{ maxWidth: '120px' }}>
+                                                                                    <td className="px-2 py-0.5 text-center text-slate-600" style={{ maxWidth: '120px' }}>
                                                                                         {ferro.drawingType === 'Estribo' ? '-' : areaText}
                                                                                     </td>
 
                                                                                     {/* ponta */}
-                                                                                    <td className="px-2 py-1.5 text-center text-slate-600">
+                                                                                    <td className="px-2 py-0.5 text-center text-slate-600">
                                                                                         {ferro.drawingType === 'Estribo' || ferro.drawingType === 'Trava' || ferro.drawingType === 'CorteDobra' ? '-' : ferroModels.find(m => m.id === ferro.ferroModelId)?.name || 'RETO'}
                                                                                     </td>
 
                                                                                     {/* obs */}
-                                                                                    <td className="px-2 py-1.5 text-center text-slate-500 italic max-w-[100px] truncate">{ferro.obs || '-'}</td>
+                                                                                    <td className="px-2 py-0.5 text-center text-slate-500 italic max-w-[100px] truncate">{ferro.obs || '-'}</td>
 
                                                                                     {/* calculos fraction layout */}
-                                                                                    <td className="px-2 py-1.5 text-center w-28">
+                                                                                    <td className="px-2 py-0.5 text-center w-28">
                                                                                         <div className="flex flex-col items-center justify-center text-center">
                                                                                             <span className="text-[8px] text-slate-400 font-semibold leading-tight">Tamanho linear</span>
                                                                                             <span className="text-[8px] text-slate-400 font-semibold leading-tight">unitário:</span>
@@ -3463,7 +3504,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                                     </td>
 
                                                                                     {/* acao horizontal styled buttons */}
-                                                                                    <td className="px-2 py-1.5 text-center w-36">
+                                                                                    <td className="px-2 py-0.5 text-center w-36">
                                                                                         <div className="flex items-center justify-center gap-1.5">
                                                                                             <button
                                                                                                 onClick={() => {
@@ -4448,8 +4489,18 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                 if (principal && principal.ladoA) {
                                                                     const compCm = parseFloat(principal.ladoA);
                                                                     const espac = parseFloat(val);
+                                                                    let area1 = prod.areaSemEstr1 || 0;
+                                                                    let area2 = prod.areaSemEstr2 || 0;
+                                                                    if (!area1 && !area2 && prod.description) {
+                                                                        const match = prod.description.match(/x\s+(\d+(?:\.\d+)?)\s+CM(?:\s+\/\s+(\d+(?:\.\d+)?)\s+CM)?/i);
+                                                                        if (match) {
+                                                                            area1 = parseFloat(match[1]) || 0;
+                                                                            area2 = parseFloat(match[2]) || 0;
+                                                                        }
+                                                                    }
+                                                                    const areaDisponivel = Math.max(0, compCm - area1 - area2);
                                                                     if (!isNaN(compCm) && !isNaN(espac) && espac > 0) {
-                                                                        setEstriboQtde(Math.ceil(compCm / espac).toString());
+                                                                        setEstriboQtde(Math.ceil(areaDisponivel / espac).toString());
                                                                     }
                                                                 }
                                                             }
@@ -5225,7 +5276,9 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                 length: 0,
                                                 weightPerMeter: 0,
                                                 weight: 0,
-                                                price: 0
+                                                price: 0,
+                                                areaSemEstr1: colunaAreaSemEstr1 ? parseFloat(colunaAreaSemEstr1) : 0,
+                                                areaSemEstr2: colunaAreaSemEstr2 ? parseFloat(colunaAreaSemEstr2) : 0
                                             };
                                             let updated;
                                             if (editingColunaId) {
@@ -5258,7 +5311,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                     )}
 
                     {/* MODAL: Editar Preço */}
-                    {activeModal.type === 'price' && (
+                    {activeModal.type === 'price' && activeQuote && (
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-150">
                             <div className="bg-[#0F3F5C] p-4 text-white flex justify-between items-center">
                                 <h3 className="font-bold text-md">💰 Ajustar Preço Manual</h3>
@@ -5296,7 +5349,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                     )}
 
                     {/* MODAL: Duplicar Orçamento */}
-                    {activeModal.type === 'duplicate' && (
+                    {activeModal.type === 'duplicate' && activeQuote && (
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs overflow-hidden animate-in fade-in zoom-in-95 duration-150">
                             <div className="bg-[#0F3F5C] p-4 text-white flex justify-between items-center">
                                 <h3 className="font-bold text-md">📋 Duplicar Orçamento</h3>
@@ -5332,7 +5385,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                     )}
 
                     {/* MODAL: Imprimir (Orçamento, Completo, Resumo do Aço) */}
-                    {(activeModal.type === 'print' || activeModal.type === 'printFull' || activeModal.type === 'printSteel') && (
+                    {(activeModal.type === 'print' || activeModal.type === 'printFull' || activeModal.type === 'printSteel') && activeQuote && (
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[85vh]">
                             <div className="bg-[#0F3F5C] p-4 text-white flex justify-between items-center shrink-0 no-print">
                                 <h3 className="font-bold text-md">
@@ -5351,7 +5404,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                         <p className="text-[10px] text-slate-400 font-bold">CNPJ: 00.000.000/0001-00 • Fone: (15) 3271-0000</p>
                                     </div>
                                     <div className="text-right">
-                                        <h2 className="text-md font-black text-slate-900 uppercase">ORÇAMENTO Nº {activeQuote.id}</h2>
+                                        <h2 className="text-md font-black text-slate-900 uppercase">ORÇAMENTO Nº {String(activeQuote.id).padStart(7, '0')}</h2>
                                         <p className="text-[10px] text-slate-500 font-bold">Data: {activeQuote.date}</p>
                                     </div>
                                 </div>
@@ -5480,7 +5533,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                     )}
 
                     {/* MODAL: Imprimir Modelo Cliente (Ita Aços) */}
-                    {activeModal.type === 'print_orcamento' && (
+                    {activeModal.type === 'print_orcamento' && activeQuote && (
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
                             <div className="bg-[#0F3F5C] p-4 text-white flex justify-between items-center shrink-0 no-print">
                                 <h3 className="font-bold text-md">🖨️ Visualização de Impressão (Modelo Cliente)</h3>
@@ -5504,7 +5557,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
 
                                 {/* Title */}
                                 <div className="text-center font-extrabold text-xl uppercase border-b-[1.5px] border-black pb-2">
-                                    ORÇAMENTO Nº{activeQuote.id}
+                                    ORÇAMENTO Nº{String(activeQuote.id).padStart(7, '0')}
                                 </div>
 
                                 {/* Info */}
@@ -5550,7 +5603,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                         {prod.ferros?.map((f, fIdx) => {
                                                             const isLine = !f.ladoB && !f.ladoC && !f.ladoD && (!f.estriboShape || f.estriboShape === 'formato_reto');
                                                             const mainVal = f.ladoA || getFerroTotalLengthCm(f, prod.description).toString();
-                                                            const isEstribo = f.nomeElemento.toUpperCase().includes('ESTRIBO') || (f.estriboShape && f.estriboShape !== 'formato_reto');
+                                                            const isEstribo = f && f.nomeElemento ? (f.nomeElemento.toUpperCase().includes('ESTRIBO') || (f.estriboShape && f.estriboShape !== 'formato_reto')) : false;
                                                             const hasImage = !!f.customImageBase64;
                                                             const ladosDesc = prod.description.match(/(\d+) LADOS/)?.[1] ? `${prod.description.match(/(\d+) LADOS/)?.[1]} LADOS` : '4 LADOS';
                                                             
@@ -5657,7 +5710,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                     )}
 
                     {/* MODAL: Histórico */}
-                    {activeModal.type === 'history' && (
+                    {activeModal.type === 'history' && activeQuote && (
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[80vh]">
                             <div className="bg-[#0F3F5C] p-4 text-white flex justify-between items-center shrink-0">
                                 <h3 className="font-bold text-lg">📜 Log de Eventos: Orçamento {activeQuote.id}</h3>
@@ -5685,7 +5738,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                     )}
 
                     {/* MODAL: Excluir Orçamento */}
-                    {activeModal.type === 'delete' && (
+                    {activeModal.type === 'delete' && activeQuote && (
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
                             <div className="bg-red-600 p-4 text-white flex justify-between items-center shrink-0">
                                 <h3 className="font-bold text-lg">🗑️ Excluir Orçamento</h3>
@@ -5745,6 +5798,18 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                 className={`flex-1 py-3 font-bold text-sm text-center border-b-2 transition-colors ${settingsTab === 'ferros' ? 'border-sky-500 text-sky-700 bg-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                             >
                                 Pontas de Ferros
+                            </button>
+                            <button 
+                                onClick={() => setSettingsTab('arame')}
+                                className={`flex-1 py-3 font-bold text-sm text-center border-b-2 transition-colors ${settingsTab === 'arame' ? 'border-sky-500 text-sky-700 bg-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                            >
+                                🔗 Arame Recozido
+                            </button>
+                            <button 
+                                onClick={() => setSettingsTab('travas')}
+                                className={`flex-1 py-3 font-bold text-sm text-center border-b-2 transition-colors ${settingsTab === 'travas' ? 'border-sky-500 text-sky-700 bg-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                            >
+                                Modelos de Travas
                             </button>
                         </div>
                         <div className="p-6 overflow-y-auto flex-grow bg-slate-50">
@@ -6239,6 +6304,175 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                         </tr>
                                                     );
                                                 })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            ) : settingsTab === 'arame' ? (
+                                <div className="max-w-lg mx-auto">
+                                    <h3 className="text-lg font-bold text-slate-800 mb-1">⚙️ Configuração de Arame Recozido</h3>
+                                    <p className="text-xs text-slate-500 mb-6">Defina os parâmetros para cálculo automático do arame necessário para cada orçamento. Os <strong>"pontos"</strong> são calculados como: <strong>Qtd Estribos × Qtd Ferros × Qtd da Peça</strong>.</p>
+
+                                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 space-y-6">
+                                        <div>
+                                            <label className="block text-xs font-black text-slate-500 uppercase mb-2">Pontos por KG de Arame</label>
+                                            <div className="flex items-center gap-3">
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    step="1"
+                                                    value={arameConfig.ptsPorKg}
+                                                    onChange={(e) => setArameConfig(prev => ({ ...prev, ptsPorKg: parseFloat(e.target.value) || 256 }))}
+                                                    className="w-40 border border-slate-300 rounded-lg p-2.5 text-sm font-bold text-center focus:outline-none focus:border-sky-500 bg-white"
+                                                />
+                                                <span className="text-sm text-slate-500 font-semibold">pontos = 1 kg de arame</span>
+                                            </div>
+                                            <p className="text-[11px] text-slate-400 mt-1">Padrão: 256 pontos/kg. Ajuste conforme sua experiência de campo.</p>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-black text-slate-500 uppercase mb-2">Preço Padrão por KG de Arame (R$)</label>
+                                            <div className="flex items-center gap-3">
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.50"
+                                                    value={arameConfig.precoPorKg}
+                                                    onChange={(e) => setArameConfig(prev => ({ ...prev, precoPorKg: parseFloat(e.target.value) || 10 }))}
+                                                    className="w-40 border border-slate-300 rounded-lg p-2.5 text-sm font-bold text-center focus:outline-none focus:border-sky-500 bg-white"
+                                                />
+                                                <span className="text-sm text-slate-500 font-semibold">R$/kg</span>
+                                            </div>
+                                            <p className="text-[11px] text-slate-400 mt-1">Será preenchido automaticamente ao abrir o checkout do orçamento.</p>
+                                        </div>
+
+                                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                                            <div className="text-xs font-bold text-amber-800 mb-2">🔗 Como funciona o cálculo:</div>
+                                            <div className="text-[11px] text-amber-700 space-y-1.5">
+                                                <div>1. Cada peça gera <strong>pontos = estribos × ferros × qtde da peça</strong></div>
+                                                <div>2. Total de pontos do orçamento ÷ <strong>{arameConfig.ptsPorKg} pts/kg</strong> = kg de arame sugerido</div>
+                                                <div>3. No checkout, o kg calculado é preenchido automaticamente com preço de <strong>R$ {arameConfig.precoPorKg.toFixed(2)}/kg</strong></div>
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-2 border-t border-slate-100">
+                                            <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide">Os valores são salvos automaticamente no navegador.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : settingsTab === 'travas' ? (
+                                <div>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-lg font-bold text-slate-800">Modelos de Travas</h3>
+                                        <button 
+                                            onClick={() => setTravaModels([...travaModels, { 
+                                                id: 'trava_' + Date.now(), 
+                                                name: 'NOVO FORMATO TRAVA',
+                                                formula: 'A',
+                                                requiredSides: ['A'],
+                                                shapeId: 1
+                                            }])}
+                                            className="px-3 py-1.5 bg-sky-500 text-white rounded text-sm font-bold hover:bg-sky-600 transition-colors shadow"
+                                        >
+                                            + Novo Formato
+                                        </button>
+                                    </div>
+                                    <div className="overflow-x-auto border rounded-lg bg-white shadow-sm max-h-[60vh] overflow-y-auto">
+                                        <table className="w-full text-left text-sm text-slate-600">
+                                            <thead className="bg-slate-100 text-slate-700 uppercase text-xs sticky top-0 z-10 shadow-sm">
+                                                <tr>
+                                                    <th className="p-3 w-16">ID</th>
+                                                    <th className="p-3">NOME DO MODELO</th>
+                                                    <th className="p-3">FÓRMULA DE CÁLCULO</th>
+                                                    <th className="p-3 w-32 text-center">LADOS</th>
+                                                    <th className="p-3 w-40 text-center">SHAPE BASE</th>
+                                                    <th className="p-3 w-20 text-center">AÇÕES</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {travaModels.map((trava, idx) => (
+                                                    <tr key={trava.id} className="hover:bg-slate-50 transition-colors">
+                                                        <td className="p-2">
+                                                            <span className="font-mono text-xs text-slate-400">{trava.id}</span>
+                                                        </td>
+                                                        <td className="p-2">
+                                                            <input 
+                                                                type="text" 
+                                                                value={trava.name} 
+                                                                onChange={(e) => {
+                                                                    const newModels = [...travaModels];
+                                                                    newModels[idx].name = e.target.value.toUpperCase();
+                                                                    setTravaModels(newModels);
+                                                                }} 
+                                                                className="w-full border rounded px-2 py-1.5 text-xs font-bold outline-none focus:border-sky-500 uppercase bg-white text-slate-800" 
+                                                                placeholder="NOME"
+                                                            />
+                                                        </td>
+                                                        <td className="p-2">
+                                                            <input 
+                                                                type="text" 
+                                                                value={trava.formula} 
+                                                                onChange={(e) => {
+                                                                    const newModels = [...travaModels];
+                                                                    newModels[idx].formula = e.target.value;
+                                                                    setTravaModels(newModels);
+                                                                }} 
+                                                                className="w-full border rounded px-2 py-1.5 text-xs font-mono outline-none focus:border-sky-500 bg-white text-slate-800" 
+                                                                placeholder="ex: A + B"
+                                                            />
+                                                        </td>
+                                                        <td className="p-2">
+                                                            <div className="flex flex-wrap gap-1 justify-center">
+                                                                {['A','B','C','D','E'].map(side => (
+                                                                    <label key={side} className="flex items-center gap-1 cursor-pointer">
+                                                                        <input 
+                                                                            type="checkbox" 
+                                                                            className="accent-sky-600"
+                                                                            checked={trava.requiredSides.includes(side)}
+                                                                            onChange={(e) => {
+                                                                                const newModels = [...travaModels];
+                                                                                if (e.target.checked) {
+                                                                                    newModels[idx].requiredSides.push(side);
+                                                                                } else {
+                                                                                    newModels[idx].requiredSides = newModels[idx].requiredSides.filter(s => s !== side);
+                                                                                }
+                                                                                setTravaModels(newModels);
+                                                                            }}
+                                                                        />
+                                                                        <span className="text-[10px] font-bold">{side}</span>
+                                                                    </label>
+                                                                ))}
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-2 text-center">
+                                                            <select
+                                                                value={trava.shapeId}
+                                                                onChange={(e) => {
+                                                                    const newModels = [...travaModels];
+                                                                    newModels[idx].shapeId = Number(e.target.value);
+                                                                    newModels[idx].requiredSides = getTravaRequiredSides(Number(e.target.value));
+                                                                    setTravaModels(newModels);
+                                                                }}
+                                                                className="border rounded px-1.5 py-1 text-xs bg-white font-bold outline-none cursor-pointer"
+                                                            >
+                                                                {[1,2,3,4,5,6,7,8].map(s => (
+                                                                    <option key={s} value={s}>Shape {s}</option>
+                                                                ))}
+                                                            </select>
+                                                        </td>
+                                                        <td className="p-2 text-center">
+                                                            <button
+                                                                onClick={() => {
+                                                                    setTravaModels(travaModels.filter(m => m.id !== trava.id));
+                                                                }}
+                                                                className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors"
+                                                                title="Excluir"
+                                                            >
+                                                                <TrashIcon className="w-4 h-4" />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
                                             </tbody>
                                         </table>
                                     </div>

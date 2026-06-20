@@ -102,6 +102,27 @@ export const DEFAULT_FERRO_MODELS: FerroModel[] = [
     { id: 'fm_5', name: 'AFUNILADO', formula: 'A + D + E', requiredSides: ['A', 'D', 'E'] }
 ];
 
+export interface TravaModel {
+    id: string;
+    name: string;
+    formula: string;
+    requiredSides: string[];
+    shapeId: number; // 1 a 8
+    customImageBase64?: string;
+    customDrawingData?: DrawingData;
+}
+
+export const DEFAULT_TRAVA_MODELS: TravaModel[] = [
+    { id: 'trava_1', name: 'TRAVA SHAPE 1', formula: 'A', requiredSides: ['A'], shapeId: 1 },
+    { id: 'trava_2', name: 'TRAVA SHAPE 2', formula: 'A + B + C', requiredSides: ['A', 'B', 'C'], shapeId: 2 },
+    { id: 'trava_3', name: 'TRAVA SHAPE 3', formula: 'A + B + C', requiredSides: ['A', 'B', 'C'], shapeId: 3 },
+    { id: 'trava_4', name: 'TRAVA SHAPE 4', formula: 'A + B + C', requiredSides: ['A', 'B', 'C'], shapeId: 4 },
+    { id: 'trava_5', name: 'TRAVA SHAPE 5', formula: 'A + B', requiredSides: ['A', 'B'], shapeId: 5 },
+    { id: 'trava_6', name: 'TRAVA SHAPE 6', formula: 'A + B + C', requiredSides: ['A', 'B', 'C'], shapeId: 6 },
+    { id: 'trava_7', name: 'TRAVA SHAPE 7', formula: 'A + B + C', requiredSides: ['A', 'B', 'C'], shapeId: 7 },
+    { id: 'trava_8', name: 'TRAVA SHAPE 8', formula: 'A + B + C + D + E', requiredSides: ['A', 'B', 'C', 'D', 'E'], shapeId: 8 },
+];
+
 export interface User {
     id: string;
     username: string;
