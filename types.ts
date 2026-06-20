@@ -85,6 +85,23 @@ export const DEFAULT_ESTRIBO_MODELS: EstriboModel[] = [
     { id: 'est_8l_1', name: 'Padrão', category: '8 LADOS', formula: '(A * 2) + (B * 2) + (C * 2) + (D * 2) + 10', requiredSides: ['A', 'B', 'C', 'D'], svgTemplate: 'generico', applications: ALL_APPLICATIONS }
 ];
 
+export interface FerroModel {
+    id: string;
+    name: string;
+    formula: string;
+    requiredSides: string[];
+    customImageBase64?: string;
+    customDrawingData?: DrawingData;
+}
+
+export const DEFAULT_FERRO_MODELS: FerroModel[] = [
+    { id: 'fm_1', name: 'RETO', formula: 'A', requiredSides: ['A'] },
+    { id: 'fm_2', name: 'GANCHOS NAS 2 PONTAS', formula: 'A + D + E', requiredSides: ['A', 'D', 'E'] },
+    { id: 'fm_3', name: 'GANCHO SÓ NA ESQUERDA', formula: 'A + D', requiredSides: ['A', 'D'] },
+    { id: 'fm_4', name: 'GANCHO SÓ NA DIREITA', formula: 'A + E', requiredSides: ['A', 'E'] },
+    { id: 'fm_5', name: 'AFUNILADO', formula: 'A + D + E', requiredSides: ['A', 'D', 'E'] }
+];
+
 export interface User {
     id: string;
     username: string;

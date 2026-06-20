@@ -2824,7 +2824,7 @@ const App: React.FC = () => {
             case 'documents': return <DocumentManager setPage={setPage} currentUser={currentUser} />;
             case 'gaugesManager': return <GaugesManager gauges={gauges} stock={stock} onAdd={addGauge} onDelete={deleteGauge} onUpdate={updateGauge} gaugeComponents={gaugeComponents} onSaveComponents={saveGaugeComponents} currentUser={currentUser} />;
             case 'labelConfig': return <LabelConfiguration gauges={gauges} showNotification={showNotification} activeBrandingPartner={activeBrandingPartner} />;
-            case 'pointingSystem': return <PointingSystem currentUser={currentUser} showNotification={showNotification} gauges={gauges} />;
+            case 'pointingSystem': return <PointingSystem currentUser={currentUser} showNotification={showNotification} gauges={gauges} activeBrandingPartner={activeBrandingPartner} />;
             case 'partnerConfig': return (
                 <PartnerConfig 
                     partners={partners} 

@@ -953,3 +953,4 @@ tr:hover td {
 .animate-pulse-red {
   animation: pulse-red 1.5s infinite ease-in-out;
 }
+@media print { .print-hidden { display: none !important; } .print-content { overflow: visible !important; height: auto !important; } }

@@ -1,10 +1,41 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Page, User, StockGauge, EstriboModel } from '../types';
-import { DEFAULT_ESTRIBO_MODELS } from '../types';
+import type { Page, User, StockGauge, EstriboModel, FerroModel, Partner } from '../types';
+import { DEFAULT_ESTRIBO_MODELS, DEFAULT_FERRO_MODELS } from '../types';
 import EstriboDrawingBoard from './EstriboDrawingBoard';
 import { 
     PencilIcon, TrashIcon, ArrowLeftIcon 
 } from './icons';
+
+const ProductTitleText = ({ description }: { description: string }) => {
+    const desc = description || '';
+    const isStructural = desc.startsWith('COLUNA') || desc.startsWith('PILAR') || desc.startsWith('VIGA') || desc.startsWith('BROCA') || desc.startsWith('SAPATA');
+
+    if (!isStructural) {
+        return <span className="font-extrabold text-slate-800 uppercase tracking-wide">{desc}</span>;
+    }
+
+    const parts = desc.split(' ');
+    const category = parts[0] || '';
+    
+    const amarracaoIdx = parts.findIndex(p => p === 'AMARRADA' || p === 'SOLDADA');
+    let name = '';
+    let rest = '';
+    if (amarracaoIdx !== -1) {
+        name = parts.slice(1, amarracaoIdx).join(' ');
+        rest = parts.slice(amarracaoIdx).join(' ');
+    } else {
+        name = parts[1] || '';
+        rest = parts.slice(2).join(' ');
+    }
+
+    return (
+        <span className="font-extrabold uppercase tracking-wide">
+            <span className="text-slate-800">{category}</span>{' '}
+            {name && <span className="text-blue-600 italic">{name}</span>}{' '}
+            <span className="text-slate-800">{rest}</span>
+        </span>
+    );
+};
 
 interface FerroItem {
     id: string;
@@ -13,8 +44,7 @@ interface FerroItem {
     bitola: string;
     bitolaKgm: number;
     bitolaPrice?: number;
-    pontaEsquerdo: string;
-    pontaDireito: string;
+    ferroModelId?: string;
     ladoA: string;
     ladoB: string;
     ladoC: string;
@@ -60,6 +90,11 @@ interface Quote {
     phone?: string;
     email?: string;
     dischargeByClient?: string;
+    acrescimoPercent?: number;
+    acrescimoReal?: number;
+    descontoPercent?: number;
+    descontoReal?: number;
+    condicoesPagamento?: string;
 }
 
 interface ClientLookup {
@@ -80,6 +115,7 @@ interface PointingSystemProps {
     currentUser: User | null;
     showNotification: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
     gauges?: StockGauge[];
+    activeBrandingPartner?: Partner | null;
 }
 
 const INITIAL_QUOTES: Quote[] = [
@@ -247,9 +283,10 @@ interface BitolaConfig {
     price: number;
     amarrado: boolean;
     corteDobra: boolean;
+    codMerco?: string;
 }
 
-const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotification, gauges }) => {
+const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotification, gauges, activeBrandingPartner }) => {
     const [quotes, setQuotes] = useState<Quote[]>(() => {
         const saved = localStorage.getItem('msm_quotes');
         return saved ? JSON.parse(saved) : INITIAL_QUOTES;
@@ -277,7 +314,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     });
 
     const [showSettingsModal, setShowSettingsModal] = useState(false);
-    const [settingsTab, setSettingsTab] = useState<'bitolas' | 'estribos'>('bitolas');
+    const [settingsTab, setSettingsTab] = useState<'bitolas' | 'estribos' | 'ferros'>('bitolas');
 
     useEffect(() => {
         localStorage.setItem('msm_quotes', JSON.stringify(quotes));
@@ -304,6 +341,20 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     useEffect(() => {
         localStorage.setItem('msm_estribos', JSON.stringify(estriboModels));
     }, [estriboModels]);
+
+    const [ferroModels, setFerroModels] = useState<FerroModel[]>(() => {
+        const saved = localStorage.getItem('msm_ferros');
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch (e) { }
+        }
+        return DEFAULT_FERRO_MODELS;
+    });
+
+    useEffect(() => {
+        localStorage.setItem('msm_ferros', JSON.stringify(ferroModels));
+    }, [ferroModels]);
 
     // Filter & Order State
     const [search, setSearch] = useState('');
@@ -436,13 +487,13 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     const [ferroNomeElemento, setFerroNomeElemento] = useState('');
     const [ferroQtde, setFerroQtde] = useState('');
     const [ferroBitola, setFerroBitola] = useState('');
-    const [ferroPontaEsq, setFerroPontaEsq] = useState('');
-    const [ferroPontaDir, setFerroPontaDir] = useState('');
+    const [ferroModelId, setFerroModelId] = useState('');
     const [ferroLadoA, setFerroLadoA] = useState('');
     const [ferroLadoB, setFerroLadoB] = useState('');
     const [ferroLadoC, setFerroLadoC] = useState('');
     const [ferroLadoD, setFerroLadoD] = useState('');
     const [ferroLadoE, setFerroLadoE] = useState('');
+    const [ferroLadoF, setFerroLadoF] = useState('');
     const [ferroObs, setFerroObs] = useState('');
 
     // Estribos sub-modal states
@@ -482,6 +533,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     const [settingsEstriboArea, setSettingsEstriboArea] = useState('Coluna');
     const [settingsEstriboCat, setSettingsEstriboCat] = useState('4 LADOS');
     const [drawingBoardTarget, setDrawingBoardTarget] = useState<EstriboModel | null>(null);
+    const [ferroDrawingBoardTarget, setFerroDrawingBoardTarget] = useState<FerroModel | null>(null);
 
     const [editingColunaId, setEditingColunaId] = useState<string | null>(null);
     const [ferroModalTitle, setFerroModalTitle] = useState('Ferros Principais');
@@ -516,7 +568,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     const [previewAttachmentData, setPreviewAttachmentData] = useState('');
     const [anexarDesenhoTargetIdx, setAnexarDesenhoTargetIdx] = useState(-1);
 
-    const PONTA_OPTIONS = ['SEM PONTA', 'AFUNILADO', 'NEGATIVADA PARA DENTRO', 'NEGATIVADA PARA FORA', 'GANCHO PARA DENTRO', 'GANCHO PARA FORA'];
+
 
     const getTravaRequiredSides = (shape: number) => {
         switch(shape) {
@@ -600,10 +652,11 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         );
     };
 
-    const renderEstriboSVG = (lados: string, shapeType?: string, A?: string, B?: string, C?: string, D?: string, E?: string, F?: string) => {
+    const renderEstriboSVG = (lados: string, shapeType?: string, A?: string, B?: string, C?: string, D?: string, E?: string, F?: string, customModelsList?: any[]) => {
         const fs = 14;
         
-        const model = estriboModels.find(m => m.id === shapeType || (m.name === shapeType && m.category === lados));
+        const modelsToSearch = customModelsList || estriboModels;
+        const model = modelsToSearch.find(m => m.id === shapeType || (m.name === shapeType && (m as any).category === lados));
         let template = shapeType;
         let effectiveLados = lados;
         
@@ -917,8 +970,29 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
             }
         }
         
+        // Regular ferros
+        const ferroModel = ferroModels.find(m => m.id === ferro.ferroModelId);
+        if (ferroModel) {
+            const f = parseFloat(ferro.ladoF) || 0;
+            try {
+                let expression = ferroModel.formula
+                    .replace(/Math\.PI/g, Math.PI.toString())
+                    .replace(/\bA\b/g, a.toString())
+                    .replace(/\bB\b/g, b.toString())
+                    .replace(/\bC\b/g, c.toString())
+                    .replace(/\bD\b/g, d.toString())
+                    .replace(/\bE\b/g, e.toString())
+                    .replace(/\bF\b/g, f.toString());
+                return new Function('return ' + expression)() || 0;
+            } catch (err) {
+                console.error("Erro ao avaliar fórmula de ferro", ferroModel.formula, err);
+            }
+        }
+
         return a + b + c + d + e;
     };
+
+
 
     const recalcProduct = (p: ProductItem): ProductItem => {
         if (!p.ferros || p.ferros.length === 0) {
@@ -1088,8 +1162,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     };
 
     const renderBarDiagramSVG = (
-        pontaEsq: string, pontaDir: string,
-        ladoA: string, ladoB: string, ladoD: string,
+        modelName: string,
+        ladoA: string, ladoB: string, ladoC: string, ladoD: string, ladoE: string,
         small = false
     ) => {
         const W = small ? 120 : 200;
@@ -1101,16 +1175,34 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         const rX    = small ? 100 : 170;
         const hook  = small ? 10 : 18;
         const fs    = small ? 9 : 12;
-        const fsDim = small ? 8 : 10;
         const midY  = (mainY + topY) / 2;
         const midYb = (mainY + botY) / 2;
 
-        const leftUp   = ['NEGATIVADA PARA DENTRO','GANCHO PARA DENTRO'].includes(pontaEsq);
-        const leftDown = ['NEGATIVADA PARA FORA','GANCHO PARA FORA'].includes(pontaEsq);
-        const rightUp  = ['NEGATIVADA PARA DENTRO','GANCHO PARA DENTRO'].includes(pontaDir);
-        const rightDown= ['NEGATIVADA PARA FORA','GANCHO PARA FORA'].includes(pontaDir);
-        const leftAful = pontaEsq === 'AFUNILADO';
-        const rightAful= pontaDir === 'AFUNILADO';
+        const nameUpper = (modelName || '').toUpperCase();
+        
+        // Se o nome sugere que vai para fora
+        const isFora = nameUpper.includes('FORA');
+        
+        // Verifica se é afunilado
+        const isAful = nameUpper.includes('AFUNILADO');
+        
+        // Se tem valor numérico nos lados, desenha a respectiva ponta
+        const valD = parseFloat(ladoD) || 0;
+        const valE = parseFloat(ladoE) || 0;
+        
+        // Esquerda (Lado D)
+        const leftUp   = valD > 0 && !isFora && !isAful;
+        const leftDown = valD > 0 && isFora && !isAful;
+        const leftAful = valD > 0 && isAful;
+
+        // Direita (Lado E, ou Lado B como fallback para legados)
+        const valRight = valE > 0 ? valE : (parseFloat(ladoB) || 0);
+        const strRight = valE > 0 ? ladoE : ladoB;
+        const rightUp   = valRight > 0 && !isFora && !isAful;
+        const rightDown = valRight > 0 && isFora && !isAful;
+        const rightAful = valRight > 0 && isAful;
+
+        const isGancho = nameUpper.includes('GANCHO');
 
         return (
             <svg viewBox={`0 0 ${W} ${H}`} className={small ? 'w-28 h-16' : 'w-44 h-32'} xmlns="http://www.w3.org/2000/svg">
@@ -1124,7 +1216,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                 {/* LEFT arm - goes UP (PARA DENTRO) */}
                 {leftUp && <>
                     <line x1={lX} y1={mainY} x2={lX} y2={topY} stroke="#333" strokeWidth="2.5"/>
-                    {pontaEsq === 'GANCHO PARA DENTRO' && <line x1={lX} y1={topY} x2={lX+hook} y2={topY} stroke="#333" strokeWidth="2.5"/>}
+                    {isGancho && <line x1={lX} y1={topY} x2={lX+hook} y2={topY} stroke="#333" strokeWidth="2.5"/>}
                     <text x={lX-14} y={midY+fs/2} textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#444">
                         {ladoD || 'D'}
                     </text>
@@ -1133,7 +1225,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                 {/* LEFT arm - goes DOWN (PARA FORA) */}
                 {leftDown && <>
                     <line x1={lX} y1={mainY} x2={lX} y2={botY} stroke="#333" strokeWidth="2.5"/>
-                    {pontaEsq === 'GANCHO PARA FORA' && <line x1={lX} y1={botY} x2={lX+hook} y2={botY} stroke="#333" strokeWidth="2.5"/>}
+                    {isGancho && <line x1={lX} y1={botY} x2={lX+hook} y2={botY} stroke="#333" strokeWidth="2.5"/>}
                     <text x={lX-14} y={midYb+fs/2} textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#444">
                         {ladoD || 'D'}
                     </text>
@@ -1150,18 +1242,18 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                 {/* RIGHT arm - goes UP (PARA DENTRO) */}
                 {rightUp && <>
                     <line x1={rX} y1={mainY} x2={rX} y2={topY} stroke="#333" strokeWidth="2.5"/>
-                    {pontaDir === 'GANCHO PARA DENTRO' && <line x1={rX} y1={topY} x2={rX-hook} y2={topY} stroke="#333" strokeWidth="2.5"/>}
+                    {isGancho && <line x1={rX} y1={topY} x2={rX-hook} y2={topY} stroke="#333" strokeWidth="2.5"/>}
                     <text x={rX+14} y={midY+fs/2} textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#444">
-                        {ladoB || 'B'}
+                        {strRight || 'E'}
                     </text>
                 </>}
 
                 {/* RIGHT arm - goes DOWN (PARA FORA) */}
                 {rightDown && <>
                     <line x1={rX} y1={mainY} x2={rX} y2={botY} stroke="#333" strokeWidth="2.5"/>
-                    {pontaDir === 'GANCHO PARA FORA' && <line x1={rX} y1={botY} x2={rX-hook} y2={botY} stroke="#333" strokeWidth="2.5"/>}
+                    {isGancho && <line x1={rX} y1={botY} x2={rX-hook} y2={botY} stroke="#333" strokeWidth="2.5"/>}
                     <text x={rX+14} y={midYb+fs/2} textAnchor="middle" fontSize={fs} fontWeight="bold" fill="#444">
-                        {ladoB || 'B'}
+                        {strRight || 'E'}
                     </text>
                 </>}
 
@@ -1177,15 +1269,78 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     };
 
     // Helper: get ponta description text for table
-    const getPontaText = (esq: string, dir: string) => {
-        if (esq === 'SEM PONTA' && dir === 'SEM PONTA') return 'SEM PONTAS';
-        if (esq === dir) return `${esq.replace('PARA ', 'P/ ')} AMBOS LADOS`;
-        return `ESQ: ${esq.replace('PARA ', 'P/ ')} / DIR: ${dir.replace('PARA ', 'P/ ')}`;
-    };
 
     // Product list sort state
     const [productSortBy, setProductSortBy] = useState<'date' | 'type' | 'name'>('date');
     const [openDropdownIdx, setOpenDropdownIdx] = useState<number | null>(null);
+
+    // Checkout States
+    const [checkoutAcrescimoPercent, setCheckoutAcrescimoPercent] = useState('');
+    const [checkoutAcrescimoReal, setCheckoutAcrescimoReal] = useState('');
+    const [checkoutDescontoPercent, setCheckoutDescontoPercent] = useState('');
+    const [checkoutDescontoReal, setCheckoutDescontoReal] = useState('');
+    const [checkoutCondicoesPagamento, setCheckoutCondicoesPagamento] = useState('');
+
+    const checkoutData = useMemo(() => {
+        if (!activeQuote) return { rows: [], finalTotalPrice: 0, finalTotalPriceAdjusted: 0, finalTotalAcrescimo: 0, finalTotalDesconto: 0 };
+        
+        const groups: { [key: string]: { bitolaConfig?: BitolaConfig, bitolaStr: string, totalLinearMeters: number } } = {};
+        (activeQuote.products || []).forEach(p => {
+            const prodQtde = p.qty || 1;
+            (p.ferros || []).forEach(f => {
+                const bitolaStr = f.bitola || '';
+                const bConfig = (bitolas || []).find(b => bitolaStr.startsWith(b.label));
+                const key = bConfig ? bConfig.id : (bitolaStr || 'unknown');
+                if (!groups[key]) groups[key] = { bitolaConfig: bConfig, bitolaStr: bitolaStr, totalLinearMeters: 0 };
+                
+                const totalCm = getFerroTotalLengthCm(f, p.description);
+                groups[key].totalLinearMeters += (totalCm / 100) * (f.qtde || 1) * prodQtde;
+            });
+        });
+
+        let finalTotalPrice = 0;
+        let finalTotalPriceAdjusted = 0;
+        
+        const aP = parseFloat(checkoutAcrescimoPercent) || 0;
+        const aR = parseFloat(checkoutAcrescimoReal) || 0;
+        const dP = parseFloat(checkoutDescontoPercent) || 0;
+        const dR = parseFloat(checkoutDescontoReal) || 0;
+
+        const rows = Object.values(groups).map((g) => {
+            const exactBars = g.totalLinearMeters / 12;
+            const roundedBars = Math.max(1, Math.round(exactBars));
+            
+            const gaugeMatch = (gauges || []).find(ga => g.bitolaStr === `${ga.materialType} ${ga.gauge}` || g.bitolaStr.startsWith(`${ga.materialType} ${ga.gauge}`));
+
+            const bKgm = gaugeMatch?.weightPerMeter || (g.bitolaConfig ? g.bitolaConfig.kgm : (parseFloat((g.bitolaStr || '').split(',')[1]) || 0));
+            const bPrice = gaugeMatch?.purchasePrice || (g.bitolaConfig ? g.bitolaConfig.price : (parseFloat((g.bitolaStr || '').split(',')[2]) || 0));
+            const codMerco = gaugeMatch?.productCode || g.bitolaConfig?.codMerco || '';
+            const label = gaugeMatch ? `${gaugeMatch.materialType} ${gaugeMatch.gauge}` : (g.bitolaConfig ? g.bitolaConfig.label : (g.bitolaStr || '').split(',')[0] || 'Desconhecida');
+            
+            const pesoUn = 12 * bKgm;
+            const pesoTotal = roundedBars * pesoUn;
+            
+            let precoUnAjustado = bPrice;
+            precoUnAjustado = precoUnAjustado * (1 + (aP / 100)) + aR;
+            precoUnAjustado = precoUnAjustado * (1 - (dP / 100)) - dR;
+            if (precoUnAjustado < 0) precoUnAjustado = 0;
+            
+            const precoTotal = roundedBars * bPrice;
+            const precoTotalAjustado = roundedBars * precoUnAjustado;
+            
+            finalTotalPrice += precoTotal;
+            finalTotalPriceAdjusted += precoTotalAjustado;
+
+            return {
+                codMerco, label, roundedBars, exactBars, bPrice, precoUnAjustado, precoTotal, precoTotalAjustado, pesoUn, pesoTotal
+            };
+        });
+
+        const finalTotalAcrescimo = finalTotalPriceAdjusted > finalTotalPrice ? finalTotalPriceAdjusted - finalTotalPrice : 0;
+        const finalTotalDesconto = finalTotalPrice > finalTotalPriceAdjusted ? finalTotalPrice - finalTotalPriceAdjusted : 0;
+
+        return { rows, finalTotalPrice, finalTotalPriceAdjusted, finalTotalAcrescimo, finalTotalDesconto };
+    }, [activeQuote, bitolas, gauges, checkoutAcrescimoPercent, checkoutAcrescimoReal, checkoutDescontoPercent, checkoutDescontoReal]);
 
     const STEEL_SPECS = [
         { label: 'CA50 10.00mm (0.617 kg/m)', factor: 0.617, spec: 'CA50 10.00mm' },
@@ -1613,7 +1768,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                             <option value="products">🛠️ Editar Produtos</option>
                                             <option value="price">💰 Editar Preço</option>
                                             <option value="duplicate">📋 Duplicar Orçamento</option>
-                                            <option value="print">🖨️ Imprimir Orçamento</option>
+                                            <option value="print_orcamento">🖨️ Imprimir Modelo Cliente</option>
+                                            <option value="print">🖨️ Imprimir Tabela Padrão</option>
                                             <option value="printFull">🖨️ Imprimir Completo</option>
                                             <option value="printSteel">🖨️ Resumo do Aço</option>
                                             <option value="history">📜 Ver Histórico</option>
@@ -1940,6 +2096,170 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
             {/* MOCK ACTIONS MODALS */}
             {activeModal && activeQuote && (
                 <div className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex ${activeModal.type === 'products' ? 'p-0 overflow-hidden' : 'items-center justify-center p-4'}`}>
+                    {/* MODAL: Checkout / Preço */}
+                    {activeModal.type === 'checkout' && (
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[95vh] border border-slate-300">
+                            <div className="bg-[#E6EEF2] p-4 border-b flex justify-center items-center rounded-t-2xl">
+                                <h3 className="font-medium text-2xl text-[#1A4B6B]">Preço</h3>
+                            </div>
+                            
+                            <div className="p-4 overflow-y-auto flex-grow print-content">
+                                <table className="w-full text-left border border-slate-300 border-collapse text-sm mb-6">
+                                    <thead>
+                                        <tr className="bg-[#175C8A] text-white">
+                                            <th className="p-3 font-bold border-r border-[#1a6699] text-center w-24">Cód Merco</th>
+                                            <th className="p-3 font-bold border-r border-[#1a6699]">Descrição</th>
+                                            <th className="p-3 font-bold border-r border-[#1a6699] text-center">Qtde</th>
+                                            <th className="p-3 font-bold border-r border-[#1a6699] text-center w-28">Preço Un. (R$)</th>
+                                            <th className="p-3 font-bold border-r border-[#1a6699] text-center w-32">Preço Un. Ajustado (R$)</th>
+                                            <th className="p-3 font-bold border-r border-[#1a6699] text-center w-28">Preço Total (R$)</th>
+                                            <th className="p-3 font-bold border-r border-[#1a6699] text-center w-32">Preço Total Ajustado (R$)</th>
+                                            <th className="p-3 font-bold border-r border-[#1a6699] text-center w-24">Peso Un. (kg)</th>
+                                            <th className="p-3 font-bold text-center w-24">Peso Total (kg)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {checkoutData.rows.map((row, idx) => (
+                                            <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EEF2]'}>
+                                                <td className="p-3 text-center border-r border-slate-300 text-slate-500 font-medium">{row.codMerco}</td>
+                                                <td className="p-3 border-r border-slate-300 text-slate-700 font-bold uppercase text-[11px]">{row.label}</td>
+                                                <td className="p-3 text-center border-r border-slate-300">
+                                                    <div className="bg-[#6B7280] text-white font-bold rounded-full px-3 py-1 inline-block text-xs">
+                                                        {row.roundedBars} <span className="font-normal opacity-80">({row.exactBars.toFixed(2)}) br</span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-3 text-center border-r border-slate-300 text-slate-600">{row.bPrice.toFixed(2)}</td>
+                                                <td className="p-3 text-center border-r border-slate-300 font-bold text-slate-800">{row.precoUnAjustado.toFixed(2)}</td>
+                                                <td className="p-3 text-center border-r border-slate-300 text-slate-600">{row.precoTotal.toFixed(2)}</td>
+                                                <td className="p-3 text-center border-r border-slate-300 font-bold text-[#175C8A]">{row.precoTotalAjustado.toFixed(2)}</td>
+                                                <td className="p-3 text-center border-r border-slate-300 text-slate-600">{row.pesoUn.toFixed(2)}</td>
+                                                <td className="p-3 text-center border-slate-300 text-slate-600">{row.pesoTotal.toFixed(2)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+
+                                {/* Footer Form */}
+                                <div className="grid grid-cols-2 gap-8 mb-6 mt-12">
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center px-8">
+                                            <label className="text-slate-600 font-bold text-sm tracking-widest uppercase">Acréscimo</label>
+                                        </div>
+                                        <div className="flex gap-4">
+                                            <div className="relative flex-1">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+                                                <input type="number" step="0.01" placeholder="0.00" value={checkoutAcrescimoPercent} onChange={e => setCheckoutAcrescimoPercent(e.target.value)} className="w-full border border-rose-300 rounded pl-8 pr-3 py-2 outline-none focus:border-sky-500 font-bold" />
+                                            </div>
+                                            <div className="relative flex-1">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R$</span>
+                                                <input type="number" step="0.01" placeholder="0.00" value={checkoutAcrescimoReal} onChange={e => setCheckoutAcrescimoReal(e.target.value)} className="w-full border border-rose-300 rounded pl-8 pr-3 py-2 outline-none focus:border-sky-500 font-bold" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center px-8">
+                                            <label className="text-slate-600 font-bold text-sm tracking-widest uppercase">Desconto</label>
+                                        </div>
+                                        <div className="flex gap-4">
+                                            <div className="relative flex-1">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+                                                <input type="number" step="0.01" placeholder="0.00" value={checkoutDescontoPercent} onChange={e => setCheckoutDescontoPercent(e.target.value)} className="w-full border border-rose-300 rounded pl-8 pr-3 py-2 outline-none focus:border-sky-500 font-bold" />
+                                            </div>
+                                            <div className="relative flex-1">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R$</span>
+                                                <input type="number" step="0.01" placeholder="0.00" value={checkoutDescontoReal} onChange={e => setCheckoutDescontoReal(e.target.value)} className="w-full border border-rose-300 rounded pl-8 pr-3 py-2 outline-none focus:border-sky-500 font-bold" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1 mb-8 mt-4">
+                                    <label className="text-slate-600 font-bold text-sm uppercase">Condições de Pagamento</label>
+                                    <input type="text" value={checkoutCondicoesPagamento} onChange={e => setCheckoutCondicoesPagamento(e.target.value)} className="w-full border border-rose-300 rounded px-3 py-2 outline-none focus:border-sky-500 font-bold text-slate-700" />
+                                </div>
+                                
+                                {/* Totals Summary */}
+                                <div className="flex justify-between items-end border-t border-slate-300 pt-6">
+                                    <div>
+                                        <div className="text-slate-500 text-xs font-bold uppercase mb-1">Preço Total:</div>
+                                        <div className="text-slate-500 font-bold text-xl">R$ {checkoutData.finalTotalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-slate-500 text-xs font-bold uppercase mb-1">Acréscimo:</div>
+                                        <div className="text-slate-500 font-bold">R$ {checkoutData.finalTotalAcrescimo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-slate-500 text-xs font-bold uppercase mb-1">Desconto:</div>
+                                        <div className="text-slate-500 font-bold">R$ {checkoutData.finalTotalDesconto.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-slate-500 text-xs font-bold uppercase mb-1">Preço Ajustado:</div>
+                                        <div className="text-[#175C8A] font-bold text-3xl">R$ {checkoutData.finalTotalPriceAdjusted.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* Action Buttons */}
+                            <div className="p-4 bg-white flex justify-center items-center gap-4 border-t shrink-0 print-hidden">
+                                <button 
+                                    onClick={() => {
+                                        // Save financial fields to Quote
+                                        const newQuotes = [...quotes];
+                                        const qIdx = newQuotes.findIndex(q => q.id === activeQuote.id);
+                                        if (qIdx >= 0) {
+                                            newQuotes[qIdx].acrescimoPercent = parseFloat(checkoutAcrescimoPercent) || 0;
+                                            newQuotes[qIdx].acrescimoReal = parseFloat(checkoutAcrescimoReal) || 0;
+                                            newQuotes[qIdx].descontoPercent = parseFloat(checkoutDescontoPercent) || 0;
+                                            newQuotes[qIdx].descontoReal = parseFloat(checkoutDescontoReal) || 0;
+                                            newQuotes[qIdx].condicoesPagamento = checkoutCondicoesPagamento;
+                                            setQuotes(newQuotes);
+                                        }
+                                        setActiveModal({ type: 'products', quoteId: activeQuote.id });
+                                    }} 
+                                    className="bg-[#4b6b8b] hover:bg-[#3a5670] text-white font-bold py-2 px-6 rounded text-sm transition"
+                                >
+                                    &larr; Voltar
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        showNotification('Exportação iniciada.', 'info');
+                                        window.print();
+                                    }}
+                                    className="bg-[#5CB85C] hover:bg-[#4cae4c] text-white font-bold py-2 px-6 rounded text-sm transition"
+                                >
+                                    EXPORTAR
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        if (!activeQuote) return;
+                                        const newQuotes = quotes.map(q => {
+                                            if (q.id === activeQuote.id) {
+                                                return {
+                                                    ...q,
+                                                    price: checkoutData.finalTotalPriceAdjusted,
+                                                    acrescimoPercent: parseFloat(checkoutAcrescimoPercent) || 0,
+                                                    acrescimoReal: parseFloat(checkoutAcrescimoReal) || 0,
+                                                    descontoPercent: parseFloat(checkoutDescontoPercent) || 0,
+                                                    descontoReal: parseFloat(checkoutDescontoReal) || 0,
+                                                    condicoesPagamento: checkoutCondicoesPagamento,
+                                                    status: 'Orçamento Finalizado'
+                                                };
+                                            }
+                                            return q;
+                                        });
+                                        setQuotes(newQuotes);
+                                        localStorage.setItem('msm_quotes', JSON.stringify(newQuotes));
+                                        setActiveModal(null);
+                                        showNotification('Orçamento salvo com sucesso.', 'success');
+                                    }}
+                                    className="bg-[#F0AD4E] hover:bg-[#eea236] text-white font-bold py-2 px-6 rounded text-sm transition"
+                                >
+                                    EXPORTAR COMO ORÇAMENTO
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* MODAL: Editar Cliente */}
                     {activeModal.type === 'client' && (
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
@@ -2658,8 +2978,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                         setFerroNomeElemento(`COSTELAS ${dim1}x${dim2}`);
                                                                         setFerroQtde('');
                                                                         setFerroBitola('');
-                                                                        setFerroPontaEsq('SEM PONTA');
-                                                                        setFerroPontaDir('SEM PONTA');
+                                                                        setFerroModelId('fm_1');
                                                                         setFerroLadoA(dim1);
                                                                         setFerroLadoB(dim2);
                                                                         setFerroLadoC('');
@@ -2675,8 +2994,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                         setFerroNomeElemento('FERROS PRINCIPAIS');
                                                                         setFerroQtde('');
                                                                         setFerroBitola('');
-                                                                        setFerroPontaEsq('SEM PONTA');
-                                                                        setFerroPontaDir('SEM PONTA');
+                                                                        setFerroModelId('fm_1');
                                                                         setFerroLadoA('');
                                                                         setFerroLadoB('');
                                                                         setFerroLadoC('');
@@ -2726,8 +3044,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                         setFerroNomeElemento(optionLabel.toUpperCase());
                                                                         setFerroQtde('');
                                                                         setFerroBitola('');
-                                                                        setFerroPontaEsq('SEM PONTA');
-                                                                        setFerroPontaDir('SEM PONTA');
+                                                                        setFerroModelId('fm_1');
                                                                         setFerroLadoA('');
                                                                         setFerroLadoB('');
                                                                         setFerroLadoC('');
@@ -2906,10 +3223,10 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                     <tbody>
                                                                         {item.ferros.map((ferro, fIdx) => (
                                                                             <tr key={ferro.id} className="border-b border-slate-100 bg-white hover:bg-slate-50">
-                                                                                <td className="px-2 py-2 text-center w-24">
-                                                                                    <div className="flex items-center justify-center min-h-[50px]">
-                                                                                        <div className="scale-75 origin-center">
-                                                                                            {renderEstriboSVG('4 LADOS', ferro.estriboShape || 'Padrão', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, ferro.ladoF) || renderBarDiagramSVG(ferro.pontaEsquerdo, ferro.pontaDireito, ferro.ladoA, ferro.ladoB, ferro.ladoD, true)}
+                                                                                <td className="px-2 py-2 text-center w-36">
+                                                                                    <div className="flex items-center justify-center min-h-[70px]">
+                                                                                        <div className="scale-110 origin-center">
+                                                                                            {renderEstriboSVG('4 LADOS', ferro.estriboShape || ferro.ferroModelId || 'Padrão', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, ferro.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === ferro.ferroModelId)?.name || '', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, true)}
                                                                                         </div>
                                                                                     </div>
                                                                                 </td>
@@ -3033,19 +3350,15 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                             return (
                                                                                 <tr key={ferro.id} className="border-b border-slate-100 bg-white hover:bg-slate-50 transition-colors">
                                                                                     {/* img */}
-                                                                                    <td className="px-2 py-1.5 text-center w-24">
-                                                                                        <div className="flex items-center justify-center min-h-[50px]">
+                                                                                    <td className="px-2 py-1.5 text-center w-36">
+                                                                                        <div className="flex items-center justify-center min-h-[70px]">
                                                                                             {ferro.drawingType === 'Estribo'
-                                                                                                ? <div className="scale-75 origin-center">{renderEstriboSVG(ladosDesc, ferro.estriboShape || 'Padrão', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, ferro.ladoF)}</div>
+                                                                                                ? <div className="scale-110 origin-center">{renderEstriboSVG(ladosDesc, ferro.estriboShape || 'Padrão', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, ferro.ladoF)}</div>
                                                                                                 : ferro.drawingType === 'CorteDobra'
-                                                                                                ? <div className="scale-75 origin-center">{renderEstriboSVG(ladosDesc, ferro.estriboShape || 'Padrão', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, ferro.ladoF) || renderBarDiagramSVG(ferro.pontaEsquerdo, ferro.pontaDireito, ferro.ladoA, ferro.ladoB, ferro.ladoD, true)}</div>
+                                                                                                ? <div className="scale-110 origin-center">{renderEstriboSVG(ladosDesc, ferro.estriboShape || ferro.ferroModelId || 'Padrão', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, ferro.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === ferro.ferroModelId)?.name || '', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, true)}</div>
                                                                                                 : ferro.drawingType === 'Trava'
-                                                                                                ? <div className="scale-75 origin-center">{renderTravaSVG(Number(ferro.estriboShape) || 1, ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE)}</div>
-                                                                                                : renderBarDiagramSVG(
-                                                                                                    ferro.pontaEsquerdo, ferro.pontaDireito,
-                                                                                                    ferro.ladoA, ferro.ladoB, ferro.ladoD,
-                                                                                                    true
-                                                                                                )}
+                                                                                                ? <div className="scale-110 origin-center">{renderTravaSVG(Number(ferro.estriboShape) || 1, ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE)}</div>
+                                                                                                : <div className="scale-110 origin-center">{renderEstriboSVG(ladosDesc || '4 LADOS', ferro.estriboShape || ferro.ferroModelId || 'Padrão', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, ferro.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === ferro.ferroModelId)?.name || '', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, true)}</div>}
                                                                                         </div>
                                                                                     </td>
 
@@ -3081,7 +3394,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
 
                                                                                     {/* ponta */}
                                                                                     <td className="px-2 py-1.5 text-center text-slate-600">
-                                                                                        {ferro.drawingType === 'Estribo' || ferro.drawingType === 'Trava' || ferro.drawingType === 'CorteDobra' ? '-' : getPontaText(ferro.pontaEsquerdo, ferro.pontaDireito)}
+                                                                                        {ferro.drawingType === 'Estribo' || ferro.drawingType === 'Trava' || ferro.drawingType === 'CorteDobra' ? '-' : ferroModels.find(m => m.id === ferro.ferroModelId)?.name || 'RETO'}
                                                                                     </td>
 
                                                                                     {/* obs */}
@@ -3147,8 +3460,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                                                         setFerroNomeElemento(ferro.nomeElemento);
                                                                                                         setFerroQtde(String(ferro.qtde));
                                                                                                         setFerroBitola(ferro.bitola);
-                                                                                                        setFerroPontaEsq(ferro.pontaEsquerdo);
-                                                                                                        setFerroPontaDir(ferro.pontaDireito);
+                                                                                                        setFerroModelId(ferro.ferroModelId || 'fm_1');
                                                                                                         setFerroLadoA(ferro.ladoA);
                                                                                                         setFerroLadoB(ferro.ladoB);
                                                                                                         setFerroLadoC(ferro.ladoC);
@@ -3172,8 +3484,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                                                         qtde: ferro.qtde,
                                                                                                         bitola: ferro.bitola,
                                                                                                         bitolaKgm: ferro.bitolaKgm,
-                                                                                                        pontaEsquerdo: ferro.pontaEsquerdo,
-                                                                                                        pontaDireito: ferro.pontaDireito,
+                                                                                                        ferroModelId: ferro.ferroModelId,
                                                                                                         ladoA: ferro.ladoA,
                                                                                                         ladoB: ferro.ladoB,
                                                                                                         ladoC: ferro.ladoC,
@@ -3240,7 +3551,12 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                 <button 
                                     onClick={() => {
                                         handleProductSave(activeQuote.id, tempProducts);
-                                        setActiveModal(null);
+                                        setCheckoutAcrescimoPercent(activeQuote.acrescimoPercent?.toString() || '');
+                                        setCheckoutAcrescimoReal(activeQuote.acrescimoReal?.toString() || '');
+                                        setCheckoutDescontoPercent(activeQuote.descontoPercent?.toString() || '');
+                                        setCheckoutDescontoReal(activeQuote.descontoReal?.toString() || '');
+                                        setCheckoutCondicoesPagamento(activeQuote.condicoesPagamento || '');
+                                        setActiveModal({ type: 'checkout', quoteId: activeQuote.id });
                                     }}
                                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 px-7 rounded text-sm transition shadow-sm"
                                 >
@@ -3410,8 +3726,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                 qtde: parseInt(elementoQtde) || 1,
                                                 bitola: elementoBitola,
                                                 bitolaKgm: bitolaKgmVal,
-                                                pontaEsquerdo: 'SEM PONTA',
-                                                pontaDireito: 'SEM PONTA',
+                                                ferroModelId: ferroModelId || 'fm_1',
                                                 ladoA: elementoLadoA,
                                                 ladoB: elementoLadoB,
                                                 ladoC: elementoLadoC,
@@ -3588,58 +3903,62 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                         </div>
                                     </div>
 
-                                    {/* Row 2: Pontas + Diagram */}
-                                    <div className="grid grid-cols-5 gap-3 items-start">
-                                        {/* Ponta Lado Esquerdo */}
-                                        <div className="col-span-2">
-                                            <label className="block text-[10px] font-black text-slate-600 uppercase mb-2">Ponta Lado Esquerdo:</label>
-                                            <div className="border border-slate-200 rounded p-2 space-y-1">
-                                                {PONTA_OPTIONS.map(p => (
-                                                    <label key={p} className="flex items-center gap-2 cursor-pointer">
-                                                        <input type="radio" name="ferroPontaEsq" checked={ferroPontaEsq === p} onChange={() => setFerroPontaEsq(p)} className="accent-sky-600 w-3 h-3" />
-                                                        <span className="text-[10px] font-bold text-slate-700 uppercase">{p}</span>
+                                    {/* Row 2: Selecione o formato */}
+                                    <div className="flex gap-4">
+                                        <div className="w-1/2">
+                                            <p className="text-[10px] font-black text-slate-600 uppercase mb-2">Formato do Ferro:</p>
+                                            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
+                                                {ferroModels.map(model => (
+                                                    <label key={model.id} className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors ${ferroModelId === model.id ? 'bg-sky-50 border-sky-400' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                                                        <input type="radio" name="ferroModelId" value={model.id} checked={ferroModelId === model.id} onChange={(e) => setFerroModelId(e.target.value)} className="accent-sky-600" />
+                                                        <span className="text-[10px] font-bold text-slate-700 uppercase">{model.name}</span>
                                                     </label>
                                                 ))}
                                             </div>
                                         </div>
-                                        {/* Diagram - live SVG preview */}
-                                        <div className="col-span-1 flex items-center justify-center min-h-[120px]">
-                                            {renderBarDiagramSVG(ferroPontaEsq, ferroPontaDir, ferroLadoA, ferroLadoB, ferroLadoD)}
-                                        </div>
-                                        {/* Ponta Lado Direito */}
-                                        <div className="col-span-2">
-                                            <label className="block text-[10px] font-black text-slate-600 uppercase mb-2">Ponta Lado Direito:</label>
-                                            <div className="border border-slate-200 rounded p-2 space-y-1">
-                                                {PONTA_OPTIONS.map(p => (
-                                                    <label key={p} className="flex items-center gap-2 cursor-pointer">
-                                                        <input type="radio" name="ferroPontaDir" checked={ferroPontaDir === p} onChange={() => setFerroPontaDir(p)} className="accent-sky-600 w-3 h-3" />
-                                                        <span className="text-[10px] font-bold text-slate-700 uppercase">{p}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
+                                        <div className="w-1/2 flex items-center justify-center min-h-[120px] bg-slate-50 border border-slate-200 rounded">
+                                            {(() => {
+                                                const model = ferroModels.find(m => m.id === ferroModelId);
+                                                if (!model) return <span className="text-xs text-slate-400 font-bold uppercase">Selecione um formato</span>;
+                                                return <div className="scale-100 origin-center">{renderEstriboSVG('4 LADOS', model.id, ferroLadoA, ferroLadoB, ferroLadoC, ferroLadoD, ferroLadoE, ferroLadoF, ferroModels)}</div>;
+                                            })()}
                                         </div>
                                     </div>
 
-                                    {/* Row 3: Lados A-E */}
-                                    <div className="grid grid-cols-5 gap-2">
-                                        {[
-                                            { label: 'Lado A (cm)', val: ferroLadoA, set: setFerroLadoA, required: true },
-                                            { label: 'Lado B (cm)', val: ferroLadoB, set: setFerroLadoB, required: false },
-                                            { label: 'Lado C (cm)', val: ferroLadoC, set: setFerroLadoC, required: false },
-                                            { label: 'Lado D (cm)', val: ferroLadoD, set: setFerroLadoD, required: false },
-                                            { label: 'Lado E (cm)', val: ferroLadoE, set: setFerroLadoE, required: false },
-                                        ].map(({ label, val, set, required }) => (
-                                            <div key={label}>
-                                                <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">{label}:</label>
-                                                <div className={`flex items-stretch border rounded overflow-hidden ${val ? 'border-emerald-400' : required ? 'border-red-400' : 'border-red-400'}`}>
-                                                    <div className={`w-7 border-r flex items-center justify-center shrink-0 ${val ? 'bg-emerald-100 border-emerald-300' : 'bg-red-100 border-red-300'}`}>
-                                                        <span className={`font-black text-xs ${val ? 'text-emerald-600' : 'text-red-600'}`}>{val ? '✓' : '✕'}</span>
+                                    {/* Row 3: Lados Dinâmicos */}
+                                    <div className="grid grid-cols-6 gap-2">
+                                        {(() => {
+                                            const model = ferroModels.find(m => m.id === ferroModelId);
+                                            const sides = model && model.requiredSides && model.requiredSides.length > 0 ? model.requiredSides : ['A'];
+                                            const fields = [];
+                                            const sideData: Record<string, {val: string, set: React.Dispatch<React.SetStateAction<string>>}> = {
+                                                'A': { val: ferroLadoA, set: setFerroLadoA },
+                                                'B': { val: ferroLadoB, set: setFerroLadoB },
+                                                'C': { val: ferroLadoC, set: setFerroLadoC },
+                                                'D': { val: ferroLadoD, set: setFerroLadoD },
+                                                'E': { val: ferroLadoE, set: setFerroLadoE },
+                                                'F': { val: ferroLadoF, set: setFerroLadoF },
+                                            };
+                                            sides.forEach(side => {
+                                                if (sideData[side]) {
+                                                    fields.push({ label: `Lado ${side} (cm)`, val: sideData[side].val, set: sideData[side].set, required: true });
+                                                }
+                                            });
+                                            if (fields.length === 0) fields.push({ label: 'Lado A (cm)', val: ferroLadoA, set: setFerroLadoA, required: true });
+
+                                            return fields.map(({ label, val, set, required }) => (
+                                                <div key={label}>
+                                                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">{label}:</label>
+                                                    <div className={`flex items-stretch border rounded overflow-hidden ${val ? 'border-emerald-400' : required ? 'border-red-400' : 'border-slate-300'}`}>
+                                                        <div className={`w-7 border-r flex items-center justify-center shrink-0 ${val ? 'bg-emerald-100 border-emerald-300' : 'bg-red-100 border-red-300'}`}>
+                                                            <span className={`font-black text-xs ${val ? 'text-emerald-600' : 'text-red-600'}`}>{val ? '✓' : '✕'}</span>
+                                                        </div>
+                                                        <input type="number" value={val} onChange={e => set(e.target.value)}
+                                                            className={`w-full px-1.5 py-1.5 text-xs font-bold outline-none bg-transparent text-center ${val ? 'text-slate-800' : 'text-red-500'}`} />
                                                     </div>
-                                                    <input type="number" value={val} onChange={e => set(e.target.value)}
-                                                        className={`w-full px-1.5 py-1.5 text-xs font-bold outline-none bg-transparent text-center ${val ? 'text-slate-800' : 'text-red-500'}`} />
                                                 </div>
-                                            </div>
-                                        ))}
+                                            ));
+                                        })()}
                                     </div>
 
                                     {/* Observação */}
@@ -3679,7 +3998,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                         ? recalcProduct(Object.assign({}, p, {
                                                             ferros: (p.ferros || []).map(f =>
                                                                 f.id === ferroEditId
-                                                                    ? Object.assign({}, f, { nomeElemento: ferroNomeElemento, qtde: parseInt(ferroQtde), bitola: bitolaLabel + ',' + bitolaKgm, bitolaKgm, pontaEsquerdo: ferroPontaEsq, pontaDireito: ferroPontaDir, ladoA: ferroLadoA, ladoB: ferroLadoB, ladoC: ferroLadoC, ladoD: ferroLadoD, ladoE: ferroLadoE, obs: ferroObs })
+                                                                    ? Object.assign({}, f, { nomeElemento: ferroNomeElemento, qtde: parseInt(ferroQtde), bitola: bitolaLabel + ',' + bitolaKgm, bitolaKgm, ferroModelId: ferroModelId, ladoA: ferroLadoA, ladoB: ferroLadoB, ladoC: ferroLadoC, ladoD: ferroLadoD, ladoE: ferroLadoE, ladoF: ferroLadoF, obs: ferroObs })
                                                                     : f
                                                             )
                                                         }))
@@ -3692,8 +4011,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                     qtde: parseInt(ferroQtde),
                                                     bitola: bitolaLabel + ',' + bitolaKgm,
                                                     bitolaKgm,
-                                                    pontaEsquerdo: ferroPontaEsq,
-                                                    pontaDireito: ferroPontaDir,
+                                                    ferroModelId: ferroModelId || 'fm_1',
                                                     ladoA: ferroLadoA,
                                                     ladoB: ferroLadoB,
                                                     ladoC: ferroLadoC,
@@ -5103,6 +5421,183 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                         </div>
                     )}
 
+                    {/* MODAL: Imprimir Modelo Cliente (Ita Aços) */}
+                    {activeModal.type === 'print_orcamento' && (
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+                            <div className="bg-[#0F3F5C] p-4 text-white flex justify-between items-center shrink-0 no-print">
+                                <h3 className="font-bold text-md">🖨️ Visualização de Impressão (Modelo Cliente)</h3>
+                                <button onClick={() => setActiveModal(null)} className="text-white text-xl font-bold">&times;</button>
+                            </div>
+                            
+                            <div className="p-8 bg-white text-black flex-grow overflow-y-auto font-sans text-sm space-y-6 print:p-0 print:m-0 print:w-full print:h-full" id="printable-ita-quote">
+                                {/* Header */}
+                                <div className="flex justify-between items-center border-b-[1.5px] border-black pb-2">
+                                    <div className="w-1/3">
+                                    {activeBrandingPartner?.logoUrl ? (
+                                        <img src={activeBrandingPartner.logoUrl} alt="Logo" className="h-14 object-contain" />
+                                    ) : (
+                                        <h1 className="text-2xl font-black">{activeBrandingPartner?.companyName || 'Sua Empresa'}</h1>
+                                    )}
+                                    </div>
+                                    <div className="text-[9px] text-right font-semibold leading-tight w-2/3">
+                                        Ferros e Acessórios para Serralheria, Chapas, Tubos, Metalon e Perfilados - Ferros para Construção Civil, em Barras ou Colunas e Sapatas Montadas (pronto p/ a Obra) - Dobras Especiais até 1/2 polegada, Telhas, Corte Plasma, Steel Frame e muito mais. Confira!
+                                    </div>
+                                </div>
+
+                                {/* Title */}
+                                <div className="text-center font-extrabold text-xl uppercase border-b-[1.5px] border-black pb-2">
+                                    ORÇAMENTO Nº{activeQuote.id}
+                                </div>
+
+                                {/* Info */}
+                                <div className="grid grid-cols-[100px_1fr] gap-x-2 gap-y-0.5 text-xs font-bold uppercase border-b-[1.5px] border-black pb-4">
+                                    <span>CLIENTE:</span>
+                                    <span className="font-semibold">({activeQuote.clientCode}) {activeQuote.clientName}</span>
+                                    <span>VENDEDOR:</span>
+                                    <span className="font-semibold">{activeQuote.salesperson}</span>
+                                    <span>DATA ORÇ.:</span>
+                                    <span className="font-semibold">{activeQuote.date} (DATA DA ENTREGA A COMBINAR)</span>
+                                </div>
+
+                                {/* Products */}
+                                <div className="space-y-6 pt-2">
+                                    {activeQuote.products.map((prod, pIdx) => {
+                                        const tags = prod.description.split(' ').filter(t => t.trim().length > 0);
+                                        return (
+                                            <div key={pIdx} className="border-[1.5px] border-slate-200 rounded-lg overflow-hidden">
+                                                {/* Header do Produto (Pills) */}
+                                                <div className="bg-emerald-50/50 p-3 flex items-center gap-4 border-b-[1.5px] border-emerald-100">
+                                                    <div className="bg-emerald-600 text-white font-black text-xs w-6 h-6 flex items-center justify-center rounded-full shrink-0 shadow-sm">
+                                                        {prod.qty}
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {tags.map((tag, tIdx) => (
+                                                            <span key={tIdx} className="bg-slate-100 border border-slate-200 text-slate-700 text-[9px] font-extrabold uppercase px-2.5 py-1 rounded shadow-sm tracking-wide">
+                                                                {tag}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* Tabela de Elementos */}
+                                                <div className="bg-white p-0">
+                                                    <div className="grid grid-cols-[1.5fr_2fr_1fr_1.5fr] bg-slate-50 border-b-[1.5px] border-slate-100 p-2.5 text-[9px] font-black text-slate-500 uppercase text-center tracking-wider">
+                                                        <div>IMG</div>
+                                                        <div className="text-left">ELEMENTO</div>
+                                                        <div>QTDE</div>
+                                                        <div>TIPO</div>
+                                                    </div>
+                                                    
+                                                    <div className="flex flex-col">
+                                                        {prod.ferros?.map((f, fIdx) => {
+                                                            const isLine = !f.ladoB && !f.ladoC && !f.ladoD && (!f.estriboShape || f.estriboShape === 'formato_reto');
+                                                            const mainVal = f.ladoA || getFerroTotalLengthCm(f, prod.description).toString();
+                                                            const isEstribo = f.nomeElemento.toUpperCase().includes('ESTRIBO') || (f.estriboShape && f.estriboShape !== 'formato_reto');
+                                                            const hasImage = !!f.customImageBase64;
+                                                            const ladosDesc = prod.description.match(/(\d+) LADOS/)?.[1] ? `${prod.description.match(/(\d+) LADOS/)?.[1]} LADOS` : '4 LADOS';
+                                                            
+                                                            return (
+                                                                <div key={fIdx} className="grid grid-cols-[1.5fr_2fr_1fr_1.5fr] items-center border-b-[1.5px] border-slate-100 last:border-b-0 p-5 text-[10px] font-extrabold uppercase text-center text-slate-700">
+                                                                    {/* IMG Column */}
+                                                                    <div className="flex items-center justify-center pt-2 pb-2">
+                                                                        {isLine ? (
+                                                                            <div className="flex flex-col items-center gap-1">
+                                                                                <div className="w-16 h-1.5 bg-slate-800 rounded-full"></div>
+                                                                                <span className="font-black text-[11px] text-slate-900">{mainVal}</span>
+                                                                            </div>
+                                                                        ) : hasImage ? (
+                                                                            <img src={f.customImageBase64} alt="Custom" className="w-full max-h-16 object-contain" />
+                                                                        ) : (
+                                                                            <div className="flex items-center justify-center min-h-[50px] scale-90">
+                                                                                {f.drawingType === 'Estribo'
+                                                                                    ? <div className="origin-center">{renderEstriboSVG(ladosDesc, f.estriboShape || 'Padrão', f.ladoA, f.ladoB, f.ladoC, f.ladoD, f.ladoE, f.ladoF)}</div>
+                                                                                    : f.drawingType === 'CorteDobra'
+                                                                                    ? <div className="origin-center">{renderEstriboSVG(ladosDesc, f.estriboShape || f.ferroModelId || 'Padrão', f.ladoA, f.ladoB, f.ladoC, f.ladoD, f.ladoE, f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === f.ferroModelId)?.name || '', f.ladoA, f.ladoB, f.ladoC, f.ladoD, f.ladoE, true)}</div>
+                                                                                    : f.drawingType === 'Trava'
+                                                                                    ? <div className="origin-center">{renderTravaSVG(Number(f.estriboShape) || 1, f.ladoA, f.ladoB, f.ladoC, f.ladoD, f.ladoE)}</div>
+                                                                                    : <div className="origin-center">{renderEstriboSVG(ladosDesc || '4 LADOS', f.estriboShape || f.ferroModelId || 'Padrão', f.ladoA, f.ladoB, f.ladoC, f.ladoD, f.ladoE, f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === f.ferroModelId)?.name || '', f.ladoA, f.ladoB, f.ladoC, f.ladoD, f.ladoE, true)}</div>}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    
+                                                                    {/* ELEMENTO */}
+                                                                    <div className="text-left font-black text-[11px] text-slate-600">{f.nomeElemento || 'FERRO'}</div>
+                                                                    
+                                                                    {/* QTDE */}
+                                                                    <div>
+                                                                        <span className="bg-slate-500 text-white px-2.5 py-0.5 rounded-full text-[10px] shadow-sm">{f.qtde * prod.qty}</span>
+                                                                    </div>
+                                                                    
+                                                                    {/* TIPO */}
+                                                                    <div className="text-slate-500 font-bold tracking-wide">{isEstribo ? 'ESTRIBOS' : 'FERROS'}</div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                        
+                                                        {(!prod.ferros || prod.ferros.length === 0) && (
+                                                            <div className="p-6 text-center text-slate-400 font-bold italic text-xs">
+                                                                NENHUM ELEMENTO DETALHADO. ({prod.length}m)
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* PREÇO */}
+                                <div className="font-black text-sm uppercase flex gap-12 mt-6">
+                                    <span>PREÇO:</span>
+                                    <span>R$ {activeQuote.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                </div>
+
+                                {/* ATENÇÃO */}
+                                <div className="mt-8 space-y-4">
+                                    <h3 className="font-extrabold text-base underline">ATENÇÃO!</h3>
+                                    <p className="text-xs font-semibold leading-relaxed">
+                                        Declaro que estou de acordo com as especificações do orçamento acima (quantidade, medidas, preço) e também estou de acordo que serei responsável pela descarga e conferência dos materiais listados neste orçamento:
+                                    </p>
+
+                                    <div className="grid grid-cols-[130px_1fr_40px_1fr] gap-y-6 gap-x-2 items-end mt-10 text-[11px] font-bold">
+                                        <span>NOME COMPLETO:</span>
+                                        <div className="border-b border-black"></div>
+                                        <span className="text-right">RG:</span>
+                                        <div className="border-b border-black"></div>
+                                        
+                                        <span>ASSINATURA:</span>
+                                        <div className="border-b border-black"></div>
+                                        <span className="text-right">DATA:</span>
+                                        <div className="border-b border-black flex justify-center text-gray-400">____/____/____</div>
+                                    </div>
+                                </div>
+
+                                {/* Footer */}
+                                <div className="pt-4 text-[8px] text-gray-500 font-bold border-t-[1.5px] border-black mt-12 flex justify-between">
+                                    <span>
+                                        {activeBrandingPartner?.companyName || 'MSM Sistemas'} - {activeBrandingPartner?.endereco || 'Endereço não cadastrado'} - CNPJ: {activeBrandingPartner?.cnpj || 'Não informado'}
+                                    </span>
+                                    <span>
+                                        Visite nosso site. Impresso por {currentUser?.username || 'SISTEMA'} em {new Date().toLocaleString('pt-BR')} - V-06
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div className="p-4 bg-slate-50 border-t flex justify-end gap-3 shrink-0 no-print">
+                                <button onClick={() => setActiveModal(null)} className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-6 rounded-xl text-xs uppercase transition">Cancelar</button>
+                                <button 
+                                    onClick={() => {
+                                        window.print();
+                                        showNotification('Enviado para impressão.', 'success');
+                                    }}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-2 px-8 rounded-xl text-xs uppercase transition shadow-md"
+                                >
+                                    Imprimir
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* MODAL: Histórico */}
                     {activeModal.type === 'history' && (
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[80vh]">
@@ -5187,6 +5682,12 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                             >
                                 Modelos de Estribos
                             </button>
+                            <button 
+                                onClick={() => setSettingsTab('ferros')}
+                                className={`flex-1 py-3 font-bold text-sm text-center border-b-2 transition-colors ${settingsTab === 'ferros' ? 'border-sky-500 text-sky-700 bg-white' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                            >
+                                Pontas de Ferros
+                            </button>
                         </div>
                         <div className="p-6 overflow-y-auto flex-grow bg-slate-50">
                             {settingsTab === 'bitolas' ? (
@@ -5194,7 +5695,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-lg font-bold text-slate-800">Controle de Bitolas</h3>
                                 <button 
-                                    onClick={() => setBitolas([...bitolas, { id: Date.now().toString(), label: 'Nova Bitola', kgm: 0, price: 0, amarrado: true, corteDobra: true }])}
+                                    onClick={() => setBitolas([...bitolas, { id: Date.now().toString(), label: 'Nova Bitola', kgm: 0, price: 0, amarrado: true, corteDobra: true, codMerco: '' }])}
                                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-sm transition-colors shadow"
                                 >
                                     + Adicionar Bitola
@@ -5205,17 +5706,31 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                 <table className="w-full text-left border-collapse">
                                     <thead>
                                         <tr className="bg-slate-100 text-slate-700 border-b">
+                                            <th className="p-3 font-bold text-sm w-24">Cód Merco</th>
                                             <th className="p-3 font-bold text-sm">Bitola (Label)</th>
-                                            <th className="p-3 font-bold text-sm w-32">Peso (kg/m)</th>
-                                            <th className="p-3 font-bold text-sm w-32">Preço (R$)</th>
-                                            <th className="p-3 font-bold text-sm w-32 text-center">Amarrados</th>
-                                            <th className="p-3 font-bold text-sm w-32 text-center">Corte/Dobra</th>
-                                            <th className="p-3 font-bold text-sm w-24 text-center">Ações</th>
+                                            <th className="p-3 font-bold text-sm w-24">Peso (kg/m)</th>
+                                            <th className="p-3 font-bold text-sm w-24">Preço (R$)</th>
+                                            <th className="p-3 font-bold text-sm w-24 text-center">Amarrados</th>
+                                            <th className="p-3 font-bold text-sm w-24 text-center">Corte/Dobra</th>
+                                            <th className="p-3 font-bold text-sm w-20 text-center">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
                                         {bitolas.map((b, idx) => (
                                             <tr key={b.id} className="hover:bg-slate-50 transition-colors">
+                                                <td className="p-2">
+                                                    <input 
+                                                        type="text" 
+                                                        value={b.codMerco || ''} 
+                                                        onChange={(e) => {
+                                                            const newBitolas = [...bitolas];
+                                                            newBitolas[idx].codMerco = e.target.value;
+                                                            setBitolas(newBitolas);
+                                                        }}
+                                                        placeholder="Código"
+                                                        className="w-full border rounded px-2 py-1.5 text-sm font-semibold outline-none focus:border-sky-500 bg-white" 
+                                                    />
+                                                </td>
                                                 <td className="p-2">
                                                     <select
                                                         value={b.id}
@@ -5286,7 +5801,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                 </table>
                             </div>
                                 </div>
-                            ) : (
+                            ) : settingsTab === 'estribos' ? (
                                 <div>
                                     <div className="flex justify-between items-center mb-4">
                                         <h3 className="text-lg font-bold text-slate-800">Modelos de Estribos</h3>
@@ -5487,7 +6002,190 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                         </table>
                                     </div>
                                 </div>
-                            )}
+                            ) : settingsTab === 'ferros' ? (
+                                <div>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-lg font-bold text-slate-800">Modelos de Ferros Principais</h3>
+                                        <button 
+                                            onClick={() => setFerroModels([...ferroModels, { 
+                                                id: 'fm_' + Date.now(), 
+                                                name: 'NOVO FORMATO',
+                                                formula: 'A',
+                                                requiredSides: ['A']
+                                            }])}
+                                            className="px-3 py-1.5 bg-sky-500 text-white rounded text-sm font-bold hover:bg-sky-600 transition-colors"
+                                        >
+                                            + Novo Formato
+                                        </button>
+                                    </div>
+                                    <div className="overflow-x-auto border rounded-lg bg-white shadow-sm max-h-[60vh] overflow-y-auto">
+                                        <table className="w-full text-left text-sm text-slate-600">
+                                            <thead className="bg-slate-100 text-slate-700 uppercase text-xs sticky top-0 z-10 shadow-sm">
+                                                <tr>
+                                                    <th className="p-3 w-16">ID</th>
+                                                    <th className="p-3">NOME DO MODELO</th>
+                                                    <th className="p-3">FÓRMULA DE CÁLCULO</th>
+                                                    <th className="p-3 w-32 text-center">LADOS</th>
+                                                    <th className="p-3 w-64 text-center">VISUALIZAÇÃO / ANEXO</th>
+                                                    <th className="p-3 w-20 text-center">AÇÕES</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {ferroModels.map((ferro, idx) => {
+                                                    const hasDrawingData = ferro.customDrawingData && ferro.customDrawingData.points && ferro.customDrawingData.points.length > 0;
+                                                    const hasImage = !!ferro.customImageBase64;
+                                                    return (
+                                                        <tr key={ferro.id} className="hover:bg-slate-50 transition-colors">
+                                                            <td className="p-2">
+                                                                <span className="font-mono text-xs text-slate-400">{ferro.id}</span>
+                                                            </td>
+                                                            <td className="p-2">
+                                                                <input 
+                                                                    type="text" 
+                                                                    value={ferro.name} 
+                                                                    onChange={(e) => {
+                                                                        const newModels = [...ferroModels];
+                                                                        newModels[idx].name = e.target.value.toUpperCase();
+                                                                        setFerroModels(newModels);
+                                                                    }} 
+                                                                    className="w-full border rounded px-2 py-1.5 text-xs font-bold outline-none focus:border-sky-500 uppercase" 
+                                                                    placeholder="NOME"
+                                                                />
+                                                            </td>
+                                                            <td className="p-2">
+                                                                <input 
+                                                                    type="text" 
+                                                                    value={ferro.formula} 
+                                                                    onChange={(e) => {
+                                                                        const newModels = [...ferroModels];
+                                                                        newModels[idx].formula = e.target.value;
+                                                                        setFerroModels(newModels);
+                                                                    }} 
+                                                                    className="w-full border rounded px-2 py-1.5 text-xs font-mono outline-none focus:border-sky-500" 
+                                                                    placeholder="ex: A + D + E"
+                                                                />
+                                                            </td>
+                                                            <td className="p-2">
+                                                                <div className="flex flex-wrap gap-1 justify-center">
+                                                                    {['A','B','C','D','E','F'].map(side => (
+                                                                        <label key={side} className="flex items-center gap-1 cursor-pointer">
+                                                                            <input 
+                                                                                type="checkbox" 
+                                                                                className="accent-sky-600"
+                                                                                checked={ferro.requiredSides.includes(side)}
+                                                                                onChange={(e) => {
+                                                                                    const newModels = [...ferroModels];
+                                                                                    if (e.target.checked) {
+                                                                                        newModels[idx].requiredSides.push(side);
+                                                                                    } else {
+                                                                                        newModels[idx].requiredSides = newModels[idx].requiredSides.filter(s => s !== side);
+                                                                                    }
+                                                                                    setFerroModels(newModels);
+                                                                                }}
+                                                                            />
+                                                                            <span className="text-[10px] font-bold">{side}</span>
+                                                                        </label>
+                                                                    ))}
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-2 text-center relative group">
+                                                                <div className="flex items-center justify-center gap-3">
+                                                                    {/* Preview Visualization */}
+                                                                    <div className="w-32 h-16 border border-slate-200 rounded flex items-center justify-center bg-white shadow-sm shrink-0 relative">
+                                                                        {hasDrawingData ? (
+                                                                            <svg viewBox="0 0 400 400" className="w-full h-full p-1" xmlns="http://www.w3.org/2000/svg">
+                                                                                <polyline
+                                                                                    points={ferro.customDrawingData!.points.map(p => `${p.x},${p.y}`).join(' ')}
+                                                                                    fill="none"
+                                                                                    stroke="#333"
+                                                                                    strokeWidth="8"
+                                                                                    strokeLinejoin="round"
+                                                                                    strokeLinecap="round"
+                                                                                />
+                                                                            </svg>
+                                                                        ) : hasImage ? (
+                                                                            <img src={ferro.customImageBase64} alt="Custom" className="w-full h-full object-contain" />
+                                                                        ) : (
+                                                                            <div className="flex items-center justify-center w-full h-full">
+                                                                                <span className="text-[10px] text-slate-400 font-bold uppercase">SEM DESENHO</span>
+                                                                            </div>
+                                                                        )}
+                                                                        
+                                                                        {/* Remove Image Button overlay */}
+                                                                        {hasImage && (
+                                                                            <button 
+                                                                                onClick={(e) => {
+                                                                                    e.preventDefault();
+                                                                                    const newModels = [...ferroModels];
+                                                                                    newModels[idx].customImageBase64 = undefined;
+                                                                                    setFerroModels(newModels);
+                                                                                }}
+                                                                                className="absolute top-0 right-0 bg-red-500 text-white rounded-bl p-0.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"
+                                                                                title="Remover Imagem"
+                                                                            >
+                                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+
+                                                                    {/* Upload/Status label */}
+                                                                    <div className="flex flex-col items-center justify-center w-16">
+                                                                        {hasDrawingData ? (
+                                                                            <span className="text-[9px] text-green-600 font-bold bg-green-50 rounded px-1 py-0.5 text-center leading-tight">DESENHO<br/>MANUAL</span>
+                                                                        ) : (
+                                                                            <label className="cursor-pointer text-blue-600 hover:text-blue-700 text-[10px] flex flex-col items-center group/label">
+                                                                                <svg className="w-4 h-4 mb-0.5 text-blue-400 group-hover/label:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                                                                                <span className="font-bold">ANEXAR</span>
+                                                                                <input 
+                                                                                    type="file" 
+                                                                                    accept="image/*" 
+                                                                                    className="hidden" 
+                                                                                    onChange={(e) => {
+                                                                                        const file = e.target.files?.[0];
+                                                                                        if (file) {
+                                                                                            const reader = new FileReader();
+                                                                                            reader.onload = (ev) => {
+                                                                                                const newModels = [...ferroModels];
+                                                                                                newModels[idx].customImageBase64 = ev.target?.result as string;
+                                                                                                setFerroModels(newModels);
+                                                                                            };
+                                                                                            reader.readAsDataURL(file);
+                                                                                        }
+                                                                                    }}
+                                                                                />
+                                                                            </label>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-2 text-center">
+                                                                <div className="flex flex-col gap-1 items-center">
+                                                                    <button
+                                                                        onClick={() => setFerroDrawingBoardTarget(ferro)}
+                                                                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors w-full flex items-center justify-center gap-1"
+                                                                        title="Desenhar Manualmente"
+                                                                    >
+                                                                        <PencilIcon className="w-4 h-4" />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setFerroModels(ferroModels.filter((_, i) => i !== idx));
+                                                                        }}
+                                                                        className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors w-full flex items-center justify-center gap-1"
+                                                                        title="Remover Modelo"
+                                                                    >
+                                                                        <TrashIcon className="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            ) : null}
                         </div>
                     </div>
                 </div>
@@ -5503,6 +6201,19 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                         setDrawingBoardTarget(null);
                     }}
                     onClose={() => setDrawingBoardTarget(null)}
+                />
+            )}
+
+            {ferroDrawingBoardTarget && (
+                <EstriboDrawingBoard
+                    initialData={ferroDrawingBoardTarget.customDrawingData || null}
+                    requiredSides={ferroDrawingBoardTarget.requiredSides}
+                    onSave={(data) => {
+                        const newModels = ferroModels.map(m => m.id === ferroDrawingBoardTarget.id ? { ...m, customDrawingData: data } : m);
+                        setFerroModels(newModels);
+                        setFerroDrawingBoardTarget(null);
+                    }}
+                    onClose={() => setFerroDrawingBoardTarget(null)}
                 />
             )}
         </div>
