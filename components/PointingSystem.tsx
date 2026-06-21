@@ -6116,9 +6116,9 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                         <div className="flex border-b border-slate-200 pb-2 items-center">
                                                             <div className="w-1/3 text-xs font-bold text-slate-400 uppercase">Formato</div>
                                                             <div className="w-2/3 text-sm font-bold text-slate-800 flex flex-col items-start gap-2">
-                                                                <span>{etq.formatoDimensions}</span>
-                                                                <div className="w-full h-32 flex items-center justify-center shrink-0 border border-slate-100 rounded bg-white shadow-sm p-2">
-                                                                    <div className="origin-center scale-[1]">
+                                                                <span>NOME DO ELEMENTO: {etq.formatoDimensions}</span>
+                                                                <div className="w-full h-48 flex items-center justify-center shrink-0 border border-slate-100 rounded bg-white shadow-sm p-2 overflow-hidden">
+                                                                    <div className="origin-center scale-[1.75]">
                                                                         {etq.f.drawingType === 'Estribo' ? (
                                                                             renderEstriboSVG(etq.ladosDesc, etq.f.estriboShape || etq.f.ferroModelId || 'Padrão', etq.f.ladoA, etq.f.ladoB, etq.f.ladoC, etq.f.ladoD, etq.f.ladoE, etq.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === etq.f.ferroModelId)?.name || '', etq.f.ladoA, etq.f.ladoB, etq.f.ladoC, etq.f.ladoD, etq.f.ladoE, true)
                                                                         ) : (
