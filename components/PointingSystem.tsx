@@ -1421,7 +1421,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
             finalTotalPriceAdjusted += precoTotalAjustado;
 
             rows.push({
-                codMerco, label, roundedBars, exactBars, bPrice, precoUnAjustado, precoTotal, precoTotalAjustado, pesoUn, pesoTotal
+                codMerco, label, roundedBars, exactBars, bPrice, precoUnAjustado, precoTotal, precoTotalAjustado, pesoUn, pesoTotal, metros: g.totalLinearMeters
             });
         });
 
@@ -1450,7 +1450,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                 precoTotal: precoTotal,
                 precoTotalAjustado: precoTotalAjustado,
                 pesoUn: 1,
-                pesoTotal: roundedArameKg
+                pesoTotal: roundedArameKg,
+                metros: getQuoteTotalPoints(activeQuote) * 0.05
             });
             finalTotalPrice += precoTotal;
             finalTotalPriceAdjusted += precoTotalAjustado;
@@ -2225,6 +2226,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                             <th className="p-3 font-bold border-r border-[#1a6699] text-center w-24">Cód Merco</th>
                                             <th className="p-3 font-bold border-r border-[#1a6699]">Descrição</th>
                                             <th className="p-3 font-bold border-r border-[#1a6699] text-center">Qtde</th>
+                                            <th className="p-3 font-bold border-r border-[#1a6699] text-center w-24">Metros</th>
                                             <th className="p-3 font-bold border-r border-[#1a6699] text-center w-28">Preço Un. (R$)</th>
                                             <th className="p-3 font-bold border-r border-[#1a6699] text-center w-32">Preço Un. Ajustado (R$)</th>
                                             <th className="p-3 font-bold border-r border-[#1a6699] text-center w-28">Preço Total (R$)</th>
@@ -2247,6 +2249,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                         )}
                                                     </div>
                                                 </td>
+                                                <td className="p-3 text-center border-r border-slate-300 text-slate-600 font-bold">{row.metros !== undefined ? row.metros.toFixed(2) : '-'}</td>
                                                 <td className="p-3 text-center border-r border-slate-300 text-slate-600">{row.bPrice.toFixed(2)}</td>
                                                 <td className="p-3 text-center border-r border-slate-300 font-bold text-slate-800">{row.precoUnAjustado.toFixed(2)}</td>
                                                 <td className="p-3 text-center border-r border-slate-300 text-slate-600">{row.precoTotal.toFixed(2)}</td>
