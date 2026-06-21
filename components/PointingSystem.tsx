@@ -5871,60 +5871,58 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                     ) : (
                                         planoCorte.map((grupo, gIdx) => (
                                             <div key={gIdx} className="mb-12 break-inside-avoid">
-                                                <h2 className="text-2xl font-black text-center bg-slate-200 py-2 mb-6 border-y border-slate-400">{grupo.bitola}</h2>
+                                                <h2 className="text-xl font-black text-center bg-slate-200 py-1 mb-2 border-y border-slate-400">{grupo.bitola}</h2>
                                                 
-                                                <div className="space-y-6">
-                                                    {grupo.osGroups.map((os, oIdx) => (
-                                                        <div key={oIdx} className="border border-slate-300 rounded-lg overflow-hidden break-inside-avoid">
-                                                            <div className="bg-slate-100 px-4 py-2 border-b border-slate-300 flex justify-between items-center">
-                                                                <span className="font-bold text-lg text-slate-800">{os.osNumber} <span className="font-medium text-slate-600">({os.osName})</span></span>
-                                                                <span className="text-sm font-bold text-slate-500">QTD ELEMENTOS: {os.prodQtde}</span>
-                                                            </div>
-                                                            <div className="p-0">
-                                                                <table className="w-full text-left text-sm border-collapse">
-                                                                    <thead>
-                                                                        <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
-                                                                            <th className="p-3 font-bold border-r border-slate-200">Formato / Dimensões</th>
-                                                                            <th className="p-3 font-bold text-center w-32 border-r border-slate-200">Qtd de Cortes</th>
-                                                                            <th className="p-3 font-bold text-center w-40">Metros Lineares Totais</th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody>
-                                                                        {os.cuts.map((cut: any, cIdx: number) => {
-                                                                            const ladosDesc = cut.pDesc.match(/(\d+) LADOS/)?.[1] ? `${cut.pDesc.match(/(\d+) LADOS/)?.[1]} LADOS` : '4 LADOS';
-                                                                            return (
-                                                                            <tr key={cIdx} className="border-b border-slate-100 last:border-0">
-                                                                                <td className="p-3 border-r border-slate-200 font-medium text-slate-700">
-                                                                                    <div className="flex items-center gap-4">
-                                                                                        <div className="w-32 h-24 flex items-center justify-center shrink-0 pr-4">
-                                                                                            <div className="origin-center scale-100">
-                                                                                                {cut.f.drawingType === 'Estribo' ? (
-                                                                                                    renderEstriboSVG(ladosDesc, cut.f.estriboShape || cut.f.ferroModelId || 'Padrão', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, cut.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === cut.f.ferroModelId)?.name || '', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, true)
-                                                                                                ) : cut.f.drawingType === 'Trava' ? (
-                                                                                                    renderEstriboSVG(ladosDesc, cut.f.estriboShape || cut.f.ferroModelId || 'Padrão', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, cut.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === cut.f.ferroModelId)?.name || '', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, true)
-                                                                                                ) : cut.f.drawingType === 'CorteDobra' ? (
-                                                                                                    renderEstriboSVG(ladosDesc, cut.f.estriboShape || cut.f.ferroModelId || 'Padrão', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, cut.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === cut.f.ferroModelId)?.name || '', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, true)
-                                                                                                ) : (
-                                                                                                    renderEstriboSVG(ladosDesc || '4 LADOS', cut.f.estriboShape || cut.f.ferroModelId || 'Padrão', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, cut.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === cut.f.ferroModelId)?.name || '', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, true)
-                                                                                                )}
-                                                                                            </div>
-                                                                                        </div>
-                                                                                        <div className="flex flex-col">
-                                                                                            <span className="font-bold text-slate-800">{cut.format}</span>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </td>
-                                                                                <td className="p-3 text-center border-r border-slate-200 font-bold text-sky-700">{cut.qty}</td>
-                                                                                <td className="p-3 text-center font-bold text-slate-600">{cut.metros.toFixed(2)} m</td>
-                                                                            </tr>
-                                                                            );
-                                                                        })}
-                                                                    </tbody>
-                                                                </table>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                                <table className="w-full text-left text-sm border-collapse border border-slate-300">
+                                                    <thead>
+                                                        <tr className="bg-slate-50 text-slate-600 border-b border-slate-300">
+                                                            <th className="p-2 font-bold border-r border-slate-300 w-1/3">OS / Elemento</th>
+                                                            <th className="p-2 font-bold border-r border-slate-300">Formato / Dimensões</th>
+                                                            <th className="p-2 font-bold text-center w-24 border-r border-slate-300">Qtd Cortes</th>
+                                                            <th className="p-2 font-bold text-center w-32">Metros Totais</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {grupo.osGroups.map((os, oIdx) => (
+                                                            os.cuts.map((cut: any, cIdx: number) => {
+                                                                const ladosDesc = cut.pDesc.match(/(\d+) LADOS/)?.[1] ? `${cut.pDesc.match(/(\d+) LADOS/)?.[1]} LADOS` : '4 LADOS';
+                                                                return (
+                                                                <tr key={`${oIdx}-${cIdx}`} className="border-b border-slate-200 last:border-0 break-inside-avoid">
+                                                                    {cIdx === 0 && (
+                                                                        <td rowSpan={os.cuts.length} className="p-3 border-r border-slate-300 align-middle bg-slate-50">
+                                                                            <div className="font-bold text-slate-800 text-lg">{os.osNumber}</div>
+                                                                            <div className="text-xs font-bold text-slate-600 mt-1 uppercase">{os.osName}</div>
+                                                                            <div className="text-[10px] font-black text-sky-700 mt-2">QTD ELEMENTOS: {os.prodQtde}</div>
+                                                                        </td>
+                                                                    )}
+                                                                    <td className="p-2 border-r border-slate-300 font-medium text-slate-700">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="w-32 h-24 flex items-center justify-center shrink-0 pr-4">
+                                                                                <div className="origin-center scale-100">
+                                                                                    {cut.f.drawingType === 'Estribo' ? (
+                                                                                        renderEstriboSVG(ladosDesc, cut.f.estriboShape || cut.f.ferroModelId || 'Padrão', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, cut.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === cut.f.ferroModelId)?.name || '', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, true)
+                                                                                    ) : cut.f.drawingType === 'Trava' ? (
+                                                                                        renderEstriboSVG(ladosDesc, cut.f.estriboShape || cut.f.ferroModelId || 'Padrão', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, cut.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === cut.f.ferroModelId)?.name || '', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, true)
+                                                                                    ) : cut.f.drawingType === 'CorteDobra' ? (
+                                                                                        renderEstriboSVG(ladosDesc, cut.f.estriboShape || cut.f.ferroModelId || 'Padrão', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, cut.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === cut.f.ferroModelId)?.name || '', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, true)
+                                                                                    ) : (
+                                                                                        renderEstriboSVG(ladosDesc || '4 LADOS', cut.f.estriboShape || cut.f.ferroModelId || 'Padrão', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, cut.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === cut.f.ferroModelId)?.name || '', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, true)
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="flex flex-col">
+                                                                                <span className="font-bold text-slate-800">{cut.format}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="p-3 text-center border-r border-slate-300 font-bold text-sky-700 text-base">{cut.qty}</td>
+                                                                    <td className="p-3 text-center font-bold text-slate-600 text-sm">{cut.metros.toFixed(2)} m</td>
+                                                                </tr>
+                                                                );
+                                                            })
+                                                        ))}
+                                                    </tbody>
+                                                </table>
                                             </div>
                                         ))
                                     )}
