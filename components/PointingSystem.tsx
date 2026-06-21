@@ -1077,7 +1077,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         });
     };
 
-    const getFormattedTitleParts = (item: ProductItem): string[] => {
+    const getProfessionalTitle = (item: ProductItem): string => {
         const desc = item.description || '';
         
         const isColuna = desc.startsWith('COLUNA');
@@ -1087,41 +1087,54 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         const isSapata = desc.startsWith('SAPATA');
         const isStructural = isColuna || isPillar || isViga || isBroca || isSapata;
         
-        if (!isStructural) return [desc];
+        if (!isStructural) return desc;
 
         const parts = desc.split(' ');
-        const category = parts[0] || 'COLUNA';
+        let category = parts[0] ? parts[0].toLowerCase() : 'coluna';
+        const isPlural = item.qty > 1;
+
+        if (isPlural) {
+            if (category === 'pilar') category = 'pilares';
+            else if (['coluna', 'viga', 'broca', 'sapata', 'biga'].includes(category)) category += 's';
+        }
         
         let name = '';
-        let amarracao = 'AMARRADA';
-        let lados = '4 LADOS';
+        let amarracao = 'amarrada';
+        let lados = '';
         
         const amarracaoIdx = parts.findIndex(p => p === 'AMARRADA' || p === 'SOLDADA');
         if (amarracaoIdx !== -1) {
-            amarracao = parts[amarracaoIdx];
-            name = parts.slice(1, amarracaoIdx).join(' ');
+            amarracao = parts[amarracaoIdx].toLowerCase();
+            name = parts.slice(1, amarracaoIdx).join(' ').toLowerCase();
         } else {
-            name = parts[1] || '';
+            name = (parts[1] || '').toLowerCase();
+            if (name === 'lados' || name.match(/^\d+$/) || name === 'redonda') {
+                name = '';
+            }
         }
 
-        const ladosIdx = parts.findIndex(p => p.includes('LADOS') || p === 'REDONDA');
-        if (ladosIdx !== -1) {
-            if (parts[ladosIdx] === 'REDONDA') {
-                lados = 'REDONDA';
-            } else {
-                lados = (parts[ladosIdx - 1] || '') + ' ' + parts[ladosIdx];
+        if (isPlural) {
+            if (amarracao === 'amarrada') amarracao = 'amarradas';
+            else if (amarracao === 'soldada') amarracao = 'soldadas';
+            
+            if (name) {
+                name = name.split(' ').map(w => {
+                    if (w === 'superior') return 'superiores';
+                    if (w === 'baldrame') return 'baldrames';
+                    return w;
+                }).join(' ');
             }
         }
 
         let lengthText = '';
         if (item.length > 0) {
-            lengthText = `${item.length}M`;
+            lengthText = `c/ ${item.length} metros`;
         } else {
             const principal = (item.ferros || []).find(f => f.drawingType !== 'Estribo' && f.drawingType !== 'Trava');
             if (principal && principal.ladoA) {
                 const lenM = (parseFloat(principal.ladoA) || 0) / 100;
                 if (lenM > 0) {
-                    lengthText = `${lenM}M`;
+                    lengthText = `c/ ${lenM} metros`;
                 }
             }
         }
@@ -1130,32 +1143,45 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         let dimText = '';
         let espText = '';
         if (estribo) {
-            if (lados === 'REDONDA') {
-                dimText = estribo.ladoA ? `Ø${estribo.ladoA}` : '';
+            const ladosIdx = parts.findIndex(p => p.includes('LADOS') || p === 'REDONDA');
+            if (ladosIdx !== -1) {
+                if (parts[ladosIdx] === 'REDONDA') {
+                    lados = 'redonda';
+                } else {
+                    lados = ((parts[ladosIdx - 1] || '') + ' ' + parts[ladosIdx]).toLowerCase();
+                }
+            }
+            
+            if (lados === 'redonda') {
+                dimText = estribo.ladoA ? `estribos Ø${estribo.ladoA}` : '';
             } else {
                 const a = estribo.ladoA || '';
                 const b = estribo.ladoB || '';
                 if (a && b) {
-                    dimText = `${a}x${b}`;
+                    dimText = `estribos ${a}x${b}`;
                 } else if (a) {
-                    dimText = `${a}`;
+                    dimText = `estribos ${a}`;
                 }
             }
             
             if (estribo.espacamento) {
-                espText = `ESP ${estribo.espacamento} CM`;
+                let esp = estribo.espacamento;
+                const espNum = parseFloat(esp);
+                if (!isNaN(espNum)) {
+                   esp = (espNum / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                }
+                espText = `esp c/${esp}`;
             }
         }
 
-        return [
-            category,
-            name,
-            amarracao,
-            lengthText,
-            lados,
-            dimText,
-            espText
-        ].filter(Boolean).map(s => s.toUpperCase());
+        let result = category;
+        if (name && !['redonda', 'lados'].includes(name)) result += ` ${name}`;
+        if (amarracao && !['redonda', 'lados'].includes(amarracao)) result += ` ${amarracao}`;
+        if (lengthText) result += ` ${lengthText}`;
+        if (dimText) result += `, ${dimText}`;
+        if (espText) result += `, ${espText}`;
+        
+        return result;
     };
 
     const renderColumnProfileSVG = (lados: string) => {
@@ -2897,19 +2923,13 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                     >
                                                         {/* Left side: title + badge */}
                                                         <div className="flex items-center gap-2 max-w-[50%] md:max-w-[60%]">
-                                                            <span
-                                                                className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-white text-[10px] font-bold shrink-0 ${
-                                                                    incomplete ? 'bg-red-500' : 'bg-emerald-600'
-                                                                }`}
-                                                            >
-                                                                {idx + 1}
+                                                            <span className="text-blue-700 font-bold text-sm bg-blue-100 px-2 py-0.5 rounded">
+                                                                {item.qty}x
                                                             </span>
-                                                            <div className="flex flex-wrap gap-1.5 items-center">
-                                                                {getFormattedTitleParts(item).map((part, i) => (
-                                                                    <span key={i} className="bg-slate-200/70 border border-slate-300 text-slate-800 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wide">
-                                                                        {part}
-                                                                    </span>
-                                                                ))}
+                                                            <div className="flex flex-wrap gap-2 items-center">
+                                                                <span className="text-slate-800 text-sm font-semibold tracking-wide lowercase">
+                                                                    {getProfessionalTitle(item)}
+                                                                </span>
                                                             </div>
                                                         </div>
 
@@ -3260,14 +3280,25 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                             return `Peso Total = ${totalKg.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`;
                                                                         })()}
                                                                     </div>
-                                                                    <div className="text-[9px] font-bold text-amber-600">
-                                                                        {(() => {
-                                                                            const qtdEstribos = (item.ferros || []).filter(f => f && f.nomeElemento && (f.nomeElemento.toUpperCase().includes('ESTRIB') || f.nomeElemento.toUpperCase().includes('TRAVA'))).reduce((sum, f) => sum + (f.qtde || 0), 0);
-                                                                            const qtdFerros = (item.ferros || []).filter(f => f && f.nomeElemento && (f.nomeElemento.toUpperCase().includes('FERRO') || f.nomeElemento.toUpperCase().includes('COSTELA') || f.nomeElemento.toUpperCase().includes('REFORÇO') || f.nomeElemento.toUpperCase().includes('2ª CAMADA'))).reduce((sum, f) => sum + (f.qtde || 0), 0);
-                                                                            const pts = qtdEstribos * qtdFerros * (item.qty || 1);
-                                                                            return pts > 0 ? `🔗 ${pts} pontos de arame` : '';
-                                                                        })()}
-                                                                    </div>
+                                                                    {(() => {
+                                                                        const qtdEstribos = (item.ferros || []).filter(f => f && f.nomeElemento && (f.nomeElemento.toUpperCase().includes('ESTRIB') || f.nomeElemento.toUpperCase().includes('TRAVA'))).reduce((sum, f) => sum + (f.qtde || 0), 0);
+                                                                        const qtdFerros = (item.ferros || []).filter(f => f && f.nomeElemento && (f.nomeElemento.toUpperCase().includes('FERRO') || f.nomeElemento.toUpperCase().includes('COSTELA') || f.nomeElemento.toUpperCase().includes('REFORÇO') || f.nomeElemento.toUpperCase().includes('2ª CAMADA'))).reduce((sum, f) => sum + (f.qtde || 0), 0);
+                                                                        const pts = qtdEstribos * qtdFerros * (item.qty || 1);
+                                                                        if (pts > 0) {
+                                                                            const metros = (pts * 5) / 100;
+                                                                            return (
+                                                                                <div className="flex flex-col gap-0.5 mt-0.5">
+                                                                                    <div className="text-[9px] font-bold text-amber-600">
+                                                                                        🔗 {pts} pontos de arame
+                                                                                    </div>
+                                                                                    <div className="text-[9px] font-bold text-slate-500 text-right pr-0.5">
+                                                                                        📏 {metros.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} mts linear
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+                                                                        }
+                                                                        return null;
+                                                                    })()}
                                                                 </>
                                                             ) : (
                                                                 <div className="text-xs font-black text-slate-400">R$ 0,00</div>
@@ -3325,7 +3356,13 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                                 <td className="px-2 py-0.5 text-center">
                                                                                     <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-slate-500 text-white font-bold text-[9px] min-w-[20px]">{ferro.qtde}</span>
                                                                                 </td>
-                                                                                <td className="px-2 py-0.5 text-center font-bold text-slate-700">{(ferro.bitola || '').split(',')[0]}</td>
+                                                                                <td className="px-2 py-0.5 text-center font-bold text-slate-700">
+                                                                                    {(() => {
+                                                                                        const bitolaFull = (ferro.bitola || '').split(',')[0];
+                                                                                        const match = bitolaFull.match(/([\d.]+)\s*mm/i);
+                                                                                        return match ? `${parseFloat(match[1])}mm` : bitolaFull;
+                                                                                    })()}
+                                                                                </td>
                                                                                 <td className="px-2 py-0.5 text-center font-mono text-slate-700">
                                                                                     {(() => {
                                                                                         const a = parseFloat(ferro.ladoA) || 0;
@@ -3472,7 +3509,11 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
 
                                                                                     {/* bitola */}
                                                                                     <td className="px-2 py-0.5 text-center font-bold text-slate-700">
-                                                                                        {(ferro.bitola || '').split(',')[0]}
+                                                                                        {(() => {
+                                                                                            const bitolaFull = (ferro.bitola || '').split(',')[0];
+                                                                                            const match = bitolaFull.match(/([\d.]+)\s*mm/i);
+                                                                                            return match ? `${parseFloat(match[1])}mm` : bitolaFull;
+                                                                                        })()}
                                                                                     </td>
 
                                                                                     {/* esp estr. */}
