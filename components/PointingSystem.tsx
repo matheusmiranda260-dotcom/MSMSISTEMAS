@@ -5798,10 +5798,10 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                         const planoCorte = (() => {
                             const bitolaMap = new Map<string, any[]>();
                             activeQuote.products.forEach((p, pIdx) => {
-                                const osNumber = `OS: ${String(pIdx + 1).padStart(2, '0')}`;
                                 const osName = p.description || 'Produto';
                                 const prodQtde = p.qty || 1;
-                                (p.ferros || []).forEach(f => {
+                                (p.ferros || []).forEach((f, fIdx) => {
+                                    const osNumber = `OS: ${String(activeQuote.products.slice(0, pIdx).reduce((acc, prevP) => acc + (prevP.ferros?.length || 0), 0) + fIdx + 1).padStart(2, '0')}`;
                                     const bitolaStr = f.bitola || '';
                                     const bConfig = (bitolas || []).find(b => bitolaStr.startsWith(b.label));
                                     const bitolaLabel = bConfig ? bConfig.label : (bitolaStr.split(',')[0] || 'Desconhecida');
