@@ -5929,8 +5929,75 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                 </tr>
                                                                 );
                                                             })
-                                                        ))}
-                                                    </tbody>
+                                                            ))}
+                                                            {(() => {
+                                                                const totalOS = grupo.osGroups.length;
+                                                                const summaryPecasMap = new Map<string, number>();
+                                                                let totalCortes = 0;
+                                                                const summaryFormatosMap = new Map<string, number>();
+                                                                let totalMetros = 0;
+                                                                
+                                                                grupo.osGroups.forEach(os => {
+                                                                    const currentPecas = summaryPecasMap.get(os.osName) || 0;
+                                                                    summaryPecasMap.set(os.osName, currentPecas + os.prodQtde);
+                                                                    
+                                                                    os.cuts.forEach(cut => {
+                                                                        totalCortes += cut.qty;
+                                                                        totalMetros += cut.metros;
+                                                                        
+                                                                        let drawTypeLabel = cut.f.drawingType || 'RETO';
+                                                                        if (cut.f.drawingType === 'Estribo') drawTypeLabel = 'ESTRIBO';
+                                                                        if (cut.f.drawingType === 'CorteDobra') drawTypeLabel = 'CORTE E DOBRA';
+                                                                        if (cut.f.drawingType === 'Trava') drawTypeLabel = 'TRAVA';
+                                                                        const ferroModel = ferroModels.find(m => m.id === cut.f.ferroModelId);
+                                                                        if (ferroModel && cut.f.drawingType !== 'Estribo' && cut.f.drawingType !== 'Trava' && cut.f.drawingType !== 'CorteDobra') {
+                                                                            drawTypeLabel = ferroModel.name;
+                                                                        }
+                                                                        if (cut.f.nomeElemento) {
+                                                                            drawTypeLabel = cut.f.nomeElemento.toUpperCase();
+                                                                        }
+                                                                        
+                                                                        const currentFormato = summaryFormatosMap.get(drawTypeLabel) || 0;
+                                                                        summaryFormatosMap.set(drawTypeLabel, currentFormato + cut.qty);
+                                                                    });
+                                                                });
+                                                                
+                                                                const summaryPecas = Array.from(summaryPecasMap.entries()).map(([name, qty]) => `${qty} ${name}`);
+                                                                const summaryFormatos = Array.from(summaryFormatosMap.entries()).map(([name, qty]) => `${qty} ${name}`);
+                                                                
+                                                                return (
+                                                                    <tr className="bg-slate-200 border-t-2 border-slate-400 font-bold text-slate-800 break-inside-avoid">
+                                                                        <td className="p-3 text-center border-r border-slate-300">
+                                                                            <div className="text-[10px] text-slate-500 mb-1 uppercase">Total OS</div>
+                                                                            <div className="text-lg text-sky-800">{totalOS}</div>
+                                                                        </td>
+                                                                        <td className="p-3 border-r border-slate-300 text-sm">
+                                                                            <div className="text-[10px] text-slate-500 mb-1 text-center uppercase">Qtd de Peças</div>
+                                                                            <div className="flex flex-col gap-1 items-center">
+                                                                                {summaryPecas.map((p, i) => (
+                                                                                    <div key={i} className="text-sky-800">{p}</div>
+                                                                                ))}
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="p-3 text-center border-r border-slate-300">
+                                                                            <div className="text-[10px] text-slate-500 mb-1 uppercase">Total Cortes</div>
+                                                                            <div className="text-lg text-sky-800">{totalCortes}</div>
+                                                                        </td>
+                                                                        <td className="p-3 border-r border-slate-300 text-sm">
+                                                                            <div className="text-[10px] text-slate-500 mb-1 text-center uppercase">Formatos</div>
+                                                                            <div className="flex flex-col gap-1 items-center">
+                                                                                {summaryFormatos.map((f, i) => (
+                                                                                    <div key={i} className="text-sky-800">{f}</div>
+                                                                                ))}
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="p-3 text-center text-lg text-sky-800">
+                                                                            {totalMetros.toFixed(2)} m
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })()}
+                                                        </tbody>
                                                 </table>
                                             </div>
                                         ))
