@@ -214,7 +214,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     {/* Left Column: Unscheduled Orders */}
-                    <div className="lg:col-span-4 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col h-[calc(100vh-180px)]">
+                    <div className="lg:col-span-3 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col h-[calc(100vh-180px)]">
                         <div className="p-4 border-b border-slate-200 bg-slate-50 rounded-t-2xl">
                             <h2 className="text-lg font-bold text-slate-800">Ordens Disponíveis</h2>
                             <p className="text-xs text-slate-500 mb-3">Orçamentos / OS prontas para agendar</p>
@@ -290,136 +290,84 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                         </div>
                     </div>
 
-                    {/* Right Column: Schedule Board */}
-                    <div className="lg:col-span-8 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col h-[calc(100vh-180px)]">
-                        {/* Board Controls */}
-                        <div className="p-4 border-b border-slate-200 flex flex-col gap-4">
-                            {/* Dates selector */}
-                            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                                {dates.map(dateStr => {
-                                    const isSelected = selectedDate === dateStr;
-                                    const isToday = dateStr === dates[0];
-                                    return (
-                                        <button
-                                            key={dateStr}
-                                            onClick={() => setSelectedDate(dateStr)}
-                                            className={`flex-shrink-0 flex flex-col items-center justify-center min-w-[70px] h-16 rounded-xl border transition-all ${
-                                                isSelected 
-                                                ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
-                                                : isToday
-                                                    ? 'bg-blue-50 border-blue-200 text-blue-800 hover:bg-blue-100'
-                                                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                                            }`}
-                                        >
-                                            <span className="text-[10px] font-black uppercase tracking-wider">{isToday ? 'Hoje' : getDayOfWeek(dateStr)}</span>
-                                            <span className="text-lg font-bold">{dateStr.split('-')[2]}</span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Machine Selector */}
-                            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                                {activeMachines.length === 0 ? (
-                                    <div className="text-sm text-amber-600 font-semibold bg-amber-50 px-4 py-2 rounded-lg">
-                                        Nenhuma máquina cadastrada no parceiro ativo. Configure em Parceiros.
-                                    </div>
-                                ) : (
-                                    activeMachines.map(machine => {
-                                        const isSelected = selectedMachineName === machine.name;
-                                        return (
-                                            <button
-                                                key={machine.name}
-                                                onClick={() => setSelectedMachineName(machine.name)}
-                                                className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all border ${
-                                                    isSelected
-                                                    ? 'bg-slate-800 text-white border-slate-800 shadow-md'
-                                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
-                                                }`}
-                                            >
-                                                {machine.name}
-                                            </button>
-                                        );
-                                    })
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Schedule List for Machine + Date */}
-                        <div className="flex-1 overflow-y-auto p-4 bg-slate-50 relative">
-                            {selectedMachineDetails && (
-                                <div className="mb-4 bg-white border border-slate-200 rounded-xl p-4 flex justify-between items-center shadow-sm">
-                                    <div>
-                                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
-                                            Resumo do Dia - {selectedMachineDetails.name}
-                                        </h3>
-                                        <div className="text-xs text-slate-500 mt-1 font-semibold flex items-center gap-4">
-                                            <span>Turno: {selectedMachineDetails.shiftType}</span>
-                                            <span>Capacidade: {selectedMachineDetails.capacityKgPerHour} kg/h</span>
-                                            <span>Máx Diário: {machineDailyCapacity} kg</span>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="text-2xl font-black text-slate-800">
-                                            {scheduledWeight.toFixed(0)} <span className="text-sm text-slate-500 font-bold">kg agendados</span>
-                                        </div>
-                                        <div className="w-32 h-2 bg-slate-200 rounded-full mt-1 overflow-hidden ml-auto">
-                                            <div 
-                                                className={`h-full rounded-full ${occupationPercentage > 100 ? 'bg-red-500' : occupationPercentage > 80 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                                                style={{ width: `${Math.min(occupationPercentage, 100)}%` }}
-                                            />
-                                        </div>
-                                    </div>
+                    {/* Right Column: Schedule Matrix */}
+                    <div className="lg:col-span-9 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col h-[calc(100vh-180px)] overflow-hidden">
+                        <div className="flex-1 overflow-auto p-4 bg-slate-50 relative">
+                            {activeMachines.length === 0 ? (
+                                <div className="text-center py-20 text-slate-400 font-semibold">
+                                    Nenhuma máquina cadastrada no parceiro ativo. Configure em Parceiros.
+                                </div>
+                            ) : (
+                                <div className="min-w-max">
+                                    <table className="w-full border-collapse bg-white shadow-sm rounded-lg overflow-hidden">
+                                        <thead className="bg-slate-100 text-slate-700 text-xs uppercase font-black sticky top-0 z-20 shadow-sm">
+                                            <tr>
+                                                <th className="p-3 border-r border-b border-slate-200 w-32 bg-slate-200 sticky left-0 z-30">Dias</th>
+                                                {activeMachines.map(machine => (
+                                                    <th key={machine.name} className="p-3 border-b border-r border-slate-200 text-center">
+                                                        {machine.name}
+                                                    </th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {dates.map((dateStr, dIdx) => (
+                                                <tr key={dateStr} className="border-b border-slate-200">
+                                                    <td className="p-3 border-r border-slate-200 bg-slate-50 font-bold text-slate-700 uppercase text-[10px] text-center sticky left-0 z-10 w-32 shadow-[1px_0_0_0_#e2e8f0]">
+                                                        {dIdx === 0 ? 'Hoje' : getDayOfWeek(dateStr)}<br/>
+                                                        <span className="text-slate-400 font-normal">{dateStr.split('-').reverse().join('/')}</span>
+                                                    </td>
+                                                    {activeMachines.map(machine => {
+                                                        const cellOrders = machineOrders.filter(mo => mo.startDate === dateStr && mo.machineId === machine.name).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                                                        return (
+                                                            <td key={machine.name} className="p-2 border-r border-slate-200 align-top min-w-[350px]">
+                                                                {cellOrders.length === 0 ? (
+                                                                    <div className="text-center text-slate-300 text-xs py-4">Livre</div>
+                                                                ) : (
+                                                                    <div className="space-y-2">
+                                                                        <table className="w-full text-[10px] border border-slate-200 text-slate-700">
+                                                                            <thead className="bg-slate-100 border-b border-slate-200">
+                                                                                <tr>
+                                                                                    <th className="p-1 border-r border-slate-200 text-center font-bold">OP</th>
+                                                                                    <th className="p-1 border-r border-slate-200 text-left font-bold">CLIENTE</th>
+                                                                                    <th className="p-1 border-r border-slate-200 text-center font-bold">BITOLA</th>
+                                                                                    <th className="p-1 border-r border-slate-200 text-center font-bold">QNT OS</th>
+                                                                                    <th className="p-1 text-center border-r border-slate-200 font-bold">METROS</th>
+                                                                                    <th className="w-6"></th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                {cellOrders.map(mo => (
+                                                                                    <tr key={mo.id} className="border-b border-slate-100 hover:bg-slate-50">
+                                                                                        <td className="p-1 border-r border-slate-200 text-center font-bold text-blue-700">{mo.orderCode}</td>
+                                                                                        <td className="p-1 border-r border-slate-200 font-semibold truncate max-w-[120px]" title={mo.clientName}>{mo.clientName}</td>
+                                                                                        <td className="p-1 border-r border-slate-200 text-center">{mo.gauge}</td>
+                                                                                        <td className="p-1 border-r border-slate-200 text-center font-bold">{mo.osQuantity || 1}</td>
+                                                                                        <td className="p-1 border-r border-slate-200 text-center text-sky-700 font-bold">{(mo.totalMetros || 0).toFixed(1)}</td>
+                                                                                        <td className="p-1 text-center">
+                                                                                            <button 
+                                                                                                onClick={() => handleUnscheduleOrder(mo.id)}
+                                                                                                className="text-red-400 hover:text-red-600"
+                                                                                                title="Remover"
+                                                                                            >
+                                                                                                🗑️
+                                                                                            </button>
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                ))}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                             )}
-
-                            <div className="space-y-3">
-                                {currentMachineOrders.length === 0 ? (
-                                    <div className="text-center py-20 text-slate-400 font-semibold">
-                                        <div className="text-4xl mb-2">🏭</div>
-                                        Fila de produção vazia para {selectedMachineName} no dia {formatDateBr(selectedDate)}.
-                                    </div>
-                                ) : (
-                                    currentMachineOrders.map((mo, index) => (
-                                        <div key={mo.id} className="bg-white border-l-4 border-blue-600 rounded-r-xl rounded-l-md p-4 shadow-sm flex items-center justify-between group">
-                                            <div className="flex items-center gap-4">
-                                                <div className="text-2xl font-black text-slate-200 w-8 text-right">
-                                                    {index + 1}
-                                                </div>
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xs font-black bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                                                            OP: {mo.orderCode}
-                                                        </span>
-                                                        <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                                                            mo.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
-                                                            mo.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                                                            'bg-amber-100 text-amber-700'
-                                                        }`}>
-                                                            {mo.status === 'scheduled' ? 'Agendado' : mo.status === 'in_progress' ? 'Rodando' : 'Concluído'}
-                                                        </span>
-                                                    </div>
-                                                    <h4 className="text-sm font-bold text-slate-800 mt-1">{mo.clientName}</h4>
-                                                    <div className="text-xs font-semibold text-slate-500 mt-0.5">
-                                                        Bitola: {mo.gauge} • Peso: {mo.weight?.toFixed(2) || 0} kg • Metros: {mo.totalMetros?.toFixed(2) || 0} m • Qtd OS: {mo.osQuantity || 1}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button
-                                                    onClick={() => handleUnscheduleOrder(mo.id)}
-                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                    title="Remover da programação"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
                         </div>
                     </div>
                 </div>
