@@ -264,7 +264,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                                                     <tr key={mo.id} className="border-b border-slate-100 hover:bg-slate-50">
                                                                                         <td className="p-1 border-r border-slate-200 text-center font-bold text-blue-700">{mo.orderCode}</td>
                                                                                         <td className="p-1 border-r border-slate-200 font-semibold truncate max-w-[120px]" title={mo.clientName}>{mo.clientName}</td>
-                                                                                        <td className="p-1 border-r border-slate-200 text-center">{mo.gauge}</td>
+                                                                                        <td className="p-1 border-r border-slate-200 text-center font-bold text-slate-800">{mo.gauge.replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim()}</td>
                                                                                         <td className="p-1 border-r border-slate-200 text-center font-bold">{mo.osQuantity || 1}</td>
                                                                                         <td className="p-1 border-r border-slate-200 text-center text-sky-700 font-bold">{(mo.totalMetros || 0).toFixed(1)}</td>
                                                                                         <td className="p-1 text-center">
@@ -338,7 +338,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2 mt-2 text-[10px] text-slate-600">
-                                            <div><span className="font-bold text-slate-400">Bitola:</span> {po.bitola}</div>
+                                            <div><span className="font-bold text-slate-400">Bitola:</span> {po.bitola.replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim()}</div>
                                             <div><span className="font-bold text-slate-400">Peso:</span> {po.pesoTotal?.toFixed(2)} kg</div>
                                             <div><span className="font-bold text-slate-400">Status:</span> {po.status}</div>
                                             <div><span className="font-bold text-slate-400">Data:</span> {formatDateBr(po.data.split('T')[0])}</div>
