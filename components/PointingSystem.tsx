@@ -564,6 +564,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     const [settingsEstriboCat, setSettingsEstriboCat] = useState('4 LADOS');
     const [drawingBoardTarget, setDrawingBoardTarget] = useState<EstriboModel | null>(null);
     const [ferroDrawingBoardTarget, setFerroDrawingBoardTarget] = useState<FerroModel | null>(null);
+    const [travaDrawingBoardTarget, setTravaDrawingBoardTarget] = useState<TravaModel | null>(null);
 
     const [editingColunaId, setEditingColunaId] = useState<string | null>(null);
     const [ferroModalTitle, setFerroModalTitle] = useState('Ferros Principais');
@@ -2542,7 +2543,24 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                         (CÓD {activeQuote.clientCode}) {activeQuote.clientName}
                                     </div>
                                 </div>
-                                <button type="button" onClick={() => setActiveModal(null)} className="text-slate-500 hover:text-slate-800 text-2xl font-bold font-sans line-none shrink-0">&times;</button>
+                                <div className="flex items-center gap-4 shrink-0">
+                                    <button 
+                                        type="button" 
+                                        onClick={() => {
+                                            if (!document.fullscreenElement) {
+                                                document.documentElement.requestFullscreen().catch(err => console.log(err));
+                                            } else {
+                                                document.exitFullscreen().catch(err => console.log(err));
+                                            }
+                                        }}
+                                        className="text-slate-500 hover:text-sky-600 font-bold flex items-center gap-1.5 text-xs uppercase bg-white/50 px-3 py-1.5 rounded-lg border border-slate-300 shadow-sm transition-colors"
+                                        title="Abrir em Tela Cheia"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                                        Tela Cheia
+                                    </button>
+                                    <button type="button" onClick={() => setActiveModal(null)} className="text-slate-500 hover:text-red-600 text-3xl font-bold font-sans line-none transition-colors">&times;</button>
+                                </div>
                             </div>
 
                             {/* Deep blue actions menu buttons arranged in 3 rows */}
@@ -5617,17 +5635,15 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                         const tags = prod.description.split(' ').filter(t => t.trim().length > 0);
                                         return (
                                             <div key={pIdx} className="border-[1.5px] border-slate-200 rounded-lg overflow-hidden">
-                                                {/* Header do Produto (Pills) */}
-                                                <div className="bg-emerald-50/50 p-3 flex items-center gap-4 border-b-[1.5px] border-emerald-100">
-                                                    <div className="bg-emerald-600 text-white font-black text-xs w-6 h-6 flex items-center justify-center rounded-full shrink-0 shadow-sm">
-                                                        {prod.qty}
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {tags.map((tag, tIdx) => (
-                                                            <span key={tIdx} className="bg-slate-100 border border-slate-200 text-slate-700 text-[9px] font-extrabold uppercase px-2.5 py-1 rounded shadow-sm tracking-wide">
-                                                                {tag}
-                                                            </span>
-                                                        ))}
+                                                {/* Header do Produto (Professional Title) */}
+                                                <div className="bg-emerald-50/50 p-3 flex items-center gap-2 border-b-[1.5px] border-emerald-100">
+                                                    <span className="text-blue-700 font-bold text-sm bg-blue-100 px-2 py-0.5 rounded">
+                                                        {prod.qty}x
+                                                    </span>
+                                                    <div className="flex flex-wrap gap-2 items-center">
+                                                        <span className="text-slate-800 text-sm font-semibold tracking-wide lowercase">
+                                                            {getProfessionalTitle(prod)}
+                                                        </span>
                                                     </div>
                                                 </div>
                                                 
@@ -6502,15 +6518,24 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                             </select>
                                                         </td>
                                                         <td className="p-2 text-center">
-                                                            <button
-                                                                onClick={() => {
-                                                                    setTravaModels(travaModels.filter(m => m.id !== trava.id));
-                                                                }}
-                                                                className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors"
-                                                                title="Excluir"
-                                                            >
-                                                                <TrashIcon className="w-4 h-4" />
-                                                            </button>
+                                                            <div className="flex flex-col gap-1 items-center">
+                                                                <button
+                                                                    onClick={() => setTravaDrawingBoardTarget(trava)}
+                                                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors w-full flex items-center justify-center gap-1"
+                                                                    title="Desenhar Manualmente"
+                                                                >
+                                                                    <PencilIcon className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setTravaModels(travaModels.filter(m => m.id !== trava.id));
+                                                                    }}
+                                                                    className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors w-full flex items-center justify-center gap-1"
+                                                                    title="Excluir"
+                                                                >
+                                                                    <TrashIcon className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -6547,6 +6572,19 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                         setFerroDrawingBoardTarget(null);
                     }}
                     onClose={() => setFerroDrawingBoardTarget(null)}
+                />
+            )}
+
+            {travaDrawingBoardTarget && (
+                <EstriboDrawingBoard
+                    initialData={travaDrawingBoardTarget.customDrawingData || null}
+                    requiredSides={travaDrawingBoardTarget.requiredSides}
+                    onSave={(data) => {
+                        const newModels = travaModels.map(m => m.id === travaDrawingBoardTarget.id ? { ...m, customDrawingData: data } : m);
+                        setTravaModels(newModels);
+                        setTravaDrawingBoardTarget(null);
+                    }}
+                    onClose={() => setTravaDrawingBoardTarget(null)}
                 />
             )}
         </div>
