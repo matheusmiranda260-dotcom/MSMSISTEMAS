@@ -1892,6 +1892,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                             <option value="price">💰 Editar Preço</option>
                                             <option value="duplicate">📋 Duplicar Orçamento</option>
                                             <option value="print_orcamento">🖨️ Imprimir Modelo Cliente</option>
+                                            <option value="print_corte">✂️ Imprimir Plano de Corte</option>
                                             <option value="delete">🗑️ Excluir Orçamento</option>
                                         </select>
                                     </td>
@@ -5791,6 +5792,122 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                             </div>
                         </div>
                     )}
+
+                    {/* MODAL: Plano de Corte */}
+                    {activeModal.type === 'print_corte' && activeQuote && (() => {
+                        const planoCorte = (() => {
+                            const bitolaMap = new Map<string, any[]>();
+                            activeQuote.products.forEach((p, pIdx) => {
+                                const osNumber = `OS: ${String(pIdx + 1).padStart(2, '0')}`;
+                                const osName = p.description || 'Produto';
+                                const prodQtde = p.qty || 1;
+                                (p.ferros || []).forEach(f => {
+                                    const bitolaStr = f.bitola || '';
+                                    const bConfig = (bitolas || []).find(b => bitolaStr.startsWith(b.label));
+                                    const bitolaLabel = bConfig ? bConfig.label : (bitolaStr.split(',')[0] || 'Desconhecida');
+                                    
+                                    if (!bitolaMap.has(bitolaLabel)) {
+                                        bitolaMap.set(bitolaLabel, []);
+                                    }
+                                    
+                                    const items = bitolaMap.get(bitolaLabel)!;
+                                    let osGroup = items.find(i => i.osNumber === osNumber);
+                                    if (!osGroup) {
+                                        osGroup = { osNumber, osName, prodQtde, cuts: [] };
+                                        items.push(osGroup);
+                                    }
+                                    
+                                    const cutQty = (f.qtde || 1) * prodQtde;
+                                    const totalCm = getFerroTotalLengthCm(f, p.description);
+                                    const metros = (totalCm / 100) * cutQty;
+                                    
+                                    let drawTypeLabel = f.drawingType || 'RETO';
+                                    if (f.drawingType === 'Estribo') drawTypeLabel = 'ESTRIBO';
+                                    if (f.drawingType === 'CorteDobra') drawTypeLabel = 'CORTE E DOBRA';
+                                    if (f.drawingType === 'Trava') drawTypeLabel = 'TRAVA';
+                                    
+                                    const ferroModel = ferroModels.find(m => m.id === f.ferroModelId);
+                                    if (ferroModel && f.drawingType !== 'Estribo' && f.drawingType !== 'Trava' && f.drawingType !== 'CorteDobra') {
+                                        drawTypeLabel = ferroModel.name;
+                                    }
+                                    
+                                    let dims = [];
+                                    if (f.a) dims.push(`A: ${f.a}`);
+                                    if (f.b) dims.push(`B: ${f.b}`);
+                                    if (f.c) dims.push(`C: ${f.c}`);
+                                    if (f.d) dims.push(`D: ${f.d}`);
+                                    if (f.e) dims.push(`E: ${f.e}`);
+                                    const dimStr = dims.length > 0 ? ` (${dims.join(', ')})` : '';
+                                    
+                                    osGroup.cuts.push({
+                                        format: `${drawTypeLabel}${dimStr}`,
+                                        qty: cutQty,
+                                        metros: metros
+                                    });
+                                });
+                            });
+                            return Array.from(bitolaMap.entries()).map(([bitola, osGroups]) => ({ bitola, osGroups }));
+                        })();
+
+                        return (
+                            <div className="fixed inset-0 bg-white z-50 overflow-y-auto print:bg-white print:overflow-visible flex flex-col">
+                                <div className="p-4 bg-slate-100 flex justify-between items-center print:hidden border-b border-slate-200">
+                                    <h2 className="text-xl font-bold text-slate-800">✂️ Plano de Corte - Orçamento {activeQuote.id}</h2>
+                                    <div className="space-x-3">
+                                        <button onClick={() => window.print()} className="bg-sky-600 text-white px-4 py-2 rounded font-bold">Imprimir</button>
+                                        <button onClick={() => setActiveModal({ type: 'none' })} className="bg-slate-400 text-white px-4 py-2 rounded font-bold">Fechar</button>
+                                    </div>
+                                </div>
+                                <div className="p-8 max-w-4xl mx-auto w-full print:p-0 print:max-w-none text-slate-800">
+                                    <div className="text-center mb-8 pb-4 border-b-2 border-slate-800">
+                                        <h1 className="text-3xl font-black uppercase tracking-wider mb-2">PLANO DE CORTE</h1>
+                                        <p className="text-sm font-bold">ORÇAMENTO Nº {String(activeQuote.id).padStart(7, '0')} — {activeQuote.clientName}</p>
+                                    </div>
+                                    
+                                    {planoCorte.length === 0 ? (
+                                        <div className="text-center text-slate-500 py-10">Nenhum item adicionado a este orçamento.</div>
+                                    ) : (
+                                        planoCorte.map((grupo, gIdx) => (
+                                            <div key={gIdx} className="mb-12 break-inside-avoid">
+                                                <h2 className="text-2xl font-black text-center bg-slate-200 py-2 mb-6 border-y border-slate-400">{grupo.bitola}</h2>
+                                                
+                                                <div className="space-y-6">
+                                                    {grupo.osGroups.map((os, oIdx) => (
+                                                        <div key={oIdx} className="border border-slate-300 rounded-lg overflow-hidden break-inside-avoid">
+                                                            <div className="bg-slate-100 px-4 py-2 border-b border-slate-300 flex justify-between items-center">
+                                                                <span className="font-bold text-lg text-slate-800">{os.osNumber} <span className="font-medium text-slate-600">({os.osName})</span></span>
+                                                                <span className="text-sm font-bold text-slate-500">QTD ELEMENTOS: {os.prodQtde}</span>
+                                                            </div>
+                                                            <div className="p-0">
+                                                                <table className="w-full text-left text-sm border-collapse">
+                                                                    <thead>
+                                                                        <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
+                                                                            <th className="p-3 font-bold border-r border-slate-200">Formato / Dimensões</th>
+                                                                            <th className="p-3 font-bold text-center w-32 border-r border-slate-200">Qtd de Cortes</th>
+                                                                            <th className="p-3 font-bold text-center w-40">Metros Lineares Totais</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {os.cuts.map((cut: any, cIdx: number) => (
+                                                                            <tr key={cIdx} className="border-b border-slate-100 last:border-0">
+                                                                                <td className="p-3 border-r border-slate-200 font-medium text-slate-700">{cut.format}</td>
+                                                                                <td className="p-3 text-center border-r border-slate-200 font-bold text-sky-700">{cut.qty}</td>
+                                                                                <td className="p-3 text-center font-bold text-slate-600">{cut.metros.toFixed(2)} m</td>
+                                                                            </tr>
+                                                                        ))}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })()}
 
                     {/* MODAL: Histórico */}
                     {activeModal.type === 'history' && activeQuote && (
