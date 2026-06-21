@@ -61,6 +61,34 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
     const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [selectedMachineName, setSelectedMachineName] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [pendingVisualSchedule, setPendingVisualSchedule] = useState<{
+        quoteId: string,
+        bitola: string,
+        weight: number,
+        metros: number,
+        qty: number,
+        osQty: number,
+        clientName: string
+    } | null>(null);
+
+    useEffect(() => {
+        const handlePendingVisual = (e: Event) => {
+            const customEvent = e as CustomEvent;
+            setPendingVisualSchedule(customEvent.detail);
+        };
+        window.addEventListener('pending_visual_schedule', handlePendingVisual);
+        return () => window.removeEventListener('pending_visual_schedule', handlePendingVisual);
+    }, []);
+
+    const isMachineCompatibleWithBitola = (machineGaugeRange: string, bitolaStr: string) => {
+        if (!machineGaugeRange) return true;
+        const cleanMachineRange = machineGaugeRange.replace(/\s+/g, '').replace(',', '.');
+        const bounds = cleanMachineRange.split('-');
+        const min = parseFloat(bounds[0]) || 0;
+        const max = bounds.length > 1 ? parseFloat(bounds[1]) : min;
+        const bValue = parseFloat(bitolaStr.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+        return bValue >= min && bValue <= max;
+    };
 
     const dates = useMemo(() => getNext7Days(), []);
 
@@ -186,6 +214,34 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
         }
     };
 
+    const handleVisualScheduleClick = async (dateStr: string, machineName: string) => {
+        if (!pendingVisualSchedule) return;
+        
+        try {
+            const newOrder: Partial<MachineOrder> = {
+                clientName: pendingVisualSchedule.clientName || 'Desconhecido',
+                machineId: machineName,
+                gauge: pendingVisualSchedule.bitola || '',
+                quantity: pendingVisualSchedule.qty || 0,
+                quantityUnit: 'peças',
+                startDate: dateStr,
+                endDate: dateStr,
+                status: 'scheduled',
+                orderCode: pendingVisualSchedule.quoteId,
+                osQuantity: pendingVisualSchedule.osQty,
+                weight: pendingVisualSchedule.weight,
+                totalMetros: pendingVisualSchedule.metros,
+                createdAt: new Date().toISOString()
+            };
+            await onAddMachineOrder(newOrder);
+            showNotification(`Bitola ${pendingVisualSchedule.bitola} agendada para ${formatDateBr(dateStr)} em ${machineName}`, 'success');
+            setPendingVisualSchedule(null);
+        } catch (error) {
+            console.error('Failed to schedule order visually', error);
+            showNotification('Erro ao agendar.', 'error');
+        }
+    };
+
     const handleUnscheduleOrder = async (id: string) => {
         try {
             await onDeleteMachineOrder(id);
@@ -214,7 +270,23 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
 
                 <div className="flex flex-col gap-6">
                     {/* Top Section: Schedule Matrix */}
-                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col h-[60vh] overflow-hidden">
+                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col h-[60vh] overflow-hidden relative">
+                        {pendingVisualSchedule && (
+                            <div className="absolute top-0 left-0 right-0 z-50 bg-blue-600 text-white p-3 px-6 shadow-lg flex items-center justify-between animate-fadeIn">
+                                <div>
+                                    <h3 className="font-bold text-sm">📌 Modo de Agendamento</h3>
+                                    <p className="text-xs text-blue-100">
+                                        Clique em uma célula verde abaixo para agendar a OP <strong>{pendingVisualSchedule.quoteId}</strong> ({pendingVisualSchedule.clientName}) - Bitola <strong>{pendingVisualSchedule.bitola.replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim()}</strong> ({pendingVisualSchedule.weight.toFixed(2)} kg).
+                                    </p>
+                                </div>
+                                <button 
+                                    onClick={() => setPendingVisualSchedule(null)}
+                                    className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                        )}
                         <div className="flex-1 overflow-auto p-4 bg-slate-50 relative">
                             {activeMachines.length === 0 ? (
                                 <div className="text-center py-20 text-slate-400 font-semibold">
@@ -242,10 +314,29 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                     </td>
                                                     {activeMachines.map(machine => {
                                                         const cellOrders = machineOrders.filter(mo => mo.startDate === dateStr && mo.machineId === machine.name).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                                                        const isScheduling = !!pendingVisualSchedule;
+                                                        const isCompatible = isScheduling ? isMachineCompatibleWithBitola(machine.gaugeRange, pendingVisualSchedule.bitola) : true;
+                                                        
                                                         return (
-                                                            <td key={machine.name} className="p-2 border-r border-slate-200 align-top min-w-[350px]">
+                                                            <td 
+                                                                key={machine.name} 
+                                                                onClick={() => {
+                                                                    if (isScheduling && isCompatible) {
+                                                                        handleVisualScheduleClick(dateStr, machine.name);
+                                                                    }
+                                                                }}
+                                                                className={`p-2 border-r border-slate-200 align-top min-w-[350px] transition-colors ${
+                                                                    isScheduling 
+                                                                        ? isCompatible 
+                                                                            ? 'cursor-pointer hover:bg-green-50 border-2 hover:border-green-400 bg-white shadow-inner' 
+                                                                            : 'bg-slate-100 opacity-50 cursor-not-allowed'
+                                                                        : ''
+                                                                }`}
+                                                            >
                                                                 {cellOrders.length === 0 ? (
-                                                                    <div className="text-center text-slate-300 text-xs py-4">Livre</div>
+                                                                    <div className={`text-center text-xs py-4 ${isScheduling && isCompatible ? 'text-green-600 font-bold' : 'text-slate-300'}`}>
+                                                                        {isScheduling && isCompatible ? '+ Agendar Aqui' : 'Livre'}
+                                                                    </div>
                                                                 ) : (
                                                                     <div className="space-y-2">
                                                                         <table className="w-full text-[10px] border border-slate-200 text-slate-700">

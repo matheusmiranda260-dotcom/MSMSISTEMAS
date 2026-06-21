@@ -6074,14 +6074,18 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                                     return (
                                                                                         <button 
                                                                                             onClick={() => {
-                                                                                                setSchedulingBitola({
+                                                                                                const scheduleData = {
                                                                                                     quoteId: activeQuote.id,
                                                                                                     bitola: grupo.bitola,
                                                                                                     weight: totalKg,
                                                                                                     metros: totalMetros,
                                                                                                     qty: totalCortes,
-                                                                                                    osQty: totalOS
-                                                                                                });
+                                                                                                    osQty: totalOS,
+                                                                                                    clientName: activeQuote.clientName
+                                                                                                };
+                                                                                                window.dispatchEvent(new CustomEvent('pending_visual_schedule', { detail: scheduleData }));
+                                                                                                setActiveModal(null);
+                                                                                                window.dispatchEvent(new Event('navigate_to_programarMaquinas'));
                                                                                             }}
                                                                                             className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-3 py-1.5 rounded uppercase shadow print:hidden"
                                                                                         >
@@ -6104,56 +6108,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                         );
                     })()}
 
-                    {/* MODAL: Agendamento de Bitola */}
-                    {schedulingBitola && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] print:hidden">
-                            <div className="bg-white p-6 rounded shadow-xl w-96 border border-slate-300">
-                                <h3 className="text-xl font-bold mb-4 text-slate-800">Agendar: {schedulingBitola.bitola}</h3>
-                                
-                                <div className="mb-4">
-                                    <label className="block text-xs font-bold text-slate-700 mb-1">Data</label>
-                                    <input 
-                                        type="date" 
-                                        value={scheduleDate}
-                                        onChange={e => setScheduleDate(e.target.value)}
-                                        className="w-full border border-slate-300 rounded p-2 text-sm"
-                                    />
-                                </div>
 
-                                <div className="mb-6">
-                                    <label className="block text-xs font-bold text-slate-700 mb-1">Máquina Compatível</label>
-                                    <select
-                                        value={scheduleMachine}
-                                        onChange={e => setScheduleMachine(e.target.value)}
-                                        className="w-full border border-slate-300 rounded p-2 text-sm"
-                                    >
-                                        <option value="">Selecione uma máquina...</option>
-                                        {(activeBrandingPartner?.machines || []).filter(m => isMachineCompatibleWithBitola(m.gaugeRange, schedulingBitola.bitola)).map(m => (
-                                            <option key={m.name} value={m.name}>{m.name}</option>
-                                        ))}
-                                    </select>
-                                    {(activeBrandingPartner?.machines || []).filter(m => isMachineCompatibleWithBitola(m.gaugeRange, schedulingBitola.bitola)).length === 0 && (
-                                        <p className="text-xs text-red-500 mt-1">Nenhuma máquina compatível com esta bitola encontrada.</p>
-                                    )}
-                                </div>
-
-                                <div className="flex justify-end gap-2">
-                                    <button 
-                                        onClick={() => setSchedulingBitola(null)}
-                                        className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded font-bold text-sm"
-                                    >
-                                        Cancelar
-                                    </button>
-                                    <button 
-                                        onClick={handleSaveSchedule}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-bold text-sm shadow"
-                                    >
-                                        Confirmar Agendamento
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
 
                     {/* MODAL: Etiqueta Produção Máquina */}
                     {activeModal.type === 'print_etiqueta_maquina' && activeQuote && (() => {
