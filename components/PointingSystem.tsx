@@ -2235,7 +2235,11 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                 <td className="p-3 border-r border-slate-300 text-slate-700 font-bold uppercase text-[11px]">{row.label}</td>
                                                 <td className="p-3 text-center border-r border-slate-300">
                                                     <div className="bg-[#6B7280] text-white font-bold rounded-full px-3 py-1 inline-block text-xs">
-                                                        {row.roundedBars} <span className="font-normal opacity-80">({row.exactBars.toFixed(2)}) br</span>
+                                                        {row.isArame ? (
+                                                            <>{row.pesoTotal.toFixed(2)} <span className="font-normal opacity-80">kg</span></>
+                                                        ) : (
+                                                            <>{row.roundedBars} <span className="font-normal opacity-80">({row.exactBars.toFixed(2)}) br</span></>
+                                                        )}
                                                     </div>
                                                 </td>
                                                 <td className="p-3 text-center border-r border-slate-300 text-slate-600">{row.bPrice.toFixed(2)}</td>
