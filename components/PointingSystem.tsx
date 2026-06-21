@@ -443,7 +443,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         return quotes.find(q => q.id === activeModal.quoteId) || null;
     }, [activeModal, quotes]);
 
-    const [schedulingBitola, setSchedulingBitola] = useState<{ quoteId: string, bitola: string, weight: number, qty: number } | null>(null);
+    const [schedulingBitola, setSchedulingBitola] = useState<{ quoteId: string, bitola: string, weight: number, qty: number, osQty?: number, metros?: number } | null>(null);
     const [scheduleDate, setScheduleDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [scheduleMachine, setScheduleMachine] = useState<string>('');
 
@@ -641,8 +641,9 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                     endDate: scheduleDate,
                     status: 'scheduled',
                     orderCode: schedulingBitola.quoteId,
-                    osQuantity: schedulingBitola.qty,
+                    osQuantity: schedulingBitola.osQty || 1,
                     weight: schedulingBitola.weight,
+                    totalMetros: schedulingBitola.metros,
                     createdAt: new Date().toISOString()
                 });
                 showNotification(`Bitola ${schedulingBitola.bitola} agendada com sucesso!`, 'success');
@@ -6028,6 +6029,11 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                     });
                                                                 });
                                                                 
+                                                                const rawBitolaStr = grupo.bitola.replace('VERGALHAO CA60(ARMADO-AMARRADO) ', '').trim();
+                                                                const bConfig = (bitolas || []).find(b => rawBitolaStr.startsWith(b.label));
+                                                                const kgm = bConfig ? bConfig.kgm : 0;
+                                                                const totalKg = totalMetros * kgm;
+                                                                
                                                                 const summaryPecas = Array.from(summaryPecasMap.entries()).map(([name, qty]) => `${qty} ${name}`);
                                                                 const summaryFormatos = Array.from(summaryFormatosMap.entries()).map(([name, qty]) => `${qty} ${name}`);
                                                                 
@@ -6071,8 +6077,10 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                                                 setSchedulingBitola({
                                                                                                     quoteId: activeQuote.id,
                                                                                                     bitola: grupo.bitola,
-                                                                                                    weight: totalMetros,
-                                                                                                    qty: totalCortes
+                                                                                                    weight: totalKg,
+                                                                                                    metros: totalMetros,
+                                                                                                    qty: totalCortes,
+                                                                                                    osQty: totalOS
                                                                                                 });
                                                                                             }}
                                                                                             className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-3 py-1.5 rounded uppercase shadow print:hidden"

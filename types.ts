@@ -960,4 +960,5 @@ export interface MachineOrder {
     orderCode?: string;
     osQuantity?: number;
     weight?: number;
+    totalMetros?: number;
 }

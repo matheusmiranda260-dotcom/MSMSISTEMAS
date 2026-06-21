@@ -401,7 +401,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                     </div>
                                                     <h4 className="text-sm font-bold text-slate-800 mt-1">{mo.clientName}</h4>
                                                     <div className="text-xs font-semibold text-slate-500 mt-0.5">
-                                                        Bitola: {mo.gauge} • Peso: {mo.weight?.toFixed(2)} kg
+                                                        Bitola: {mo.gauge} • Peso: {mo.weight?.toFixed(2) || 0} kg • Metros: {mo.totalMetros?.toFixed(2) || 0} m • Qtd OS: {mo.osQuantity || 1}
                                                     </div>
                                                 </div>
                                             </div>
