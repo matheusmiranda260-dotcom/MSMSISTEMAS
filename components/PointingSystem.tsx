@@ -1372,17 +1372,18 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     const checkoutData = useMemo(() => {
         if (!activeQuote) return { rows: [], finalTotalPrice: 0, finalTotalPriceAdjusted: 0, finalTotalAcrescimo: 0, finalTotalDesconto: 0 };
         
-        const groups: { [key: string]: { bitolaConfig?: BitolaConfig, bitolaStr: string, totalLinearMeters: number } } = {};
+        const groups: { [key: string]: { bitolaConfig?: BitolaConfig, bitolaStr: string, totalLinearMeters: number, totalPieces: number } } = {};
         (activeQuote.products || []).forEach(p => {
             const prodQtde = p.qty || 1;
             (p.ferros || []).forEach(f => {
                 const bitolaStr = f.bitola || '';
                 const bConfig = (bitolas || []).find(b => bitolaStr.startsWith(b.label));
                 const key = bConfig ? bConfig.id : (bitolaStr || 'unknown');
-                if (!groups[key]) groups[key] = { bitolaConfig: bConfig, bitolaStr: bitolaStr, totalLinearMeters: 0 };
+                if (!groups[key]) groups[key] = { bitolaConfig: bConfig, bitolaStr: bitolaStr, totalLinearMeters: 0, totalPieces: 0 };
                 
                 const totalCm = getFerroTotalLengthCm(f, p.description);
                 groups[key].totalLinearMeters += (totalCm / 100) * (f.qtde || 1) * prodQtde;
+                groups[key].totalPieces += (f.qtde || 1) * prodQtde;
             });
         });
 
@@ -1421,7 +1422,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
             finalTotalPriceAdjusted += precoTotalAjustado;
 
             rows.push({
-                codMerco, label, roundedBars, exactBars, bPrice, precoUnAjustado, precoTotal, precoTotalAjustado, pesoUn, pesoTotal, metros: g.totalLinearMeters
+                codMerco, label, roundedBars, exactBars, bPrice, precoUnAjustado, precoTotal, precoTotalAjustado, pesoUn, pesoTotal, metros: g.totalLinearMeters, cortes: g.totalPieces
             });
         });
 
@@ -1451,7 +1452,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                 precoTotalAjustado: precoTotalAjustado,
                 pesoUn: 1,
                 pesoTotal: roundedArameKg,
-                metros: getQuoteTotalPoints(activeQuote) * 0.05
+                metros: getQuoteTotalPoints(activeQuote) * 0.05,
+                cortes: 0
             });
             finalTotalPrice += precoTotal;
             finalTotalPriceAdjusted += precoTotalAjustado;
@@ -2224,6 +2226,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                     <thead>
                                         <tr className="bg-[#175C8A] text-white">
                                             <th className="p-3 font-bold border-r border-[#1a6699] text-center w-24">Cód Merco</th>
+                                            <th className="p-3 font-bold border-r border-[#1a6699] text-center w-16">PÇS</th>
                                             <th className="p-3 font-bold border-r border-[#1a6699]">Descrição</th>
                                             <th className="p-3 font-bold border-r border-[#1a6699] text-center">Qtde</th>
                                             <th className="p-3 font-bold border-r border-[#1a6699] text-center w-24">Metros</th>
@@ -2239,6 +2242,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                         {checkoutData.rows.map((row, idx) => (
                                             <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-[#E6EEF2]'}>
                                                 <td className="p-3 text-center border-r border-slate-300 text-slate-500 font-medium">{row.codMerco}</td>
+                                                <td className="p-3 text-center border-r border-slate-300 text-sky-700 font-bold">{row.cortes > 0 ? row.cortes : '-'}</td>
                                                 <td className="p-3 border-r border-slate-300 text-slate-700 font-bold uppercase text-[11px]">{row.label}</td>
                                                 <td className="p-3 text-center border-r border-slate-300">
                                                     <div className="bg-[#6B7280] text-white font-bold rounded-full px-3 py-1 inline-block text-xs">
