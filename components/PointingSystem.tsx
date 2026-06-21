@@ -598,7 +598,16 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
 
     // Scheduling functions
     const isMachineCompatibleWithBitola = (machineGaugeRange: string, bitolaStr: string) => {
-        const bitolaMatch = bitolaStr.match(/(\d+(\.\d+)?)/);
+        // Tenta achar "10.00 mm" ou similar
+        let bitolaMatch = bitolaStr.match(/(\d+(\.\d+)?) ?mm/i);
+        if (!bitolaMatch) {
+            // Se não tiver mm, tenta pegar o último número da string (evita pegar o 60 do CA60)
+            const allNums = Array.from(bitolaStr.matchAll(/(\d+(\.\d+)?)/g));
+            if (allNums.length > 0) {
+                bitolaMatch = allNums[allNums.length - 1];
+            }
+        }
+        
         if (!bitolaMatch) return false;
         const b = parseFloat(bitolaMatch[1]);
         
