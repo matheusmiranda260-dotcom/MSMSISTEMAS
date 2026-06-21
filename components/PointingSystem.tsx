@@ -1893,6 +1893,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                             <option value="duplicate">📋 Duplicar Orçamento</option>
                                             <option value="print_orcamento">🖨️ Imprimir Modelo Cliente</option>
                                             <option value="print_corte">✂️ Imprimir Plano de Corte</option>
+                                            <option value="print_etiqueta_maquina">🏷️ Imprimir Etiqueta Produção</option>
                                             <option value="delete">🗑️ Excluir Orçamento</option>
                                         </select>
                                     </td>
@@ -6003,6 +6004,151 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                             </div>
                                         ))
                                     )}
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {/* MODAL: Etiqueta Produção Máquina */}
+                    {activeModal.type === 'print_etiqueta_maquina' && activeQuote && (() => {
+                        const etiquetas: any[] = [];
+                        activeQuote.products.forEach((p, pIdx) => {
+                            let osName = p.description || 'Produto';
+                            osName = osName.replace(/\s*\d*\s*LADOS X.*/i, '').trim();
+                            const prodQtde = p.qty || 1;
+                            (p.ferros || []).forEach((f, fIdx) => {
+                                const osNumber = `OS: ${String(activeQuote.products.slice(0, pIdx).reduce((acc, prevP) => acc + (prevP.ferros?.length || 0), 0) + fIdx + 1).padStart(2, '0')}`;
+                                const bitolaStr = f.bitola || '';
+                                const bConfig = (bitolas || []).find(b => bitolaStr.startsWith(b.label));
+                                const bitolaLabel = bConfig ? bConfig.label : (bitolaStr.split(',')[0] || 'Desconhecida');
+                                
+                                const cutQty = (f.qtde || 1) * prodQtde;
+                                
+                                let drawTypeLabel = f.drawingType || 'RETO';
+                                if (f.drawingType === 'Estribo') drawTypeLabel = 'ESTRIBO';
+                                if (f.drawingType === 'CorteDobra') drawTypeLabel = 'CORTE E DOBRA';
+                                if (f.drawingType === 'Trava') drawTypeLabel = 'TRAVA';
+                                
+                                const ferroModel = ferroModels.find(m => m.id === f.ferroModelId);
+                                if (ferroModel && f.drawingType !== 'Estribo' && f.drawingType !== 'Trava' && f.drawingType !== 'CorteDobra') {
+                                    drawTypeLabel = ferroModel.name;
+                                }
+                                
+                                if (f.nomeElemento) {
+                                    drawTypeLabel = f.nomeElemento.toUpperCase();
+                                }
+                                
+                                let dims = [];
+                                if (f.a) dims.push(`A: ${f.a}`);
+                                if (f.b) dims.push(`B: ${f.b}`);
+                                if (f.c) dims.push(`C: ${f.c}`);
+                                if (f.d) dims.push(`D: ${f.d}`);
+                                if (f.e) dims.push(`E: ${f.e}`);
+                                const dimStr = dims.length > 0 ? ` (${dims.join(', ')})` : '';
+                                const formatoDimensions = `${drawTypeLabel}${dimStr}`;
+
+                                const ladosDesc = p.description.match(/(\d+) LADOS/)?.[1] ? `${p.description.match(/(\d+) LADOS/)?.[1]} LADOS` : '4 LADOS';
+
+                                etiquetas.push({
+                                    osNumber,
+                                    osName,
+                                    bitola: bitolaLabel,
+                                    cutQty,
+                                    formatoDimensions,
+                                    ladosDesc,
+                                    f
+                                });
+                            });
+                        });
+
+                        return (
+                            <div className="fixed inset-0 z-50 bg-slate-900 overflow-y-auto print:bg-white">
+                                <div className="min-h-screen p-4 flex flex-col items-center print:p-0 print:block">
+                                    <div className="w-full max-w-4xl flex justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-lg print:hidden">
+                                        <h2 className="text-xl font-bold text-slate-800">🏷️ Etiquetas de Produção Máquina - Orçamento {activeQuote.id}</h2>
+                                        <div className="flex gap-4">
+                                            <button onClick={() => window.print()} className="px-6 py-2 bg-sky-600 text-white font-bold rounded-lg hover:bg-sky-700 shadow-md flex items-center gap-2">
+                                                🖨️ Imprimir Etiquetas
+                                            </button>
+                                            <button onClick={() => setActiveModal(null)} className="px-6 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-300">
+                                                Fechar
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="w-full max-w-md print:max-w-none flex flex-col gap-8 print:gap-0 print:block">
+                                        {etiquetas.map((etq, idx) => (
+                                            <div key={idx} className="bg-white rounded-lg shadow-xl print:shadow-none print:rounded-none overflow-hidden flex flex-col" style={{ padding: '20px', boxSizing: 'border-box', pageBreakAfter: 'always', minHeight: '100vh' }}>
+                                                <div>
+                                                    {/* Header */}
+                                                    <div className="flex justify-between items-start border-b-2 border-slate-800 pb-4 mb-4">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-sm font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded w-max mb-2 border border-slate-200">
+                                                                {etq.osNumber}
+                                                            </span>
+                                                            <h1 className="text-xl font-black text-slate-800 uppercase leading-tight">
+                                                                {etq.osName}
+                                                            </h1>
+                                                        </div>
+                                                        <div className="w-20 h-20 border-2 border-slate-200 flex flex-col items-center justify-center rounded bg-white shrink-0 p-1">
+                                                            {systemSettings?.logoUrl ? (
+                                                                <img src={systemSettings.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
+                                                            ) : (
+                                                                <div className="text-[10px] font-bold text-slate-400 text-center uppercase">Logo Cliente</div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Details */}
+                                                    <div className="flex flex-col gap-3 mb-6">
+                                                        <div className="flex border-b border-slate-200 pb-2">
+                                                            <div className="w-1/3 text-xs font-bold text-slate-400 uppercase">Quantidade</div>
+                                                            <div className="w-2/3 text-lg font-black text-slate-800">{etq.cutQty} CORTES</div>
+                                                        </div>
+                                                        <div className="flex border-b border-slate-200 pb-2 items-center">
+                                                            <div className="w-1/3 text-xs font-bold text-slate-400 uppercase">Formato</div>
+                                                            <div className="w-2/3 text-sm font-bold text-slate-800 flex flex-col items-start gap-2">
+                                                                <span>{etq.formatoDimensions}</span>
+                                                                <div className="w-32 h-20 flex items-center justify-center shrink-0 border border-slate-100 rounded bg-slate-50">
+                                                                    <div className="origin-center scale-[0.7]">
+                                                                        {etq.f.drawingType === 'Estribo' ? (
+                                                                            renderEstriboSVG(etq.ladosDesc, etq.f.estriboShape || etq.f.ferroModelId || 'Padrão', etq.f.ladoA, etq.f.ladoB, etq.f.ladoC, etq.f.ladoD, etq.f.ladoE, etq.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === etq.f.ferroModelId)?.name || '', etq.f.ladoA, etq.f.ladoB, etq.f.ladoC, etq.f.ladoD, etq.f.ladoE, true)
+                                                                        ) : (
+                                                                            renderEstriboSVG(etq.ladosDesc || '4 LADOS', etq.f.estriboShape || etq.f.ferroModelId || 'Padrão', etq.f.ladoA, etq.f.ladoB, etq.f.ladoC, etq.f.ladoD, etq.f.ladoE, etq.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === etq.f.ferroModelId)?.name || '', etq.f.ladoA, etq.f.ladoB, etq.f.ladoC, etq.f.ladoD, etq.f.ladoE, true)
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex border-b border-slate-200 pb-2">
+                                                            <div className="w-1/3 text-xs font-bold text-slate-400 uppercase">Bitola</div>
+                                                            <div className="w-2/3 text-base font-bold text-slate-800">{etq.bitola}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Barcode Mock */}
+                                                    <div className="bg-slate-100 p-4 rounded-lg flex flex-col items-center justify-center mb-4 border border-slate-200 mt-8">
+                                                        <div className="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest">Código de Rastreio</div>
+                                                        <div className="text-xl font-black text-slate-800 tracking-wider">
+                                                            LOTE-{new Date().getFullYear()}-{activeQuote.id.toString().padStart(4, '0')}-{idx + 1}
+                                                        </div>
+                                                        <div className="h-16 w-full max-w-[250px] bg-black mt-3 opacity-80" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 2px, white 2px, white 4px)' }}></div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Footer */}
+                                                <div className="flex justify-between items-end border-t border-slate-200 pt-4 mt-auto">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs font-black text-slate-800">ETIQUETA DE REGISTRO</span>
+                                                        <span className="text-[10px] text-slate-500">Uso interno na produção da máquina.</span>
+                                                    </div>
+                                                    <div className="text-[9px] text-slate-400 font-bold">
+                                                        GERADO EM {new Date().toLocaleDateString('pt-BR')}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         );
