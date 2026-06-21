@@ -86,7 +86,16 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
         const bounds = cleanMachineRange.split('-');
         const min = parseFloat(bounds[0]) || 0;
         const max = bounds.length > 1 ? parseFloat(bounds[1]) : min;
-        const bValue = parseFloat(bitolaStr.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+        
+        let bValue = 0;
+        const match = bitolaStr.match(/(\d+(?:[.,]\d+)?) ?mm/i);
+        if (match) {
+            bValue = parseFloat(match[1].replace(',', '.'));
+        } else {
+            const noCA = bitolaStr.replace(/CA\d+/i, '');
+            bValue = parseFloat(noCA.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+        }
+        
         return bValue >= min && bValue <= max;
     };
 
