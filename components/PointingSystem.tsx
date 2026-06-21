@@ -5896,8 +5896,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                             <tr key={cIdx} className="border-b border-slate-100 last:border-0">
                                                                                 <td className="p-3 border-r border-slate-200 font-medium text-slate-700">
                                                                                     <div className="flex items-center gap-4">
-                                                                                        <div className="w-20 h-20 flex items-center justify-center shrink-0">
-                                                                                            <div className="origin-center scale-[0.6]">
+                                                                                        <div className="w-32 h-24 flex items-center justify-center shrink-0 pr-4">
+                                                                                            <div className="origin-center scale-100">
                                                                                                 {cut.f.drawingType === 'Estribo' ? (
                                                                                                     renderEstriboSVG(ladosDesc, cut.f.estriboShape || cut.f.ferroModelId || 'Padrão', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, cut.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === cut.f.ferroModelId)?.name || '', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, true)
                                                                                                 ) : cut.f.drawingType === 'Trava' ? (
