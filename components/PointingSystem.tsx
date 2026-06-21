@@ -5880,10 +5880,11 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                 <table className="w-full text-left text-sm border-collapse border border-slate-300">
                                                     <thead>
                                                         <tr className="bg-slate-50 text-slate-600 border-b border-slate-300">
-                                                            <th className="p-2 font-bold border-r border-slate-300 w-1/3">OS / Elemento</th>
-                                                            <th className="p-2 font-bold text-center w-24 border-r border-slate-300">Quantidade de Cortes</th>
-                                                            <th className="p-2 font-bold border-r border-slate-300">Formato / Dimensões</th>
-                                                            <th className="p-2 font-bold text-center w-32">Metros Totais</th>
+                                                            <th className="p-2 font-bold text-center border-r border-slate-300 w-24 uppercase">OS</th>
+                                                            <th className="p-2 font-bold text-center border-r border-slate-300 uppercase">DESCRIÇÃO</th>
+                                                            <th className="p-2 font-bold text-center border-r border-slate-300 w-32 uppercase">QNT. DE CORTES</th>
+                                                            <th className="p-2 font-bold text-center border-r border-slate-300 uppercase">FORMATO/ DIMENSÕES</th>
+                                                            <th className="p-2 font-bold text-center w-32 uppercase">METROS TOTAIS</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -5893,11 +5894,14 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                 return (
                                                                 <tr key={`${oIdx}-${cIdx}`} className="border-b border-slate-200 last:border-0 break-inside-avoid">
                                                                     {cIdx === 0 && (
-                                                                        <td rowSpan={os.cuts.length} className="p-3 border-r border-slate-300 align-middle bg-slate-50">
-                                                                            <div className="font-bold text-slate-800 text-lg">{os.osNumber}</div>
-                                                                            <div className="text-xs font-bold text-slate-600 mt-1 uppercase">{os.osName}</div>
-                                                                            <div className="text-[10px] font-black text-sky-700 mt-2">QTD ELEMENTOS: {os.prodQtde}</div>
-                                                                        </td>
+                                                                        <>
+                                                                            <td rowSpan={os.cuts.length} className="p-3 border-r border-slate-300 align-middle bg-slate-50 text-center font-bold text-slate-800 text-lg">
+                                                                                {os.osNumber}
+                                                                            </td>
+                                                                            <td rowSpan={os.cuts.length} className="p-3 border-r border-slate-300 align-middle bg-slate-50 text-center font-bold text-slate-800 text-sm uppercase">
+                                                                                {os.prodQtde} {os.osName}
+                                                                            </td>
+                                                                        </>
                                                                     )}
                                                                     <td className="p-3 text-center border-r border-slate-300 font-bold text-sky-700 text-base">{cut.qty}</td>
                                                                     <td className="p-2 border-r border-slate-300 font-medium text-slate-700">
