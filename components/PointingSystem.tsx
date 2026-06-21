@@ -370,9 +370,13 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         }
     }, [isLoadingData]);
 
+    // Track previous modal state to know when it closes
+    const prevModalRef = useRef(activeModal);
+
     // Check if we need to return to another screen after closing the modal
     useEffect(() => {
-        if (activeModal === null) {
+        // Only trigger if a modal WAS open and is NOW closed
+        if (activeModal === null && prevModalRef.current !== null) {
             const returnTo = sessionStorage.getItem('return_to_after_print');
             if (returnTo) {
                 sessionStorage.removeItem('return_to_after_print');
@@ -381,6 +385,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                 }
             }
         }
+        prevModalRef.current = activeModal;
     }, [activeModal]);
 
     // Calculation factor (standard R$ 8.50 per kg of steel)
