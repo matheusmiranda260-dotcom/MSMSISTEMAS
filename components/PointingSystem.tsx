@@ -3727,7 +3727,10 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                         const pts = getQuoteTotalPoints(activeQuote);
                                         const kgBase = pts / (arameConfig?.ptsPorKg || 256);
                                         setCheckoutArameKg(activeQuote.arameKg?.toString() || (kgBase > 0 ? kgBase.toFixed(2) : ''));
-                                        setCheckoutAramePreco(activeQuote.aramePreco?.toString() || arameConfig?.precoPorKg?.toString() || '10');
+                                        
+                                        const arameLinkedGauge = arameConfig?.materialId ? gauges.find(g => g.id === arameConfig.materialId) : null;
+                                        const preFillPreco = arameLinkedGauge?.purchasePrice?.toString() || activeQuote.aramePreco?.toString() || arameConfig?.precoPorKg?.toString() || '10';
+                                        setCheckoutAramePreco(preFillPreco);
 
                                         setActiveModal({ type: 'checkout', quoteId: activeQuote.id });
                                     }}
