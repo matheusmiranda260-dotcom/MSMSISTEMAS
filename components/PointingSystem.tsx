@@ -5894,9 +5894,9 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                 <tr key={`${oIdx}-${cIdx}`} className="border-b border-slate-200 last:border-0 break-inside-avoid">
                                                                     {cIdx === 0 && (
                                                                         <td rowSpan={os.cuts.length} className="p-3 border-r border-slate-300 align-middle bg-slate-50">
-                                                                            <div className="font-bold text-slate-800 text-sm uppercase">
-                                                                                {os.osNumber} - {os.prodQtde} UN / {os.osName}
-                                                                            </div>
+                                                                            <div className="font-bold text-slate-800 text-lg">{os.osNumber}</div>
+                                                                            <div className="text-xs font-bold text-slate-600 mt-1 uppercase">{os.osName}</div>
+                                                                            <div className="text-[10px] font-black text-sky-700 mt-2">QTD ELEMENTOS: {os.prodQtde}</div>
                                                                         </td>
                                                                     )}
                                                                     <td className="p-3 text-center border-r border-slate-300 font-bold text-sky-700 text-base">{cut.qty}</td>
