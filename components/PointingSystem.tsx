@@ -6418,8 +6418,25 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                             </div>
                                         </div>
 
-                                        <div className="pt-2 border-t border-slate-100">
-                                            <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide">Os valores são salvos automaticamente no navegador.</div>
+                                        <div className="mt-6 border-t border-slate-200 pt-6">
+                                            <label className="block text-xs font-black text-slate-500 uppercase mb-2">Vincular a um Material do Estoque</label>
+                                            <select 
+                                                value={arameConfig.materialId || ''}
+                                                onChange={(e) => setArameConfig(prev => ({ ...prev, materialId: e.target.value }))}
+                                                className="w-full max-w-lg border border-slate-300 rounded px-3 py-2 text-sm bg-white font-bold text-slate-700 outline-none focus:border-sky-500 shadow-sm"
+                                            >
+                                                <option value="">-- Não vincular (Usar preço manual) --</option>
+                                                {gauges.map(g => (
+                                                    <option key={g.id} value={g.id}>
+                                                        {g.productCode ? `[${g.productCode}] ` : ''}{g.commercialName || g.gauge} {g.purchasePrice ? `(R$ ${g.purchasePrice.toFixed(2)})` : ''}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <p className="text-[10px] text-slate-500 mt-1 uppercase font-semibold">Ao selecionar um material, o sistema usará o código e descrição dele no orçamento final.</p>
+                                        </div>
+
+                                        <div className="pt-6 mt-6 border-t border-slate-100">
+                                            <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide text-center">Os valores são salvos automaticamente no navegador.</div>
                                         </div>
                                     </div>
                                 </div>
