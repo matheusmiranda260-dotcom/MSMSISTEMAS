@@ -1,0 +1,717 @@
+﻿components/PointingSystem.tsx(97,45): error TS1005: ',' expected.
+components/PointingSystem.tsx(97,62): error TS1005: ',' expected.
+components/PointingSystem.tsx(97,90): error TS1005: ',' expected.
+components/PointingSystem.tsx(97,94): error TS1005: ',' expected.
+components/PointingSystem.tsx(97,103): error TS1005: ',' expected.
+components/PointingSystem.tsx(97,104): error TS17008: JSX element 'T' has no corresponding closing tag.
+components/PointingSystem.tsx(97,108): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(98,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(99,21): error TS1109: Expression expected.
+components/PointingSystem.tsx(100,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(101,66): error TS1005: '}' expected.
+components/PointingSystem.tsx(104,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(105,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(110,69): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(110,82): error TS17008: JSX element 'EstriboModel' has no corresponding closing tag.
+components/PointingSystem.tsx(111,65): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(111,78): error TS17008: JSX element 'FerroModel' has no corresponding closing tag.
+components/PointingSystem.tsx(112,65): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(112,78): error TS17008: JSX element 'TravaModel' has no corresponding closing tag.
+components/PointingSystem.tsx(117,52): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(118,21): error TS1005: '}' expected.
+components/PointingSystem.tsx(118,108): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(119,21): error TS1005: '}' expected.
+components/PointingSystem.tsx(119,108): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(120,21): error TS1005: '}' expected.
+components/PointingSystem.tsx(120,108): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(121,21): error TS1005: '}' expected.
+components/PointingSystem.tsx(121,108): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(122,21): error TS1005: '}' expected.
+components/PointingSystem.tsx(122,108): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(123,21): error TS1005: '}' expected.
+components/PointingSystem.tsx(123,106): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(124,21): error TS1005: '}' expected.
+components/PointingSystem.tsx(124,105): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(125,21): error TS1005: '}' expected.
+components/PointingSystem.tsx(125,105): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(126,21): error TS1005: '}' expected.
+components/PointingSystem.tsx(126,105): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(127,21): error TS1005: '}' expected.
+components/PointingSystem.tsx(127,107): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(128,21): error TS1005: '}' expected.
+components/PointingSystem.tsx(128,107): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(129,21): error TS1005: '}' expected.
+components/PointingSystem.tsx(129,107): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(130,21): error TS1005: '}' expected.
+components/PointingSystem.tsx(130,107): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(131,21): error TS1005: '}' expected.
+components/PointingSystem.tsx(131,107): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(138,19): error TS1005: '}' expected.
+components/PointingSystem.tsx(139,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(141,54): error TS1005: '}' expected.
+components/PointingSystem.tsx(141,76): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(145,19): error TS1005: '}' expected.
+components/PointingSystem.tsx(146,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(152,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(153,21): error TS1109: Expression expected.
+components/PointingSystem.tsx(154,58): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(156,37): error TS1005: '}' expected.
+components/PointingSystem.tsx(157,21): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(158,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(159,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(160,63): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(160,91): error TS1005: '}' expected.
+components/PointingSystem.tsx(160,133): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(161,60): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(161,107): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(169,19): error TS1005: '}' expected.
+components/PointingSystem.tsx(170,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(175,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(176,58): error TS1005: '}' expected.
+components/PointingSystem.tsx(177,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(178,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(179,59): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(179,87): error TS1005: '}' expected.
+components/PointingSystem.tsx(179,129): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(180,56): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(180,99): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(188,19): error TS1005: '}' expected.
+components/PointingSystem.tsx(189,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(194,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(195,58): error TS1005: '}' expected.
+components/PointingSystem.tsx(196,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(197,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(198,59): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(198,87): error TS1005: '}' expected.
+components/PointingSystem.tsx(198,129): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(199,56): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(199,99): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(207,19): error TS1005: '}' expected.
+components/PointingSystem.tsx(208,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(224,35): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(225,173): error TS1005: '}' expected.
+components/PointingSystem.tsx(226,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(228,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(230,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(233,19): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(234,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(235,38): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(236,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(237,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(237,57): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(238,21): error TS1109: Expression expected.
+components/PointingSystem.tsx(238,65): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(241,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(243,21): error TS1109: Expression expected.
+components/PointingSystem.tsx(245,105): error TS1005: '}' expected.
+components/PointingSystem.tsx(246,21): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(247,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(248,66): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(248,84): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(250,21): error TS1109: Expression expected.
+components/PointingSystem.tsx(252,101): error TS1005: '}' expected.
+components/PointingSystem.tsx(253,21): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(254,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(256,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(257,60): error TS1005: '}' expected.
+components/PointingSystem.tsx(259,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(260,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(262,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(265,19): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(266,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(267,39): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(268,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(269,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(269,51): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(270,21): error TS1109: Expression expected.
+components/PointingSystem.tsx(270,66): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(273,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(275,58): error TS1005: '}' expected.
+components/PointingSystem.tsx(276,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(278,67): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(278,86): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(280,62): error TS1005: '}' expected.
+components/PointingSystem.tsx(281,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(283,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(284,61): error TS1005: '}' expected.
+components/PointingSystem.tsx(286,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(287,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(289,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(292,19): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(293,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(295,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(295,41): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(296,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(297,21): error TS1109: Expression expected.
+components/PointingSystem.tsx(301,79): error TS1005: '}' expected.
+components/PointingSystem.tsx(302,21): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(303,70): error TS1005: '}' expected.
+components/PointingSystem.tsx(304,21): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(306,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(307,70): error TS1005: '}' expected.
+components/PointingSystem.tsx(309,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(310,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(312,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(313,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(316,19): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(317,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(318,40): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(319,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(320,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(320,57): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(321,21): error TS1109: Expression expected.
+components/PointingSystem.tsx(321,67): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(324,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(326,21): error TS1109: Expression expected.
+components/PointingSystem.tsx(326,60): error TS1005: '}' expected.
+components/PointingSystem.tsx(326,82): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(329,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(330,68): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(330,93): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(332,62): error TS1005: '}' expected.
+components/PointingSystem.tsx(333,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(335,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(336,68): error TS1005: '}' expected.
+components/PointingSystem.tsx(338,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(339,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(341,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(344,19): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(345,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(346,38): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(347,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(348,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(348,55): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(349,21): error TS1109: Expression expected.
+components/PointingSystem.tsx(349,65): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(352,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(354,21): error TS1109: Expression expected.
+components/PointingSystem.tsx(354,60): error TS1005: '}' expected.
+components/PointingSystem.tsx(354,82): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(357,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(358,66): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(358,89): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(360,60): error TS1005: '}' expected.
+components/PointingSystem.tsx(361,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(363,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(364,66): error TS1005: '}' expected.
+components/PointingSystem.tsx(366,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(367,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(369,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(372,19): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(373,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(374,38): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(375,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(376,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(376,55): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(377,21): error TS1109: Expression expected.
+components/PointingSystem.tsx(377,65): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(380,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(382,21): error TS1109: Expression expected.
+components/PointingSystem.tsx(382,60): error TS1005: '}' expected.
+components/PointingSystem.tsx(382,82): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(385,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(386,66): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(386,89): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(388,60): error TS1005: '}' expected.
+components/PointingSystem.tsx(389,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(391,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(392,66): error TS1005: '}' expected.
+components/PointingSystem.tsx(394,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(395,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(397,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(400,52): error TS1003: Identifier expected.
+components/PointingSystem.tsx(400,106): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(404,44): error TS1003: Identifier expected.
+components/PointingSystem.tsx(404,63): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(408,52): error TS1003: Identifier expected.
+components/PointingSystem.tsx(409,9): error TS1005: '...' expected.
+components/PointingSystem.tsx(409,13): error TS1005: '}' expected.
+components/PointingSystem.tsx(411,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(411,13): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(414,54): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(415,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(417,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(418,56): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(419,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(421,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(422,54): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(423,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(425,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(428,19): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(429,71): error TS1005: '}' expected.
+components/PointingSystem.tsx(432,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(438,40): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(439,13): error TS1005: '}' expected.
+components/PointingSystem.tsx(439,39): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(440,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(447,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(450,60): error TS1005: '}' expected.
+components/PointingSystem.tsx(451,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(452,76): error TS1005: '}' expected.
+components/PointingSystem.tsx(453,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(455,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(458,31): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(459,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(460,26): error TS1005: '}' expected.
+components/PointingSystem.tsx(468,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(471,47): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(471,74): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(472,33): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(473,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(477,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(480,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(482,37): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(483,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(484,31): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(485,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(489,50): error TS1003: Identifier expected.
+components/PointingSystem.tsx(489,65): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(491,71): error TS1003: Identifier expected.
+components/PointingSystem.tsx(491,77): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(505,65): error TS1003: Identifier expected.
+components/PointingSystem.tsx(505,67): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(506,65): error TS1003: Identifier expected.
+components/PointingSystem.tsx(506,71): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(523,68): error TS1003: Identifier expected.
+components/PointingSystem.tsx(523,90): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(534,50): error TS1003: Identifier expected.
+components/PointingSystem.tsx(534,70): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(539,67): error TS1003: Identifier expected.
+components/PointingSystem.tsx(539,73): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(545,75): error TS1003: Identifier expected.
+components/PointingSystem.tsx(545,81): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(585,59): error TS1003: Identifier expected.
+components/PointingSystem.tsx(585,65): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(599,79): error TS1003: Identifier expected.
+components/PointingSystem.tsx(599,85): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(600,87): error TS1003: Identifier expected.
+components/PointingSystem.tsx(600,93): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(601,87): error TS1003: Identifier expected.
+components/PointingSystem.tsx(601,93): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(603,67): error TS1003: Identifier expected.
+components/PointingSystem.tsx(603,73): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(605,59): error TS1003: Identifier expected.
+components/PointingSystem.tsx(605,65): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(608,77): error TS1003: Identifier expected.
+components/PointingSystem.tsx(608,83): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(623,65): error TS1003: Identifier expected.
+components/PointingSystem.tsx(623,71): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(638,52): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(639,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(639,51): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(642,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(651,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(652,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(654,105): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(655,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(661,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(663,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(663,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(667,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(667,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(668,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(668,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(669,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(669,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(673,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(673,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(674,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(674,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(675,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(675,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(679,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(679,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(680,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(680,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(681,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(681,57): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(685,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(685,57): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(686,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(686,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(690,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(690,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(691,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(691,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(692,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(692,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(696,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(696,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(697,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(697,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(698,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(698,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(702,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(702,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(703,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(703,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(704,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(704,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(705,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(705,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(706,32): error TS1005: '}' expected.
+components/PointingSystem.tsx(706,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(708,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(720,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(722,165): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(723,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(726,46): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(731,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(732,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(762,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(765,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(768,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(770,76): error TS1005: '}' expected.
+components/PointingSystem.tsx(770,99): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(771,76): error TS1005: '}' expected.
+components/PointingSystem.tsx(771,94): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(772,79): error TS1005: '}' expected.
+components/PointingSystem.tsx(772,100): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(773,76): error TS1005: '}' expected.
+components/PointingSystem.tsx(773,94): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(774,81): error TS1005: '}' expected.
+components/PointingSystem.tsx(774,104): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(775,81): error TS1005: '}' expected.
+components/PointingSystem.tsx(775,104): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(776,75): error TS1005: '}' expected.
+components/PointingSystem.tsx(776,100): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(777,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(780,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(787,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(790,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(791,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(798,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(800,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(806,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(808,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(818,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(820,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(828,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(830,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(840,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(842,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(852,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(854,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(865,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(867,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(877,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(879,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(890,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(892,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(903,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(905,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(917,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(927,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(930,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(938,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(941,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(950,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(953,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(954,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(962,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(964,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(975,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(982,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(985,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(987,87): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(988,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(995,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(999,49): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1002,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(1004,25): error TS1005: '}' expected.
+components/PointingSystem.tsx(1013,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1014,92): error TS1005: '}' expected.
+components/PointingSystem.tsx(1016,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1017,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1019,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(1022,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1023,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1026,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1027,55): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1029,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(1030,25): error TS1005: '}' expected.
+components/PointingSystem.tsx(1038,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1039,90): error TS1005: '}' expected.
+components/PointingSystem.tsx(1040,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1041,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1043,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(1052,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1053,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1056,48): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1058,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1060,21): error TS1005: '}' expected.
+components/PointingSystem.tsx(1069,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1070,91): error TS1005: '}' expected.
+components/PointingSystem.tsx(1071,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1072,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1075,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1079,58): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1080,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(1081,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1081,49): error TS1005: '}' expected.
+components/PointingSystem.tsx(1081,74): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1082,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1088,29): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1089,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1097,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(1098,26): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1099,43): error TS1005: '}' expected.
+components/PointingSystem.tsx(1100,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1101,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1102,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1104,54): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1105,73): error TS1005: '}' expected.
+components/PointingSystem.tsx(1106,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1109,19): error TS1005: '}' expected.
+components/PointingSystem.tsx(1111,43): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1112,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1113,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1115,63): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1116,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(1129,35): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1132,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1134,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1140,49): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1142,58): error TS1005: '}' expected.
+components/PointingSystem.tsx(1144,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1145,50): error TS1005: '}' expected.
+components/PointingSystem.tsx(1147,26): error TS1005: '}' expected.
+components/PointingSystem.tsx(1148,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1149,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1152,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1160,29): error TS1005: '}' expected.
+components/PointingSystem.tsx(1161,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1162,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1165,25): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1166,52): error TS1005: '}' expected.
+components/PointingSystem.tsx(1167,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1168,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1168,59): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1170,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(1171,26): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1172,53): error TS1005: '}' expected.
+components/PointingSystem.tsx(1173,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1174,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1175,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1177,53): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1181,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1181,49): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1183,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(1184,38): error TS1005: '}' expected.
+components/PointingSystem.tsx(1185,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1186,96): error TS1005: '}' expected.
+components/PointingSystem.tsx(1187,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1188,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1191,76): error TS1005: '}' expected.
+components/PointingSystem.tsx(1192,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1193,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(1196,51): error TS1005: '}' expected.
+components/PointingSystem.tsx(1197,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1198,46): error TS1005: '}' expected.
+components/PointingSystem.tsx(1199,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1200,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1203,21): error TS1005: '}' expected.
+components/PointingSystem.tsx(1206,94): error TS1005: '}' expected.
+components/PointingSystem.tsx(1207,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1209,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1210,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1220,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1222,53): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1223,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(1225,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1231,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1233,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1240,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1242,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1250,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1252,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1261,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1270,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1276,8): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1277,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(1302,31): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1303,31): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1304,31): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1307,31): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1308,31): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1309,36): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1310,36): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1311,36): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1377,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1382,56): error TS1003: Identifier expected.
+components/PointingSystem.tsx(1382,80): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1383,67): error TS1003: Identifier expected.
+components/PointingSystem.tsx(1383,73): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1395,49): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1396,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(1397,48): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1398,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1399,52): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1399,195): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1400,50): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1400,300): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1402,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1403,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1405,38): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1406,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(1406,40): error TS1005: '}' expected.
+components/PointingSystem.tsx(1406,140): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1408,29): error TS1005: ',' expected.
+components/PointingSystem.tsx(1408,55): error TS1109: Expression expected.
+components/PointingSystem.tsx(1408,80): error TS1005: '}' expected.
+components/PointingSystem.tsx(1408,128): error TS17008: JSX element 'string' has no corresponding closing tag.
+components/PointingSystem.tsx(1408,136): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1408,138): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1409,57): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1410,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1411,41): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1412,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(1413,57): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1415,63): error TS1005: '}' expected.
+components/PointingSystem.tsx(1415,135): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1421,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1422,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1433,44): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1434,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1437,56): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1450,35): error TS1003: Identifier expected.
+components/PointingSystem.tsx(1459,140): error TS1005: '}' expected.
+components/PointingSystem.tsx(1460,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1461,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1465,26): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1466,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1469,72): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1478,24): error TS1005: '}' expected.
+components/PointingSystem.tsx(1491,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1494,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1496,61): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1497,52): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1500,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1503,16): error TS1005: '}' expected.
+components/PointingSystem.tsx(1503,83): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1504,16): error TS1005: '}' expected.
+components/PointingSystem.tsx(1504,81): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1505,16): error TS1005: '}' expected.
+components/PointingSystem.tsx(1505,83): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1506,16): error TS1005: '}' expected.
+components/PointingSystem.tsx(1506,83): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1507,16): error TS1005: '}' expected.
+components/PointingSystem.tsx(1507,81): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1508,16): error TS1005: '}' expected.
+components/PointingSystem.tsx(1508,81): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1509,16): error TS1005: '}' expected.
+components/PointingSystem.tsx(1509,81): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1512,19): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1513,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(1514,56): error TS1005: '}' expected.
+components/PointingSystem.tsx(1516,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1517,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1519,38): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1520,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(1530,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1530,31): error TS1003: Identifier expected.
+components/PointingSystem.tsx(1531,80): error TS1005: '}' expected.
+components/PointingSystem.tsx(1533,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1540,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1541,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1541,27): error TS1003: Identifier expected.
+components/PointingSystem.tsx(1541,46): error TS1003: Identifier expected.
+components/PointingSystem.tsx(1542,92): error TS1005: '}' expected.
+components/PointingSystem.tsx(1544,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1551,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1552,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1552,30): error TS1003: Identifier expected.
+components/PointingSystem.tsx(1552,49): error TS1003: Identifier expected.
+components/PointingSystem.tsx(1553,83): error TS1005: '}' expected.
+components/PointingSystem.tsx(1555,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1562,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1563,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1566,27): error TS1003: Identifier expected.
+components/PointingSystem.tsx(1566,44): error TS1003: Identifier expected.
+components/PointingSystem.tsx(1567,88): error TS1005: '}' expected.
+components/PointingSystem.tsx(1569,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1577,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1580,15): error TS1005: '}' expected.
+components/PointingSystem.tsx(1587,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1589,31): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1592,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1594,19): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1595,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(1596,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1596,41): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1596,73): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1615,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1616,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1618,40): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1619,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(1619,47): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1620,17): error TS1005: '}' expected.
+components/PointingSystem.tsx(1624,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1627,37): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1628,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1628,38): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1629,36): error TS1005: '}' expected.
+components/PointingSystem.tsx(1630,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1631,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1634,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1635,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1638,37): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1639,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1640,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(1641,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1642,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(1643,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1644,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1645,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1647,53): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1648,27): error TS1005: '}' expected.
+components/PointingSystem.tsx(1651,82): error TS1005: '}' expected.
+components/PointingSystem.tsx(1653,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1655,28): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1656,76): error TS1005: '}' expected.
+components/PointingSystem.tsx(1658,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1670,15): error TS1005: '}' expected.
+components/PointingSystem.tsx(1683,29): error TS1005: '}' expected.
+components/PointingSystem.tsx(1683,136): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1688,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1690,25): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1693,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1695,64): error TS17008: JSX element 'Quote' has no corresponding closing tag.
+components/PointingSystem.tsx(1695,73): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1713,12): error TS1005: '}' expected.
+components/PointingSystem.tsx(1714,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1716,68): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1717,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(1717,39): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1719,28): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1720,66): error TS1005: '}' expected.
+components/PointingSystem.tsx(1722,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1726,15): error TS1005: '}' expected.
+components/PointingSystem.tsx(1728,29): error TS1005: '}' expected.
+components/PointingSystem.tsx(1728,153): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1729,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1731,25): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1734,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1736,79): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1737,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(1737,61): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1740,25): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1740,39): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1741,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1742,17): error TS1109: Expression expected.
+components/PointingSystem.tsx(1744,29): error TS1005: '}' expected.
+components/PointingSystem.tsx(1750,33): error TS1005: '}' expected.
+components/PointingSystem.tsx(1753,25): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1755,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1756,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1758,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1760,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1763,58): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+components/PointingSystem.tsx(1764,9): error TS1109: Expression expected.
+components/PointingSystem.tsx(1766,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1767,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1769,13): error TS1109: Expression expected.
+components/PointingSystem.tsx(1770,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(1772,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(7183,1): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+components/PointingSystem.tsx(7186,1): error TS1005: '</' expected.

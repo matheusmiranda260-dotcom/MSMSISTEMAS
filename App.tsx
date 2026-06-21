@@ -139,6 +139,12 @@ const App: React.FC = () => {
     }, [motivacionais]);
 
     useEffect(() => {
+        const handleNavToPointing = () => setPage('pointingSystem');
+        window.addEventListener('navigate_to_pointing', handleNavToPointing);
+        return () => window.removeEventListener('navigate_to_pointing', handleNavToPointing);
+    }, []);
+
+    useEffect(() => {
         if (currentUser?.employeeId) {
             const checkTasks = async () => {
                 try {

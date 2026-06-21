@@ -1,5 +1,17 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Partner, MachineOrder, ProductionOrderData, MachineConfig, User } from '../types';
+import { fetchAllQuotesFromDB } from '../services/pointingSupabaseAdapter';
+
+interface UnscheduledOrder {
+    id: string;
+    os: string;
+    cliente: string;
+    bitola: string;
+    pesoTotal: number;
+    status: string;
+    data: string;
+    quantidade: number;
+}
 
 interface MachineScheduleProps {
     partners: Partner[];
@@ -52,22 +64,18 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
 
     const dates = useMemo(() => getNext7Days(), []);
 
-    const [quotes, setQuotes] = useState<any[]>(() => {
-        const saved = localStorage.getItem('msm_quotes');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [quotes, setQuotes] = useState<any[]>([]);
 
     useEffect(() => {
-        const handleStorageChange = () => {
-            const saved = localStorage.getItem('msm_quotes');
-            if (saved) setQuotes(JSON.parse(saved));
+        const loadQuotes = async () => {
+            try {
+                const dbQuotes = await fetchAllQuotesFromDB();
+                setQuotes(dbQuotes);
+            } catch (e) {
+                console.error('Failed to load quotes for schedule:', e);
+            }
         };
-        window.addEventListener('storage', handleStorageChange);
-        window.addEventListener('quotes_updated', handleStorageChange);
-        return () => {
-            window.removeEventListener('storage', handleStorageChange);
-            window.removeEventListener('quotes_updated', handleStorageChange);
-        };
+        loadQuotes();
     }, []);
 
     // Load active machines from the active branding partner
@@ -102,16 +110,23 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                        q.clientName.toLowerCase().includes(search);
             }
             return true;
-        }).map(q => ({
-            id: q.id,
-            os: q.id,
-            cliente: q.clientName,
-            bitola: q.items?.[0]?.gauge || '',
-            pesoTotal: q.items?.reduce((sum: number, i: any) => sum + ((i.weightKg || 0) * i.quantity), 0) || 0,
-            status: q.status,
-            data: q.createdAt || new Date().toISOString(),
-            quantidade: q.items?.reduce((sum: number, i: any) => sum + i.quantity, 0) || 0,
-        }));
+        }).map(q => {
+            const firstProduct = q.products?.[0];
+            const firstFerro = firstProduct?.ferros?.[0];
+            const bitolaStr = firstFerro?.bitola || firstProduct?.description || '';
+            const peso = q.products?.reduce((sum: number, p: any) => sum + (p.weight || 0), 0) || 0;
+            const qtd = q.products?.reduce((sum: number, p: any) => sum + (p.qty || 0), 0) || 0;
+            return {
+                id: q.id,
+                os: q.id,
+                cliente: q.clientName,
+                bitola: bitolaStr,
+                pesoTotal: peso,
+                status: q.status,
+                data: q.createdAt || new Date().toISOString(),
+                quantidade: qtd,
+            };
+        });
     }, [quotes, machineOrders, searchTerm]);
 
     // Machine Orders for the selected date and machine
@@ -142,7 +157,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
 
     const occupationPercentage = machineDailyCapacity > 0 ? (scheduledWeight / machineDailyCapacity) * 100 : 0;
 
-    const handleScheduleOrder = async (po: ProductionOrderData) => {
+    const handleScheduleOrder = async (po: UnscheduledOrder) => {
         if (!selectedMachineName || !selectedDate) {
             showNotification('Selecione uma máquina e uma data primeiro.', 'error');
             return;
@@ -205,7 +220,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                             <p className="text-xs text-slate-500 mb-3">Orçamentos / OS prontas para agendar</p>
                             <input
                                 type="text"
-                                placeholder="Buscar por OS, Cliente, Projeto..."
+                                placeholder="Buscar por OP, Cliente, Projeto..."
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                                 className="w-full p-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
@@ -222,16 +237,40 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                         <div className="flex justify-between items-start mb-2">
                                             <div>
                                                 <span className="text-xs font-black bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                                                    OS: {po.os}
+                                                    OP: {po.os}
                                                 </span>
                                                 <h3 className="text-sm font-bold text-slate-800 mt-1">{po.cliente}</h3>
                                             </div>
-                                            <button 
-                                                onClick={() => handleScheduleOrder(po)}
-                                                className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors"
-                                            >
-                                                Agendar ➔
-                                            </button>
+                                            <div className="flex flex-col gap-1 items-end">
+                                                <button 
+                                                    onClick={() => handleScheduleOrder(po)}
+                                                    className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors"
+                                                >
+                                                    Agendar ➔
+                                                </button>
+                                                <div className="flex gap-1 mt-1">
+                                                    <button 
+                                                        onClick={() => {
+                                                            sessionStorage.setItem('pending_print_action', JSON.stringify({ type: 'print_corte', quoteId: po.id }));
+                                                            window.dispatchEvent(new Event('navigate_to_pointing'));
+                                                        }}
+                                                        className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-600 p-1.5 rounded-lg text-xs"
+                                                        title="Imprimir Plano de Corte"
+                                                    >
+                                                        ✂️
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => {
+                                                            sessionStorage.setItem('pending_print_action', JSON.stringify({ type: 'print_etiqueta_maquina', quoteId: po.id }));
+                                                            window.dispatchEvent(new Event('navigate_to_pointing'));
+                                                        }}
+                                                        className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-600 p-1.5 rounded-lg text-xs"
+                                                        title="Imprimir Etiqueta Produção"
+                                                    >
+                                                        🏷️
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2 mt-2 text-xs text-slate-600">
                                             <div><span className="font-bold text-slate-400">Bitola:</span> {po.bitola}</div>
@@ -344,7 +383,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                 <div>
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-xs font-black bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                                                            OS: {mo.orderCode}
+                                                            OP: {mo.orderCode}
                                                         </span>
                                                         <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
                                                             mo.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :

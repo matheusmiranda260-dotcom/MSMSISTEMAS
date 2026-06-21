@@ -801,6 +801,91 @@ export interface TrefilaRingStock {
     quantity: number;
 }
 
+export interface FerroItem {
+    id: string;
+    nomeElemento: string;
+    qtde: number;
+    bitola: string;
+    bitolaKgm: number;
+    bitolaPrice?: number;
+    ferroModelId?: string;
+    ladoA: string;
+    ladoB: string;
+    ladoC: string;
+    ladoD: string;
+    ladoE: string;
+    ladoF?: string;
+    obs: string;
+    drawingType?: string;
+    estriboShape?: string;
+    espacamento?: string;
+}
+
+export interface ProductItem {
+    id: string;
+    description: string;
+    qty: number;
+    length: number;
+    weightPerMeter: number;
+    weight: number;
+    price: number;
+    ferros?: FerroItem[];
+    locked?: boolean;
+    attachmentName?: string;
+    attachmentUrl?: string;
+}
+
+export interface QuoteHistoryRecord {
+    date: string;
+    action: string;
+    user: string;
+}
+
+export interface Quote {
+    id: string; // Quote Number
+    date: string; // dd/mm/yy
+    salesperson: string; // Vendedor
+    clientCode: string;
+    clientName: string;
+    clientCity: string;
+    clientObs: string;
+    price: number;
+    hardwareType: string; // e.g. "FERRAGEM"
+    forecastDate: string; // Previsão Término
+    status: string; // e.g. "Aguardando Exportação", "Orçamento Vazio", "Preço Desatualizado"
+    products: ProductItem[];
+    notes: string[];
+    history: QuoteHistoryRecord[];
+    ddd?: string;
+    phone?: string;
+    email?: string;
+    dischargeByClient?: string;
+    acrescimoPercent?: number;
+    acrescimoReal?: number;
+    descontoPercent?: number;
+    descontoReal?: number;
+    condicoesPagamento?: string;
+    arameKg?: number;
+    aramePreco?: number;
+}
+
+export interface BitolaConfig {
+    id: string;
+    label: string;
+    kgm: number;
+    price: number;
+    amarrado: boolean;
+    corteDobra: boolean;
+    codMerco?: string;
+}
+
+export interface ArameConfig {
+    id?: string;
+    ptsPorKg: number;
+    precoPorKg: number;
+    materialId?: string;
+}
+
 export interface ShiftStaff {
     function: string;
     quantity: number;

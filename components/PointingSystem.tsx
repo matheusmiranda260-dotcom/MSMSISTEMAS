@@ -1,6 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import type { Page, User, StockGauge, EstriboModel, FerroModel, Partner, TravaModel } from '../types';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import type { 
+    Page, User, StockGauge, EstriboModel, FerroModel, Partner, TravaModel,
+    Quote, ProductItem, FerroItem, BitolaConfig, ArameConfig
+} from '../types';
 import { DEFAULT_ESTRIBO_MODELS, DEFAULT_FERRO_MODELS, DEFAULT_TRAVA_MODELS } from '../types';
+import { fetchTable, insertItem, updateItem, deleteItem, upsertItem, uploadFile, supabase } from '../services/supabaseService';
+import { fetchAllQuotesFromDB, saveQuoteToDB, deleteQuoteFromDB, fetchBitolasConfigFromDB, fetchArameConfigFromDB } from '../services/pointingSupabaseAdapter';
 import EstriboDrawingBoard from './EstriboDrawingBoard';
 import { 
     PencilIcon, TrashIcon, ArrowLeftIcon 
@@ -37,68 +42,6 @@ const ProductTitleText = ({ description }: { description: string }) => {
     );
 };
 
-interface FerroItem {
-    id: string;
-    nomeElemento: string;
-    qtde: number;
-    bitola: string;
-    bitolaKgm: number;
-    bitolaPrice?: number;
-    ferroModelId?: string;
-    ladoA: string;
-    ladoB: string;
-    ladoC: string;
-    ladoD: string;
-    ladoE: string;
-    ladoF?: string;
-    obs: string;
-    drawingType?: string;
-    estriboShape?: string;
-    espacamento?: string;
-}
-
-interface ProductItem {
-    id: string;
-    description: string;
-    qty: number;
-    length: number;
-    weightPerMeter: number;
-    weight: number;
-    price: number;
-    ferros?: FerroItem[];
-    locked?: boolean;
-    attachmentName?: string;
-    attachmentData?: string;
-}
-
-interface Quote {
-    id: string; // Quote Number
-    date: string; // dd/mm/yy
-    salesperson: string; // Vendedor
-    clientCode: string;
-    clientName: string;
-    clientCity: string;
-    clientObs: string;
-    price: number;
-    hardwareType: string; // e.g. "FERRAGEM"
-    forecastDate: string; // Previsão Término
-    status: string; // e.g. "Aguardando Exportação", "Orçamento Vazio", "Preço Desatualizado"
-    products: ProductItem[];
-    notes: string[];
-    history: { date: string; action: string; user: string }[];
-    ddd?: string;
-    phone?: string;
-    email?: string;
-    dischargeByClient?: string;
-    acrescimoPercent?: number;
-    acrescimoReal?: number;
-    descontoPercent?: number;
-    descontoReal?: number;
-    condicoesPagamento?: string;
-    arameKg?: number;
-    aramePreco?: number;
-}
-
 interface ClientLookup {
     code: string;
     name: string;
@@ -120,272 +63,262 @@ interface PointingSystemProps {
     activeBrandingPartner?: Partner | null;
 }
 
-const INITIAL_QUOTES: Quote[] = [
-    {
-        id: '228802',
-        date: '10/06/26',
-        salesperson: 'KFOGACA',
-        clientCode: '17406',
-        clientName: 'CONSUMIDOR BALCAO',
-        clientCity: 'ITAPETININGA-SP',
-        clientObs: 'OBS: JR CAMPOLIM - ESTACAS TORRE',
-        price: 141838.50,
-        hardwareType: 'FERRAGEM',
-        forecastDate: '15/06/26',
-        status: 'Aguardando Exportação',
-        products: [
-            { id: '1', description: 'Coluna Pronta CA50 10.00mm', qty: 150, length: 6, weightPerMeter: 0.617, weight: 555.3, price: 141838.50 }
-        ],
-        notes: ['Entregar de manhã', 'Falar com engenheiro Carlos'],
-        history: [
-            { date: '14/06/2026 19:10', action: 'Orçamento Criado', user: 'KFOGACA' },
-            { date: '14/06/2026 19:15', action: 'Produtos Adicionados', user: 'KFOGACA' }
-        ]
-    },
-    {
-        id: '228801',
-        date: '10/06/26',
-        salesperson: 'KFOGACA',
-        clientCode: '17406',
-        clientName: 'CONSUMIDOR BALCAO',
-        clientCity: 'ITAPETININGA-SP',
-        clientObs: 'OBS: JR CAMPOLIM - ESTACAS',
-        price: 37707.00,
-        hardwareType: 'FERRAGEM',
-        forecastDate: '16/06/26',
-        status: 'Aguardando Exportação',
-        products: [
-            { id: '1', description: 'Viga Pronta CA60 6.30mm', qty: 80, length: 4, weightPerMeter: 0.245, weight: 78.4, price: 37707.00 }
-        ],
-        notes: [],
-        history: [
-            { date: '14/06/2026 18:30', action: 'Orçamento Criado', user: 'KFOGACA' }
-        ]
-    },
-    {
-        id: '228788',
-        date: '10/06/26',
-        salesperson: 'GCRUZ',
-        clientCode: '165762',
-        clientName: 'VITAL SOUZA SANTOS',
-        clientCity: 'TATUI-SP',
-        clientObs: 'OBS: VIGAS BALDRAME - FOLHA 06/15',
-        price: 0.00,
-        hardwareType: '',
-        forecastDate: '18/06/26',
-        status: 'Orçamento Vazio',
-        products: [],
-        notes: [],
-        history: [
-            { date: '14/06/2026 17:45', action: 'Orçamento Criado (Sem Itens)', user: 'GCRUZ' }
-        ]
-    },
-    {
-        id: '228787',
-        date: '10/06/26',
-        salesperson: 'GCRUZ',
-        clientCode: '165762',
-        clientName: 'VITAL SOUZA SANTOS',
-        clientCity: 'TATUI-SP',
-        clientObs: 'OBS: ARRANQUES - FOLHA 05/15',
-        price: 0.00,
-        hardwareType: '',
-        forecastDate: '18/06/26',
-        status: 'Orçamento Vazio',
-        products: [],
-        notes: [],
-        history: [
-            { date: '14/06/2026 17:42', action: 'Orçamento Criado (Sem Itens)', user: 'GCRUZ' }
-        ]
-    },
-    {
-        id: '228786',
-        date: '10/06/26',
-        salesperson: 'GCRUZ',
-        clientCode: '165762',
-        clientName: 'VITAL SOUZA SANTOS',
-        clientCity: 'TATUI-SP',
-        clientObs: 'OBS: BLOCOS - FOLHA 05/15',
-        price: 0.00,
-        hardwareType: 'FERRAGEM',
-        forecastDate: '19/06/26',
-        status: 'Preço Desatualizado',
-        products: [],
-        notes: [],
-        history: [
-            { date: '14/06/2026 17:30', action: 'Orçamento Criado', user: 'GCRUZ' },
-            { date: '14/06/2026 17:35', action: 'Status alterado para Preço Desatualizado', user: 'Sistema' }
-        ]
-    },
-    {
-        id: '228785',
-        date: '10/06/26',
-        salesperson: 'GCRUZ',
-        clientCode: '165762',
-        clientName: 'VITAL SOUZA SANTOS',
-        clientCity: 'TATUI-SP',
-        clientObs: 'OBS: ESTACAS - FOLHA 01/15',
-        price: 3297.45,
-        hardwareType: 'FERRAGEM',
-        forecastDate: '20/06/26',
-        status: 'Aguardando Exportação',
-        products: [
-            { id: '1', description: 'Aço Estribo CA60 5.00mm', qty: 200, length: 1, weightPerMeter: 0.154, weight: 30.8, price: 3297.45 }
-        ],
-        notes: [],
-        history: [
-            { date: '14/06/2026 17:10', action: 'Orçamento Criado', user: 'GCRUZ' }
-        ]
-    },
-    {
-        id: '228783',
-        date: '10/06/26',
-        salesperson: 'MGALVAO',
-        clientCode: '21312',
-        clientName: 'JOSE APARECIDO RODRIGUES',
-        clientCity: 'ITAPETININGA-SP',
-        clientObs: 'OBS: AGUARDANDO AUTORIZAÇÃO DO SETOR DE CRÉDITO/FINANCEIRO.',
-        price: 74.04,
-        hardwareType: 'FERRAGEM',
-        forecastDate: '22/06/26',
-        status: 'Exportado 10/06/26 PREVENDA: 2019749',
-        products: [
-            { id: '1', description: 'Barra CA50 8.00mm', qty: 10, length: 12, weightPerMeter: 0.395, weight: 47.4, price: 74.04 }
-        ],
-        notes: ['Verificar liberação com financeiro antes do corte.'],
-        history: [
-            { date: '14/06/2026 16:50', action: 'Orçamento Criado', user: 'MGALVAO' },
-            { date: '14/06/2026 17:00', action: 'Orçamento Exportado para o ERP', user: 'Sistema' }
-        ]
-    },
-    {
-        id: '228781',
-        date: '10/06/26',
-        salesperson: 'ADRIAN',
-        clientCode: '54555',
-        clientName: 'LUCIANA PAULA DE ALMEIDA CIANFLONE',
-        clientCity: 'ITAPETININGA-SP',
-        clientObs: 'OBS: VIGAS DE COBERTURA',
-        price: 0.00,
-        hardwareType: 'FERRAGEM',
-        forecastDate: '23/06/26',
-        status: 'Preço Desatualizado',
-        products: [],
-        notes: [],
-        history: [
-            { date: '14/06/2026 16:20', action: 'Orçamento Criado', user: 'ADRIAN' }
-        ]
-    }
-];
-
-interface BitolaConfig {
-    id: string;
-    label: string;
-    kgm: number;
-    price: number;
-    amarrado: boolean;
-    corteDobra: boolean;
-    codMerco?: string;
-}
+const INITIAL_QUOTES: Quote[] = [];
 
 const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotification, gauges, activeBrandingPartner }) => {
-    const [quotes, setQuotes] = useState<Quote[]>(() => {
-        const saved = localStorage.getItem('msm_quotes');
-        return saved ? JSON.parse(saved) : INITIAL_QUOTES;
-    });
+    const [isLoadingData, setIsLoadingData] = useState(true);
 
-    const [bitolas, setBitolas] = useState<BitolaConfig[]>(() => {
-        const saved = localStorage.getItem('msm_bitolas');
-        if (saved) return JSON.parse(saved);
-        return [
-            { id: '1', label: '3/8" - 10.0 mm', kgm: 0.617, amarrado: true, corteDobra: true },
-            { id: '2', label: '1/2" - 12.5 mm', kgm: 0.963, amarrado: true, corteDobra: true },
-            { id: '3', label: '5/8" - 16.0 mm', kgm: 1.578, amarrado: true, corteDobra: true },
-            { id: '4', label: '3/4" - 19.0 mm', kgm: 2.234, amarrado: true, corteDobra: true },
-            { id: '5', label: '7/8" - 22.2 mm', kgm: 3.045, amarrado: true, corteDobra: true },
-            { id: '6', label: '1" - 25.4 mm', kgm: 3.984, amarrado: true, corteDobra: true },
-            { id: '7', label: 'CA60 5.0 mm', kgm: 0.154, amarrado: true, corteDobra: true },
-            { id: '8', label: 'CA60 6.3 mm', kgm: 0.245, amarrado: true, corteDobra: true },
-            { id: '9', label: 'CA60 8.0 mm', kgm: 0.395, amarrado: true, corteDobra: true },
-            { id: '10', label: 'CA50 10.0 mm', kgm: 0.617, amarrado: true, corteDobra: true },
-            { id: '11', label: 'CA50 12.5 mm', kgm: 0.963, amarrado: true, corteDobra: true },
-            { id: '12', label: 'CA50 16.0 mm', kgm: 1.578, amarrado: true, corteDobra: true },
-            { id: '13', label: 'CA50 20.0 mm', kgm: 2.466, amarrado: true, corteDobra: true },
-            { id: '14', label: 'CA50 25.0 mm', kgm: 3.853, amarrado: true, corteDobra: true },
-        ];
-    });
+    const [quotes, setQuotes] = useState<Quote[]>([]);
+    const [bitolas, setBitolas] = useState<BitolaConfig[]>([]);
+    const [arameConfig, setArameConfig] = useState<ArameConfig>({ ptsPorKg: 256, precoPorKg: 10 });
+    const [estriboModels, setEstriboModels] = useState<EstriboModel[]>([]);
+    const [ferroModels, setFerroModels] = useState<FerroModel[]>([]);
+    const [travaModels, setTravaModels] = useState<TravaModel[]>([]);
 
-    interface ArameConfig {
-        ptsPorKg: number;
-        precoPorKg: number;
-        materialId?: string;
-    }
-    const [arameConfig, setArameConfig] = useState<ArameConfig>(() => {
-        const saved = localStorage.getItem('msm_arame_config');
-        if (saved) return JSON.parse(saved);
-        return { ptsPorKg: 256, precoPorKg: 10 };
-    });
+    const prevQuotesRef = useRef<Quote[]>([]);
+    const prevBitolasRef = useRef<BitolaConfig[]>([]);
+    const prevArameRef = useRef<ArameConfig>({ ptsPorKg: 256, precoPorKg: 10 });
+    const prevEstribosRef = useRef<EstriboModel[]>([]);
+    const prevFerrosRef = useRef<FerroModel[]>([]);
+    const prevTravasRef = useRef<TravaModel[]>([]);
 
     useEffect(() => {
-        localStorage.setItem('msm_arame_config', JSON.stringify(arameConfig));
-    }, [arameConfig]);
+        const loadAllData = async () => {
+            setIsLoadingData(true);
+            let dbQuotes: Quote[] = [];
+            let dbBitolas: BitolaConfig[] = [];
+            let dbArame: ArameConfig | null = null;
+            let dbEstribos: EstriboModel[] = [];
+            let dbFerros: FerroModel[] = [];
+            let dbTravas: TravaModel[] = [];
+            let loadErrors: string[] = [];
+
+            // Helper to fetch safely without failing the whole sequence
+            async function fetchSafe<T>(name: string, fetchFn: () => Promise<T>, fallback: T): Promise<T> {
+                try {
+                    return await fetchFn();
+                } catch (err: any) {
+                    console.error(`Error fetching ${name}:`, err);
+                    loadErrors.push(name);
+                    return fallback;
+                }
+            }
+
+            dbQuotes = await fetchSafe('orçamentos', fetchAllQuotesFromDB, []);
+            dbBitolas = await fetchSafe('bitolas', fetchBitolasConfigFromDB, []);
+            dbArame = await fetchSafe('configuração de arame', fetchArameConfigFromDB, null);
+            dbEstribos = await fetchSafe('modelos de estribos', () => fetchTable<EstriboModel>('model_estribos'), []);
+            dbFerros = await fetchSafe('modelos de ferros', () => fetchTable<FerroModel>('model_ferros'), []);
+            dbTravas = await fetchSafe('modelos de travas', () => fetchTable<TravaModel>('model_travas'), []);            // No fallbacks, just use what is in the DB
+            const loadedQuotes = dbQuotes;            
+            const loadedBitolas = dbBitolas;
+            const loadedArame = dbArame || { ptsPorKg: 256, precoPorKg: 10 };
+            
+            const loadedEstribos = dbEstribos.map((m: any) => ({ ...m, customImageBase64: m.customImageUrl || m.customImageBase64 }));
+            const loadedFerros = dbFerros.map((m: any) => ({ ...m, customImageBase64: m.customImageUrl || m.customImageBase64 }));
+            const loadedTravas = dbTravas.map((m: any) => ({ ...m, customImageBase64: m.customImageUrl || m.customImageBase64 }));
+
+            setQuotes(loadedQuotes);
+            setBitolas(loadedBitolas);
+            setArameConfig(loadedArame);
+            setEstriboModels(loadedEstribos);
+            setFerroModels(loadedFerros);
+            setTravaModels(loadedTravas);
+
+            prevQuotesRef.current = loadedQuotes;
+            prevBitolasRef.current = loadedBitolas;
+            prevArameRef.current = loadedArame;
+            prevEstribosRef.current = loadedEstribos;
+            prevFerrosRef.current = loadedFerros;
+            prevTravasRef.current = loadedTravas;
+
+            if (loadErrors.length > 0) {
+                showNotification(`Aviso: Erro ao carregar dados do Supabase para as tabelas: ${loadErrors.join(', ')}. Alguns dados podem estar desatualizados.`, 'warning');
+            }
+            setIsLoadingData(false);
+        };
+        loadAllData();
+    }, []);
+
+    // Supabase Sync Effect for Quotes
+    useEffect(() => {
+        if (isLoadingData) return;
+        const syncQuotes = async () => {
+            try {
+                const changedOrAdded = quotes.filter(q => {
+                    const prev = prevQuotesRef.current.find(pq => pq.id === q.id);
+                    if (!prev) return true;
+                    return JSON.stringify(q) !== JSON.stringify(prev);
+                });
+                for (const q of changedOrAdded) {
+                    const success = await saveQuoteToDB(q);
+                    if (!success) {
+                        showNotification(`Erro ao sincronizar orçamento ${q.id} com Supabase.`, 'error');
+                    }
+                }
+                const deleted = prevQuotesRef.current.filter(pq => !quotes.some(q => q.id === pq.id));
+                for (const pq of deleted) {
+                    const success = await deleteQuoteFromDB(pq.id);
+                    if (!success) {
+                        showNotification(`Erro ao deletar orçamento ${pq.id} do Supabase.`, 'error');
+                    }
+                }
+                prevQuotesRef.current = quotes;
+            } catch (err: any) {
+                console.error('Error syncing quotes:', err);
+                showNotification(`Erro de sincronização de orçamentos: ${err.message || err}`, 'error');
+            }
+        };
+        syncQuotes();
+    }, [quotes, isLoadingData]);
+
+    // Supabase Sync for Bitolas
+    useEffect(() => {
+        if (isLoadingData) return;
+        const syncBitolas = async () => {
+            try {
+                const changed = bitolas.filter(b => {
+                    const prev = prevBitolasRef.current.find(pb => pb.id === b.id);
+                    if (!prev) return true;
+                    return JSON.stringify(b) !== JSON.stringify(prev);
+                });
+                for (const b of changed) {
+                    await upsertItem('config_bitolas', b);
+                }
+                
+                const deleted = prevBitolasRef.current.filter(pb => !bitolas.some(b => b.id === pb.id));
+                for (const pb of deleted) {
+                    await deleteItem('config_bitolas', pb.id);
+                }
+                prevBitolasRef.current = bitolas;
+            } catch (err: any) {
+                console.error('Error syncing bitolas:', err);
+                showNotification(`Erro ao salvar bitolas no Supabase: ${err.message || err}`, 'error');
+            }
+        };
+        syncBitolas();
+    }, [bitolas, isLoadingData]);
+
+    // Supabase Sync for Arame
+    useEffect(() => {
+        if (isLoadingData) return;
+        const syncArame = async () => {
+            try {
+                const { data, error } = await supabase.from('config_arame').select('id').limit(1).maybeSingle();
+                if (error) throw error;
+
+                if (data) {
+                    await updateItem('config_arame', data.id, arameConfig);
+                } else {
+                    await insertItem('config_arame', arameConfig);
+                }
+                prevArameRef.current = arameConfig;
+            } catch (err: any) {
+                console.error('Error syncing arame config:', err);
+                showNotification(`Erro ao salvar config de arame no Supabase: ${err.message || err}`, 'error');
+            }
+        };
+        syncArame();
+    }, [arameConfig, isLoadingData]);
+
+    // Supabase Sync for Estribo Models
+    useEffect(() => {
+        if (isLoadingData) return;
+        const syncEstribos = async () => {
+            try {
+                const changed = estriboModels.filter(m => {
+                    const prev = prevEstribosRef.current.find(pm => pm.id === m.id);
+                    if (!prev) return true;
+                    return JSON.stringify(m) !== JSON.stringify(prev);
+                });
+                for (const m of changed) {
+                    await supabase.from('model_estribos').upsert({
+                        id: m.id, name: m.name, category: m.category, formula: m.formula,
+                        required_sides: m.requiredSides || [],
+                        svg_template: m.svgTemplate || null,
+                        custom_image_url: m.customImageBase64 || null,
+                        custom_drawing_data: m.customDrawingData || null,
+                        applications: m.applications || [],
+                    }, { onConflict: 'id' });
+                }
+                const deleted = prevEstribosRef.current.filter(pm => !estriboModels.some(m => m.id === pm.id));
+                for (const pm of deleted) {
+                    await deleteItem('model_estribos', pm.id);
+                }
+                prevEstribosRef.current = estriboModels;
+            } catch (err: any) {
+                console.error('Error syncing estribo models:', err);
+                showNotification(`Erro ao salvar modelos de estribos no Supabase: ${err.message || err}`, 'error');
+            }
+        };
+        syncEstribos();
+    }, [estriboModels, isLoadingData]);
+
+    // Supabase Sync for Ferro Models
+    useEffect(() => {
+        if (isLoadingData) return;
+        const syncFerros = async () => {
+            try {
+                const changed = ferroModels.filter(m => {
+                    const prev = prevFerrosRef.current.find(pm => pm.id === m.id);
+                    if (!prev) return true;
+                    return JSON.stringify(m) !== JSON.stringify(prev);
+                });
+                for (const m of changed) {
+                    await supabase.from('model_ferros').upsert({
+                        id: m.id, name: m.name, formula: m.formula,
+                        required_sides: m.requiredSides || [],
+                        custom_image_url: m.customImageBase64 || null,
+                        custom_drawing_data: m.customDrawingData || null,
+                    }, { onConflict: 'id' });
+                }
+                const deleted = prevFerrosRef.current.filter(pm => !ferroModels.some(m => m.id === pm.id));
+                for (const pm of deleted) {
+                    await deleteItem('model_ferros', pm.id);
+                }
+                prevFerrosRef.current = ferroModels;
+            } catch (err: any) {
+                console.error('Error syncing ferro models:', err);
+                showNotification(`Erro ao salvar modelos de ferros no Supabase: ${err.message || err}`, 'error');
+            }
+        };
+        syncFerros();
+    }, [ferroModels, isLoadingData]);
+
+    // Supabase Sync for Trava Models
+    useEffect(() => {
+        if (isLoadingData) return;
+        const syncTravas = async () => {
+            try {
+                const changed = travaModels.filter(m => {
+                    const prev = prevTravasRef.current.find(pm => pm.id === m.id);
+                    if (!prev) return true;
+                    return JSON.stringify(m) !== JSON.stringify(prev);
+                });
+                for (const m of changed) {
+                    await supabase.from('model_travas').upsert({
+                        id: m.id, name: m.name, formula: m.formula,
+                        required_sides: m.requiredSides || [],
+                        shape_id: m.shapeId || 1,
+                        custom_image_url: m.customImageBase64 || null,
+                        custom_drawing_data: m.customDrawingData || null,
+                    }, { onConflict: 'id' });
+                }
+                const deleted = prevTravasRef.current.filter(pm => !travaModels.some(m => m.id === pm.id));
+                for (const pm of deleted) {
+                    await deleteItem('model_travas', pm.id);
+                }
+                prevTravasRef.current = travaModels;
+            } catch (err: any) {
+                console.error('Error syncing trava models:', err);
+                showNotification(`Erro ao salvar modelos de travas no Supabase: ${err.message || err}`, 'error');
+            }
+        };
+        syncTravas();
+    }, [travaModels, isLoadingData]);
 
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [settingsTab, setSettingsTab] = useState<'bitolas' | 'estribos' | 'ferros' | 'arame' | 'travas'>('bitolas');
-
-    useEffect(() => {
-        localStorage.setItem('msm_quotes', JSON.stringify(quotes));
-    }, [quotes]);
-
-    useEffect(() => {
-        localStorage.setItem('msm_bitolas', JSON.stringify(bitolas));
-    }, [bitolas]);
-
-    const [estriboModels, setEstriboModels] = useState<EstriboModel[]>(() => {
-        const saved = localStorage.getItem('msm_estribos');
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved);
-                return parsed.map((m: any) => ({
-                    ...m,
-                    applications: m.applications || ['Coluna', 'Pilar', 'Broca', 'Viga Superior', 'Viga Baldrame', 'Sapata', 'Corte e Dobra', 'Outros']
-                }));
-            } catch (e) { }
-        }
-        return DEFAULT_ESTRIBO_MODELS;
-    });
-
-    useEffect(() => {
-        localStorage.setItem('msm_estribos', JSON.stringify(estriboModels));
-    }, [estriboModels]);
-
-    const [ferroModels, setFerroModels] = useState<FerroModel[]>(() => {
-        const saved = localStorage.getItem('msm_ferros');
-        if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch (e) { }
-        }
-        return DEFAULT_FERRO_MODELS;
-    });
-
-    useEffect(() => {
-        localStorage.setItem('msm_ferros', JSON.stringify(ferroModels));
-    }, [ferroModels]);
-
-    const [travaModels, setTravaModels] = useState<TravaModel[]>(() => {
-        const saved = localStorage.getItem('msm_travas');
-        if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch (e) { }
-        }
-        return DEFAULT_TRAVA_MODELS;
-    });
-
-    useEffect(() => {
-        localStorage.setItem('msm_travas', JSON.stringify(travaModels));
-    }, [travaModels]);
 
     // Filter & Order State
     const [search, setSearch] = useState('');
@@ -1581,7 +1514,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
 
     useEffect(() => {
         if (isAddOpen) {
-            const maxId = Math.max(...quotes.map(q => parseInt(q.id) || 0));
+            const maxId = quotes.length > 0 ? Math.max(...quotes.map(q => parseInt(q.id) || 0)) : 0;
             setNewId(String(maxId + 1));
             setAddStep(1);
             setSearchType('code');
@@ -6353,12 +6286,14 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                 <div>
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-lg font-bold text-slate-800">Controle de Bitolas</h3>
-                                <button 
-                                    onClick={() => setBitolas([...bitolas, { id: Date.now().toString(), label: 'Nova Bitola', kgm: 0, price: 0, amarrado: true, corteDobra: true, codMerco: '' }])}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-sm transition-colors shadow"
-                                >
-                                    + Adicionar Bitola
-                                </button>
+                                <div>
+                                    <button 
+                                        onClick={() => setBitolas([...bitolas, { id: String(Date.now()), label: 'Nova Bitola', kgm: 0, price: 0, amarrado: true, corteDobra: true, codMerco: '' }])}
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-sm transition-colors shadow"
+                                    >
+                                        + Adicionar Bitola
+                                    </button>
+                                </div>
                             </div>
                             
                             <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
@@ -6444,9 +6379,18 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                 </td>
                                                 <td className="p-2 text-center">
                                                     <button 
-                                                        onClick={() => {
-                                                            const newBitolas = bitolas.filter((_, i) => i !== idx);
-                                                            setBitolas(newBitolas);
+                                                        onClick={async () => {
+                                                            try {
+                                                                await deleteItem('config_bitolas', b.id);
+                                                                showNotification(`Bitola excluída com sucesso no banco de dados!`, 'success');
+                                                                
+                                                                // Atualiza a tela
+                                                                const newBitolas = bitolas.filter((_, i) => i !== idx);
+                                                                prevBitolasRef.current = newBitolas;
+                                                                setBitolas(newBitolas);
+                                                            } catch (err: any) {
+                                                                showNotification(`Erro ao excluir bitola: ${err.message || err}`, 'error');
+                                                            }
                                                         }}
                                                         className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition-colors"
                                                         title="Excluir"
@@ -6644,8 +6588,16 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                     <PencilIcon className="w-4 h-4" />
                                                                 </button>
                                                                 <button
-                                                                    onClick={() => {
-                                                                        setEstriboModels(estriboModels.filter((_, i) => i !== idx));
+                                                                    onClick={async () => {
+                                                                        try {
+                                                                            const m = estriboModels[idx];
+                                                                            await deleteItem('model_estribos', m.id);
+                                                                            const newModels = estriboModels.filter((_, i) => i !== idx);
+                                                                            prevEstribosRef.current = newModels;
+                                                                            setEstriboModels(newModels);
+                                                                        } catch (err: any) {
+                                                                            showNotification(`Erro ao excluir modelo: ${err.message || err}`, 'error');
+                                                                        }
                                                                     }}
                                                                     className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors w-full flex items-center justify-center gap-1"
                                                                     title="Remover Modelo"
@@ -6827,8 +6779,16 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                         <PencilIcon className="w-4 h-4" />
                                                                     </button>
                                                                     <button
-                                                                        onClick={() => {
-                                                                            setFerroModels(ferroModels.filter((_, i) => i !== idx));
+                                                                        onClick={async () => {
+                                                                            try {
+                                                                                const m = ferroModels[idx];
+                                                                                await deleteItem('model_ferros', m.id);
+                                                                                const newModels = ferroModels.filter((_, i) => i !== idx);
+                                                                                prevFerrosRef.current = newModels;
+                                                                                setFerroModels(newModels);
+                                                                            } catch (err: any) {
+                                                                                showNotification(`Erro ao excluir modelo: ${err.message || err}`, 'error');
+                                                                            }
                                                                         }}
                                                                         className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors w-full flex items-center justify-center gap-1"
                                                                         title="Remover Modelo"
@@ -7023,8 +6983,15 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                     <PencilIcon className="w-4 h-4" />
                                                                 </button>
                                                                 <button
-                                                                    onClick={() => {
-                                                                        setTravaModels(travaModels.filter(m => m.id !== trava.id));
+                                                                    onClick={async () => {
+                                                                        try {
+                                                                            await deleteItem('model_travas', trava.id);
+                                                                            const newModels = travaModels.filter(m => m.id !== trava.id);
+                                                                            prevTravasRef.current = newModels;
+                                                                            setTravaModels(newModels);
+                                                                        } catch (err: any) {
+                                                                            showNotification(`Erro ao excluir modelo: ${err.message || err}`, 'error');
+                                                                        }
                                                                     }}
                                                                     className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors w-full flex items-center justify-center gap-1"
                                                                     title="Excluir"
