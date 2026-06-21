@@ -394,7 +394,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
 
     // Modals control
     const [activeModal, setActiveModal] = useState<{
-        type: 'client' | 'salesperson' | 'notes' | 'products' | 'price' | 'duplicate' | 'print' | 'printFull' | 'printSteel' | 'print_orcamento' | 'checkout' | 'history' | 'delete';
+        type: 'client' | 'salesperson' | 'notes' | 'products' | 'price' | 'duplicate' | 'print' | 'printFull' | 'printSteel' | 'print_orcamento' | 'checkout' | 'history' | 'delete' | 'export_production' | 'post_export' | 'print_corte' | 'print_etiqueta_maquina' | 'cd_anexar_desenho' | 'cd_alterar_bitolas';
         quoteId: string;
     } | null>(null);
 
@@ -1907,15 +1907,25 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                             className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
                                         >
                                             <option value="">Ações...</option>
-                                            <option value="client">📝 Editar Cliente</option>
-                                            <option value="salesperson">👤 Editar Vendedor</option>
-                                            <option value="products">🛠️ Editar Produtos</option>
-                                            <option value="price">💰 Editar Preço</option>
-                                            <option value="duplicate">📋 Duplicar Orçamento</option>
-                                            <option value="print_orcamento">🖨️ Imprimir Modelo Cliente</option>
-                                            <option value="print_corte">✂️ Imprimir Plano de Corte</option>
-                                            <option value="print_etiqueta_maquina">🏷️ Imprimir Etiqueta Produção</option>
-                                            <option value="delete">🗑️ Excluir Orçamento</option>
+                                            {(!q.status.includes('Enviado p/ Produção') && !q.status.includes('Produzindo') && !q.status.includes('Concluído')) ? (
+                                                <>
+                                                    <option value="client">📝 Editar Cliente</option>
+                                                    <option value="salesperson">👤 Editar Vendedor</option>
+                                                    <option value="products">🛠️ Editar Produtos</option>
+                                                    <option value="price">💰 Editar Preço</option>
+                                                    <option value="duplicate">📋 Duplicar Orçamento</option>
+                                                    <option value="print_orcamento">🖨️ Imprimir Modelo Cliente</option>
+                                                    <option value="export_production">➡️ Exportar para Produção</option>
+                                                    <option value="delete">🗑️ Excluir Orçamento</option>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <option value="duplicate">📋 Duplicar Orçamento</option>
+                                                    <option value="print_orcamento">🖨️ Imprimir Modelo Cliente</option>
+                                                    <option value="print_corte">✂️ Imprimir Plano de Corte</option>
+                                                    <option value="print_etiqueta_maquina">🏷️ Imprimir Etiqueta Produção</option>
+                                                </>
+                                            )}
                                         </select>
                                     </td>
                                 </tr>
@@ -7030,6 +7040,89 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                     </div>
                                 </div>
                             ) : null}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: Exportar para Produção */}
+            {activeModal?.type === 'export_production' && activeQuote && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative z-[101]">
+                        <div className="bg-slate-200 py-3.5 px-5 border-b border-slate-300 flex justify-between items-center shrink-0">
+                            <div className="flex-1 text-center font-display text-slate-800 text-lg font-bold tracking-tight">
+                                Exportar para Produção
+                            </div>
+                            <button onClick={() => setActiveModal(null)} className="text-white text-xl font-bold">&times;</button>
+                        </div>
+                        <div className="p-6 space-y-4 text-center">
+                            <div className="text-4xl">🚀</div>
+                            <h2 className="text-lg font-bold text-slate-800">Deseja enviar a OS nº {activeQuote.id} para as Máquinas?</h2>
+                            <p className="text-xs text-slate-500">Ao confirmar, o status será alterado para <strong>Enviado p/ Produção</strong> e ela não poderá mais ser alterada.</p>
+                        </div>
+                        <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-end gap-3 rounded-b-2xl">
+                            <button onClick={() => setActiveModal(null)} className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-5 rounded-xl text-xs uppercase transition">Cancelar</button>
+                            <button
+                                onClick={() => {
+                                    setQuotes(prev => prev.map(q => q.id === activeQuote.id ? {
+                                        ...q,
+                                        status: 'Enviado p/ Produção',
+                                        history: [...(q.history || []), { date: new Date().toLocaleString('pt-BR'), action: 'Enviado para Produção', user: currentUser?.name || 'Sistema' }]
+                                    } : q));
+                                    
+                                    // Notify other components that quotes have been updated
+                                    setTimeout(() => window.dispatchEvent(new Event('quotes_updated')), 100);
+
+                                    setActiveModal({ type: 'post_export', quoteId: activeQuote.id });
+                                    showNotification(`OS nº ${activeQuote.id} enviada para produção!`, 'success');
+                                }}
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-xl text-xs uppercase transition"
+                            >
+                                Confirmar Exportação
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: Pós Exportação (Imprimir) */}
+            {activeModal?.type === 'post_export' && activeQuote && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative z-[101]">
+                        <div className="bg-slate-200 py-3.5 px-5 border-b border-slate-300 flex justify-between items-center shrink-0">
+                            <div className="flex-1 text-center font-display text-slate-800 text-lg font-bold tracking-tight">
+                                Exportação Concluída
+                            </div>
+                            <button onClick={() => setActiveModal(null)} className="text-white text-xl font-bold">&times;</button>
+                        </div>
+                        <div className="p-6 space-y-4 text-center">
+                            <div className="text-4xl">✅</div>
+                            <h2 className="text-md font-bold text-slate-800">OS nº {activeQuote.id} enviada para produção!</h2>
+                            <p className="text-xs text-slate-500 mb-4">O que você deseja imprimir agora?</p>
+                            
+                            <div className="flex flex-col gap-2">
+                                <button 
+                                    onClick={() => setActiveModal({ type: 'print_orcamento', quoteId: activeQuote.id })}
+                                    className="w-full bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-3 px-4 rounded-xl text-sm transition"
+                                >
+                                    📄 Imprimir Orçamento Modelo Cliente
+                                </button>
+                                <button 
+                                    onClick={() => setActiveModal({ type: 'print_corte', quoteId: activeQuote.id })}
+                                    className="w-full bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-3 px-4 rounded-xl text-sm transition"
+                                >
+                                    ✂️ Imprimir Plano de Corte
+                                </button>
+                                <button 
+                                    onClick={() => setActiveModal({ type: 'print_etiqueta_maquina', quoteId: activeQuote.id })}
+                                    className="w-full bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-3 px-4 rounded-xl text-sm transition"
+                                >
+                                    🏷️ Imprimir Etiqueta Produção
+                                </button>
+                            </div>
+                        </div>
+                        <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-center rounded-b-2xl">
+                            <button onClick={() => setActiveModal(null)} className="bg-slate-300 hover:bg-slate-400 text-slate-800 font-bold py-2 px-8 rounded-xl text-xs uppercase transition">Fechar</button>
                         </div>
                     </div>
                 </div>

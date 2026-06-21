@@ -26,6 +26,7 @@ import StockTransfer from './components/StockTransfer';
 import GaugesManager from './components/GaugesManager';
 import LabelConfiguration from './components/LabelConfiguration';
 import PointingSystem from './components/PointingSystem';
+import MachineSchedule from './components/MachineSchedule';
 import StickyNotes from './components/StickyNotes';
 import MeetingsTasks from './components/MeetingsTasks';
 import DocumentManager from './components/DocumentManager';
@@ -2825,6 +2826,18 @@ const App: React.FC = () => {
             case 'gaugesManager': return <GaugesManager gauges={gauges} stock={stock} onAdd={addGauge} onDelete={deleteGauge} onUpdate={updateGauge} gaugeComponents={gaugeComponents} onSaveComponents={saveGaugeComponents} currentUser={currentUser} />;
             case 'labelConfig': return <LabelConfiguration gauges={gauges} showNotification={showNotification} activeBrandingPartner={activeBrandingPartner} />;
             case 'pointingSystem': return <PointingSystem currentUser={currentUser} showNotification={showNotification} gauges={gauges} activeBrandingPartner={activeBrandingPartner} />;
+            case 'programarMaquinas': return (
+                <MachineSchedule 
+                    partners={partners}
+                    machineOrders={machineOrders}
+                    productionOrders={productionOrders}
+                    onAddMachineOrder={addMachineOrder}
+                    onUpdateMachineOrder={updateMachineOrder}
+                    onDeleteMachineOrder={deleteMachineOrder}
+                    showNotification={showNotification}
+                    currentUser={currentUser}
+                />
+            );
             case 'partnerConfig': return (
                 <PartnerConfig 
                     partners={partners} 

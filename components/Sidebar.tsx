@@ -203,6 +203,11 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                                             📋 Sistema Apontamento
                                         </button>
                                     )}
+                                    {hasPermission('programarMaquinas') && (
+                                        <button onClick={() => setPage('programarMaquinas')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'programarMaquinas' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                            📅 Programar Máquinas
+                                        </button>
+                                    )}
                                     {hasPermission('stockAdd') && (
                                         <button onClick={() => setPage('stockAdd')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'stockAdd' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
                                             + Conferência
