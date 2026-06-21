@@ -5901,11 +5901,11 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                     )}
                                                                     <td className="p-3 text-center border-r border-slate-300 font-bold text-sky-700 text-base">{cut.qty}</td>
                                                                     <td className="p-2 border-r border-slate-300 font-medium text-slate-700">
-                                                                        <div className="flex items-center gap-4">
-                                                                            <div className="flex flex-col flex-1 pl-2">
+                                                                        <div className="flex items-center justify-center gap-6">
+                                                                            <div className="flex flex-col">
                                                                                 <span className="font-bold text-slate-800">{cut.format}</span>
                                                                             </div>
-                                                                            <div className="w-32 h-24 flex items-center justify-center shrink-0 pr-4">
+                                                                            <div className="w-32 h-24 flex items-center justify-center shrink-0">
                                                                                 <div className="origin-center scale-100">
                                                                                     {cut.f.drawingType === 'Estribo' ? (
                                                                                         renderEstriboSVG(ladosDesc, cut.f.estriboShape || cut.f.ferroModelId || 'Padrão', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, cut.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === cut.f.ferroModelId)?.name || '', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, true)
