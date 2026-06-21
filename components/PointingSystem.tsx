@@ -3386,7 +3386,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                     <tbody>
                                                                         {item.ferros.map((ferro, fIdx) => (
                                                                             <tr key={ferro.id} className="bg-white hover:bg-slate-50">
-                                                                                <td className="px-2 py-0.5 text-center font-bold text-slate-500 text-[10px]">OS:{String(fIdx + 1).padStart(2, '0')}</td>
+                                                                                <td className="px-2 py-0.5 text-center font-bold text-slate-500 text-[10px]">OS:{String((tempProducts.slice(0, idx).reduce((acc, p) => acc + (p.ferros?.length || 0), 0)) + fIdx + 1).padStart(2, '0')}</td>
                                                                                 <td className="px-2 py-0.5 text-center w-36">
                                                                                     <div className="flex items-center justify-center min-h-[50px]">
                                                                                         <div className="scale-110 origin-center">
@@ -3520,7 +3520,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                             
                                                                             return (
                                                                                 <tr key={ferro.id} className="bg-white hover:bg-slate-50 transition-colors">
-                                                                                    <td className="px-2 py-0.5 text-center font-bold text-slate-500 text-[10px]">OS:{String(fIdx + 1).padStart(2, '0')}</td>
+                                                                                    <td className="px-2 py-0.5 text-center font-bold text-slate-500 text-[10px]">OS:{String((tempProducts.slice(0, idx).reduce((acc, p) => acc + (p.ferros?.length || 0), 0)) + fIdx + 1).padStart(2, '0')}</td>
                                                                                     {/* img */}
                                                                                     <td className="px-2 py-0.5 text-center w-36">
                                                                                         <div className="flex items-center justify-center min-h-[50px]">
