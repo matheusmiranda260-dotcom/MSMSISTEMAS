@@ -370,6 +370,19 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         }
     }, [isLoadingData]);
 
+    // Check if we need to return to another screen after closing the modal
+    useEffect(() => {
+        if (activeModal === null) {
+            const returnTo = sessionStorage.getItem('return_to_after_print');
+            if (returnTo) {
+                sessionStorage.removeItem('return_to_after_print');
+                if (returnTo === 'machineSchedule') {
+                    window.dispatchEvent(new Event('navigate_to_programarMaquinas'));
+                }
+            }
+        }
+    }, [activeModal]);
+
     // Calculation factor (standard R$ 8.50 per kg of steel)
     const STEEL_PRICE_FACTOR = 8.50;
 

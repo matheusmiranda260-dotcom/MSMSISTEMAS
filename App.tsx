@@ -140,8 +140,13 @@ const App: React.FC = () => {
 
     useEffect(() => {
         const handleNavToPointing = () => setPage('pointingSystem');
+        const handleNavToProgramar = () => setPage('programarMaquinas');
         window.addEventListener('navigate_to_pointing', handleNavToPointing);
-        return () => window.removeEventListener('navigate_to_pointing', handleNavToPointing);
+        window.addEventListener('navigate_to_programarMaquinas', handleNavToProgramar);
+        return () => {
+            window.removeEventListener('navigate_to_pointing', handleNavToPointing);
+            window.removeEventListener('navigate_to_programarMaquinas', handleNavToProgramar);
+        };
     }, []);
 
     useEffect(() => {

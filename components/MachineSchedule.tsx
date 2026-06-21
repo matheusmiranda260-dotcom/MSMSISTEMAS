@@ -252,6 +252,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                     <button 
                                                         onClick={() => {
                                                             sessionStorage.setItem('pending_print_action', JSON.stringify({ type: 'print_corte', quoteId: po.id }));
+                                                            sessionStorage.setItem('return_to_after_print', 'machineSchedule');
                                                             window.dispatchEvent(new Event('navigate_to_pointing'));
                                                         }}
                                                         className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-600 p-1.5 rounded-lg text-xs"
@@ -262,6 +263,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                     <button 
                                                         onClick={() => {
                                                             sessionStorage.setItem('pending_print_action', JSON.stringify({ type: 'print_etiqueta_maquina', quoteId: po.id }));
+                                                            sessionStorage.setItem('return_to_after_print', 'machineSchedule');
                                                             window.dispatchEvent(new Event('navigate_to_pointing'));
                                                         }}
                                                         className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-600 p-1.5 rounded-lg text-xs"
