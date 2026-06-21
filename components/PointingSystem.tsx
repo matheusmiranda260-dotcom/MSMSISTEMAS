@@ -352,6 +352,24 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         localStorage.setItem('msm_label_width', labelWidth.toString());
     }, [labelScale, labelHeight, labelWidth]);
 
+    // Check for pending print actions from other screens
+    useEffect(() => {
+        if (isLoadingData) return;
+        
+        const pendingActionStr = sessionStorage.getItem('pending_print_action');
+        if (pendingActionStr) {
+            try {
+                const actionData = JSON.parse(pendingActionStr);
+                sessionStorage.removeItem('pending_print_action');
+                if (actionData && actionData.type && actionData.quoteId) {
+                    setActiveModal(actionData);
+                }
+            } catch (e) {
+                console.error("Error parsing pending_print_action", e);
+            }
+        }
+    }, [isLoadingData]);
+
     // Calculation factor (standard R$ 8.50 per kg of steel)
     const STEEL_PRICE_FACTOR = 8.50;
 
