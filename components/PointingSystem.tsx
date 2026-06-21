@@ -6104,6 +6104,9 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                             <h2 className="text-sm font-bold text-slate-500 uppercase mt-1">
                                                                 CLIENTE: {activeQuote.clientName || 'NÃO INFORMADO'}
                                                             </h2>
+                                                            <h2 className="text-sm font-bold text-slate-500 uppercase mt-1">
+                                                                ORDEM DE PRODUÇÃO: {activeQuote.id.toString().padStart(6, '0')}
+                                                            </h2>
                                                         </div>
                                                     </div>
 
