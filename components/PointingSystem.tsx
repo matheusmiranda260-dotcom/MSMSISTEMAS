@@ -6083,7 +6083,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                                                     osQty: totalOS,
                                                                                                     clientName: activeQuote.clientName
                                                                                                 };
-                                                                                                window.dispatchEvent(new CustomEvent('pending_visual_schedule', { detail: scheduleData }));
+                                                                                                sessionStorage.setItem('pending_visual_schedule', JSON.stringify(scheduleData));
                                                                                                 setActiveModal(null);
                                                                                                 window.dispatchEvent(new Event('navigate_to_programarMaquinas'));
                                                                                             }}

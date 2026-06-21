@@ -72,6 +72,14 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
     } | null>(null);
 
     useEffect(() => {
+        const saved = sessionStorage.getItem('pending_visual_schedule');
+        if (saved) {
+            try {
+                setPendingVisualSchedule(JSON.parse(saved));
+                sessionStorage.removeItem('pending_visual_schedule');
+            } catch (e) {}
+        }
+
         const handlePendingVisual = (e: Event) => {
             const customEvent = e as CustomEvent;
             setPendingVisualSchedule(customEvent.detail);
