@@ -243,7 +243,11 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                             </div>
                                             <div className="flex flex-col gap-1 items-end">
                                                 <button 
-                                                    onClick={() => handleScheduleOrder(po)}
+                                                    onClick={() => {
+                                                        sessionStorage.setItem('pending_print_action', JSON.stringify({ type: 'print_corte', quoteId: po.id }));
+                                                        sessionStorage.setItem('return_to_after_print', 'machineSchedule');
+                                                        window.dispatchEvent(new Event('navigate_to_pointing'));
+                                                    }}
                                                     className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors"
                                                 >
                                                     Agendar ➔

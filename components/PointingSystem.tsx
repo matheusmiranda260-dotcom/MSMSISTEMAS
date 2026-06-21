@@ -61,11 +61,13 @@ interface PointingSystemProps {
     showNotification: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
     gauges?: StockGauge[];
     activeBrandingPartner?: Partner | null;
+    machineOrders?: import('../types').MachineOrder[];
+    onAddMachineOrder?: (data: Partial<import('../types').MachineOrder>) => Promise<import('../types').MachineOrder | null>;
 }
 
 const INITIAL_QUOTES: Quote[] = [];
 
-const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotification, gauges, activeBrandingPartner }) => {
+const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotification, gauges = [], activeBrandingPartner, machineOrders = [], onAddMachineOrder }) => {
     const [isLoadingData, setIsLoadingData] = useState(true);
 
     const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -441,6 +443,10 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         return quotes.find(q => q.id === activeModal.quoteId) || null;
     }, [activeModal, quotes]);
 
+    const [schedulingBitola, setSchedulingBitola] = useState<{ quoteId: string, bitola: string, weight: number, qty: number } | null>(null);
+    const [scheduleDate, setScheduleDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [scheduleMachine, setScheduleMachine] = useState<string>('');
+
     // Form wizard states for New Quote
     const [addStep, setAddStep] = useState(1);
     const [searchType, setSearchType] = useState<'code' | 'name'>('code');
@@ -590,7 +596,56 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     const [previewAttachmentData, setPreviewAttachmentData] = useState('');
     const [anexarDesenhoTargetIdx, setAnexarDesenhoTargetIdx] = useState(-1);
 
+    // Scheduling functions
+    const isMachineCompatibleWithBitola = (machineGaugeRange: string, bitolaStr: string) => {
+        const bitolaMatch = bitolaStr.match(/(\d+(\.\d+)?)/);
+        if (!bitolaMatch) return false;
+        const b = parseFloat(bitolaMatch[1]);
+        
+        const nums = Array.from(machineGaugeRange.matchAll(/(\d+(\.\d+)?)/g)).map(m => parseFloat(m[1]));
+        if (nums.length === 0) return false;
+        if (nums.length === 1) return b === nums[0];
+        
+        if (machineGaugeRange.toLowerCase().includes('a') || machineGaugeRange.includes('-')) {
+            const min = Math.min(...nums);
+            const max = Math.max(...nums);
+            return b >= min && b <= max;
+        }
+        
+        return nums.includes(b);
+    };
 
+    const handleSaveSchedule = async () => {
+        if (!schedulingBitola || !scheduleMachine || !scheduleDate) {
+            showNotification('Preencha a data e a máquina para agendar.', 'error');
+            return;
+        }
+        try {
+            if (onAddMachineOrder) {
+                await onAddMachineOrder({
+                    clientName: activeQuote?.clientName || '',
+                    machineId: scheduleMachine,
+                    gauge: schedulingBitola.bitola,
+                    quantity: schedulingBitola.qty,
+                    quantityUnit: 'peças',
+                    startDate: scheduleDate,
+                    endDate: scheduleDate,
+                    status: 'scheduled',
+                    orderCode: schedulingBitola.quoteId,
+                    osQuantity: schedulingBitola.qty,
+                    weight: schedulingBitola.weight,
+                    createdAt: new Date().toISOString()
+                });
+                showNotification(`Bitola ${schedulingBitola.bitola} agendada com sucesso!`, 'success');
+                setSchedulingBitola(null);
+            } else {
+                showNotification('Função de agendamento não disponível.', 'error');
+            }
+        } catch (e) {
+            console.error('Error scheduling:', e);
+            showNotification('Erro ao agendar.', 'error');
+        }
+    };
 
     const getTravaRequiredSides = (shape: number) => {
         const model = (travaModels || []).find(m => m.shapeId === shape);
@@ -5994,7 +6049,30 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                             </div>
                                                                         </td>
                                                                         <td className="p-3 text-center text-lg text-sky-800">
-                                                                            {totalMetros.toFixed(2)} m
+                                                                            <div className="flex flex-col items-center gap-2">
+                                                                                <span>{totalMetros.toFixed(2)} m</span>
+                                                                                {(() => {
+                                                                                    const isScheduled = machineOrders.find(mo => mo.orderCode === activeQuote.id && mo.gauge === grupo.bitola);
+                                                                                    if (isScheduled) {
+                                                                                        return <span className="text-[10px] bg-green-100 text-green-800 px-2 py-1 rounded font-bold uppercase print:hidden">Agendado: {isScheduled.machineId}</span>;
+                                                                                    }
+                                                                                    return (
+                                                                                        <button 
+                                                                                            onClick={() => {
+                                                                                                setSchedulingBitola({
+                                                                                                    quoteId: activeQuote.id,
+                                                                                                    bitola: grupo.bitola,
+                                                                                                    weight: totalMetros,
+                                                                                                    qty: totalCortes
+                                                                                                });
+                                                                                            }}
+                                                                                            className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-3 py-1.5 rounded uppercase shadow print:hidden"
+                                                                                        >
+                                                                                            Agendar
+                                                                                        </button>
+                                                                                    );
+                                                                                })()}
+                                                                            </div>
                                                                         </td>
                                                                     </tr>
                                                                 );
@@ -6008,6 +6086,57 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                             </div>
                         );
                     })()}
+
+                    {/* MODAL: Agendamento de Bitola */}
+                    {schedulingBitola && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] print:hidden">
+                            <div className="bg-white p-6 rounded shadow-xl w-96 border border-slate-300">
+                                <h3 className="text-xl font-bold mb-4 text-slate-800">Agendar: {schedulingBitola.bitola}</h3>
+                                
+                                <div className="mb-4">
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Data</label>
+                                    <input 
+                                        type="date" 
+                                        value={scheduleDate}
+                                        onChange={e => setScheduleDate(e.target.value)}
+                                        className="w-full border border-slate-300 rounded p-2 text-sm"
+                                    />
+                                </div>
+
+                                <div className="mb-6">
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Máquina Compatível</label>
+                                    <select
+                                        value={scheduleMachine}
+                                        onChange={e => setScheduleMachine(e.target.value)}
+                                        className="w-full border border-slate-300 rounded p-2 text-sm"
+                                    >
+                                        <option value="">Selecione uma máquina...</option>
+                                        {(activeBrandingPartner?.machines || []).filter(m => isMachineCompatibleWithBitola(m.gaugeRange, schedulingBitola.bitola)).map(m => (
+                                            <option key={m.name} value={m.name}>{m.name}</option>
+                                        ))}
+                                    </select>
+                                    {(activeBrandingPartner?.machines || []).filter(m => isMachineCompatibleWithBitola(m.gaugeRange, schedulingBitola.bitola)).length === 0 && (
+                                        <p className="text-xs text-red-500 mt-1">Nenhuma máquina compatível com esta bitola encontrada.</p>
+                                    )}
+                                </div>
+
+                                <div className="flex justify-end gap-2">
+                                    <button 
+                                        onClick={() => setSchedulingBitola(null)}
+                                        className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded font-bold text-sm"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button 
+                                        onClick={handleSaveSchedule}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-bold text-sm shadow"
+                                    >
+                                        Confirmar Agendamento
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* MODAL: Etiqueta Produção Máquina */}
                     {activeModal.type === 'print_etiqueta_maquina' && activeQuote && (() => {
