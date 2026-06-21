@@ -5842,7 +5842,9 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                     osGroup.cuts.push({
                                         format: `${drawTypeLabel}${dimStr}`,
                                         qty: cutQty,
-                                        metros: metros
+                                        metros: metros,
+                                        f: f,
+                                        pDesc: p.description
                                     });
                                 });
                             });
@@ -5888,13 +5890,35 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody>
-                                                                        {os.cuts.map((cut: any, cIdx: number) => (
+                                                                        {os.cuts.map((cut: any, cIdx: number) => {
+                                                                            const ladosDesc = cut.pDesc.match(/(\d+) LADOS/)?.[1] ? `${cut.pDesc.match(/(\d+) LADOS/)?.[1]} LADOS` : '4 LADOS';
+                                                                            return (
                                                                             <tr key={cIdx} className="border-b border-slate-100 last:border-0">
-                                                                                <td className="p-3 border-r border-slate-200 font-medium text-slate-700">{cut.format}</td>
+                                                                                <td className="p-3 border-r border-slate-200 font-medium text-slate-700">
+                                                                                    <div className="flex items-center gap-4">
+                                                                                        <div className="w-20 h-20 flex items-center justify-center shrink-0">
+                                                                                            <div className="origin-center scale-[0.6]">
+                                                                                                {cut.f.drawingType === 'Estribo' ? (
+                                                                                                    renderEstriboSVG(ladosDesc, cut.f.estriboShape || cut.f.ferroModelId || 'Padrão', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, cut.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === cut.f.ferroModelId)?.name || '', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, true)
+                                                                                                ) : cut.f.drawingType === 'Trava' ? (
+                                                                                                    renderEstriboSVG(ladosDesc, cut.f.estriboShape || cut.f.ferroModelId || 'Padrão', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, cut.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === cut.f.ferroModelId)?.name || '', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, true)
+                                                                                                ) : cut.f.drawingType === 'CorteDobra' ? (
+                                                                                                    renderEstriboSVG(ladosDesc, cut.f.estriboShape || cut.f.ferroModelId || 'Padrão', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, cut.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === cut.f.ferroModelId)?.name || '', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, true)
+                                                                                                ) : (
+                                                                                                    renderEstriboSVG(ladosDesc || '4 LADOS', cut.f.estriboShape || cut.f.ferroModelId || 'Padrão', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, cut.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === cut.f.ferroModelId)?.name || '', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, true)
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <div className="flex flex-col">
+                                                                                            <span className="font-bold text-slate-800">{cut.format}</span>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </td>
                                                                                 <td className="p-3 text-center border-r border-slate-200 font-bold text-sky-700">{cut.qty}</td>
                                                                                 <td className="p-3 text-center font-bold text-slate-600">{cut.metros.toFixed(2)} m</td>
                                                                             </tr>
-                                                                        ))}
+                                                                            );
+                                                                        })}
                                                                     </tbody>
                                                                 </table>
                                                             </div>
