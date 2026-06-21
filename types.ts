@@ -810,6 +810,9 @@ export interface MachineConfig {
     name: string;
     capacityKgPerHour: number;
     gaugeRange: string;
+    speedMetersPerSecond?: number;
+    maxStraightMeters?: number;
+    maxBarsAtOnce?: number;
     shiftType: '1turno' | '2turnos' | 'continuo';
     shift1Start?: string;
     shift1End?: string;

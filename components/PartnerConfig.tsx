@@ -83,6 +83,9 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
     const [machineName, setMachineName] = useState('');
     const [machineCapacity, setMachineCapacity] = useState('');
     const [machineGauge, setMachineGauge] = useState('');
+    const [machineSpeed, setMachineSpeed] = useState('');
+    const [machineMaxStraight, setMachineMaxStraight] = useState('');
+    const [machineMaxBars, setMachineMaxBars] = useState('');
     const [machineShiftType, setMachineShiftType] = useState<'1turno' | '2turnos' | 'continuo'>('1turno');
     const [machineShift1Start, setMachineShift1Start] = useState('');
     const [machineShift1End, setMachineShift1End] = useState('');
@@ -141,6 +144,9 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
         setMachineName('');
         setMachineCapacity('');
         setMachineGauge('');
+        setMachineSpeed('');
+        setMachineMaxStraight('');
+        setMachineMaxBars('');
         setMachineShiftType('1turno');
         setMachineShift1Start('');
         setMachineShift1End('');
@@ -203,6 +209,9 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
             name: machineName.trim(),
             capacityKgPerHour: parseFloat(machineCapacity),
             gaugeRange: machineGauge.trim(),
+            speedMetersPerSecond: machineSpeed ? parseFloat(machineSpeed) : undefined,
+            maxStraightMeters: machineMaxStraight ? parseFloat(machineMaxStraight) : undefined,
+            maxBarsAtOnce: machineMaxBars ? parseInt(machineMaxBars, 10) : undefined,
             shiftType: machineShiftType,
             shift1Start: machineShiftType !== 'continuo' ? machineShift1Start : undefined,
             shift1End: machineShiftType !== 'continuo' ? machineShift1End : undefined,
@@ -655,6 +664,9 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
                                                                 setMachineName(m.name);
                                                                 setMachineCapacity(String(m.capacityKgPerHour));
                                                                 setMachineGauge(m.gaugeRange);
+                                                                setMachineSpeed(m.speedMetersPerSecond ? String(m.speedMetersPerSecond) : '');
+                                                                setMachineMaxStraight(m.maxStraightMeters ? String(m.maxStraightMeters) : '');
+                                                                setMachineMaxBars(m.maxBarsAtOnce ? String(m.maxBarsAtOnce) : '');
                                                                 setMachineShiftType(m.shiftType);
                                                                 setMachineShift1Start(m.shift1Start || '');
                                                                 setMachineShift1End(m.shift1End || '');
@@ -712,6 +724,23 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
                                                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Bitola (ex: 10mm-12,5mm)</label>
                                                 <input type="text" value={machineGauge} onChange={e => setMachineGauge(e.target.value)}
                                                     placeholder="Ex: 10mm-12,5mm" className="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Velocidade (Metros/Seg)</label>
+                                                <input type="number" step="0.1" min="0" value={machineSpeed} onChange={e => setMachineSpeed(e.target.value)}
+                                                    placeholder="Ex: 2.5" className="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Até Quantos Metros Reto</label>
+                                                <input type="number" step="0.1" min="0" value={machineMaxStraight} onChange={e => setMachineMaxStraight(e.target.value)}
+                                                    placeholder="Ex: 12" className="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Trabalha com Quantos Ferros</label>
+                                                <input type="number" min="1" value={machineMaxBars} onChange={e => setMachineMaxBars(e.target.value)}
+                                                    placeholder="Ex: 2" className="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
                                             </div>
                                         </div>
 
