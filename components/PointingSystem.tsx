@@ -5864,7 +5864,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                     <h2 className="text-xl font-bold text-slate-800">✂️ Plano de Corte - Orçamento {activeQuote.id}</h2>
                                     <div className="space-x-3">
                                         <button onClick={() => window.print()} className="bg-sky-600 text-white px-4 py-2 rounded font-bold">Imprimir</button>
-                                        <button onClick={() => setActiveModal({ type: 'none' })} className="bg-slate-400 text-white px-4 py-2 rounded font-bold">Fechar</button>
+                                        <button onClick={() => setActiveModal(null)} className="bg-slate-400 text-white px-4 py-2 rounded font-bold">Fechar</button>
                                     </div>
                                 </div>
                                 <div className="p-8 max-w-4xl mx-auto w-full print:p-0 print:max-w-none text-slate-800">
