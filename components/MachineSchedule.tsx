@@ -99,55 +99,33 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
         // Find quotes that are exported
         const activeQuotes = quotes.filter(q => q.status === 'Enviado p/ Produção');
         
-        // Exclude ones that are already scheduled based on Order + Bitola combination
-        const scheduledCombos = new Set(machineOrders.map(mo => `${mo.orderCode}|${mo.gauge}`));
+        // Exclude ones that are already scheduled in MachineOrders
+        const scheduledOrderCodes = new Set(machineOrders.map(mo => mo.orderCode));
         
-        return activeQuotes.flatMap(q => {
+        return activeQuotes.filter(q => {
+            if (scheduledOrderCodes.has(q.id)) return false;
             if (searchTerm) {
                 const search = searchTerm.toLowerCase();
-                if (!q.id.toLowerCase().includes(search) && !q.clientName.toLowerCase().includes(search)) {
-                    return [];
-                }
+                return q.id.toLowerCase().includes(search) || 
+                       q.clientName.toLowerCase().includes(search);
             }
-
-            const bitolaMap = new Map<string, { weight: number, qty: number }>();
-            
-            q.products?.forEach((p: any) => {
-                const prodQtde = p.qty || 1;
-                const prodWeight = p.weight || 0;
-                
-                if (!p.ferros || p.ferros.length === 0) {
-                    const bitolaStr = p.description || 'Geral';
-                    const existing = bitolaMap.get(bitolaStr) || { weight: 0, qty: 0 };
-                    bitolaMap.set(bitolaStr, {
-                        weight: existing.weight + prodWeight,
-                        qty: existing.qty + prodQtde
-                    });
-                    return;
-                }
-
-                const uniqueBitolas = Array.from(new Set(p.ferros.map((f: any) => f.bitola || 'Desconhecida'))) as string[];
-                const weightPerBitola = uniqueBitolas.length > 0 ? (prodWeight / uniqueBitolas.length) : 0;
-                
-                uniqueBitolas.forEach((bitolaStr) => {
-                    const existing = bitolaMap.get(bitolaStr) || { weight: 0, qty: 0 };
-                    bitolaMap.set(bitolaStr, {
-                        weight: existing.weight + weightPerBitola,
-                        qty: existing.qty + prodQtde
-                    });
-                });
-            });
-
-            return Array.from(bitolaMap.entries()).map(([bitola, data]) => ({
-                id: `${q.id}-${bitola}`,
+            return true;
+        }).map(q => {
+            const firstProduct = q.products?.[0];
+            const firstFerro = firstProduct?.ferros?.[0];
+            const bitolaStr = firstFerro?.bitola || firstProduct?.description || '';
+            const peso = q.products?.reduce((sum: number, p: any) => sum + (p.weight || 0), 0) || 0;
+            const qtd = q.products?.reduce((sum: number, p: any) => sum + (p.qty || 0), 0) || 0;
+            return {
+                id: q.id,
                 os: q.id,
                 cliente: q.clientName,
-                bitola: bitola,
-                pesoTotal: data.weight,
+                bitola: bitolaStr,
+                pesoTotal: peso,
                 status: q.status,
                 data: q.createdAt || new Date().toISOString(),
-                quantidade: data.qty,
-            })).filter(item => !scheduledCombos.has(`${item.os}|${item.bitola}`));
+                quantidade: qtd,
+            };
         });
     }, [quotes, machineOrders, searchTerm]);
 
@@ -201,7 +179,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                 createdAt: new Date().toISOString()
             };
             await onAddMachineOrder(newOrder);
-            showNotification(`Bitola ${po.bitola} da OS ${po.os} agendada para ${formatDateBr(selectedDate)} em ${selectedMachineName}`, 'success');
+            showNotification(`OS ${po.os} agendada para ${formatDateBr(selectedDate)} em ${selectedMachineName}`, 'success');
         } catch (error) {
             console.error('Failed to schedule order', error);
             showNotification('Erro ao agendar a OS.', 'error');
@@ -273,7 +251,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                 <div className="flex gap-1 mt-1">
                                                     <button 
                                                         onClick={() => {
-                                                            sessionStorage.setItem('pending_print_action', JSON.stringify({ type: 'print_corte', quoteId: po.os }));
+                                                            sessionStorage.setItem('pending_print_action', JSON.stringify({ type: 'print_corte', quoteId: po.id }));
                                                             sessionStorage.setItem('return_to_after_print', 'machineSchedule');
                                                             window.dispatchEvent(new Event('navigate_to_pointing'));
                                                         }}
@@ -284,7 +262,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                     </button>
                                                     <button 
                                                         onClick={() => {
-                                                            sessionStorage.setItem('pending_print_action', JSON.stringify({ type: 'print_etiqueta_maquina', quoteId: po.os }));
+                                                            sessionStorage.setItem('pending_print_action', JSON.stringify({ type: 'print_etiqueta_maquina', quoteId: po.id }));
                                                             sessionStorage.setItem('return_to_after_print', 'machineSchedule');
                                                             window.dispatchEvent(new Event('navigate_to_pointing'));
                                                         }}
