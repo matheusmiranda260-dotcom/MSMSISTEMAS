@@ -6047,7 +6047,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                 const dimStr = dims.length > 0 ? ` (${dims.join(', ')})` : '';
                                 const formatoDimensions = `${drawTypeLabel}${dimStr}`;
 
-                                const ladosDesc = p.description.match(/(\d+) LADOS/)?.[1] ? `${p.description.match(/(\d+) LADOS/)?.[1]} LADOS` : '4 LADOS';
+                                const ladosDesc = (p.description || '').match(/(\d+) LADOS/)?.[1] ? `${(p.description || '').match(/(\d+) LADOS/)?.[1]} LADOS` : '4 LADOS';
 
                                 etiquetas.push({
                                     osNumber,
@@ -6091,8 +6091,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                             </h1>
                                                         </div>
                                                         <div className="w-20 h-20 border-2 border-slate-200 flex flex-col items-center justify-center rounded bg-white shrink-0 p-1">
-                                                            {systemSettings?.logoUrl ? (
-                                                                <img src={systemSettings.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
+                                                            {activeBrandingPartner?.logoUrl ? (
+                                                                <img src={activeBrandingPartner.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
                                                             ) : (
                                                                 <div className="text-[10px] font-bold text-slate-400 text-center uppercase">Logo Cliente</div>
                                                             )}
