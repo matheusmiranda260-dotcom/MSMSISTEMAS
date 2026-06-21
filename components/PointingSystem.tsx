@@ -5831,6 +5831,10 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                         drawTypeLabel = ferroModel.name;
                                     }
                                     
+                                    if (f.nomeElemento) {
+                                        drawTypeLabel = f.nomeElemento.toUpperCase();
+                                    }
+                                    
                                     let dims = [];
                                     if (f.a) dims.push(`A: ${f.a}`);
                                     if (f.b) dims.push(`B: ${f.b}`);
@@ -5896,7 +5900,10 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                         </td>
                                                                     )}
                                                                     <td className="p-2 border-r border-slate-300 font-medium text-slate-700">
-                                                                        <div className="flex items-center gap-2">
+                                                                        <div className="flex items-center gap-4">
+                                                                            <div className="flex flex-col flex-1 pl-2">
+                                                                                <span className="font-bold text-slate-800">{cut.format}</span>
+                                                                            </div>
                                                                             <div className="w-32 h-24 flex items-center justify-center shrink-0 pr-4">
                                                                                 <div className="origin-center scale-100">
                                                                                     {cut.f.drawingType === 'Estribo' ? (
@@ -5909,9 +5916,6 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                                         renderEstriboSVG(ladosDesc || '4 LADOS', cut.f.estriboShape || cut.f.ferroModelId || 'Padrão', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, cut.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === cut.f.ferroModelId)?.name || '', cut.f.ladoA, cut.f.ladoB, cut.f.ladoC, cut.f.ladoD, cut.f.ladoE, true)
                                                                                     )}
                                                                                 </div>
-                                                                            </div>
-                                                                            <div className="flex flex-col">
-                                                                                <span className="font-bold text-slate-800">{cut.format}</span>
                                                                             </div>
                                                                         </div>
                                                                     </td>
