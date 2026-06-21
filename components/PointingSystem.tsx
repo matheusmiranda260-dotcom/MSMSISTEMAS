@@ -398,6 +398,27 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         quoteId: string;
     } | null>(null);
 
+    // Label Config State
+    const [labelScale, setLabelScale] = useState(() => {
+        const saved = localStorage.getItem('msm_label_scale');
+        return saved ? parseFloat(saved) : 2.25;
+    });
+    const [labelHeight, setLabelHeight] = useState(() => {
+        const saved = localStorage.getItem('msm_label_height');
+        return saved ? parseInt(saved, 10) : 320;
+    });
+    const [labelWidth, setLabelWidth] = useState(() => {
+        const saved = localStorage.getItem('msm_label_width');
+        return saved ? parseInt(saved, 10) : 448; // equivalent to max-w-md
+    });
+    const [isLabelConfigOpen, setIsLabelConfigOpen] = useState(false);
+
+    useEffect(() => {
+        localStorage.setItem('msm_label_scale', labelScale.toString());
+        localStorage.setItem('msm_label_height', labelHeight.toString());
+        localStorage.setItem('msm_label_width', labelWidth.toString());
+    }, [labelScale, labelHeight, labelWidth]);
+
     // Calculation factor (standard R$ 8.50 per kg of steel)
     const STEEL_PRICE_FACTOR = 8.50;
 
@@ -6070,6 +6091,9 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                     <div className="w-full max-w-4xl flex justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-lg print:hidden">
                                         <h2 className="text-xl font-bold text-slate-800">🏷️ Etiquetas de Produção Máquina - Orçamento {activeQuote.id}</h2>
                                         <div className="flex gap-4">
+                                            <button onClick={() => setIsLabelConfigOpen(true)} className="px-4 py-2 bg-slate-100 border border-slate-300 text-slate-700 font-bold rounded-lg hover:bg-slate-200 flex items-center gap-2">
+                                                ⚙️ Configurar
+                                            </button>
                                             <button onClick={() => window.print()} className="px-6 py-2 bg-sky-600 text-white font-bold rounded-lg hover:bg-sky-700 shadow-md flex items-center gap-2">
                                                 🖨️ Imprimir Etiquetas
                                             </button>
@@ -6079,7 +6103,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                         </div>
                                     </div>
                                     
-                                    <div className="w-full max-w-md print:max-w-none flex flex-col gap-8 print:gap-0 print:block">
+                                    <div className="w-full print:w-full flex flex-col gap-8 print:gap-0 print:block mx-auto" style={{ maxWidth: `${labelWidth}px` }}>
                                         {etiquetas.map((etq, idx) => (
                                             <div key={idx} className="bg-white rounded-lg shadow-xl print:shadow-none print:rounded-none overflow-hidden flex flex-col" style={{ padding: '20px', boxSizing: 'border-box', pageBreakAfter: 'always', minHeight: '100vh' }}>
                                                 <div>
@@ -6123,8 +6147,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                         <div className="flex border-b border-slate-200 pb-2 items-center">
                                                             <div className="w-1/3 text-xs font-bold text-slate-400 uppercase">Formato</div>
                                                             <div className="w-2/3 flex flex-col items-start py-2">
-                                                                <div className="w-full h-80 flex items-center justify-center shrink-0 border border-slate-200 rounded bg-white shadow-sm p-2 overflow-hidden">
-                                                                    <div className="origin-center scale-[2.25]">
+                                                                <div className="w-full flex items-center justify-center shrink-0 border border-slate-200 rounded bg-white shadow-sm p-2 overflow-hidden" style={{ height: `${labelHeight}px` }}>
+                                                                    <div className="origin-center" style={{ transform: `scale(${labelScale})` }}>
                                                                         {etq.f.drawingType === 'Estribo' ? (
                                                                             renderEstriboSVG(etq.ladosDesc, etq.f.estriboShape || etq.f.ferroModelId || 'Padrão', etq.f.ladoA, etq.f.ladoB, etq.f.ladoC, etq.f.ladoD, etq.f.ladoE, etq.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === etq.f.ferroModelId)?.name || '', etq.f.ladoA, etq.f.ladoB, etq.f.ladoC, etq.f.ladoD, etq.f.ladoE, true)
                                                                         ) : (
@@ -6163,6 +6187,49 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                             </div>
                                         ))}
                                     </div>
+
+                                    {/* Config Modal */}
+                                    {isLabelConfigOpen && (
+                                        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50 print:hidden">
+                                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
+                                                <h3 className="text-xl font-bold text-slate-800 mb-4 border-b pb-2">⚙️ Configuração de Impressão</h3>
+                                                
+                                                <div className="space-y-4 mb-6">
+                                                    <div>
+                                                        <label className="block text-sm font-bold text-slate-700 mb-1">
+                                                            Largura da Etiqueta (px)
+                                                        </label>
+                                                        <input type="number" value={labelWidth} onChange={(e) => setLabelWidth(Number(e.target.value))} className="w-full p-2 border rounded" min="200" max="1000" />
+                                                        <p className="text-xs text-slate-500 mt-1">Padrão: 448px</p>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-bold text-slate-700 mb-1">
+                                                            Escala do Desenho
+                                                        </label>
+                                                        <input type="number" step="0.1" value={labelScale} onChange={(e) => setLabelScale(Number(e.target.value))} className="w-full p-2 border rounded" min="0.5" max="10" />
+                                                        <p className="text-xs text-slate-500 mt-1">Padrão: 2.25</p>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-bold text-slate-700 mb-1">
+                                                            Altura da Caixa do Desenho (px)
+                                                        </label>
+                                                        <input type="number" value={labelHeight} onChange={(e) => setLabelHeight(Number(e.target.value))} className="w-full p-2 border rounded" min="50" max="1000" />
+                                                        <p className="text-xs text-slate-500 mt-1">Padrão: 320px</p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex justify-end gap-2">
+                                                    <button onClick={() => { setLabelWidth(448); setLabelHeight(320); setLabelScale(2.25); }} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded font-bold">
+                                                        Resetar
+                                                    </button>
+                                                    <button onClick={() => setIsLabelConfigOpen(false)} className="px-4 py-2 bg-sky-600 text-white rounded font-bold hover:bg-sky-700">
+                                                        Salvar e Fechar
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
                                 </div>
                             </div>
                         );
