@@ -318,6 +318,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     interface ArameConfig {
         ptsPorKg: number;
         precoPorKg: number;
+        materialId?: string;
     }
     const [arameConfig, setArameConfig] = useState<ArameConfig>(() => {
         const saved = localStorage.getItem('msm_arame_config');
@@ -1428,13 +1429,18 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         const finalAramePreco = finalArameKg * (parseFloat(checkoutAramePreco) || 0);
 
         if (finalArameKg > 0) {
+            const arameGauge = arameConfig.materialId ? gauges.find(g => g.id === arameConfig.materialId) : null;
+            const arameCod = arameGauge ? (arameGauge.productCode || '-') : '-';
+            const arameDesc = arameGauge ? `${arameGauge.commercialName || arameGauge.gauge} (REF: ${getQuoteTotalPoints(activeQuote)} PTS)` : `ARAME RECOZIDO (REF: ${getQuoteTotalPoints(activeQuote)} PTS)`;
+            const arameBPrice = arameGauge && arameGauge.purchasePrice ? arameGauge.purchasePrice : (parseFloat(checkoutAramePreco) || 0);
+
             rows.push({
                 isArame: true,
-                codMerco: '-',
-                label: `Arame Recozido (Ref: ${getQuoteTotalPoints(activeQuote)} Pts)`,
+                codMerco: arameCod,
+                label: arameDesc,
                 roundedBars: 0,
                 exactBars: 0,
-                bPrice: parseFloat(checkoutAramePreco) || 0,
+                bPrice: arameBPrice,
                 precoUnAjustado: parseFloat(checkoutAramePreco) || 0,
                 precoTotal: finalAramePreco,
                 precoTotalAjustado: finalAramePreco,
