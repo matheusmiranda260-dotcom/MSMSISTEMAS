@@ -1426,29 +1426,34 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         });
 
         const finalArameKg = checkoutIncludeArame ? (parseFloat(checkoutArameKg) || 0) : 0;
-        const finalAramePreco = finalArameKg * (parseFloat(checkoutAramePreco) || 0);
 
         if (finalArameKg > 0) {
+            const roundedArameKg = Math.max(1, Math.round(finalArameKg));
+            const precoUnAjustado = parseFloat(checkoutAramePreco) || 0;
+
             const arameGauge = arameConfig.materialId ? gauges.find(g => g.id === arameConfig.materialId) : null;
             const arameCod = arameGauge ? (arameGauge.productCode || '-') : '-';
             const arameDesc = arameGauge ? `${arameGauge.commercialName || arameGauge.gauge} (REF: ${getQuoteTotalPoints(activeQuote)} PTS)` : `ARAME RECOZIDO (REF: ${getQuoteTotalPoints(activeQuote)} PTS)`;
-            const arameBPrice = arameGauge && arameGauge.purchasePrice ? arameGauge.purchasePrice : (parseFloat(checkoutAramePreco) || 0);
+            const arameBPrice = arameGauge && arameGauge.purchasePrice ? arameGauge.purchasePrice : precoUnAjustado;
+
+            const precoTotal = roundedArameKg * arameBPrice;
+            const precoTotalAjustado = roundedArameKg * precoUnAjustado;
 
             rows.push({
                 isArame: true,
                 codMerco: arameCod,
                 label: arameDesc,
-                roundedBars: 0,
-                exactBars: 0,
+                roundedBars: roundedArameKg,
+                exactBars: finalArameKg,
                 bPrice: arameBPrice,
-                precoUnAjustado: parseFloat(checkoutAramePreco) || 0,
-                precoTotal: finalAramePreco,
-                precoTotalAjustado: finalAramePreco,
+                precoUnAjustado: precoUnAjustado,
+                precoTotal: precoTotal,
+                precoTotalAjustado: precoTotalAjustado,
                 pesoUn: 1,
-                pesoTotal: finalArameKg
+                pesoTotal: roundedArameKg
             });
-            finalTotalPrice += finalAramePreco;
-            finalTotalPriceAdjusted += finalAramePreco;
+            finalTotalPrice += precoTotal;
+            finalTotalPriceAdjusted += precoTotalAjustado;
         }
 
         const finalTotalAcrescimo = finalTotalPriceAdjusted > finalTotalPrice ? finalTotalPriceAdjusted - finalTotalPrice : 0;
