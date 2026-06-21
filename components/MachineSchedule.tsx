@@ -197,8 +197,8 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
     };
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-8 animate-fadeIn">
-            <div className="max-w-7xl mx-auto space-y-6">
+        <div className="min-h-screen bg-[#F8FAFC] p-2 md:p-4 animate-fadeIn">
+            <div className="w-full mx-auto space-y-4">
                 
                 {/* Header */}
                 <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
@@ -212,86 +212,9 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                     </div>
                 </header>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Left Column: Unscheduled Orders */}
-                    <div className="lg:col-span-3 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col h-[calc(100vh-180px)]">
-                        <div className="p-4 border-b border-slate-200 bg-slate-50 rounded-t-2xl">
-                            <h2 className="text-lg font-bold text-slate-800">Ordens Disponíveis</h2>
-                            <p className="text-xs text-slate-500 mb-3">Orçamentos / OS prontas para agendar</p>
-                            <input
-                                type="text"
-                                placeholder="Buscar por OP, Cliente, Projeto..."
-                                value={searchTerm}
-                                onChange={e => setSearchTerm(e.target.value)}
-                                className="w-full p-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-                        <div className="p-4 overflow-y-auto flex-1 space-y-3 bg-slate-50">
-                            {unscheduledOrders.length === 0 ? (
-                                <div className="text-center py-10 text-slate-400 text-sm font-semibold">
-                                    Nenhuma OS pendente no momento.
-                                </div>
-                            ) : (
-                                unscheduledOrders.map(po => (
-                                    <div key={po.id} className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:shadow transition-shadow">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div>
-                                                <span className="text-xs font-black bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                                                    OP: {po.os}
-                                                </span>
-                                                <h3 className="text-sm font-bold text-slate-800 mt-1">{po.cliente}</h3>
-                                            </div>
-                                            <div className="flex flex-col gap-1 items-end">
-                                                <button 
-                                                    onClick={() => {
-                                                        sessionStorage.setItem('pending_print_action', JSON.stringify({ type: 'print_corte', quoteId: po.id }));
-                                                        sessionStorage.setItem('return_to_after_print', 'machineSchedule');
-                                                        window.dispatchEvent(new Event('navigate_to_pointing'));
-                                                    }}
-                                                    className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors"
-                                                >
-                                                    Agendar ➔
-                                                </button>
-                                                <div className="flex gap-1 mt-1">
-                                                    <button 
-                                                        onClick={() => {
-                                                            sessionStorage.setItem('pending_print_action', JSON.stringify({ type: 'print_corte', quoteId: po.id }));
-                                                            sessionStorage.setItem('return_to_after_print', 'machineSchedule');
-                                                            window.dispatchEvent(new Event('navigate_to_pointing'));
-                                                        }}
-                                                        className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-600 p-1.5 rounded-lg text-xs"
-                                                        title="Imprimir Plano de Corte"
-                                                    >
-                                                        ✂️
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => {
-                                                            sessionStorage.setItem('pending_print_action', JSON.stringify({ type: 'print_etiqueta_maquina', quoteId: po.id }));
-                                                            sessionStorage.setItem('return_to_after_print', 'machineSchedule');
-                                                            window.dispatchEvent(new Event('navigate_to_pointing'));
-                                                        }}
-                                                        className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-600 p-1.5 rounded-lg text-xs"
-                                                        title="Imprimir Etiqueta Produção"
-                                                    >
-                                                        🏷️
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2 mt-2 text-xs text-slate-600">
-                                            <div><span className="font-bold text-slate-400">Bitola:</span> {po.bitola}</div>
-                                            <div><span className="font-bold text-slate-400">Peso:</span> {po.pesoTotal?.toFixed(2)} kg</div>
-                                            <div><span className="font-bold text-slate-400">Status:</span> {po.status}</div>
-                                            <div><span className="font-bold text-slate-400">Data:</span> {formatDateBr(po.data.split('T')[0])}</div>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Right Column: Schedule Matrix */}
-                    <div className="lg:col-span-9 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col h-[calc(100vh-180px)] overflow-hidden">
+                <div className="flex flex-col gap-6">
+                    {/* Top Section: Schedule Matrix */}
+                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col h-[60vh] overflow-hidden">
                         <div className="flex-1 overflow-auto p-4 bg-slate-50 relative">
                             {activeMachines.length === 0 ? (
                                 <div className="text-center py-20 text-slate-400 font-semibold">
@@ -367,6 +290,61 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                         </tbody>
                                     </table>
                                 </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Bottom Section: Unscheduled Orders */}
+                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col h-[30vh]">
+                        <div className="p-4 border-b border-slate-200 bg-slate-50 rounded-t-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div>
+                                <h2 className="text-lg font-bold text-slate-800">Ordens Disponíveis</h2>
+                                <p className="text-xs text-slate-500">Orçamentos / OS prontas para agendar</p>
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="Buscar por OP, Cliente, Projeto..."
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                className="w-full sm:w-64 p-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        <div className="p-4 overflow-x-auto overflow-y-hidden flex gap-4 bg-slate-50 items-start h-full scrollbar-thin">
+                            {unscheduledOrders.length === 0 ? (
+                                <div className="text-center w-full py-10 text-slate-400 text-sm font-semibold">
+                                    Nenhuma OS pendente no momento.
+                                </div>
+                            ) : (
+                                unscheduledOrders.map(po => (
+                                    <div key={po.id} className="min-w-[280px] bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:shadow transition-shadow flex flex-col flex-shrink-0">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <span className="text-xs font-black bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                                    OP: {po.os}
+                                                </span>
+                                                <h3 className="text-sm font-bold text-slate-800 mt-1 truncate max-w-[150px]" title={po.cliente}>{po.cliente}</h3>
+                                            </div>
+                                            <div className="flex flex-col gap-1 items-end">
+                                                <button 
+                                                    onClick={() => {
+                                                        sessionStorage.setItem('pending_print_action', JSON.stringify({ type: 'print_corte', quoteId: po.id }));
+                                                        sessionStorage.setItem('return_to_after_print', 'machineSchedule');
+                                                        window.dispatchEvent(new Event('navigate_to_pointing'));
+                                                    }}
+                                                    className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors"
+                                                >
+                                                    Agendar ➔
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 mt-2 text-[10px] text-slate-600">
+                                            <div><span className="font-bold text-slate-400">Bitola:</span> {po.bitola}</div>
+                                            <div><span className="font-bold text-slate-400">Peso:</span> {po.pesoTotal?.toFixed(2)} kg</div>
+                                            <div><span className="font-bold text-slate-400">Status:</span> {po.status}</div>
+                                            <div><span className="font-bold text-slate-400">Data:</span> {formatDateBr(po.data.split('T')[0])}</div>
+                                        </div>
+                                    </div>
+                                ))
                             )}
                         </div>
                     </div>
