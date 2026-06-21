@@ -3323,8 +3323,9 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                         })()}
                                                                     </div>
                                                                     {(() => {
-                                                                        const qtdEstribos = (item.ferros || []).filter(f => f && f.nomeElemento && (f.nomeElemento.toUpperCase().includes('ESTRIB') || f.nomeElemento.toUpperCase().includes('TRAVA'))).reduce((sum, f) => sum + (f.qtde || 0), 0);
-                                                                        const qtdFerros = (item.ferros || []).filter(f => f && f.nomeElemento && (f.nomeElemento.toUpperCase().includes('FERRO') || f.nomeElemento.toUpperCase().includes('COSTELA') || f.nomeElemento.toUpperCase().includes('REFORÇO') || f.nomeElemento.toUpperCase().includes('2ª CAMADA'))).reduce((sum, f) => sum + (f.qtde || 0), 0);
+                                                                        const isEstribo = (f: any) => f && (f.drawingType === 'Estribo' || f.drawingType === 'Trava' || (f.nomeElemento && (f.nomeElemento.toUpperCase().includes('ESTRIB') || f.nomeElemento.toUpperCase().includes('TRAVA'))));
+                                                                        const qtdEstribos = (item.ferros || []).filter(isEstribo).reduce((sum, f) => sum + (f.qtde || 0), 0);
+                                                                        const qtdFerros = (item.ferros || []).filter(f => f && !isEstribo(f)).reduce((sum, f) => sum + (f.qtde || 0), 0);
                                                                         const pts = qtdEstribos * qtdFerros * (item.qty || 1);
                                                                         if (pts > 0) {
                                                                             const metros = (pts * 5) / 100;
