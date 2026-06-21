@@ -247,7 +247,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                 orderCode: pendingVisualSchedule.quoteId,
                 osQuantity: pendingVisualSchedule.osQty,
                 weight: pendingVisualSchedule.weight,
-                totalMetros: pendingVisualSchedule.metros,
+                notes: JSON.stringify({ totalMetros: pendingVisualSchedule.metros }),
                 createdAt: new Date().toISOString()
             };
             await onAddMachineOrder(newOrder);
@@ -374,7 +374,16 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                                                         <td className="p-1 border-r border-slate-200 font-semibold truncate max-w-[120px]" title={mo.clientName}>{mo.clientName}</td>
                                                                                         <td className="p-1 border-r border-slate-200 text-center font-bold text-slate-800">{mo.gauge.replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim()}</td>
                                                                                         <td className="p-1 border-r border-slate-200 text-center font-bold">{mo.osQuantity || 1}</td>
-                                                                                        <td className="p-1 border-r border-slate-200 text-center text-sky-700 font-bold">{(mo.totalMetros || 0).toFixed(1)}</td>
+                                                                                        <td className="p-1 border-r border-slate-200 text-center text-sky-700 font-bold">
+                                                                                            {(() => {
+                                                                                                try {
+                                                                                                    const data = mo.notes ? JSON.parse(mo.notes) : {};
+                                                                                                    return (data.totalMetros || 0).toFixed(1);
+                                                                                                } catch {
+                                                                                                    return '0.0';
+                                                                                                }
+                                                                                            })()}
+                                                                                        </td>
                                                                                         <td className="p-1 text-center">
                                                                                             <button 
                                                                                                 onClick={() => handleUnscheduleOrder(mo.id)}
