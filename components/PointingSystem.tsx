@@ -6049,10 +6049,13 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
 
                                 const ladosDesc = (p.description || '').match(/(\d+) LADOS/)?.[1] ? `${(p.description || '').match(/(\d+) LADOS/)?.[1]} LADOS` : '4 LADOS';
 
+                                const regexMatch = bitolaLabel.match(/(\d+\.?\d*\s*mm)/i);
+                                const shortBitola = regexMatch ? regexMatch[1].toUpperCase() : bitolaLabel.toUpperCase();
+
                                 etiquetas.push({
                                     osNumber,
                                     osName,
-                                    bitola: bitolaLabel,
+                                    bitola: shortBitola,
                                     cutQty,
                                     formatoDimensions,
                                     ladosDesc,
@@ -6082,20 +6085,25 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                 <div>
                                                     {/* Header */}
                                                     <div className="flex justify-between items-start border-b-2 border-slate-800 pb-4 mb-4">
-                                                        <div className="flex flex-col">
-                                                            <span className="text-sm font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded w-max mb-2 border border-slate-200">
-                                                                {etq.osNumber}
-                                                            </span>
-                                                            <h1 className="text-xl font-black text-slate-800 uppercase leading-tight">
+                                                        <div className="flex flex-col items-start w-full">
+                                                            <div className="flex justify-between w-full items-center mb-2">
+                                                                <span className="text-xl font-black text-slate-800 bg-slate-100 px-4 py-2 rounded border border-slate-200">
+                                                                    {etq.osNumber}
+                                                                </span>
+                                                                <div className="w-20 h-20 border-2 border-slate-200 flex flex-col items-center justify-center rounded bg-white shrink-0 p-1">
+                                                                    {activeBrandingPartner?.logoUrl ? (
+                                                                        <img src={activeBrandingPartner.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
+                                                                    ) : (
+                                                                        <div className="text-[10px] font-bold text-slate-400 text-center uppercase">Logo Cliente</div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <h1 className="text-2xl font-black text-slate-800 uppercase leading-tight mt-1">
                                                                 {etq.osName}
                                                             </h1>
-                                                        </div>
-                                                        <div className="w-20 h-20 border-2 border-slate-200 flex flex-col items-center justify-center rounded bg-white shrink-0 p-1">
-                                                            {activeBrandingPartner?.logoUrl ? (
-                                                                <img src={activeBrandingPartner.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
-                                                            ) : (
-                                                                <div className="text-[10px] font-bold text-slate-400 text-center uppercase">Logo Cliente</div>
-                                                            )}
+                                                            <h2 className="text-sm font-bold text-slate-500 uppercase mt-1">
+                                                                CLIENTE: {activeQuote.clientName || 'NÃO INFORMADO'}
+                                                            </h2>
                                                         </div>
                                                     </div>
 
@@ -6109,8 +6117,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                             <div className="w-1/3 text-xs font-bold text-slate-400 uppercase">Formato</div>
                                                             <div className="w-2/3 text-sm font-bold text-slate-800 flex flex-col items-start gap-2">
                                                                 <span>{etq.formatoDimensions}</span>
-                                                                <div className="w-32 h-20 flex items-center justify-center shrink-0 border border-slate-100 rounded bg-slate-50">
-                                                                    <div className="origin-center scale-[0.7]">
+                                                                <div className="w-full h-32 flex items-center justify-center shrink-0 border border-slate-100 rounded bg-white shadow-sm p-2">
+                                                                    <div className="origin-center scale-[1]">
                                                                         {etq.f.drawingType === 'Estribo' ? (
                                                                             renderEstriboSVG(etq.ladosDesc, etq.f.estriboShape || etq.f.ferroModelId || 'Padrão', etq.f.ladoA, etq.f.ladoB, etq.f.ladoC, etq.f.ladoD, etq.f.ladoE, etq.f.ladoF, [...estriboModels, ...ferroModels]) || renderBarDiagramSVG(ferroModels.find(m => m.id === etq.f.ferroModelId)?.name || '', etq.f.ladoA, etq.f.ladoB, etq.f.ladoC, etq.f.ladoD, etq.f.ladoE, true)
                                                                         ) : (
@@ -6122,7 +6130,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                         </div>
                                                         <div className="flex border-b border-slate-200 pb-2">
                                                             <div className="w-1/3 text-xs font-bold text-slate-400 uppercase">Bitola</div>
-                                                            <div className="w-2/3 text-base font-bold text-slate-800">{etq.bitola}</div>
+                                                            <div className="w-2/3 text-base font-black text-slate-800">{etq.bitola}</div>
                                                         </div>
                                                     </div>
 
@@ -6130,7 +6138,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                     <div className="bg-slate-100 p-4 rounded-lg flex flex-col items-center justify-center mb-4 border border-slate-200 mt-8">
                                                         <div className="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest">Código de Rastreio</div>
                                                         <div className="text-xl font-black text-slate-800 tracking-wider">
-                                                            LOTE-{new Date().getFullYear()}-{activeQuote.id.toString().padStart(4, '0')}-{idx + 1}
+                                                            LOTE-{new Date().getFullYear()}-{activeQuote.id.toString().padStart(6, '0')}-{idx + 1}
                                                         </div>
                                                         <div className="h-16 w-full max-w-[250px] bg-black mt-3 opacity-80" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 2px, white 2px, white 4px)' }}></div>
                                                     </div>
