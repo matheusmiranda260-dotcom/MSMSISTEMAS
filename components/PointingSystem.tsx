@@ -5971,11 +5971,11 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                             <div className="text-[10px] text-slate-500 mb-1 uppercase">Total OS</div>
                                                                             <div className="text-lg text-sky-800">{totalOS}</div>
                                                                         </td>
-                                                                        <td className="p-3 border-r border-slate-300 text-sm">
-                                                                            <div className="text-[10px] text-slate-500 mb-1 text-center uppercase">Qtd de Peças</div>
-                                                                            <div className="flex flex-col gap-1 items-center">
+                                                                        <td className="p-3 border-r border-slate-300 text-sm text-center">
+                                                                            <div className="text-[10px] text-slate-500 mb-1 uppercase">Qtd de Peças</div>
+                                                                            <div className="flex flex-col gap-1 items-center justify-center">
                                                                                 {summaryPecas.map((p, i) => (
-                                                                                    <div key={i} className="text-sky-800">{p}</div>
+                                                                                    <div key={i} className="text-sky-800 text-center">{p}</div>
                                                                                 ))}
                                                                             </div>
                                                                         </td>
@@ -5983,11 +5983,11 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                             <div className="text-[10px] text-slate-500 mb-1 uppercase">Total Cortes</div>
                                                                             <div className="text-lg text-sky-800">{totalCortes}</div>
                                                                         </td>
-                                                                        <td className="p-3 border-r border-slate-300 text-sm">
-                                                                            <div className="text-[10px] text-slate-500 mb-1 text-center uppercase">Formatos</div>
-                                                                            <div className="flex flex-col gap-1 items-center">
+                                                                        <td className="p-3 border-r border-slate-300 text-sm text-center">
+                                                                            <div className="text-[10px] text-slate-500 mb-1 uppercase">Formatos</div>
+                                                                            <div className="flex flex-col gap-1 items-center justify-center">
                                                                                 {summaryFormatos.map((f, i) => (
-                                                                                    <div key={i} className="text-sky-800">{f}</div>
+                                                                                    <div key={i} className="text-sky-800 text-center">{f}</div>
                                                                                 ))}
                                                                             </div>
                                                                         </td>
