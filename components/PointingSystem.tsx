@@ -1372,18 +1372,19 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
     const checkoutData = useMemo(() => {
         if (!activeQuote) return { rows: [], finalTotalPrice: 0, finalTotalPriceAdjusted: 0, finalTotalAcrescimo: 0, finalTotalDesconto: 0 };
         
-        const groups: { [key: string]: { bitolaConfig?: BitolaConfig, bitolaStr: string, totalLinearMeters: number, totalPieces: number } } = {};
-        (activeQuote.products || []).forEach(p => {
+        const groups: { [key: string]: { bitolaConfig?: BitolaConfig, bitolaStr: string, totalLinearMeters: number, osSet: Set<string> } } = {};
+        (activeQuote.products || []).forEach((p, pIdx) => {
             const prodQtde = p.qty || 1;
             (p.ferros || []).forEach(f => {
                 const bitolaStr = f.bitola || '';
                 const bConfig = (bitolas || []).find(b => bitolaStr.startsWith(b.label));
                 const key = bConfig ? bConfig.id : (bitolaStr || 'unknown');
-                if (!groups[key]) groups[key] = { bitolaConfig: bConfig, bitolaStr: bitolaStr, totalLinearMeters: 0, totalPieces: 0 };
+                if (!groups[key]) groups[key] = { bitolaConfig: bConfig, bitolaStr: bitolaStr, totalLinearMeters: 0, osSet: new Set() };
+                
+                groups[key].osSet.add(p.id || String(pIdx));
                 
                 const totalCm = getFerroTotalLengthCm(f, p.description);
                 groups[key].totalLinearMeters += (totalCm / 100) * (f.qtde || 1) * prodQtde;
-                groups[key].totalPieces += (f.qtde || 1) * prodQtde;
             });
         });
 
@@ -1422,7 +1423,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
             finalTotalPriceAdjusted += precoTotalAjustado;
 
             rows.push({
-                codMerco, label, roundedBars, exactBars, bPrice, precoUnAjustado, precoTotal, precoTotalAjustado, pesoUn, pesoTotal, metros: g.totalLinearMeters, cortes: g.totalPieces
+                codMerco, label, roundedBars, exactBars, bPrice, precoUnAjustado, precoTotal, precoTotalAjustado, pesoUn, pesoTotal, metros: g.totalLinearMeters, cortes: g.osSet.size
             });
         });
 
@@ -2226,7 +2227,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                     <thead>
                                         <tr className="bg-[#175C8A] text-white">
                                             <th className="p-3 font-bold border-r border-[#1a6699] text-center w-24">Cód Merco</th>
-                                            <th className="p-3 font-bold border-r border-[#1a6699] text-center w-16">PÇS</th>
+                                            <th className="p-3 font-bold border-r border-[#1a6699] text-center w-16">OS</th>
                                             <th className="p-3 font-bold border-r border-[#1a6699]">Descrição</th>
                                             <th className="p-3 font-bold border-r border-[#1a6699] text-center">Qtde</th>
                                             <th className="p-3 font-bold border-r border-[#1a6699] text-center w-24">Metros</th>
