@@ -5881,8 +5881,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                     <thead>
                                                         <tr className="bg-slate-50 text-slate-600 border-b border-slate-300">
                                                             <th className="p-2 font-bold border-r border-slate-300 w-1/3">OS / Elemento</th>
+                                                            <th className="p-2 font-bold text-center w-24 border-r border-slate-300">Quantidade de Cortes</th>
                                                             <th className="p-2 font-bold border-r border-slate-300">Formato / Dimensões</th>
-                                                            <th className="p-2 font-bold text-center w-24 border-r border-slate-300">Qtd Cortes</th>
                                                             <th className="p-2 font-bold text-center w-32">Metros Totais</th>
                                                         </tr>
                                                     </thead>
@@ -5899,6 +5899,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                             <div className="text-[10px] font-black text-sky-700 mt-2">QTD ELEMENTOS: {os.prodQtde}</div>
                                                                         </td>
                                                                     )}
+                                                                    <td className="p-3 text-center border-r border-slate-300 font-bold text-sky-700 text-base">{cut.qty}</td>
                                                                     <td className="p-2 border-r border-slate-300 font-medium text-slate-700">
                                                                         <div className="flex items-center gap-4">
                                                                             <div className="flex flex-col flex-1 pl-2">
@@ -5919,7 +5920,6 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                             </div>
                                                                         </div>
                                                                     </td>
-                                                                    <td className="p-3 text-center border-r border-slate-300 font-bold text-sky-700 text-base">{cut.qty}</td>
                                                                     <td className="p-3 text-center font-bold text-slate-600 text-sm">{cut.metros.toFixed(2)} m</td>
                                                                 </tr>
                                                                 );
