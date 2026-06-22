@@ -1,16 +1,25 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Partner, MachineOrder, ProductionOrderData, MachineConfig, User } from '../types';
-import { fetchAllQuotesFromDB } from '../services/pointingSupabaseAdapter';
+import { fetchAllQuotesFromDB, fetchBitolasConfigFromDB, saveQuoteToDB } from '../services/pointingSupabaseAdapter';
+import { getFerroTotalLengthCm, renderEstriboSVG, renderBarDiagramSVG, renderTravaSVG } from './ScheduleDrawingHelpers';
 
-interface UnscheduledOrder {
+interface GaugeGroup {
+    bitola: string;
+    totalWeight: number;
+    totalMeters: number;
+    osCount: number;
+    scheduledCount: number;
+    ferros: any[];
+}
+
+interface GroupedOrder {
     id: string;
     os: string;
     cliente: string;
-    bitola: string;
-    pesoTotal: number;
     status: string;
     data: string;
-    quantidade: number;
+    gauges: GaugeGroup[];
+    quoteDetails: any;
 }
 
 interface MachineScheduleProps {
@@ -48,6 +57,16 @@ const getDayOfWeek = (dateStr: string) => {
     return days[date.getDay()];
 };
 
+const getGaugeLabel = (ferro: any, product: any) => {
+    if (ferro?.bitola) return String(ferro.bitola);
+    if (product?.description && String(product.description).toLowerCase().includes('ca')) {
+        const desc = String(product.description);
+        const match = desc.match(/(?:ca[- ]?\d*)[^\d]*(\d+(?:[.,]\d+)?)\s*mm/i) || desc.match(/(\d+(?:[.,]\d+)?)\s*mm/i);
+        if (match) return `${match[1].replace(',', '.')} mm`;
+    }
+    return 'Desconhecida';
+};
+
 const MachineSchedule: React.FC<MachineScheduleProps> = ({
     partners,
     machineOrders,
@@ -61,6 +80,10 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
     const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [selectedMachineName, setSelectedMachineName] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [bottomTab, setBottomTab] = useState<'pendentes' | 'producao'>('pendentes');
+    const [selectedQuoteForDetails, setSelectedQuoteForDetails] = useState<GroupedOrder | null>(null);
+    const [showCutPlan, setShowCutPlan] = useState(false);
+
     const [pendingVisualSchedule, setPendingVisualSchedule] = useState<{
         quoteId: string,
         bitola: string,
@@ -70,6 +93,25 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
         osQty: number,
         clientName: string
     } | null>(null);
+
+    const [quotes, setQuotes] = useState<any[]>([]);
+    const [bitolasConfig, setBitolasConfig] = useState<any[]>([]);
+
+    useEffect(() => {
+        const loadQuotesAndBitolas = async () => {
+            try {
+                const [dbQuotes, dbBitolas] = await Promise.all([
+                    fetchAllQuotesFromDB(),
+                    fetchBitolasConfigFromDB().catch(() => [])
+                ]);
+                setQuotes(dbQuotes);
+                setBitolasConfig(dbBitolas);
+            } catch (e) {
+                console.error('Failed to load initial data for schedule:', e);
+            }
+        };
+        loadQuotesAndBitolas();
+    }, []);
 
     useEffect(() => {
         const saved = sessionStorage.getItem('pending_visual_schedule');
@@ -90,17 +132,18 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
 
     const isMachineCompatibleWithBitola = (machineGaugeRange: string, bitolaStr: string) => {
         if (!machineGaugeRange) return true;
-        const cleanMachineRange = machineGaugeRange.replace(/\s+/g, '').replace(',', '.');
+        const cleanMachineRange = String(machineGaugeRange).replace(/\s+/g, '').replace(',', '.');
         const bounds = cleanMachineRange.split('-');
         const min = parseFloat(bounds[0]) || 0;
         const max = bounds.length > 1 ? parseFloat(bounds[1]) : min;
         
         let bValue = 0;
-        const match = bitolaStr.match(/(\d+(?:[.,]\d+)?) ?mm/i);
+        const safeBitola = String(bitolaStr || '');
+        const match = safeBitola.match(/(\d+(?:[.,]\d+)?) ?mm/i);
         if (match) {
             bValue = parseFloat(match[1].replace(',', '.'));
         } else {
-            const noCA = bitolaStr.replace(/CA\d+/i, '');
+            const noCA = safeBitola.replace(/CA\d+/i, '');
             bValue = parseFloat(noCA.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
         }
         
@@ -108,20 +151,6 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
     };
 
     const dates = useMemo(() => getNext7Days(), []);
-
-    const [quotes, setQuotes] = useState<any[]>([]);
-
-    useEffect(() => {
-        const loadQuotes = async () => {
-            try {
-                const dbQuotes = await fetchAllQuotesFromDB();
-                setQuotes(dbQuotes);
-            } catch (e) {
-                console.error('Failed to load quotes for schedule:', e);
-            }
-        };
-        loadQuotes();
-    }, []);
 
     // Load active machines from the active branding partner
     const activePartner = useMemo(() => {
@@ -139,40 +168,114 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
         }
     }, [activeMachines, selectedMachineName]);
 
-    // Unscheduled Production Orders
-    const unscheduledOrders = useMemo(() => {
-        // Find quotes that are exported
-        const activeQuotes = quotes.filter(q => q.status === 'Enviado p/ Produção');
+    // Parse and group orders by gauge
+    const processedOrders = useMemo(() => {
+        // Include both 'Enviado p/ Produção' and 'Em Produção' so they show up in their respective tabs
+        const activeQuotes = quotes.filter(q => q.status === 'Enviado p/ Produção' || q.status === 'Em Produção');
+        const scheduledMap: Record<string, Record<string, number>> = {};
         
-        // Exclude ones that are already scheduled in MachineOrders
-        const scheduledOrderCodes = new Set(machineOrders.map(mo => mo.orderCode));
-        
-        return activeQuotes.filter(q => {
-            if (scheduledOrderCodes.has(q.id)) return false;
-            if (searchTerm) {
-                const search = searchTerm.toLowerCase();
-                return q.id.toLowerCase().includes(search) || 
-                       q.clientName.toLowerCase().includes(search);
+        // Count how many OS quantities are scheduled per bitola per quote
+        machineOrders.forEach(mo => {
+            if (!scheduledMap[mo.orderCode]) {
+                scheduledMap[mo.orderCode] = {};
             }
-            return true;
-        }).map(q => {
-            const firstProduct = q.products?.[0];
-            const firstFerro = firstProduct?.ferros?.[0];
-            const bitolaStr = firstFerro?.bitola || firstProduct?.description || '';
-            const peso = q.products?.reduce((sum: number, p: any) => sum + (p.weight || 0), 0) || 0;
-            const qtd = q.products?.reduce((sum: number, p: any) => sum + (p.qty || 0), 0) || 0;
+            // Normalize gauge name for matching
+            const g = String(mo.gauge || '').replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim();
+            scheduledMap[mo.orderCode][g] = (scheduledMap[mo.orderCode][g] || 0) + (mo.osQuantity || 1);
+        });
+
+        return activeQuotes.map(q => {
+            const gaugesMap: Record<string, GaugeGroup> = {};
+            
+            q.products?.forEach((product: any) => {
+                const productQty = product.qty || 1;
+                const ferros = product.ferros || [];
+                
+                if (ferros.length === 0) {
+                    const gauge = getGaugeLabel(null, product);
+                    if (!gaugesMap[gauge]) {
+                        gaugesMap[gauge] = { bitola: gauge, totalWeight: 0, totalMeters: 0, osCount: 0, scheduledCount: 0, ferros: [] };
+                    }
+                    gaugesMap[gauge].totalWeight += Number(product.weight || 0);
+                    gaugesMap[gauge].osCount += Number(productQty);
+                } else {
+                    ferros.forEach((f: any) => {
+                        const gauge = getGaugeLabel(f, product);
+                        if (!gaugesMap[gauge]) {
+                            gaugesMap[gauge] = { bitola: gauge, totalWeight: 0, totalMeters: 0, osCount: 0, scheduledCount: 0, ferros: [] };
+                        }
+                        
+                        const lengthCm = getFerroTotalLengthCm(f, product?.pDesc || '');
+                        const totalMeters = (lengthCm / 100) * (f.quantidade || 1) * productQty;
+                        
+                        // Try to calculate weight if linear weight is known
+                        let unitWeight = 0;
+                        if (f.bitolaPesoLinear) {
+                            unitWeight = Number(f.bitolaPesoLinear);
+                        } else {
+                            const config = bitolasConfig.find(b => b.name === gauge);
+                            if (config) unitWeight = Number(config.weight || 0);
+                        }
+                        
+                        const weight = totalMeters * unitWeight;
+                        
+                        gaugesMap[gauge].totalMeters += totalMeters;
+                        gaugesMap[gauge].totalWeight += weight;
+                        gaugesMap[gauge].osCount += ((f.quantidade || 1) * productQty);
+                        gaugesMap[gauge].ferros.push({ ...f, productInfo: product });
+                    });
+                }
+            });
+
+            // Re-map scheduled counts
+            Object.values(gaugesMap).forEach(g => {
+                const normG = String(g.bitola || '').replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim();
+                g.scheduledCount = scheduledMap[q.id]?.[normG] || 0;
+                // Avoid overflow in case of manual edits
+                if (g.scheduledCount > g.osCount) g.scheduledCount = g.osCount;
+            });
+
+            // Sort gauges by size descending
+            const sortedGauges = Object.values(gaugesMap).sort((a, b) => {
+                const vA = parseFloat(String(a.bitola || '').replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+                const vB = parseFloat(String(b.bitola || '').replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+                return vB - vA;
+            });
+
             return {
                 id: q.id,
                 os: q.id,
                 cliente: q.clientName,
-                bitola: bitolaStr,
-                pesoTotal: peso,
                 status: q.status,
                 data: q.createdAt || new Date().toISOString(),
-                quantidade: qtd,
-            };
+                gauges: sortedGauges,
+                quoteDetails: q
+            } as GroupedOrder;
+        }).filter(q => {
+            if (searchTerm) {
+                const search = searchTerm.toLowerCase();
+                return q.id.toLowerCase().includes(search) || 
+                       q.cliente.toLowerCase().includes(search);
+            }
+            return true;
         });
-    }, [quotes, machineOrders, searchTerm]);
+    }, [quotes, machineOrders, searchTerm, bitolasConfig]);
+
+    const { pendentes, emProducao } = useMemo(() => {
+        const pendentesList: GroupedOrder[] = [];
+        const producaoList: GroupedOrder[] = [];
+
+        processedOrders.forEach(order => {
+            const isFullyScheduled = order.gauges.every(g => g.scheduledCount >= g.osCount);
+            if (isFullyScheduled) {
+                producaoList.push(order);
+            } else {
+                pendentesList.push(order);
+            }
+        });
+
+        return { pendentes: pendentesList, emProducao: producaoList };
+    }, [processedOrders]);
 
     // Machine Orders for the selected date and machine
     const currentMachineOrders = useMemo(() => {
@@ -182,54 +285,6 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
             mo.startDate === selectedDate
         ).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     }, [machineOrders, selectedMachineName, selectedDate]);
-
-    const selectedMachineDetails = useMemo(() => {
-        return activeMachines.find(m => m.name === selectedMachineName);
-    }, [activeMachines, selectedMachineName]);
-
-    // Calculate machine occupation for the selected day
-    const machineDailyCapacity = useMemo(() => {
-        if (!selectedMachineDetails) return 0;
-        let hours = 8; // Default 1 shift
-        if (selectedMachineDetails.shiftType === '2turnos') hours = 16;
-        if (selectedMachineDetails.shiftType === 'continuo') hours = 24;
-        return selectedMachineDetails.capacityKgPerHour * hours;
-    }, [selectedMachineDetails]);
-
-    const scheduledWeight = useMemo(() => {
-        return currentMachineOrders.reduce((sum, mo) => sum + (mo.weight || 0), 0);
-    }, [currentMachineOrders]);
-
-    const occupationPercentage = machineDailyCapacity > 0 ? (scheduledWeight / machineDailyCapacity) * 100 : 0;
-
-    const handleScheduleOrder = async (po: UnscheduledOrder) => {
-        if (!selectedMachineName || !selectedDate) {
-            showNotification('Selecione uma máquina e uma data primeiro.', 'error');
-            return;
-        }
-
-        try {
-            const newOrder: Partial<MachineOrder> = {
-                clientName: po.cliente,
-                machineId: selectedMachineName,
-                gauge: po.bitola || '',
-                quantity: po.quantidade || 0,
-                quantityUnit: 'peças',
-                startDate: selectedDate,
-                endDate: selectedDate,
-                status: 'scheduled',
-                orderCode: po.os,
-                osQuantity: po.quantidade,
-                weight: po.pesoTotal,
-                createdAt: new Date().toISOString()
-            };
-            await onAddMachineOrder(newOrder);
-            showNotification(`OS ${po.os} agendada para ${formatDateBr(selectedDate)} em ${selectedMachineName}`, 'success');
-        } catch (error) {
-            console.error('Failed to schedule order', error);
-            showNotification('Erro ao agendar a OS.', 'error');
-        }
-    };
 
     const handleVisualScheduleClick = async (dateStr: string, machineName: string) => {
         if (!pendingVisualSchedule) return;
@@ -250,9 +305,37 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                 notes: JSON.stringify({ totalMetros: pendingVisualSchedule.metros }),
                 createdAt: new Date().toISOString()
             };
-            await onAddMachineOrder(newOrder);
+            const addedOrder = await onAddMachineOrder(newOrder);
+            
             showNotification(`Bitola ${pendingVisualSchedule.bitola} agendada para ${formatDateBr(dateStr)} em ${machineName}`, 'success');
+            
+            // Verificação de transição de status para Em Produção
+            const quote = processedOrders.find(q => q.id === pendingVisualSchedule.quoteId);
+            if (quote) {
+                // Simula como ficarão as contagens após este agendamento
+                const isFullyScheduledNow = quote.gauges.every(g => {
+                    let sCount = g.scheduledCount;
+                    if (g.bitola === pendingVisualSchedule.bitola) {
+                        sCount += pendingVisualSchedule.osQty;
+                    }
+                    return sCount >= g.osCount;
+                });
+
+                if (isFullyScheduledNow && quote.status !== 'Em Produção') {
+                    const originalQuote = quote.quoteDetails;
+                    const updatedQuote = { ...originalQuote, status: 'Em Produção' };
+                    try {
+                        await saveQuoteToDB(updatedQuote);
+                        setQuotes(prev => prev.map(q => q.id === updatedQuote.id ? updatedQuote : q));
+                        showNotification(`OP ${quote.id} totalmente agendada! Movida para Em Produção.`, 'success');
+                    } catch (e) {
+                        console.error('Failed to update quote status to Em Produção', e);
+                    }
+                }
+            }
+
             setPendingVisualSchedule(null);
+            setSelectedQuoteForDetails(null); // Close modal on schedule
         } catch (error) {
             console.error('Failed to schedule order visually', error);
             showNotification('Erro ao agendar.', 'error');
@@ -261,16 +344,177 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
 
     const handleUnscheduleOrder = async (id: string) => {
         try {
+            const mo = machineOrders.find(m => m.id === id);
             await onDeleteMachineOrder(id);
             showNotification('Agendamento removido.', 'success');
+
+            if (mo) {
+                const quote = processedOrders.find(q => q.id === mo.orderCode);
+                if (quote && quote.status === 'Em Produção') {
+                    // Se desprogramou algo de uma OP que estava em produção, volta ela para Pendentes
+                    const originalQuote = quote.quoteDetails;
+                    const updatedQuote = { ...originalQuote, status: 'Enviado p/ Produção' };
+                    try {
+                        await saveQuoteToDB(updatedQuote);
+                        setQuotes(prev => prev.map(q => q.id === updatedQuote.id ? updatedQuote : q));
+                        showNotification(`OP ${quote.id} voltou para Pendentes.`, 'warning');
+                    } catch (e) {
+                        console.error('Failed to update quote status to Pendentes', e);
+                    }
+                }
+            }
         } catch (error) {
             console.error('Failed to unschedule', error);
             showNotification('Erro ao remover o agendamento.', 'error');
         }
     };
 
+    const renderGaugeShape = (ferro: any) => {
+        const type = ferro.tipo || ferro.drawingType || 'Reta';
+        
+        let svgContent = null;
+        if (type === 'Estribo' || type === 'CorteDobra') {
+            const productDesc = ferro.productInfo?.description || '';
+            const matchLados = productDesc.match(/(\d+ LADOS|REDONDA)/);
+            const lados = matchLados ? matchLados[1] : '4 LADOS';
+            svgContent = renderEstriboSVG(lados, ferro.estriboShape, ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, ferro.ladoF);
+        } else if (type === 'Barra') {
+            svgContent = renderBarDiagramSVG(
+                ferro.posicao || ferro.tipo,
+                ferro.ladoA,
+                ferro.ladoB,
+                ferro.ladoC,
+                ferro.ladoD,
+                ferro.ladoE,
+                true
+            );
+        } else if (type === 'Trava') {
+            svgContent = renderTravaSVG(Number(ferro.estriboShape) || 1, ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE);
+        }
+
+        if (svgContent) {
+            return (
+                <div className="w-16 h-12 flex items-center justify-center bg-slate-50 border border-slate-200 rounded">
+                    <svg viewBox="0 0 100 100" className="w-full h-full text-blue-600 drop-shadow-sm p-1">
+                        {svgContent}
+                    </svg>
+                </div>
+            );
+        }
+
+        return (
+            <div className="w-16 h-12 flex items-center justify-center bg-slate-50 border border-slate-200 rounded text-xs text-slate-400 font-medium">
+                {type}
+            </div>
+        );
+    };
+
+    const renderMatrix = (isModal: boolean) => {
+        const isSchedulingMode = isModal && !!pendingVisualSchedule;
+        
+        return (
+            <div className={`flex-1 overflow-auto p-4 bg-slate-50 relative scrollbar-thin ${isModal ? 'max-h-[70vh]' : 'max-h-[50vh]'}`}>
+                {activeMachines.length === 0 ? (
+                    <div className="text-center py-20 text-slate-400 font-semibold">
+                        Nenhuma máquina cadastrada no parceiro ativo. Configure em Parceiros.
+                    </div>
+                ) : (
+                    <div className="min-w-max">
+                        <table className="w-full border-collapse bg-white shadow-sm rounded-lg overflow-hidden">
+                            <thead className="bg-slate-100 text-slate-700 text-xs uppercase font-black sticky top-0 z-20 shadow-sm">
+                                <tr>
+                                    <th className="p-3 border-r border-b border-slate-200 w-32 bg-slate-200 sticky left-0 z-30">Dias</th>
+                                    {activeMachines.map(machine => (
+                                        <th key={machine.name} className="p-3 border-b border-r border-slate-200 text-center">
+                                            {machine.name}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {dates.map((dateStr, dIdx) => (
+                                    <tr key={dateStr} className="border-b border-slate-200">
+                                        <td className="p-3 border-r border-slate-200 bg-slate-50 font-bold text-slate-700 uppercase text-[10px] text-center sticky left-0 z-10 w-32 shadow-[1px_0_0_0_#e2e8f0]">
+                                            {dIdx === 0 ? 'Hoje' : getDayOfWeek(dateStr)}<br/>
+                                            <span className="text-slate-400 font-normal">{dateStr.split('-').reverse().join('/')}</span>
+                                        </td>
+                                        {activeMachines.map(machine => {
+                                            const cellOrders = machineOrders.filter(mo => mo.startDate === dateStr && mo.machineId === machine.name).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                                            const isCompatible = true; 
+                                            
+                                            return (
+                                                <td 
+                                                    key={machine.name} 
+                                                    onClick={() => {
+                                                        if (isSchedulingMode && isCompatible) {
+                                                            handleVisualScheduleClick(dateStr, machine.name);
+                                                        }
+                                                    }}
+                                                    className={`p-2 border-r border-slate-200 align-top min-w-[350px] transition-colors ${
+                                                        isSchedulingMode && isCompatible 
+                                                            ? 'cursor-pointer hover:bg-green-50 border-2 border-transparent hover:border-green-400 bg-white shadow-inner' 
+                                                            : 'bg-white'
+                                                    }`}
+                                                >
+                                                    {cellOrders.length === 0 ? (
+                                                        <div className={`text-center text-sm py-6 ${isSchedulingMode && isCompatible ? 'text-green-600 font-black' : 'text-slate-300'}`}>
+                                                            {isSchedulingMode && isCompatible ? '+ Agendar Aqui' : 'Livre'}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-2 pointer-events-none">
+                                                            <table className="w-full text-[10px] border border-slate-200 text-slate-700">
+                                                                <thead className="bg-slate-100 border-b border-slate-200">
+                                                                    <tr>
+                                                                        <th className="p-1 border-r border-slate-200 text-center font-bold">OP</th>
+                                                                        <th className="p-1 border-r border-slate-200 text-left font-bold">CLIENTE</th>
+                                                                        <th className="p-1 border-r border-slate-200 text-center font-bold">BITOLA</th>
+                                                                        <th className="p-1 border-r border-slate-200 text-center font-bold">QNT OS</th>
+                                                                        <th className="p-1 text-center font-bold">METROS</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {cellOrders.map(mo => (
+                                                                        <tr key={mo.id} className="border-b border-slate-100 bg-slate-50 opacity-60">
+                                                                            <td className="p-1 border-r border-slate-200 text-center font-bold">{mo.orderCode}</td>
+                                                                            <td className="p-1 border-r border-slate-200 font-semibold truncate max-w-[120px]">{mo.clientName}</td>
+                                                                            <td className="p-1 border-r border-slate-200 text-center font-bold">{String(mo.gauge || '').replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim()}</td>
+                                                                            <td className="p-1 border-r border-slate-200 text-center font-bold">{mo.osQuantity || 1}</td>
+                                                                            <td className="p-1 text-center font-bold">
+                                                                                {(() => {
+                                                                                    try {
+                                                                                        const data = mo.notes ? JSON.parse(mo.notes) : {};
+                                                                                        return Number(data.totalMetros || 0).toFixed(1);
+                                                                                    } catch {
+                                                                                        return '0.0';
+                                                                                    }
+                                                                                })()}
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                            {isSchedulingMode && isCompatible && (
+                                                                <div className="text-center text-xs py-2 text-green-600 font-bold bg-green-50 rounded border border-green-200">
+                                                                    + Agendar Junto
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     return (
-        <div className="min-h-screen bg-[#F8FAFC] p-2 md:p-4 animate-fadeIn">
+        <div className="min-h-screen bg-[#F8FAFC] p-2 md:p-4 animate-fadeIn relative">
             <div className="w-full mx-auto space-y-4">
                 
                 {/* Header */}
@@ -286,179 +530,90 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                 </header>
 
                 <div className="flex flex-col gap-6">
-                    {/* Top Section: Schedule Matrix */}
-                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col h-[60vh] overflow-hidden relative">
-                        {pendingVisualSchedule && (
-                            <div className="absolute top-0 left-0 right-0 z-50 bg-blue-600 text-white p-3 px-6 shadow-lg flex items-center justify-between animate-fadeIn">
-                                <div>
-                                    <h3 className="font-bold text-sm">📌 Modo de Agendamento</h3>
-                                    <p className="text-xs text-blue-100">
-                                        Clique em uma célula verde abaixo para agendar a OP <strong>{pendingVisualSchedule.quoteId}</strong> ({pendingVisualSchedule.clientName}) - Bitola <strong>{pendingVisualSchedule.bitola.replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim()}</strong> ({pendingVisualSchedule.weight.toFixed(2)} kg).
-                                    </p>
-                                </div>
-                                <button 
-                                    onClick={() => setPendingVisualSchedule(null)}
-                                    className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
-                                >
-                                    Cancelar
-                                </button>
-                            </div>
-                        )}
-                        <div className="flex-1 overflow-auto p-4 bg-slate-50 relative">
-                            {activeMachines.length === 0 ? (
-                                <div className="text-center py-20 text-slate-400 font-semibold">
-                                    Nenhuma máquina cadastrada no parceiro ativo. Configure em Parceiros.
-                                </div>
-                            ) : (
-                                <div className="min-w-max">
-                                    <table className="w-full border-collapse bg-white shadow-sm rounded-lg overflow-hidden">
-                                        <thead className="bg-slate-100 text-slate-700 text-xs uppercase font-black sticky top-0 z-20 shadow-sm">
-                                            <tr>
-                                                <th className="p-3 border-r border-b border-slate-200 w-32 bg-slate-200 sticky left-0 z-30">Dias</th>
-                                                {activeMachines.map(machine => (
-                                                    <th key={machine.name} className="p-3 border-b border-r border-slate-200 text-center">
-                                                        {machine.name}
-                                                    </th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {dates.map((dateStr, dIdx) => (
-                                                <tr key={dateStr} className="border-b border-slate-200">
-                                                    <td className="p-3 border-r border-slate-200 bg-slate-50 font-bold text-slate-700 uppercase text-[10px] text-center sticky left-0 z-10 w-32 shadow-[1px_0_0_0_#e2e8f0]">
-                                                        {dIdx === 0 ? 'Hoje' : getDayOfWeek(dateStr)}<br/>
-                                                        <span className="text-slate-400 font-normal">{dateStr.split('-').reverse().join('/')}</span>
-                                                    </td>
-                                                    {activeMachines.map(machine => {
-                                                        const cellOrders = machineOrders.filter(mo => mo.startDate === dateStr && mo.machineId === machine.name).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-                                                        const isScheduling = !!pendingVisualSchedule;
-                                                        const isCompatible = isScheduling ? isMachineCompatibleWithBitola(machine.gaugeRange, pendingVisualSchedule.bitola) : true;
-                                                        
-                                                        return (
-                                                            <td 
-                                                                key={machine.name} 
-                                                                onClick={() => {
-                                                                    if (isScheduling && isCompatible) {
-                                                                        handleVisualScheduleClick(dateStr, machine.name);
-                                                                    }
-                                                                }}
-                                                                className={`p-2 border-r border-slate-200 align-top min-w-[350px] transition-colors ${
-                                                                    isScheduling 
-                                                                        ? isCompatible 
-                                                                            ? 'cursor-pointer hover:bg-green-50 border-2 hover:border-green-400 bg-white shadow-inner' 
-                                                                            : 'bg-slate-100 opacity-50 cursor-not-allowed'
-                                                                        : ''
-                                                                }`}
-                                                            >
-                                                                {cellOrders.length === 0 ? (
-                                                                    <div className={`text-center text-xs py-4 ${isScheduling && isCompatible ? 'text-green-600 font-bold' : 'text-slate-300'}`}>
-                                                                        {isScheduling && isCompatible ? '+ Agendar Aqui' : 'Livre'}
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="space-y-2">
-                                                                        <table className="w-full text-[10px] border border-slate-200 text-slate-700">
-                                                                            <thead className="bg-slate-100 border-b border-slate-200">
-                                                                                <tr>
-                                                                                    <th className="p-1 border-r border-slate-200 text-center font-bold">OP</th>
-                                                                                    <th className="p-1 border-r border-slate-200 text-left font-bold">CLIENTE</th>
-                                                                                    <th className="p-1 border-r border-slate-200 text-center font-bold">BITOLA</th>
-                                                                                    <th className="p-1 border-r border-slate-200 text-center font-bold">QNT OS</th>
-                                                                                    <th className="p-1 text-center border-r border-slate-200 font-bold">METROS</th>
-                                                                                    <th className="w-6"></th>
-                                                                                </tr>
-                                                                            </thead>
-                                                                            <tbody>
-                                                                                {cellOrders.map(mo => (
-                                                                                    <tr key={mo.id} className="border-b border-slate-100 hover:bg-slate-50">
-                                                                                        <td className="p-1 border-r border-slate-200 text-center font-bold text-blue-700">{mo.orderCode}</td>
-                                                                                        <td className="p-1 border-r border-slate-200 font-semibold truncate max-w-[120px]" title={mo.clientName}>{mo.clientName}</td>
-                                                                                        <td className="p-1 border-r border-slate-200 text-center font-bold text-slate-800">{mo.gauge.replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim()}</td>
-                                                                                        <td className="p-1 border-r border-slate-200 text-center font-bold">{mo.osQuantity || 1}</td>
-                                                                                        <td className="p-1 border-r border-slate-200 text-center text-sky-700 font-bold">
-                                                                                            {(() => {
-                                                                                                try {
-                                                                                                    const data = mo.notes ? JSON.parse(mo.notes) : {};
-                                                                                                    return (data.totalMetros || 0).toFixed(1);
-                                                                                                } catch {
-                                                                                                    return '0.0';
-                                                                                                }
-                                                                                            })()}
-                                                                                        </td>
-                                                                                        <td className="p-1 text-center">
-                                                                                            <button 
-                                                                                                onClick={() => handleUnscheduleOrder(mo.id)}
-                                                                                                className="text-red-400 hover:text-red-600"
-                                                                                                title="Remover"
-                                                                                            >
-                                                                                                🗑️
-                                                                                            </button>
-                                                                                        </td>
-                                                                                    </tr>
-                                                                                ))}
-                                                                            </tbody>
-                                                                        </table>
-                                                                    </div>
-                                                                )}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
+                    {/* MATRIZ DE AGENDAMENTO FIXA */}
+                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col overflow-hidden">
+                        <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                            <h2 className="text-lg font-bold text-slate-800">Visão Geral da Produção (Próximos 7 Dias)</h2>
                         </div>
+                        {renderMatrix(false)}
                     </div>
 
-                    {/* Bottom Section: Unscheduled Orders */}
-                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col h-[30vh]">
-                        <div className="p-4 border-b border-slate-200 bg-slate-50 rounded-t-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <div>
-                                <h2 className="text-lg font-bold text-slate-800">Ordens Disponíveis</h2>
-                                <p className="text-xs text-slate-500">Orçamentos / OS prontas para agendar</p>
+                    {/* Full Screen: Orders Tabs */}
+                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col min-h-[50vh]">
+                        <div className="p-3 border-b border-slate-200 bg-slate-50 rounded-t-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setBottomTab('pendentes')}
+                                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${bottomTab === 'pendentes' ? 'bg-white shadow-sm text-blue-600 border border-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+                                >
+                                    Pendentes de Programação <span className="ml-2 bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs">{pendentes.length}</span>
+                                </button>
+                                <button
+                                    onClick={() => setBottomTab('producao')}
+                                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${bottomTab === 'producao' ? 'bg-white shadow-sm text-green-600 border border-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+                                >
+                                    Em Produção <span className="ml-2 bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs">{emProducao.length}</span>
+                                </button>
                             </div>
                             <input
                                 type="text"
-                                placeholder="Buscar por OP, Cliente, Projeto..."
+                                placeholder="Buscar por OP, Cliente..."
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                                 className="w-full sm:w-64 p-2 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
-                        <div className="p-4 overflow-x-auto overflow-y-hidden flex gap-4 bg-slate-50 items-start h-full scrollbar-thin">
-                            {unscheduledOrders.length === 0 ? (
-                                <div className="text-center w-full py-10 text-slate-400 text-sm font-semibold">
-                                    Nenhuma OS pendente no momento.
+                        
+                        <div className="p-4 overflow-x-auto overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 bg-slate-50 items-start h-full scrollbar-thin">
+                            {(bottomTab === 'pendentes' ? pendentes : emProducao).length === 0 ? (
+                                <div className="col-span-full text-center py-20 text-slate-400 text-lg font-semibold">
+                                    Nenhuma OS nesta aba.
                                 </div>
                             ) : (
-                                unscheduledOrders.map(po => (
-                                    <div key={po.id} className="min-w-[280px] bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:shadow transition-shadow flex flex-col flex-shrink-0">
-                                        <div className="flex justify-between items-start mb-2">
+                                (bottomTab === 'pendentes' ? pendentes : emProducao).map(order => (
+                                    <div 
+                                        key={order.id} 
+                                        onClick={() => {
+                                            setSelectedQuoteForDetails(order);
+                                            setShowCutPlan(false);
+                                        }}
+                                        className="w-full bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col cursor-pointer hover:border-blue-300"
+                                    >
+                                        <div className="flex justify-between items-start mb-4 border-b border-slate-100 pb-3">
                                             <div>
-                                                <span className="text-xs font-black bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                                                    OP: {po.os}
+                                                <span className={`text-xs font-black px-2.5 py-1 rounded-full ${bottomTab === 'pendentes' ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}`}>
+                                                    OP: {order.os}
                                                 </span>
-                                                <h3 className="text-sm font-bold text-slate-800 mt-1 truncate max-w-[150px]" title={po.cliente}>{po.cliente}</h3>
+                                                <h3 className="text-base font-bold text-slate-800 mt-2 truncate max-w-[200px]" title={order.cliente}>{order.cliente}</h3>
                                             </div>
-                                            <div className="flex flex-col gap-1 items-end">
-                                                <button 
-                                                    onClick={() => {
-                                                        sessionStorage.setItem('pending_print_action', JSON.stringify({ type: 'print_corte', quoteId: po.id }));
-                                                        sessionStorage.setItem('return_to_after_print', 'machineSchedule');
-                                                        window.dispatchEvent(new Event('navigate_to_pointing'));
-                                                    }}
-                                                    className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors"
-                                                >
-                                                    Agendar ➔
-                                                </button>
+                                            <div className="text-xs text-slate-400 font-medium">
+                                                {formatDateBr(order.data.split('T')[0])}
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-2 mt-2 text-[10px] text-slate-600">
-                                            <div><span className="font-bold text-slate-400">Bitola:</span> {po.bitola.replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim()}</div>
-                                            <div><span className="font-bold text-slate-400">Peso:</span> {po.pesoTotal?.toFixed(2)} kg</div>
-                                            <div><span className="font-bold text-slate-400">Status:</span> {po.status}</div>
-                                            <div><span className="font-bold text-slate-400">Data:</span> {formatDateBr(po.data.split('T')[0])}</div>
+                                        
+                                        <div className="space-y-3">
+                                            {order.gauges.slice(0, 4).map((g, i) => {
+                                                const isFullyScheduled = g.scheduledCount >= g.osCount;
+                                                return (
+                                                    <div key={i} className="flex flex-col text-xs p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <span className="font-black text-slate-800 text-sm">{String(g.bitola || '').replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim()}</span>
+                                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${isFullyScheduled ? 'bg-green-200 text-green-800' : 'bg-orange-200 text-orange-800'}`}>
+                                                                {isFullyScheduled ? 'Programado' : 'Falta'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex gap-4 text-slate-500 font-medium mt-1">
+                                                            <span>Qtd: <strong className="text-slate-700">{g.osCount} un</strong></span>
+                                                            <span>Peso: <strong className="text-slate-700">{Number(g.totalWeight || 0).toFixed(1)}kg</strong></span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                            {order.gauges.length > 4 && (
+                                                <div className="text-xs text-center text-blue-500 font-bold bg-blue-50 py-2 rounded-lg">
+                                                    + {order.gauges.length - 4} bitolas...
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))
@@ -466,8 +621,200 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                         </div>
                     </div>
                 </div>
-
             </div>
+
+            {/* Modal de Detalhes da OP */}
+            {selectedQuoteForDetails && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+                        <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50">
+                            <div>
+                                <div className="flex items-center gap-3">
+                                    <h2 className="text-2xl font-black text-slate-800">OP: {selectedQuoteForDetails.os}</h2>
+                                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${bottomTab === 'pendentes' ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}`}>
+                                        {bottomTab === 'pendentes' ? 'Pendente de Programação' : 'Em Produção'}
+                                    </span>
+                                </div>
+                                <p className="text-sm font-semibold text-slate-600 mt-1">Cliente: <span className="text-slate-900">{selectedQuoteForDetails.cliente}</span></p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={() => setShowCutPlan(!showCutPlan)}
+                                    className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-sm font-bold transition-colors border border-blue-200"
+                                >
+                                    {showCutPlan ? 'Ocultar Plano de Corte' : 'Ver Plano de Corte Completo'}
+                                </button>
+                                <button 
+                                    onClick={() => setSelectedQuoteForDetails(null)}
+                                    className="p-2 text-slate-400 hover:bg-slate-200 rounded-full transition-colors"
+                                >
+                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div className="p-6 overflow-y-auto bg-white flex-1 space-y-6">
+                            
+                            {/* Resumo por Bitolas */}
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                    <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                                    Resumo de Programação por Bitola
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {selectedQuoteForDetails.gauges.map((g, idx) => {
+                                        const isFullyScheduled = g.scheduledCount >= g.osCount;
+                                        const gNorm = String(g.bitola || '').replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim();
+                                        const relatedOrders = machineOrders.filter(mo => 
+                                            mo.orderCode === selectedQuoteForDetails.os && 
+                                            String(mo.gauge || '').replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim() === gNorm
+                                        );
+
+                                        return (
+                                            <div key={idx} className={`p-4 rounded-xl border-2 transition-all flex flex-col justify-between ${isFullyScheduled ? 'bg-green-50 border-green-200' : 'bg-white border-orange-200 shadow-sm'}`}>
+                                                <div>
+                                                    <div className="flex justify-between items-start mb-3">
+                                                        <h4 className="font-black text-slate-800 text-lg">{gNorm}</h4>
+                                                        {isFullyScheduled ? (
+                                                            <span className="bg-green-500 text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wide shadow-sm">Programado</span>
+                                                        ) : (
+                                                            <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wide animate-pulse shadow-sm">Falta Programar</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-y-2 text-sm text-slate-600 font-medium mb-3">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] text-slate-400 uppercase font-bold">Quantidade</span>
+                                                            <span className="text-slate-800">{g.osCount} <span className="text-xs">un</span></span>
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] text-slate-400 uppercase font-bold">Peso Total</span>
+                                                            <span className="text-slate-800">{Number(g.totalWeight || 0).toFixed(2)} <span className="text-xs">kg</span></span>
+                                                        </div>
+                                                        <div className="flex flex-col col-span-2">
+                                                            <span className="text-[10px] text-slate-400 uppercase font-bold">Metros Lineares</span>
+                                                            <span className="text-slate-800">{Number(g.totalMeters || 0).toFixed(2)} <span className="text-xs">m</span></span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-2">
+                                                    {isFullyScheduled ? (
+                                                        <div className="bg-white rounded-lg p-2 border border-green-100 flex flex-col gap-2">
+                                                            {relatedOrders.map(ro => (
+                                                                <div key={ro.id} className="flex justify-between items-center bg-green-50 px-2 py-1.5 rounded border border-green-100">
+                                                                    <div className="flex flex-col">
+                                                                        <span className="text-[10px] text-green-800 font-bold">🗓️ {formatDateBr(ro.startDate)}</span>
+                                                                        <span className="text-[10px] text-green-600">🤖 {ro.machineId}</span>
+                                                                    </div>
+                                                                    <button 
+                                                                        onClick={() => {
+                                                                            if (window.confirm('Deseja remover este agendamento? A OP pode voltar para "Pendentes".')) {
+                                                                                handleUnscheduleOrder(ro.id);
+                                                                            }
+                                                                        }}
+                                                                        className="text-red-400 hover:text-red-600 p-1 bg-white rounded shadow-sm hover:shadow transition-all"
+                                                                        title="Remover Agendamento"
+                                                                    >
+                                                                        🗑️
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <button 
+                                                            onClick={() => {
+                                                                setPendingVisualSchedule({
+                                                                    quoteId: selectedQuoteForDetails.os,
+                                                                    bitola: g.bitola,
+                                                                    weight: g.totalWeight,
+                                                                    metros: g.totalMeters,
+                                                                    qty: 1,
+                                                                    osQty: g.osCount,
+                                                                    clientName: selectedQuoteForDetails.cliente
+                                                                });
+                                                            }}
+                                                            className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 rounded-lg transition-colors shadow-sm"
+                                                        >
+                                                            Programar Agora
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Plano de Corte */}
+                            {showCutPlan && (
+                                <div className="mt-8 border-t border-slate-100 pt-6 animate-fadeIn">
+                                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                        <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" /></svg>
+                                        Plano de Corte Completo
+                                    </h3>
+                                    
+                                    <div className="space-y-6">
+                                        {selectedQuoteForDetails.gauges.map((g, gIdx) => {
+                                            if (g.ferros.length === 0) return null;
+                                            return (
+                                                <div key={gIdx} className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                                                    <h4 className="font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">
+                                                        Bitola: {String(g.bitola || '').replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim()}
+                                                    </h4>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                                                        {g.ferros.map((ferro, fIdx) => (
+                                                            <div key={fIdx} className="bg-white p-3 rounded-lg border border-slate-200 flex items-center gap-3">
+                                                                {renderGaugeShape(ferro)}
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="font-bold text-xs text-slate-800 truncate">{ferro.posicao || ferro.tipo}</div>
+                                                                    <div className="text-[10px] text-slate-500 font-medium">Qtd: <span className="text-slate-800 font-bold">{ferro.quantidade}</span></div>
+                                                                    <div className="text-[10px] text-slate-500 font-medium">Comp: <span className="text-slate-800 font-bold">{ferro.comprimento} cm</span></div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Agendamento Visual (Ativado via botão Programar Agora) */}
+            {pendingVisualSchedule && (
+                <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col overflow-hidden">
+                        
+                        {/* Header do Agendamento */}
+                        <div className="bg-blue-600 text-white p-4 px-6 shadow-lg flex items-center justify-between flex-shrink-0">
+                            <div>
+                                <h3 className="font-bold text-xl flex items-center gap-2">
+                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                    Modo de Agendamento Visual
+                                </h3>
+                                <p className="text-sm text-blue-100 mt-1">
+                                    Clique em uma célula <strong className="text-white">Livre (Verde)</strong> abaixo para agendar a OP <strong>{pendingVisualSchedule.quoteId}</strong> ({pendingVisualSchedule.clientName}) - Bitola <strong>{String(pendingVisualSchedule.bitola || '').replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim()}</strong> ({Number(pendingVisualSchedule.weight || 0).toFixed(2)} kg).
+                                </p>
+                            </div>
+                            <button 
+                                onClick={() => setPendingVisualSchedule(null)}
+                                className="bg-white text-blue-600 hover:bg-slate-100 px-6 py-2.5 rounded-xl text-sm font-black transition-colors shadow"
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+
+                        {/* Corpo da Matriz no Modal */}
+                        {renderMatrix(true)}
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 };
