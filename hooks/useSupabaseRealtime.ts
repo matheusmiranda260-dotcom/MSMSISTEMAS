@@ -265,30 +265,7 @@ export function useAllRealtimeSubscriptions(setters: RealtimeSetters, enabled: b
         channelsRef.current = channels;
 
         if (setters.setMachineOrders) {
-            const machineOrdersChannel = supabase
-                .channel('realtime-machine_orders')
-                .on('postgres_changes',
-                    { event: '*', schema: 'public', table: 'machine_orders' },
-                    (payload) => {
-                        const record = mapToCamelCase(payload.new) as MachineOrder;
-                        switch (payload.eventType) {
-                            case 'INSERT':
-                                setters.setMachineOrders!(prev => [...prev, record]);
-                                break;
-                            case 'UPDATE':
-                                setters.setMachineOrders!(prev => prev.map(r => r.id === record.id ? record : r));
-                                break;
-                            case 'DELETE':
-                                setters.setMachineOrders!(prev => prev.filter(r => r.id !== (payload.old as any).id));
-                                break;
-                        }
-                    }
-                )
-                .subscribe((status) => {
-                    console.log(`[Realtime] machine_orders status:`, status);
-                });
-
-            channels.push(machineOrdersChannel);
+            createSubscription<MachineOrder>('machine_orders', setters.setMachineOrders);
         }
 
         console.log(`[Realtime] ${channels.length} subscriptions ativas`);

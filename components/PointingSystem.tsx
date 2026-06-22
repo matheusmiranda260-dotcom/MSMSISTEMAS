@@ -174,32 +174,40 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
         syncQuotes();
     }, [quotes, isLoadingData]);
 
-    // Supabase Sync for Bitolas
-    useEffect(() => {
+    // Manual Supabase Sync for Bitolas
+    const [isSavingBitolas, setIsSavingBitolas] = useState(false);
+    const handleSaveBitolas = async () => {
         if (isLoadingData) return;
-        const syncBitolas = async () => {
-            try {
-                const changed = bitolas.filter(b => {
-                    const prev = prevBitolasRef.current.find(pb => pb.id === b.id);
-                    if (!prev) return true;
-                    return JSON.stringify(b) !== JSON.stringify(prev);
-                });
-                for (const b of changed) {
-                    await upsertItem('config_bitolas', b);
+        setIsSavingBitolas(true);
+        try {
+            const changed = bitolas.filter(b => {
+                const prev = prevBitolasRef.current.find(pb => pb.id === b.id);
+                if (!prev) return true;
+                return JSON.stringify(b) !== JSON.stringify(prev);
+            });
+            for (const b of changed) {
+                // Ensure id is not a temporary "nova_" ID
+                if (b.id.startsWith('nova_')) {
+                    showNotification('Por favor, selecione uma bitola válida para todos os itens antes de salvar.', 'warning');
+                    setIsSavingBitolas(false);
+                    return;
                 }
-                
-                const deleted = prevBitolasRef.current.filter(pb => !bitolas.some(b => b.id === pb.id));
-                for (const pb of deleted) {
-                    await deleteItem('config_bitolas', pb.id);
-                }
-                prevBitolasRef.current = bitolas;
-            } catch (err: any) {
-                console.error('Error syncing bitolas:', err);
-                showNotification(`Erro ao salvar bitolas no Supabase: ${err.message || err}`, 'error');
+                await upsertItem('config_bitolas', b);
             }
-        };
-        syncBitolas();
-    }, [bitolas, isLoadingData]);
+            
+            const deleted = prevBitolasRef.current.filter(pb => !bitolas.some(b => b.id === pb.id));
+            for (const pb of deleted) {
+                await deleteItem('config_bitolas', pb.id);
+            }
+            prevBitolasRef.current = bitolas;
+            showNotification('Bitolas salvas com sucesso no banco de dados!', 'success');
+        } catch (err: any) {
+            console.error('Error syncing bitolas:', err);
+            showNotification(`Erro ao salvar bitolas no Supabase: ${err.message || err}`, 'error');
+        } finally {
+            setIsSavingBitolas(false);
+        }
+    };
 
     // Supabase Sync for Arame
     useEffect(() => {
@@ -6379,7 +6387,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
             {/* MODAL: Configurações de Sistema */}
             {showSettingsModal && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh]">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl flex flex-col max-h-[90vh]">
                         <div className="bg-slate-800 text-white py-4 px-6 flex justify-between items-center rounded-t-2xl shrink-0">
                             <h2 className="text-xl font-black flex items-center gap-2">
                                 ⚙️ Configurações de Sistema
@@ -6422,13 +6430,20 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                             {settingsTab === 'bitolas' ? (
                                 <div>
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-bold text-slate-800">Controle de Bitolas</h3>
-                                <div>
+                                <h3 className="text-lg font-bold text-slate-800">Controle de Bitolas (Selecione quais aparecem no Apontamento)</h3>
+                                <div className="flex gap-2">
                                     <button 
-                                        onClick={() => setBitolas([...bitolas, { id: String(Date.now()), label: 'Nova Bitola', kgm: 0, price: 0, amarrado: true, corteDobra: true, codMerco: '' }])}
+                                        onClick={() => setBitolas([...bitolas, { id: 'nova_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6), label: 'Selecione uma bitola...', kgm: 0, price: 0, amarrado: true, corteDobra: true, codMerco: '' }])}
                                         className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-sm transition-colors shadow"
                                     >
                                         + Adicionar Bitola
+                                    </button>
+                                    <button 
+                                        onClick={handleSaveBitolas}
+                                        disabled={isSavingBitolas}
+                                        className="bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold py-2 px-4 rounded-xl text-sm transition-colors shadow"
+                                    >
+                                        {isSavingBitolas ? 'Salvando...' : 'Salvar Alterações'}
                                     </button>
                                 </div>
                             </div>
@@ -6473,12 +6488,13 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                                 newBitolas[idx].label = `${selected.materialType} ${selected.gauge}`;
                                                                 newBitolas[idx].kgm = selected.weightPerMeter || 0;
                                                                 newBitolas[idx].price = selected.purchasePrice || 0;
+                                                                newBitolas[idx].codMerco = selected.productCode || '';
                                                             }
                                                             setBitolas(newBitolas);
                                                         }}
-                                                        className="w-full border rounded px-2 py-1.5 text-sm font-semibold outline-none focus:border-sky-500 bg-white"
+                                                        className="w-full min-w-[350px] border rounded px-2 py-1.5 text-sm font-semibold outline-none focus:border-sky-500 bg-white"
                                                     >
-                                                        <option value={b.id}>{b.label}</option>
+                                                        <option value={b.id} disabled={b.id.startsWith('nova_')}>{b.label}</option>
                                                         {gauges?.map(g => (
                                                             <option key={g.id} value={g.id}>{g.materialType} - {g.gauge}</option>
                                                         ))}

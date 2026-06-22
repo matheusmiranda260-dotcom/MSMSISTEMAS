@@ -243,22 +243,7 @@ const App: React.FC = () => {
                     finalGaugesMap.set(sig, { ...g, gauge: g.gauge });
                 });
 
-                // Also include LOCAL- gauges from localStorage (created offline / not yet synced)
-                let localGauges: StockGauge[] = [];
-                const localSaved = localStorage.getItem('msm_local_gauges');
-                if (localSaved) {
-                    try { localGauges = JSON.parse(localSaved); } catch (e) {}
-                }
-                localGauges
-                    .filter(g => g.id.startsWith('LOCAL-'))
-                    .forEach(g => {
-                        const stdGauge = getStandardizedGaugeKey(g.gauge);
-                        const sig = `${g.materialType.toLowerCase().trim()}::${stdGauge}`;
-                        // Only add if DB doesn't already have this gauge (DB wins)
-                        if (!finalGaugesMap.has(sig)) {
-                            finalGaugesMap.set(sig, g);
-                        }
-                    });
+                // Local gauges fallback removed. Source of truth is purely the DB.
 
                 // For stock items with no matching DB gauge, add a minimal entry
                 // so they are still visible in the stock list (read-only fallback)
@@ -280,11 +265,11 @@ const App: React.FC = () => {
                     }
                 });
 
-                // Clear old localStorage data (presets are gone)
-                const finalGauges = Array.from(finalGaugesMap.values());
-                localStorage.setItem('msm_local_gauges', JSON.stringify(finalGauges.filter(g => g.id.startsWith('LOCAL-'))));
                 // Clear deleted gauges list - it's stale now
+                localStorage.removeItem('msm_local_gauges');
                 localStorage.removeItem('msm_deleted_gauges');
+                
+                const finalGauges = Array.from(finalGaugesMap.values());
                 setGauges(finalGauges);
 
                 // Load local gauge components from localStorage
@@ -628,30 +613,18 @@ const App: React.FC = () => {
         }
     };
 
-    const addGauge = async (data: Omit<StockGauge, 'id'>): Promise<StockGauge> => {
-        const localId = `LOCAL-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-        const localItem: StockGauge = { ...data, id: localId };
-        
-        // Optimistic update - add to state immediately with a LOCAL- id
-        setGauges(prev => {
-            const updated = [...prev, localItem];
-            localStorage.setItem('msm_local_gauges', JSON.stringify(updated.filter(g => g.id.startsWith('LOCAL-'))));
-            return updated;
-        });
-        showNotification('Material cadastrado com sucesso!', 'success');
-
+    const addGauge = async (data: Partial<StockGauge>) => {
         try {
             const saved = await insertItem<StockGauge>('stock_gauges', data as StockGauge);
-            // Replace the LOCAL- entry with the real DB entry
+            // Only update state after confirming DB success
             setGauges(prev => {
-                const updated = prev.map(g => g.id === localId ? saved : g);
-                localStorage.setItem('msm_local_gauges', JSON.stringify(updated.filter(g => g.id.startsWith('LOCAL-'))));
-                return updated;
+                const alreadyExists = prev.some(g => g.id === saved.id);
+                return alreadyExists ? prev : [...prev, saved];
             });
             return saved;
-        } catch (error) {
-            console.warn('Could not sync new gauge to Supabase. Saved locally.', error);
-            return localItem;
+        } catch (err: any) {
+            console.error('Error adding gauge:', err);
+            throw err;
         }
     };
 
