@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Partner, MachineOrder, ProductionOrderData, MachineConfig, User } from '../types';
+import { DEFAULT_ESTRIBO_MODELS as estriboModels, DEFAULT_FERRO_MODELS as ferroModels } from '../types';
 import { fetchAllQuotesFromDB, fetchBitolasConfigFromDB, saveQuoteToDB } from '../services/pointingSupabaseAdapter';
+import { fetchTable } from '../services/supabaseService';
 import { getFerroTotalLengthCm, renderEstriboSVG, renderBarDiagramSVG, renderTravaSVG } from './ScheduleDrawingHelpers';
 
 interface GaugeGroup {
@@ -57,13 +59,19 @@ const getDayOfWeek = (dateStr: string) => {
     return days[date.getDay()];
 };
 
+const cleanGaugeString = (str: string) => {
+    const s = String(str || '');
+    const m = s.match(/(\d+\.?\d*\s*mm)/i);
+    return m ? m[1].toUpperCase() : s.replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim().toUpperCase();
+};
+
 const getGaugeLabel = (ferro: any, product: any) => {
-    if (ferro?.bitola) return String(ferro.bitola);
-    if (product?.description && String(product.description).toLowerCase().includes('ca')) {
-        const desc = String(product.description);
-        const match = desc.match(/(?:ca[- ]?\d*)[^\d]*(\d+(?:[.,]\d+)?)\s*mm/i) || desc.match(/(\d+(?:[.,]\d+)?)\s*mm/i);
-        if (match) return `${match[1].replace(',', '.')} mm`;
+    let raw = '';
+    if (ferro?.bitola) raw = String(ferro.bitola);
+    else if (product?.description && String(product.description).toLowerCase().includes('ca')) {
+        raw = String(product.description);
     }
+    if (raw) return cleanGaugeString(raw);
     return 'Desconhecida';
 };
 
@@ -77,6 +85,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
     showNotification,
     currentUser
 }) => {
+    const activeBrandingPartner = partners?.find(p => p.isActiveBranding) || null;
     const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [selectedMachineName, setSelectedMachineName] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -84,6 +93,18 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
     const [selectedQuoteForDetails, setSelectedQuoteForDetails] = useState<GroupedOrder | null>(null);
     const [showCutPlan, setShowCutPlan] = useState(false);
     const [editingMachineOrder, setEditingMachineOrder] = useState<MachineOrder | null>(null);
+    const [printingMachineOrder, setPrintingMachineOrder] = useState<MachineOrder | null>(null);
+
+    const [isLabelConfigOpen, setIsLabelConfigOpen] = useState(false);
+    const [labelScale, setLabelScale] = useState(parseFloat(localStorage.getItem('msm_label_scale') || '2.25'));
+    const [labelHeight, setLabelHeight] = useState(parseFloat(localStorage.getItem('msm_label_height') || '320'));
+    const [labelWidth, setLabelWidth] = useState(parseFloat(localStorage.getItem('msm_label_width') || '448'));
+
+    useEffect(() => {
+        localStorage.setItem('msm_label_scale', labelScale.toString());
+        localStorage.setItem('msm_label_height', labelHeight.toString());
+        localStorage.setItem('msm_label_width', labelWidth.toString());
+    }, [labelScale, labelHeight, labelWidth]);
 
     const [pendingVisualSchedule, setPendingVisualSchedule] = useState<{
         quoteId: string,
@@ -97,18 +118,31 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
 
     const [quotes, setQuotes] = useState<any[]>([]);
     const [bitolasConfig, setBitolasConfig] = useState<any[]>([]);
+    const [dbFerroModels, setDbFerroModels] = useState<any[]>(ferroModels);
+    const [dbEstriboModels, setDbEstriboModels] = useState<any[]>(estriboModels);
 
     useEffect(() => {
         const loadQuotesAndBitolas = async () => {
             try {
-                const [dbQuotes, dbBitolas] = await Promise.all([
-                    fetchAllQuotesFromDB(),
-                    fetchBitolasConfigFromDB().catch(() => [])
+                const [dbQuotes] = await Promise.all([
+                    fetchAllQuotesFromDB()
                 ]);
+                const cfgMap = await fetchBitolasConfigFromDB().catch(() => []);
                 setQuotes(dbQuotes);
-                setBitolasConfig(dbBitolas);
-            } catch (e) {
-                console.error('Failed to load initial data for schedule:', e);
+                setBitolasConfig(cfgMap);
+
+                try {
+                    const [loadedFerros, loadedEstribos] = await Promise.all([
+                        fetchTable<any>('model_ferros'),
+                        fetchTable<any>('model_estribos')
+                    ]);
+                    if (loadedFerros && loadedFerros.length > 0) setDbFerroModels(loadedFerros);
+                    if (loadedEstribos && loadedEstribos.length > 0) setDbEstriboModels(loadedEstribos);
+                } catch (e) {
+                    console.error("Failed to load custom models", e);
+                }
+            } catch (err) {
+                console.error('Failed to load initial data for schedule:', err);
             }
         };
         loadQuotesAndBitolas();
@@ -153,7 +187,6 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
 
     const dates = useMemo(() => getNext7Days(), []);
 
-    // Load active machines from the active branding partner
     const activePartner = useMemo(() => {
         return partners.find(p => p.isActiveBranding) || partners[0] || null;
     }, [partners]);
@@ -169,19 +202,16 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
         }
     }, [activeMachines, selectedMachineName]);
 
-    // Parse and group orders by gauge
     const processedOrders = useMemo(() => {
-        // Include both 'Enviado p/ Produção' and 'Em Produção' so they show up in their respective tabs
         const activeQuotes = quotes.filter(q => q.status === 'Enviado p/ Produção' || q.status === 'Em Produção');
         const scheduledMap: Record<string, Record<string, number>> = {};
         
-        // Count how many OS quantities are scheduled per bitola per quote
         machineOrders.forEach(mo => {
             if (!scheduledMap[mo.orderCode]) {
                 scheduledMap[mo.orderCode] = {};
             }
             // Normalize gauge name for matching
-            const g = String(mo.gauge || '').replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim();
+            const g = cleanGaugeString(mo.gauge || '');
             scheduledMap[mo.orderCode][g] = (scheduledMap[mo.orderCode][g] || 0) + (mo.osQuantity || 1);
         });
 
@@ -211,22 +241,23 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                         }
                         
                         const lengthCm = getFerroTotalLengthCm(f, product?.pDesc || '');
-                        const totalMeters = (lengthCm / 100) * (f.quantidade || 1) * productQty;
+                        const fQtd = Number(f.qtde || f.quantidade || 1);
+                        const totalMeters = (lengthCm / 100) * fQtd * productQty;
                         
                         // Try to calculate weight if linear weight is known
                         let unitWeight = 0;
                         if (f.bitolaPesoLinear) {
                             unitWeight = Number(f.bitolaPesoLinear);
                         } else {
-                            const config = bitolasConfig.find(b => b.name === gauge);
-                            if (config) unitWeight = Number(config.weight || 0);
+                            const config = bitolasConfig.find(b => cleanGaugeString(b.label) === gauge);
+                            if (config) unitWeight = Number(config.kgm || 0);
                         }
                         
                         const weight = totalMeters * unitWeight;
                         
                         gaugesMap[gauge].totalMeters += totalMeters;
                         gaugesMap[gauge].totalWeight += weight;
-                        gaugesMap[gauge].osCount += ((f.quantidade || 1) * productQty);
+                        gaugesMap[gauge].osCount += (fQtd * productQty);
                         gaugesMap[gauge].ferros.push({ ...f, productInfo: product, osNumberString });
                     });
                 }
@@ -234,7 +265,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
 
             // Re-map scheduled counts
             Object.values(gaugesMap).forEach(g => {
-                const normG = String(g.bitola || '').replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim();
+                const normG = cleanGaugeString(g.bitola || '');
                 g.scheduledCount = scheduledMap[q.id]?.[normG] || 0;
                 // Avoid overflow in case of manual edits
                 if (g.scheduledCount > g.osCount) g.scheduledCount = g.osCount;
@@ -375,26 +406,42 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
     };
 
     const renderGaugeShape = (ferro: any) => {
+        if (ferro.customImageBase64) {
+            return (
+                <div className="w-32 h-24 flex items-center justify-center bg-slate-50 border border-slate-200 rounded overflow-visible p-2">
+                    <img src={ferro.customImageBase64} alt="Custom Drawing" className="w-full h-full object-contain" />
+                </div>
+            );
+        }
+
         const type = ferro.tipo || ferro.drawingType || 'Reta';
+        const productDesc = ferro.productInfo?.description || '';
+        const matchLados = productDesc.match(/(\d+ LADOS|REDONDA)/);
+        const ladosDesc = matchLados ? matchLados[1] : '4 LADOS';
         
         let svgContent = null;
         if (type === 'Estribo' || type === 'CorteDobra') {
-            const productDesc = ferro.productInfo?.description || '';
-            const matchLados = productDesc.match(/(\d+ LADOS|REDONDA)/);
-            const lados = matchLados ? matchLados[1] : '4 LADOS';
-            svgContent = renderEstriboSVG(lados, ferro.estriboShape, ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, ferro.ladoF);
+            svgContent = renderEstriboSVG(ladosDesc, ferro.estriboShape || ferro.ferroModelId || 'Padrão', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, ferro.ladoF, [...dbEstriboModels, ...dbFerroModels]) || 
+                         renderBarDiagramSVG(dbFerroModels.find(m => m.id === ferro.ferroModelId)?.name || '', ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, true);
         } else if (type === 'Trava') {
             svgContent = renderTravaSVG(Number(ferro.estriboShape) || 1, ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE);
         } else {
-            svgContent = renderBarDiagramSVG(
-                ferro.nomeElemento || ferro.posicao || ferro.tipo || type,
-                ferro.ladoA,
-                ferro.ladoB,
-                ferro.ladoC,
-                ferro.ladoD,
-                ferro.ladoE,
-                true
-            );
+            const ferroModel = ferro.ferroModelId ? dbFerroModels.find(m => m.id === ferro.ferroModelId) : null;
+            const isAdvancedModel = ferroModel && (ferroModel.customDrawingData || ferroModel.customImageBase64);
+            
+            if (isAdvancedModel) {
+                svgContent = renderEstriboSVG('4 LADOS', ferro.ferroModelId, ferro.ladoA, ferro.ladoB, ferro.ladoC, ferro.ladoD, ferro.ladoE, ferro.ladoF, dbFerroModels);
+            } else {
+                svgContent = renderBarDiagramSVG(
+                    ferroModel?.name || ferro.nomeElemento || ferro.posicao || ferro.tipo || type,
+                    ferro.ladoA,
+                    ferro.ladoB,
+                    ferro.ladoC,
+                    ferro.ladoD,
+                    ferro.ladoE,
+                    true
+                );
+            }
         }
 
         if (svgContent) {
@@ -525,9 +572,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                                     const parsedNotes = (() => { try { return mo.notes ? JSON.parse(mo.notes) : {} } catch { return {} } })();
                                                                     const meters = Number(parsedNotes.totalMetros || 0).toFixed(2);
                                                                     // Fix for dirty bitola strings in the database that might have appended weights (e.g., "10.00 mm0.62")
-                                                                    const rawGauge = String(mo.gauge || '').replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim();
-                                                                    const gaugeMatch = rawGauge.match(/(\d+(?:[.,]\d+)?)\s*mm/i);
-                                                                    const gauge = gaugeMatch ? gaugeMatch[0] : rawGauge;
+                                                                    const gauge = cleanGaugeString(mo.gauge || '');
                                                                     
                                                                     // Tonalidades seguindo a imagem: Teal para alguns, Ouro/Amarelo para outros
                                                                     const isTeal = idx % 2 === 0;
@@ -541,16 +586,28 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                                                 <div className={`font-black text-[11px] uppercase tracking-wide px-1.5 py-0.5 rounded shadow-sm flex items-center gap-1 ${isTeal ? 'bg-white/40 text-[#0f5e5a]' : 'bg-white/30 text-[#5e420f]'}`}>
                                                                                     OP {mo.orderCode}
                                                                                 </div>
-                                                                                <button 
-                                                                                    onClick={(e) => { 
-                                                                                        e.stopPropagation(); 
-                                                                                        setEditingMachineOrder(mo); 
-                                                                                    }}
-                                                                                    className="hover:scale-110 hover:bg-white/30 rounded p-0.5 transition-all"
-                                                                                    title="Editar Agendamento"
-                                                                                >
-                                                                                    <svg className={`w-3.5 h-3.5 opacity-80 ${isTeal ? 'text-[#0f5e5a]' : 'text-[#5e420f]'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                                                                </button>
+                                                                                <div className="flex items-center gap-1 z-10">
+                                                                                    <button 
+                                                                                        onClick={(e) => { 
+                                                                                            e.stopPropagation(); 
+                                                                                            setPrintingMachineOrder(mo);
+                                                                                        }}
+                                                                                        className={`hover:scale-110 rounded p-1 transition-all flex items-center gap-1 ${mo.labelPrinted ? 'bg-green-600 text-white shadow-sm' : 'bg-slate-800/20 text-slate-900 hover:bg-slate-800/40'}`}
+                                                                                        title={mo.labelPrinted ? "Imprimir Etiqueta Novamente" : "Imprimir Etiqueta"}
+                                                                                    >
+                                                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                                                                                    </button>
+                                                                                    <button 
+                                                                                        onClick={(e) => { 
+                                                                                            e.stopPropagation(); 
+                                                                                            setEditingMachineOrder(mo); 
+                                                                                        }}
+                                                                                        className="hover:scale-110 bg-slate-800/10 hover:bg-slate-800/30 rounded p-1 transition-all"
+                                                                                        title="Editar Agendamento"
+                                                                                    >
+                                                                                        <svg className={`w-3.5 h-3.5 opacity-80 ${isTeal ? 'text-[#0f5e5a]' : 'text-[#5e420f]'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                                                                    </button>
+                                                                                </div>
                                                                             </div>
                                                                             <div className="font-extrabold text-[9px] leading-tight mt-0.5 truncate uppercase opacity-90" title={mo.clientName}>{mo.clientName}</div>
                                                                             <div className="flex justify-between items-end mt-1.5 pt-1.5 border-t border-black/10">
@@ -686,7 +743,13 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                 return (
                                                     <div key={i} className="flex flex-col text-xs p-2.5 rounded-lg bg-slate-50 border border-slate-100">
                                                         <div className="flex justify-between items-center mb-1">
-                                                            <span className="font-black text-slate-800 text-sm">{String(g.bitola || '').replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim()}</span>
+                                                            <span className="font-black text-slate-800 text-sm">
+                                                                {(() => {
+                                                                    const bStr = String(g.bitola || '');
+                                                                    const m = bStr.match(/(\d+\.?\d*\s*mm)/i);
+                                                                    return m ? m[1].toUpperCase() : bStr.replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim().toUpperCase();
+                                                                })()}
+                                                            </span>
                                                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${isFullyScheduled ? 'bg-green-200 text-green-800' : 'bg-orange-200 text-orange-800'}`}>
                                                                 {isFullyScheduled ? 'Programado' : 'Falta'}
                                                             </span>
@@ -752,17 +815,22 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {selectedQuoteForDetails.gauges.map((g, idx) => {
                                         const isFullyScheduled = g.scheduledCount >= g.osCount;
-                                        const gNorm = String(g.bitola || '').replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim();
+                                        const gNorm = cleanGaugeString(g.bitola || '');
                                         const relatedOrders = machineOrders.filter(mo => 
                                             mo.orderCode === selectedQuoteForDetails.os && 
-                                            String(mo.gauge || '').replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim() === gNorm
+                                            cleanGaugeString(mo.gauge || '') === gNorm
                                         );
 
                                         return (
                                             <div key={idx} className={`p-4 rounded-xl border-2 transition-all flex flex-col justify-between ${isFullyScheduled ? 'bg-green-50 border-green-200' : 'bg-white border-orange-200 shadow-sm'}`}>
                                                 <div>
                                                     <div className="flex justify-between items-start mb-3">
-                                                        <h4 className="font-black text-slate-800 text-lg">{gNorm}</h4>
+                                                        <h4 className="font-black text-slate-800 text-lg">
+                                                            {(() => {
+                                                                const m = gNorm.match(/(\d+\.?\d*\s*mm)/i);
+                                                                return m ? m[1].toUpperCase() : gNorm.toUpperCase();
+                                                            })()}
+                                                        </h4>
                                                         {isFullyScheduled ? (
                                                             <span className="bg-green-500 text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wide shadow-sm">Programado</span>
                                                         ) : (
@@ -779,7 +847,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                             <span className="text-slate-800">{Number(g.totalWeight || 0).toFixed(2)} <span className="text-xs">kg</span></span>
                                                         </div>
                                                         <div className="flex flex-col col-span-2">
-                                                            <span className="text-[10px] text-slate-400 uppercase font-bold">Metros Lineares</span>
+                                                            <span className="text-[10px] text-slate-400 uppercase font-bold">Quantidade de Metros</span>
                                                             <span className="text-slate-800">{Number(g.totalMeters || 0).toFixed(2)} <span className="text-xs">m</span></span>
                                                         </div>
                                                     </div>
@@ -848,11 +916,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                 <div key={gIdx} className="bg-slate-50 rounded-xl p-4 border border-slate-200 shadow-sm">
                                                     <h4 className="font-bold text-slate-800 mb-4 pb-2 flex items-center gap-2">
                                                         <span className="bg-slate-800 text-white px-3 py-1.5 rounded-md text-sm uppercase tracking-wide shadow-sm">
-                                                            {(() => {
-                                                                const b = String(g.bitola || '').replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim();
-                                                                const match = b.match(/(\d+(?:\.\d+)?)\s*mm/i);
-                                                                return match ? match[0] : b.split(',')[0];
-                                                            })()}
+                                                            {cleanGaugeString(g.bitola || '')}
                                                         </span>
                                                     </h4>
                                                     <div className="overflow-x-auto rounded-lg border border-slate-300 shadow-sm">
@@ -864,6 +928,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                                     <th className="p-3 font-bold text-center border-r border-slate-300 w-48 uppercase">Formato</th>
                                                                     <th className="p-3 font-bold text-center border-r border-slate-300 w-32 uppercase">Comp. (cm)</th>
                                                                     <th className="p-3 font-bold text-center border-r border-slate-300 w-32 uppercase">Total (m)</th>
+                                                                    <th className="p-3 font-bold text-center border-r border-slate-300 w-32 uppercase">Peso (kg)</th>
                                                                     <th className="p-3 font-bold text-center w-40 uppercase">Desenho</th>
                                                                 </tr>
                                                             </thead>
@@ -875,6 +940,16 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                                     const productQty = Number(ferro.productInfo?.qty || 1);
                                                                     const qtd = Number(ferro.qtde || ferro.quantidade || 0) * productQty;
                                                                     const totalMeters = compCm ? ((compCm / 100) * qtd) : 0;
+                                                                    
+                                                                    let unitWeight = 0;
+                                                                    if (ferro.bitolaPesoLinear) {
+                                                                        unitWeight = Number(ferro.bitolaPesoLinear);
+                                                                    } else {
+                                                                        const gaugeName = getGaugeLabel(ferro, ferro.productInfo);
+                                                                        const config = bitolasConfig.find(b => cleanGaugeString(b.label) === gaugeName);
+                                                                        if (config) unitWeight = Number(config.kgm || 0);
+                                                                    }
+                                                                    const weightKg = totalMeters * unitWeight;
 
                                                                     return (
                                                                         <tr key={fIdx} className="border-b border-slate-200 last:border-0 hover:bg-slate-50 transition-colors">
@@ -888,6 +963,9 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                                             </td>
                                                                             <td className="p-3 text-center border-r border-slate-300 font-bold text-green-700 bg-green-50/50">
                                                                                 {totalMeters ? `${totalMeters.toFixed(2)} m` : '-'}
+                                                                            </td>
+                                                                            <td className="p-3 text-center border-r border-slate-300 font-bold text-slate-700">
+                                                                                {weightKg ? `${weightKg.toFixed(2)} kg` : '-'}
                                                                             </td>
                                                                             <td className="p-2 text-center align-middle">
                                                                                 <div className="flex justify-center items-center h-full w-full">
@@ -1009,6 +1087,220 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                     </div>
                 </div>
             )}
+
+            {/* Modal de Impressão de Etiqueta */}
+            {printingMachineOrder && (() => {
+                const printingQuote = processedOrders.find(q => q.id === printingMachineOrder.orderCode);
+                const rawMoGauge = String(printingMachineOrder.gauge || '').replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim();
+                const gaugeMatch = rawMoGauge.match(/(\d+(?:[.,]\d+)?)\s*mm/i);
+                const gauge = gaugeMatch ? gaugeMatch[0] : rawMoGauge;
+
+                const printingGaugeGroup = printingQuote?.gauges.find(g => {
+                    const normG = cleanGaugeString(g.bitola || '');
+                    return normG === gauge || normG.includes(gauge) || gauge.includes(normG);
+                });
+
+                const ferrosToPrint = printingGaugeGroup?.ferros || [];
+
+                return (
+                <div className="fixed inset-0 z-[150] bg-slate-900 overflow-y-auto print:bg-white animate-fadeIn">
+                    <div className="min-h-screen p-4 flex flex-col items-center print:p-0 print:block">
+                        <div className="w-full max-w-4xl flex justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-lg print:hidden">
+                            <h2 className="text-xl font-bold text-slate-800">🏷️ Etiquetas de Produção Máquina - OP {printingMachineOrder.orderCode.toString().padStart(6, '0')}</h2>
+                            <div className="flex gap-4">
+                                <button onClick={() => setIsLabelConfigOpen(true)} className="px-4 py-2 bg-slate-100 border border-slate-300 text-slate-700 font-bold rounded-lg hover:bg-slate-200 flex items-center gap-2">
+                                    ⚙️ Configurar
+                                </button>
+                                <button 
+                                    onClick={async () => {
+                                        window.print();
+                                        await onUpdateMachineOrder(printingMachineOrder.id, { labelPrinted: true });
+                                        showNotification('Enviado para a fila de impressão e marcado como impresso!', 'success');
+                                        setPrintingMachineOrder(null);
+                                    }} 
+                                    className="px-6 py-2 bg-sky-600 text-white font-bold rounded-lg hover:bg-sky-700 shadow-md flex items-center gap-2"
+                                    disabled={ferrosToPrint.length === 0}
+                                >
+                                    🖨️ Imprimir Etiquetas
+                                </button>
+                                <button onClick={() => setPrintingMachineOrder(null)} className="px-6 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-300">
+                                    Fechar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="w-full print:w-full flex flex-col gap-8 print:gap-0 print:block mx-auto" style={{ maxWidth: `${labelWidth}px` }}>
+                            {ferrosToPrint.length === 0 && (
+                                <div className="text-slate-500 font-bold p-8 text-center bg-white rounded-lg shadow-xl print:hidden">Nenhum detalhe de desenho encontrado para esta bitola nesta OP.</div>
+                            )}
+                            {ferrosToPrint.map((ferro, idx) => {
+                                const productInfo = ferro.productInfo;
+                                const prodQtde = productInfo?.qty || 1;
+                                const cutQty = (ferro.qtde || ferro.quantidade || 1) * prodQtde;
+                                const osName = (productInfo?.description || 'PRODUTO').replace(/\s*\d*\s*LADOS X.*/i, '').trim();
+                                const osNumber = ferro.osNumberString || `OS: ${(idx+1).toString().padStart(2, '0')}`;
+                                
+                                const bitolaStr = printingGaugeGroup?.bitola || gauge;
+                                const regexMatch = bitolaStr.match(/(\d+\.?\d*\s*mm)/i);
+                                const shortBitola = regexMatch ? regexMatch[1].toUpperCase() : bitolaStr.toUpperCase();
+
+                                let drawTypeLabel = ferro.drawingType || 'RETO';
+                                if (ferro.drawingType === 'Estribo') drawTypeLabel = 'ESTRIBO';
+                                if (ferro.drawingType === 'CorteDobra') drawTypeLabel = 'CORTE E DOBRA';
+                                if (ferro.drawingType === 'Trava') drawTypeLabel = 'TRAVA';
+                                if (ferro.nomeElemento) drawTypeLabel = ferro.nomeElemento.toUpperCase();
+
+                                let dims = [];
+                                if (ferro.a || ferro.ladoA) dims.push(`A: ${ferro.a || ferro.ladoA}`);
+                                if (ferro.b || ferro.ladoB) dims.push(`B: ${ferro.b || ferro.ladoB}`);
+                                if (ferro.c || ferro.ladoC) dims.push(`C: ${ferro.c || ferro.ladoC}`);
+                                if (ferro.d || ferro.ladoD) dims.push(`D: ${ferro.d || ferro.ladoD}`);
+                                if (ferro.e || ferro.ladoE) dims.push(`E: ${ferro.e || ferro.ladoE}`);
+                                const dimStr = dims.length > 0 ? ` (${dims.join(', ')})` : '';
+                                const formatoDimensions = `${drawTypeLabel}${dimStr}`;
+
+                                return (
+                                    <div 
+                                        key={idx}
+                                        className="bg-white rounded-lg shadow-xl print:shadow-none print:rounded-none overflow-hidden flex flex-col"
+                                        style={{
+                                            padding: '20px',
+                                            boxSizing: 'border-box',
+                                            pageBreakAfter: 'always',
+                                            minHeight: '100vh'
+                                        }}
+                                    >
+                                        <div>
+                                            {/* Header */}
+                                            <div className="flex justify-between items-start border-b-2 border-slate-800 pb-4 mb-4">
+                                                <div className="flex flex-col items-start w-full">
+                                                    <div className="flex justify-between w-full items-center mb-2">
+                                                        <span className="text-xl font-black text-slate-800 bg-slate-100 px-4 py-2 rounded border border-slate-200">
+                                                            {osNumber}
+                                                        </span>
+                                                        <div className="w-20 h-20 border-2 border-slate-200 flex flex-col items-center justify-center rounded bg-white shrink-0 p-1">
+                                                            {activeBrandingPartner?.logoUrl ? (
+                                                                <img src={activeBrandingPartner.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
+                                                            ) : (
+                                                                <div className="text-[10px] font-bold text-slate-400 text-center uppercase">Logo Cliente</div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <h1 className="text-2xl font-black text-slate-800 uppercase leading-tight mt-1">
+                                                        {osName}
+                                                    </h1>
+                                                    <h2 className="text-sm font-bold text-slate-500 uppercase mt-1">
+                                                        CLIENTE: {printingQuote?.cliente || printingMachineOrder.clientName || 'NÃO INFORMADO'}
+                                                    </h2>
+                                                    <h2 className="text-sm font-bold text-slate-500 uppercase mt-1">
+                                                        ORDEM DE PRODUÇÃO: {printingMachineOrder.orderCode.toString().padStart(6, '0')}
+                                                    </h2>
+                                                </div>
+                                            </div>
+
+                                            {/* Details */}
+                                            <div className="flex flex-col gap-3 mb-6">
+                                                <div className="flex border-b border-slate-200 pb-2">
+                                                    <div className="w-1/3 text-xs font-bold text-slate-400 uppercase">Quantidade</div>
+                                                    <div className="w-2/3 text-xl font-black text-slate-800">
+                                                        {cutQty}
+                                                    </div>
+                                                </div>
+                                                <div className="flex border-b border-slate-200 pb-2 items-center">
+                                                    <div className="w-1/3 text-xs font-bold text-slate-400 uppercase leading-tight pr-2">Nome do Elemento</div>
+                                                    <div className="w-2/3 text-lg font-black text-slate-800 uppercase">
+                                                        {formatoDimensions}
+                                                    </div>
+                                                </div>
+                                                <div className="flex border-b border-slate-200 pb-2 items-center">
+                                                    <div className="w-1/3 text-xs font-bold text-slate-400 uppercase">Formato</div>
+                                                    <div className="w-2/3 flex flex-col items-start py-2">
+                                                        <div className="w-full flex items-center justify-center shrink-0 border border-slate-200 rounded bg-white shadow-sm p-2 overflow-hidden" style={{ height: `${labelHeight}px` }}>
+                                                            <div className="origin-center" style={{ transform: `scale(${labelScale})` }}>
+                                                                {renderGaugeShape(ferro)}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex border-b border-slate-200 pb-2">
+                                                    <div className="w-1/3 text-xs font-bold text-slate-400 uppercase">Bitola</div>
+                                                    <div className="w-2/3 text-base font-black text-slate-800">{shortBitola}</div>
+                                                </div>
+                                            </div>
+
+                                            {/* Barcode Mock */}
+                                            <div className="bg-slate-100 p-4 rounded-lg flex flex-col items-center justify-center mb-4 border border-slate-200 mt-8">
+                                                <div className="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest">Código de Rastreio</div>
+                                                <div className="text-xl font-black text-slate-800 tracking-wider">
+                                                    LOTE-{new Date().getFullYear()}-{printingMachineOrder.orderCode.toString().padStart(6, '0')}-{idx + 1}
+                                                </div>
+                                                <div className="h-16 w-full max-w-[250px] bg-black mt-3 opacity-80" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 2px, white 2px, white 4px)' }}></div>
+                                            </div>
+                                        </div>
+
+                                        {/* Footer */}
+                                        <div className="flex justify-between items-end border-t border-slate-200 pt-4 mt-auto">
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-black text-slate-800">ETIQUETA DE REGISTRO</span>
+                                                <span className="text-[10px] text-slate-500">Uso interno na produção da máquina.</span>
+                                            </div>
+                                            <div className="text-[9px] text-slate-400 font-bold">
+                                                GERADO EM {new Date().toLocaleDateString('pt-BR')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Config Modal for Printing */}
+                    {isLabelConfigOpen && (
+                        <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black bg-opacity-50 print:hidden">
+                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
+                                <h3 className="text-xl font-bold text-slate-800 mb-4 border-b pb-2 flex items-center gap-2">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                    Configuração de Impressão
+                                </h3>
+                                
+                                <div className="space-y-4 mb-6">
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">
+                                            Largura da Etiqueta (px)
+                                        </label>
+                                        <input type="number" value={labelWidth} onChange={(e) => setLabelWidth(Number(e.target.value))} className="w-full p-2 border rounded" min="200" max="1000" />
+                                        <p className="text-xs text-slate-500 mt-1">Padrão: 448px</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">
+                                            Escala do Desenho
+                                        </label>
+                                        <input type="number" step="0.1" value={labelScale} onChange={(e) => setLabelScale(Number(e.target.value))} className="w-full p-2 border rounded" min="0.5" max="10" />
+                                        <p className="text-xs text-slate-500 mt-1">Padrão: 2.25</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">
+                                            Altura da Caixa do Desenho (px)
+                                        </label>
+                                        <input type="number" value={labelHeight} onChange={(e) => setLabelHeight(Number(e.target.value))} className="w-full p-2 border rounded" min="50" max="1000" />
+                                        <p className="text-xs text-slate-500 mt-1">Padrão: 320px</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end gap-2">
+                                    <button onClick={() => { setLabelWidth(448); setLabelHeight(320); setLabelScale(2.25); }} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded font-bold">
+                                        Resetar
+                                    </button>
+                                    <button onClick={() => setIsLabelConfigOpen(false)} className="px-4 py-2 bg-sky-600 text-white rounded font-bold hover:bg-sky-700">
+                                        Salvar e Fechar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+                );
+            })()}
 
         </div>
     );
