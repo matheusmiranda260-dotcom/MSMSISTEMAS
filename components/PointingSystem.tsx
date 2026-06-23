@@ -2289,7 +2289,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
 
             {/* MOCK ACTIONS MODALS */}
             {activeModal && (
-                <div className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex ${activeModal.type === 'products' ? 'p-0 overflow-hidden' : 'items-center justify-center p-4'}`}>
+                <div className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex !mt-0 ${activeModal.type === 'products' ? 'p-0 overflow-hidden' : 'items-center justify-center p-4'}`}>
                     {/* MODAL: Checkout / Preço */}
                     {activeModal.type === 'checkout' && activeQuote && (
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[95vh] border border-slate-300">
@@ -2665,7 +2665,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                             <div className="bg-slate-50 p-4 border-b border-slate-200 space-y-2.5 shrink-0">
                                 {/* Row 1 */}
                                 <div className="flex flex-wrap justify-center gap-2">
-                                    {['Coluna', 'Pilar', 'Broca', 'Viga', 'Viga Superior', 'Viga Baldrame', 'Sapata', 'Corte e Dobra', 'Aço Armado + Arame (Não inserir bitolas com aproveitamento)'].map(cat => (
+                                    {['Coluna', 'Pilar', 'Broca', 'Viga', 'Viga Superior', 'Viga Baldrame', 'Sapata', 'Corte e Dobra'].map(cat => (
                                         <button
                                             type="button"
                                             key={cat}
@@ -2720,48 +2720,6 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                         </button>
                                     ))}
                                 </div>
-                                
-                                {/* Row 2 */}
-                                <div className="flex flex-wrap justify-center gap-2">
-                                    {['Corte Dobra (PESO)', 'Dobra'].map(cat => (
-                                        <button
-                                            type="button"
-                                            key={cat}
-                                            onClick={() => {
-                                                setActiveCategory(cat);
-                                                setQtyInput(10);
-                                                setLenInput(6);
-                                                setDobraQty(10);
-                                                setDobraPrice(1.50);
-                                                setWeightInput(100);
-                                                setPricePerKg(8.50);
-                                                setFreightPrice(150);
-                                                setFreightObs('');
-                                            }}
-                                            className={`text-[11px] font-extrabold px-4 py-2 rounded transition-all shadow-sm ${activeCategory === cat ? 'bg-sky-600 text-white' : 'bg-[#0F3F5C] hover:bg-[#0A2A3D] text-white'}`}
-                                        >
-                                            {cat}
-                                        </button>
-                                    ))}
-                                </div>
-
-                                {/* Row 3 */}
-                                <div className="flex flex-wrap justify-center gap-2">
-                                    {['Frete'].map(cat => (
-                                        <button
-                                            type="button"
-                                            key={cat}
-                                            onClick={() => {
-                                                setActiveCategory(cat);
-                                                setFreightPrice(150);
-                                                setFreightObs('');
-                                            }}
-                                            className={`text-[11px] font-extrabold px-5 py-2 rounded transition-all shadow-sm ${activeCategory === cat ? 'bg-sky-600 text-white' : 'bg-[#0F3F5C] hover:bg-[#0A2A3D] text-white'}`}
-                                        >
-                                            {cat}
-                                        </button>
-                                    ))}
-                                </div>
                             </div>
 
                             {/* Category form details section */}
@@ -2772,74 +2730,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                         <button type="button" onClick={() => setActiveCategory(null)} className="text-sky-500 hover:text-sky-700 text-xs font-bold font-sans">Fechar</button>
                                     </h4>
 
-                                    {activeCategory === 'Frete' ? (
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-                                            <div className="sm:col-span-1">
-                                                <label className="block text-[9.5px] font-bold text-slate-500 uppercase mb-1">Valor do Frete (R$)</label>
-                                                <input 
-                                                    type="number" 
-                                                    value={freightPrice}
-                                                    onChange={(e) => setFreightPrice(parseFloat(e.target.value) || 0)}
-                                                    className="w-full p-2 border border-slate-300 rounded text-xs font-mono text-center font-bold bg-white" 
-                                                />
-                                            </div>
-                                            <div className="sm:col-span-2">
-                                                <label className="block text-[9.5px] font-bold text-slate-500 uppercase mb-1">Observações do Frete</label>
-                                                <input 
-                                                    type="text" 
-                                                    placeholder="Carga fechada, entrega imediata..."
-                                                    value={freightObs}
-                                                    onChange={(e) => setFreightObs(e.target.value)}
-                                                    className="w-full p-2 border border-slate-300 rounded text-xs font-semibold bg-white" 
-                                                />
-                                            </div>
-                                        </div>
-                                    ) : activeCategory === 'Dobra' ? (
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
-                                            <div>
-                                                <label className="block text-[9.5px] font-bold text-slate-500 uppercase mb-1">Quantidade de Dobras</label>
-                                                <input 
-                                                    type="number" 
-                                                    value={dobraQty}
-                                                    onChange={(e) => setDobraQty(parseInt(e.target.value) || 0)}
-                                                    className="w-full p-2 border border-slate-300 rounded text-xs font-mono text-center font-bold bg-white" 
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[9.5px] font-bold text-slate-500 uppercase mb-1">Preço Unitário da Dobra (R$)</label>
-                                                <input 
-                                                    type="number" 
-                                                    step="0.05"
-                                                    value={dobraPrice}
-                                                    onChange={(e) => setDobraPrice(parseFloat(e.target.value) || 0)}
-                                                    className="w-full p-2 border border-slate-300 rounded text-xs font-mono text-center font-bold bg-white" 
-                                                />
-                                            </div>
-                                        </div>
-                                    ) : activeCategory === 'Corte Dobra (PESO)' ? (
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
-                                            <div>
-                                                <label className="block text-[9.5px] font-bold text-slate-500 uppercase mb-1">Peso Total (kg)</label>
-                                                <input 
-                                                    type="number" 
-                                                    value={weightInput}
-                                                    onChange={(e) => setWeightInput(parseFloat(e.target.value) || 0)}
-                                                    className="w-full p-2 border border-slate-300 rounded text-xs font-mono text-center font-bold bg-white" 
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[9.5px] font-bold text-slate-500 uppercase mb-1">Preço por KG (R$)</label>
-                                                <input 
-                                                    type="number" 
-                                                    step="0.05"
-                                                    value={pricePerKg}
-                                                    onChange={(e) => setPricePerKg(parseFloat(e.target.value) || 0)}
-                                                    className="w-full p-2 border border-slate-300 rounded text-xs font-mono text-center font-bold bg-white" 
-                                                />
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        /* Standard steel specs items */
+                                    {/* Standard steel specs items */}
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
                                             <div>
                                                 <label className="block text-[9.5px] font-bold text-slate-500 uppercase mb-1">Bitola / Tipo de Aço</label>
@@ -2875,7 +2766,6 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                 />
                                             </div>
                                         </div>
-                                    )}
 
                                     <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-sky-100/50">
                                         <button 
