@@ -59,6 +59,7 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
             setExpandedMenus(prev => prev.includes('desbobinadeira') ? prev : [...prev, 'desbobinadeira']);
         } else if (['programarMaquinas'].includes(page)) {
             setExpandedMenus(prev => prev.includes('programarMaquinas') ? prev : [...prev, 'programarMaquinas']);
+            setIsCollapsed(true);
         } else if (['peopleManagement', 'continuousImprovement'].includes(page)) {
             setExpandedMenus(prev => prev.includes('people') ? prev : [...prev, 'people']);
         }

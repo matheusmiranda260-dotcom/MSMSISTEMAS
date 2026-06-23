@@ -35,14 +35,29 @@ interface MachineScheduleProps {
     currentUser: User | null;
 }
 
-const getNext7Days = () => {
+export type WorkingDaysMode = 'mon-fri' | 'mon-sat' | 'mon-sun';
+
+const getWorkingDays = (mode: WorkingDaysMode) => {
     const days = [];
     const today = new Date();
-    for (let i = 0; i < 7; i++) {
-        const d = new Date(today);
-        d.setDate(today.getDate() + i);
+    
+    // Encontrar a segunda-feira da semana atual
+    const dayOfWeek = today.getDay(); // 0 = Domingo, 1 = Segunda, ... 6 = Sábado
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday);
+    
+    let count = 7;
+    if (mode === 'mon-fri') count = 5;
+    else if (mode === 'mon-sat') count = 6;
+    
+    for (let i = 0; i < count; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
         days.push(d.toISOString().split('T')[0]);
     }
+    
     return days;
 };
 
@@ -88,9 +103,63 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
     const activeBrandingPartner = partners?.find(p => p.isActiveBranding) || null;
     const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [selectedMachineName, setSelectedMachineName] = useState<string | null>(null);
+    const [schedulingDate, setSchedulingDate] = useState<string | null>(null);
+    const [selectedRelatedOrders, setSelectedRelatedOrders] = useState<any[]>([]);
+
+    const getMachineAvailableMins = (machine: MachineConfig) => {
+        if (machine.shiftType === 'continuo') return 24 * 60;
+        
+        let totalMins = 0;
+        
+        const addShift = (start?: string, end?: string) => {
+            if (!start || !end) return;
+            const [h1, m1] = start.split(':').map(Number);
+            const [h2, m2] = end.split(':').map(Number);
+            let mins = (h2 * 60 + m2) - (h1 * 60 + m1);
+            if (mins < 0) mins += 24 * 60;
+            
+            if (machine.hasLunchBreak && machine.lunchStart && machine.lunchEnd) {
+                const [lh1, lm1] = machine.lunchStart.split(':').map(Number);
+                const [lh2, lm2] = machine.lunchEnd.split(':').map(Number);
+                let lunchMins = (lh2 * 60 + lm2) - (lh1 * 60 + lm1);
+                if (lunchMins < 0) lunchMins += 24 * 60;
+                
+                const lStartMins = lh1 * 60 + lm1;
+                const sStartMins = h1 * 60 + m1;
+                const sEndMins = h2 * 60 + m2;
+                
+                let isWithin = false;
+                if (sStartMins <= sEndMins) {
+                    isWithin = lStartMins >= sStartMins && lStartMins <= sEndMins;
+                } else {
+                    isWithin = lStartMins >= sStartMins || lStartMins <= sEndMins;
+                }
+                if (isWithin) {
+                    mins -= lunchMins;
+                }
+            }
+            if (mins > 0) totalMins += mins;
+        };
+
+        addShift(machine.shift1Start, machine.shift1End);
+        if (machine.shiftType === '2turnos') {
+            addShift(machine.shift2Start, machine.shift2End);
+        }
+        return totalMins;
+    };
+
     const [searchTerm, setSearchTerm] = useState('');
     const [bottomTab, setBottomTab] = useState<'pendentes' | 'producao'>('pendentes');
+    const [showOrdersModal, setShowOrdersModal] = useState(false);
+    const [showConfigModal, setShowConfigModal] = useState(false);
+    const [workingDaysMode, setWorkingDaysMode] = useState<WorkingDaysMode>(
+        (localStorage.getItem('msm_working_days_mode') as WorkingDaysMode) || 'mon-sun'
+    );
     const [selectedQuoteForDetails, setSelectedQuoteForDetails] = useState<GroupedOrder | null>(null);
+
+    useEffect(() => {
+        localStorage.setItem('msm_working_days_mode', workingDaysMode);
+    }, [workingDaysMode]);
     const [showCutPlan, setShowCutPlan] = useState(false);
     const [editingMachineOrder, setEditingMachineOrder] = useState<MachineOrder | null>(null);
     const [printingMachineOrder, setPrintingMachineOrder] = useState<MachineOrder | null>(null);
@@ -162,7 +231,25 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
             setPendingVisualSchedule(customEvent.detail);
         };
         window.addEventListener('pending_visual_schedule', handlePendingVisual);
-        return () => window.removeEventListener('pending_visual_schedule', handlePendingVisual);
+        
+        // Tela cheia automática
+        const requestFS = async () => {
+            try {
+                if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+                    await document.documentElement.requestFullscreen();
+                }
+            } catch (err) {
+                console.log("Could not request fullscreen", err);
+            }
+        };
+        requestFS();
+
+        return () => {
+            window.removeEventListener('pending_visual_schedule', handlePendingVisual);
+            if (document.fullscreenElement && document.exitFullscreen) {
+                document.exitFullscreen().catch(() => {});
+            }
+        };
     }, []);
 
     const isMachineCompatibleWithBitola = (machineGaugeRange: string, bitolaStr: string) => {
@@ -195,7 +282,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
         return numbers.some(p => Math.abs(p - bValue) < 0.01);
     };
 
-    const dates = useMemo(() => getNext7Days(), []);
+    const dates = useMemo(() => getWorkingDays(workingDaysMode), [workingDaysMode]);
 
     const activePartner = useMemo(() => {
         return partners.find(p => p.isActiveBranding) || partners[0] || null;
@@ -475,7 +562,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
         const isSchedulingMode = isModal && !!pendingVisualSchedule;
 
         return (
-            <div className={`flex-1 overflow-auto p-4 md:p-6 relative scrollbar-thin ${isModal ? 'bg-slate-50/50 max-h-[70vh]' : 'bg-[#e2e8f0]/30 max-h-[55vh]'}`}>
+            <div className={`flex-1 overflow-auto p-4 md:p-6 relative scrollbar-thin ${isModal ? 'bg-slate-50/50 max-h-[70vh]' : 'bg-[#e2e8f0]/30 min-h-0 h-full'}`}>
                 {activeMachines.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                         <svg className="w-16 h-16 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
@@ -538,9 +625,24 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                     </div>
                                                     <div>
                                                         <h3 className="font-black text-slate-800 text-[13px] uppercase tracking-tighter drop-shadow-sm leading-tight">{machine.name}</h3>
-                                                        <div className="flex items-center gap-1.5 mt-0.5">
-                                                            <div className={`w-2 h-2 rounded-full ${isOperante ? 'bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.8)]' : 'bg-slate-400 shadow-inner'}`} />
-                                                            <span className="text-[11px] font-bold text-slate-500 drop-shadow-sm">{isOperante ? 'Operante' : 'Ociosa'}</span>
+                                                        <div className="flex flex-col mt-0.5">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <div className={`w-2 h-2 rounded-full ${isOperante ? 'bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.8)]' : 'bg-slate-400 shadow-inner'}`} />
+                                                                <span className="text-[11px] font-bold text-slate-500 drop-shadow-sm">{isOperante ? 'Operante' : 'Ociosa'}</span>
+                                                            </div>
+                                                            {(() => {
+                                                                const availableMins = getMachineAvailableMins(machine);
+                                                                if (availableMins > 0) {
+                                                                    const hrs = Math.floor(availableMins / 60);
+                                                                    const mns = availableMins % 60;
+                                                                    return (
+                                                                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded mt-1 self-start inline-block">
+                                                                            {hrs}h {mns}m disp.
+                                                                        </span>
+                                                                    );
+                                                                }
+                                                                return null;
+                                                            })()}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -644,28 +746,18 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                                         : 'bg-gradient-to-br from-[#d4a34b] to-[#dfbc71] shadow-[4px_4px_8px_rgba(212,163,75,0.3),inset_1px_1px_1px_rgba(255,255,255,0.4)] text-[#4a350c] border border-[#c5943d]/50';
 
                                                                     const moTimeMins = (() => {
-                                                                        let cap = machine.capacityKgPerHour || 0;
-                                                                        const quote = quotes.find(q => q.os === mo.orderCode);
-                                                                        const group = quote?.items?.find((g: any) => cleanGaugeString(g.bitola) === cleanGaugeString(mo.gauge));
-                                                                        const ferro = group?.ferros?.[0];
-
-                                                                        if (ferro && machine.capabilities) {
-                                                                            const typeStr = (ferro.nomeElemento || ferro.tipo || ferro.drawingType || '').toUpperCase();
-                                                                            let formatCat = 'reto';
-                                                                            if (typeStr.includes('ESTRIBO')) formatCat = 'estribo';
-                                                                            else if (typeStr.includes('CORTE') || typeStr.includes('DOBRA') || typeStr.includes('GANCHO') || ferro.ladoB) formatCat = 'corteDobra';
-
-                                                                            if (formatCat === 'estribo' && machine.capabilities.estribo?.enabled && machine.capabilities.estribo.calculatedMetersPerHour) {
-                                                                                const mph = machine.capabilities.estribo.calculatedMetersPerHour;
-                                                                                if (mph > 0) return (Number(meters) / mph) * 60;
-                                                                            }
-                                                                            if (formatCat === 'reto' && machine.capabilities.reto?.enabled) cap = machine.capabilities.reto.capacityKgPerHour || cap;
-                                                                            if (formatCat === 'corteDobra' && machine.capabilities.corteDobra?.enabled) cap = machine.capabilities.corteDobra.capacityKgPerHour || cap;
+                                                                        if (machine.capabilities?.estribo?.enabled && machine.capabilities.estribo.calculatedMetersPerHour) {
+                                                                            const mph = machine.capabilities.estribo.calculatedMetersPerHour;
+                                                                            if (mph > 0) return (Number(meters) / mph) * 60;
                                                                         }
-                                                                        
-                                                                        if (!cap) return null;
-                                                                        return (Number(mo.weight || 0) / cap) * 60;
+                                                                        return null;
                                                                     })();
+
+                                                                    const timeDisplay = moTimeMins !== null ? (() => {
+                                                                        const m = Math.floor(moTimeMins);
+                                                                        const s = Math.round((moTimeMins - m) * 60);
+                                                                        return m > 0 ? `${m}m ${s}s` : `${s}s`;
+                                                                    })() : null;
 
                                                                     return (
                                                                         <div key={mo.id} className={`rounded-xl p-2.5 flex flex-col relative overflow-hidden group hover:-translate-y-0.5 hover:shadow-md transition-all ${gradientClass}`}>
@@ -713,10 +805,10 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                                                     </div>
                                                                                 </div>
                                                                             </div>
-                                                                            {moTimeMins !== null && (
+                                                                            {timeDisplay && (
                                                                                 <div className="flex justify-between items-center mt-1 pt-1 border-t border-black/5 text-[9px] font-bold">
                                                                                     <span className="opacity-70">⚖️ {Number(mo.weight || 0).toFixed(1)}kg</span>
-                                                                                    <span className="opacity-80 bg-black/5 px-1.5 py-0.5 rounded">⏱️ ~{Math.ceil(moTimeMins)} min</span>
+                                                                                    <span className="opacity-80 bg-black/5 px-1.5 py-0.5 rounded">⏱️ ~{timeDisplay}</span>
                                                                                 </div>
                                                                             )}
                                                                         </div>
@@ -739,11 +831,11 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
     };
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] p-2 md:p-4 animate-fadeIn relative">
-            <div className="w-full mx-auto space-y-4">
+        <div className="h-screen bg-[#F8FAFC] p-2 md:p-4 animate-fadeIn relative flex flex-col overflow-hidden">
+            <div className="w-full mx-auto flex flex-col gap-4 flex-1 h-full">
                 
                 {/* Header */}
-                <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+                <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg shadow-blue-500/30 flex items-center justify-center text-white">
                             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -757,20 +849,94 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                             </p>
                         </div>
                     </div>
+                    
+                    <button 
+                        onClick={() => setShowOrdersModal(true)}
+                        className="flex items-center gap-3 px-5 py-3 bg-white border border-slate-200 shadow-sm rounded-xl hover:shadow-md transition-all group"
+                    >
+                        <div className="flex items-center -space-x-2">
+                            <div className="w-8 h-8 rounded-full bg-orange-100 border-2 border-white flex items-center justify-center text-orange-700 font-bold text-xs shadow-sm z-10" title="Pendentes">
+                                {pendentes.length}
+                            </div>
+                            <div className="w-8 h-8 rounded-full bg-green-100 border-2 border-white flex items-center justify-center text-green-700 font-bold text-xs shadow-sm z-0" title="Em Produção">
+                                {emProducao.length}
+                            </div>
+                        </div>
+                        <div className="text-sm font-bold text-slate-700 group-hover:text-blue-600 transition-colors">
+                            Ordens de Produção
+                        </div>
+                    </button>
                 </header>
 
-                <div className="flex flex-col gap-6">
+                <div className="flex flex-col flex-1 min-h-0">
                     {/* MATRIZ DE AGENDAMENTO FIXA */}
-                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col overflow-hidden">
-                        <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                            <h2 className="text-lg font-bold text-slate-800">Visão Geral da Produção (Próximos 7 Dias)</h2>
+                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col flex-1 overflow-hidden min-h-0">
+                        <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center shrink-0">
+                            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                Visão Geral da Produção (Semana Atual)
+                                <button onClick={() => setShowConfigModal(true)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors shadow-sm bg-white border border-slate-200" title="Configurar Dias de Trabalho">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                </button>
+                            </h2>
                         </div>
                         {renderMatrix(false)}
                     </div>
+                </div>
+            </div>
 
-                    {/* Full Screen: Orders Tabs */}
-                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col min-h-[50vh]">
-                        <div className="p-3 border-b border-slate-200 bg-white rounded-t-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            {/* Modal de Configurações */}
+            {showConfigModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-fadeIn p-4">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200">
+                        <div className="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                            <h3 className="text-lg font-bold text-slate-800">Configuração do Cronograma</h3>
+                            <button onClick={() => setShowConfigModal(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 transition-colors">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-3">Dias de Trabalho na Semana</label>
+                                <div className="space-y-2">
+                                    <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${workingDaysMode === 'mon-fri' ? 'bg-blue-50 border-blue-300' : 'border-slate-200 hover:bg-slate-50'}`}>
+                                        <input type="radio" name="workingDays" value="mon-fri" checked={workingDaysMode === 'mon-fri'} onChange={() => setWorkingDaysMode('mon-fri')} className="w-4 h-4 text-blue-600" />
+                                        <span className="text-sm font-medium text-slate-700">Segunda a Sexta (5 dias úteis)</span>
+                                    </label>
+                                    <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${workingDaysMode === 'mon-sat' ? 'bg-blue-50 border-blue-300' : 'border-slate-200 hover:bg-slate-50'}`}>
+                                        <input type="radio" name="workingDays" value="mon-sat" checked={workingDaysMode === 'mon-sat'} onChange={() => setWorkingDaysMode('mon-sat')} className="w-4 h-4 text-blue-600" />
+                                        <span className="text-sm font-medium text-slate-700">Segunda a Sábado (6 dias úteis)</span>
+                                    </label>
+                                    <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${workingDaysMode === 'mon-sun' ? 'bg-blue-50 border-blue-300' : 'border-slate-200 hover:bg-slate-50'}`}>
+                                        <input type="radio" name="workingDays" value="mon-sun" checked={workingDaysMode === 'mon-sun'} onChange={() => setWorkingDaysMode('mon-sun')} className="w-4 h-4 text-blue-600" />
+                                        <span className="text-sm font-medium text-slate-700">Segunda a Domingo (Todos os dias)</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+                            <button onClick={() => setShowConfigModal(false)} className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-sm hover:bg-blue-700 transition-colors">
+                                Salvar e Fechar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Ordens Pendentes e em Produção */}
+            {showOrdersModal && (
+                <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 md:p-8 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-xl flex flex-col w-full max-w-7xl h-full max-h-full overflow-hidden border border-slate-200">
+                        <div className="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center shrink-0">
+                            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                                Fila de Ordens de Produção
+                            </h2>
+                            <button onClick={() => setShowOrdersModal(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 transition-colors">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        
+                        <div className="p-3 border-b border-slate-200 bg-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
                             <div className="flex bg-slate-100 p-1 rounded-xl shadow-inner">
                                 <button
                                     onClick={() => setBottomTab('pendentes')}
@@ -799,9 +965,9 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                             </div>
                         </div>
                         
-                        <div className="p-6 overflow-x-auto overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 bg-slate-50 items-start h-full scrollbar-thin">
+                        <div className="p-4 md:p-6 overflow-y-auto flex flex-col gap-3 bg-slate-50 flex-1 scrollbar-thin">
                             {(bottomTab === 'pendentes' ? pendentes : emProducao).length === 0 ? (
-                                <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-400">
+                                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                                     <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
                                         <svg className="w-10 h-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
                                     </div>
@@ -815,50 +981,53 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                         onClick={() => {
                                             setSelectedQuoteForDetails(order);
                                             setShowCutPlan(false);
+                                            setShowOrdersModal(false);
                                         }}
-                                        className="w-full bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col cursor-pointer hover:border-blue-300"
+                                        className="w-full bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center gap-4 cursor-pointer hover:border-blue-400 group"
                                     >
-                                        <div className="flex justify-between items-start mb-4 border-b border-slate-100 pb-3">
-                                            <div>
-                                                <span className={`text-xs font-black px-2.5 py-1 rounded-full ${bottomTab === 'pendentes' ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}`}>
+                                        <div className="flex flex-col md:w-64 shrink-0 border-b md:border-b-0 md:border-r border-slate-100 pb-3 md:pb-0 md:pr-4">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className={`text-[11px] font-black px-2.5 py-1 rounded-md ${bottomTab === 'pendentes' ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}`}>
                                                     OP: {order.os}
                                                 </span>
-                                                <h3 className="text-base font-bold text-slate-800 mt-2 truncate max-w-[200px]" title={order.cliente}>{order.cliente}</h3>
+                                                <div className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                                                    {formatDateBr(order.data.split('T')[0])}
+                                                </div>
                                             </div>
-                                            <div className="text-xs text-slate-400 font-medium">
-                                                {formatDateBr(order.data.split('T')[0])}
-                                            </div>
+                                            <h3 className="text-sm font-bold text-slate-800 truncate" title={order.cliente}>{order.cliente}</h3>
                                         </div>
                                         
-                                        <div className="space-y-3">
-                                            {order.gauges.slice(0, 4).map((g, i) => {
+                                        <div className="flex-1 flex flex-wrap gap-2.5 items-center">
+                                            {order.gauges.map((g, i) => {
                                                 const isFullyScheduled = g.scheduledCount >= g.osCount;
                                                 return (
-                                                    <div key={i} className="flex flex-col text-xs p-2.5 rounded-lg bg-slate-50 border border-slate-100">
-                                                        <div className="flex justify-between items-center mb-1">
-                                                            <span className="font-black text-slate-800 text-sm">
+                                                    <div key={i} className="flex flex-col px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 min-w-[130px] group-hover:bg-blue-50/30 transition-colors">
+                                                        <div className="flex justify-between items-center mb-1.5 gap-3">
+                                                            <span className="font-black text-slate-800 text-[13px]">
                                                                 {(() => {
                                                                     const bStr = String(g.bitola || '');
                                                                     const m = bStr.match(/(\d+\.?\d*\s*mm)/i);
                                                                     return m ? m[1].toUpperCase() : bStr.replace(/VERGALHAO CA\d+\(ARMADO-AMARRADO\)\s*/i, '').trim().toUpperCase();
                                                                 })()}
                                                             </span>
-                                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${isFullyScheduled ? 'bg-green-200 text-green-800' : 'bg-orange-200 text-orange-800'}`}>
-                                                                {isFullyScheduled ? 'Programado' : 'Falta'}
+                                                            <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider ${isFullyScheduled ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                                {isFullyScheduled ? 'Prog' : 'Falta'}
                                                             </span>
                                                         </div>
-                                                        <div className="flex gap-4 text-slate-500 font-medium mt-1">
-                                                            <span>Qtd: <strong className="text-slate-700">{g.osCount} un</strong></span>
-                                                            <span>Peso: <strong className="text-slate-700">{Number(g.totalWeight || 0).toFixed(1)}kg</strong></span>
+                                                        <div className="flex justify-between text-[10px] text-slate-500 font-bold">
+                                                            <span className="text-slate-600">{g.osCount} un</span>
+                                                            <span className="text-slate-300">|</span>
+                                                            <span className="text-slate-600">{Number(g.totalWeight || 0).toFixed(1)}kg</span>
                                                         </div>
                                                     </div>
                                                 );
                                             })}
-                                            {order.gauges.length > 4 && (
-                                                <div className="text-xs text-center text-blue-500 font-bold bg-blue-50 py-2 rounded-lg">
-                                                    + {order.gauges.length - 4} bitolas...
-                                                </div>
-                                            )}
+                                        </div>
+
+                                        <div className="shrink-0 text-slate-300 md:pl-2 hidden md:flex items-center justify-center">
+                                            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+                                            </div>
                                         </div>
                                     </div>
                                 ))
@@ -866,7 +1035,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* Modal de Detalhes da OP */}
             {selectedQuoteForDetails && (
@@ -947,35 +1116,22 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                                         <div className="flex flex-col">
                                                                             <span className="text-[10px] text-slate-400 uppercase font-bold">Tempo Programado</span>
                                                                             <span className="text-slate-800">
-                                                                                ~{Math.ceil(relatedOrders.reduce((acc, ro) => {
-                                                                                    const machineForRo = activeMachines.find(m => m.name === ro.machineId);
-                                                                                    let roTimeMins = 0;
-                                                                                    if (machineForRo) {
-                                                                                        let cap = machineForRo.capacityKgPerHour || 0;
-                                                                                        const quote = quotes.find(q => q.os === ro.orderCode);
-                                                                                        const group = quote?.items?.find((g: any) => cleanGaugeString(g.bitola) === cleanGaugeString(ro.gauge));
-                                                                                        const ferro = group?.ferros?.[0];
-                                                                                        
-                                                                                        if (ferro && machineForRo.capabilities) {
-                                                                                            const typeStr = (ferro.nomeElemento || ferro.tipo || ferro.drawingType || '').toUpperCase();
-                                                                                            let formatCat = 'reto';
-                                                                                            if (typeStr.includes('ESTRIBO')) formatCat = 'estribo';
-                                                                                            else if (typeStr.includes('CORTE') || typeStr.includes('DOBRA') || typeStr.includes('GANCHO') || ferro.ladoB) formatCat = 'corteDobra';
-                                                                                            
-                                                                                            if (formatCat === 'estribo' && machineForRo.capabilities.estribo?.enabled && machineForRo.capabilities.estribo.calculatedMetersPerHour) {
-                                                                                                const mph = machineForRo.capabilities.estribo.calculatedMetersPerHour;
-                                                                                                const parsedNotes = (() => { try { return ro.notes ? JSON.parse(ro.notes) : {} } catch { return {} } })();
-                                                                                                const mtrs = Number(parsedNotes.totalMetros || 0);
-                                                                                                if (mph > 0) return acc + ((mtrs / mph) * 60);
-                                                                                            }
-                                                                                            if (formatCat === 'reto' && machineForRo.capabilities.reto?.enabled) cap = machineForRo.capabilities.reto.capacityKgPerHour || cap;
-                                                                                            if (formatCat === 'corteDobra' && machineForRo.capabilities.corteDobra?.enabled) cap = machineForRo.capabilities.corteDobra.capacityKgPerHour || cap;
+                                                                                {(() => {
+                                                                                    const totalMins = relatedOrders.reduce((acc, ro) => {
+                                                                                        const machineForRo = activeMachines.find(m => m.name === ro.machineId);
+                                                                                        let roTimeMins = 0;
+                                                                                        if (machineForRo?.capabilities?.estribo?.enabled && machineForRo.capabilities.estribo.calculatedMetersPerHour) {
+                                                                                            const mph = machineForRo.capabilities.estribo.calculatedMetersPerHour;
+                                                                                            const parsedNotes = (() => { try { return ro.notes ? JSON.parse(ro.notes) : {} } catch { return {} } })();
+                                                                                            const mtrs = Number(parsedNotes.totalMetros || 0);
+                                                                                            if (mph > 0) roTimeMins = (mtrs / mph) * 60;
                                                                                         }
-                                                                                        
-                                                                                        if (cap > 0) roTimeMins = (Number(ro.weight || 0) / cap) * 60;
-                                                                                    }
-                                                                                    return acc + roTimeMins;
-                                                                                }, 0))} <span className="text-xs">min</span>
+                                                                                        return acc + roTimeMins;
+                                                                                    }, 0);
+                                                                                    const m = Math.floor(totalMins);
+                                                                                    const s = Math.round((totalMins - m) * 60);
+                                                                                    return m > 0 ? `~${m}m ${s}s` : `~${s}s`;
+                                                                                })()}
                                                                             </span>
                                                                         </div>
                                                                     )}
@@ -989,32 +1145,11 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                                 const machineForRo = activeMachines.find(m => m.name === ro.machineId);
                                                                 let roTimeMins = null;
                                                                 
-                                                                if (machineForRo) {
-                                                                    let cap = machineForRo.capacityKgPerHour || 0;
-                                                                    const quote = quotes.find(q => q.os === ro.orderCode);
-                                                                    const group = quote?.items?.find((g: any) => cleanGaugeString(g.bitola) === cleanGaugeString(ro.gauge));
-                                                                    const ferro = group?.ferros?.[0];
-                                                                    
-                                                                    if (ferro && machineForRo.capabilities) {
-                                                                        const typeStr = (ferro.nomeElemento || ferro.tipo || ferro.drawingType || '').toUpperCase();
-                                                                        let formatCat = 'reto';
-                                                                        if (typeStr.includes('ESTRIBO')) formatCat = 'estribo';
-                                                                        else if (typeStr.includes('CORTE') || typeStr.includes('DOBRA') || typeStr.includes('GANCHO') || ferro.ladoB) formatCat = 'corteDobra';
-
-                                                                        if (formatCat === 'estribo' && machineForRo.capabilities.estribo?.enabled && machineForRo.capabilities.estribo.calculatedMetersPerHour) {
-                                                                            const mph = machineForRo.capabilities.estribo.calculatedMetersPerHour;
-                                                                            const parsedNotes = (() => { try { return ro.notes ? JSON.parse(ro.notes) : {} } catch { return {} } })();
-                                                                            const mtrs = Number(parsedNotes.totalMetros || 0);
-                                                                            if (mph > 0) {
-                                                                                roTimeMins = (mtrs / mph) * 60;
-                                                                                cap = 0;
-                                                                            }
-                                                                        }
-                                                                        if (cap > 0 && formatCat === 'reto' && machineForRo.capabilities.reto?.enabled) cap = machineForRo.capabilities.reto.capacityKgPerHour || cap;
-                                                                        if (cap > 0 && formatCat === 'corteDobra' && machineForRo.capabilities.corteDobra?.enabled) cap = machineForRo.capabilities.corteDobra.capacityKgPerHour || cap;
-                                                                    }
-                                                                    
-                                                                    if (cap > 0 && !roTimeMins) roTimeMins = (Number(ro.weight || 0) / cap) * 60;
+                                                                if (machineForRo?.capabilities?.estribo?.enabled && machineForRo.capabilities.estribo.calculatedMetersPerHour) {
+                                                                    const mph = machineForRo.capabilities.estribo.calculatedMetersPerHour;
+                                                                    const parsedNotes = (() => { try { return ro.notes ? JSON.parse(ro.notes) : {} } catch { return {} } })();
+                                                                    const mtrs = Number(parsedNotes.totalMetros || 0);
+                                                                    if (mph > 0) roTimeMins = (mtrs / mph) * 60;
                                                                 }
 
                                                                 return (
@@ -1022,11 +1157,16 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                                         <div className="flex flex-col gap-0.5">
                                                                             <span className="text-[10px] text-green-800 font-bold">🗓️ {formatDateBr(ro.startDate)}</span>
                                                                             <span className="text-[10px] text-green-700">🤖 {ro.machineId}</span>
-                                                                            {roTimeMins !== null && (
-                                                                                <span className="text-[9px] text-green-600 bg-green-100/50 px-1 py-0.5 rounded self-start mt-0.5 font-semibold shadow-sm border border-green-200/50">
-                                                                                    ⏱️ ~{Math.ceil(roTimeMins)} min
-                                                                                </span>
-                                                                            )}
+                                                                            {roTimeMins !== null && (() => {
+                                                                                const m = Math.floor(roTimeMins);
+                                                                                const s = Math.round((roTimeMins - m) * 60);
+                                                                                const timeDisplay = m > 0 ? `${m}m ${s}s` : `${s}s`;
+                                                                                return (
+                                                                                    <span className="text-[9px] text-green-600 bg-green-100/50 px-1 py-0.5 rounded self-start mt-0.5 font-semibold shadow-sm border border-green-200/50">
+                                                                                        ⏱️ ~{timeDisplay}
+                                                                                    </span>
+                                                                                );
+                                                                            })()}
                                                                         </div>
                                                                         <button 
                                                                             onClick={() => {

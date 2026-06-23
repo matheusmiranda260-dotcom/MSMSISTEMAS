@@ -226,20 +226,51 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
         }
     };
 
+    const calculateShiftTime = (start: string, end: string) => {
+        if (!start || !end) return null;
+        const [h1, m1] = start.split(':').map(Number);
+        const [h2, m2] = end.split(':').map(Number);
+        let totalMins = (h2 * 60 + m2) - (h1 * 60 + m1);
+        if (totalMins < 0) totalMins += 24 * 60;
+        
+        if (machineHasLunch && machineLunchStart && machineLunchEnd) {
+            const [lh1, lm1] = machineLunchStart.split(':').map(Number);
+            const [lh2, lm2] = machineLunchEnd.split(':').map(Number);
+            let lunchMins = (lh2 * 60 + lm2) - (lh1 * 60 + lm1);
+            if (lunchMins < 0) lunchMins += 24 * 60;
+            
+            const lStartMins = lh1 * 60 + lm1;
+            const sStartMins = h1 * 60 + m1;
+            const sEndMins = h2 * 60 + m2;
+            
+            let isWithin = false;
+            if (sStartMins <= sEndMins) {
+                isWithin = lStartMins >= sStartMins && lStartMins <= sEndMins;
+            } else {
+                isWithin = lStartMins >= sStartMins || lStartMins <= sEndMins;
+            }
+            
+            if (isWithin) {
+                totalMins -= lunchMins;
+            }
+        }
+        
+        if (totalMins < 0) totalMins = 0;
+        const hours = Math.floor(totalMins / 60);
+        const mins = totalMins % 60;
+        return `${hours}h ${mins}m`;
+    };
+
     const handleSaveMachine = () => {
         if (!machineName.trim()) {
             showNotification('Nome da máquina é obrigatório.', 'error');
-            return;
-        }
-        if (!machineCapacity || parseFloat(machineCapacity) <= 0) {
-            showNotification('Capacidade produtiva deve ser maior que zero.', 'error');
             return;
         }
 
         const machine: MachineConfig = {
             name: machineName.trim(),
             imageUrl: machineImageUrl.trim() || undefined,
-            capacityKgPerHour: parseFloat(machineCapacity),
+            capacityKgPerHour: machineCapacity ? parseFloat(machineCapacity) : 0,
             gaugeRange: machineGauge.trim(),
             speedMetersPerSecond: machineSpeed ? parseFloat(machineSpeed) : undefined,
             maxStraightMeters: machineMaxStraight ? parseFloat(machineMaxStraight) : undefined,
@@ -769,16 +800,11 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div>
                                                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Nome da Máquina *</label>
                                                 <input type="text" value={machineName} onChange={e => setMachineName(e.target.value)}
                                                     placeholder="Ex: Trefila 01" className="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Capacidade (kg/h) *</label>
-                                                <input type="number" step="0.01" min="0" value={machineCapacity} onChange={e => setMachineCapacity(e.target.value)}
-                                                    placeholder="Ex: 500" className="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
                                             </div>
                                             <div>
                                                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Bitola (ex: 10mm-12,5mm)</label>
@@ -807,13 +833,13 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
                                         {/* Regras de Produção Avançadas */}
                                         <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 mt-4">
                                             <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-4">Avançado: Regras de Produção</h4>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                {/* Estribos */}
+                                            <div className="grid grid-cols-1 gap-4">
+                                                {/* Capacidade da Máquina (antigo Estribos) */}
                                                 <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
                                                     <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
                                                         <input type="checkbox" checked={machineCapabilities.estribo?.enabled} 
                                                             onChange={e => setMachineCapabilities({ ...machineCapabilities, estribo: { ...machineCapabilities.estribo, enabled: e.target.checked } })} />
-                                                        <span className="font-bold text-sm text-slate-700 uppercase">Estribos</span>
+                                                        <span className="font-bold text-sm text-slate-700 uppercase">Capacidade da Máquina (metros/hora)</span>
                                                     </div>
                                                     {machineCapabilities.estribo?.enabled && (
                                                         <div className="space-y-3">
@@ -877,61 +903,6 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
                                                         </div>
                                                     )}
                                                 </div>
-
-                                                {/* Retos */}
-                                                <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-                                                    <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
-                                                        <input type="checkbox" checked={machineCapabilities.reto?.enabled} 
-                                                            onChange={e => setMachineCapabilities({ ...machineCapabilities, reto: { ...machineCapabilities.reto, enabled: e.target.checked } })} />
-                                                        <span className="font-bold text-sm text-slate-700 uppercase">Retos</span>
-                                                    </div>
-                                                    {machineCapabilities.reto?.enabled && (
-                                                        <div className="space-y-2">
-                                                            <div>
-                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase">Capacidade Específica (kg/h)</label>
-                                                                <input type="number" className="w-full p-1.5 border rounded text-xs" placeholder="Ex: 800"
-                                                                    value={machineCapabilities.reto?.capacityKgPerHour || ''} onChange={e => setMachineCapabilities({ ...machineCapabilities, reto: { ...machineCapabilities.reto, capacityKgPerHour: e.target.value ? Number(e.target.value) : undefined } })} />
-                                                            </div>
-                                                            <div>
-                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase">Comp. Máx (m)</label>
-                                                                <input type="number" className="w-full p-1.5 border rounded text-xs" value={machineCapabilities.reto?.maxLength_m || ''} onChange={e => setMachineCapabilities({ ...machineCapabilities, reto: { ...machineCapabilities.reto, maxLength_m: e.target.value ? Number(e.target.value) : undefined } })} />
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* Dobras */}
-                                                <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-                                                    <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
-                                                        <input type="checkbox" checked={machineCapabilities.corteDobra?.enabled} 
-                                                            onChange={e => setMachineCapabilities({ ...machineCapabilities, corteDobra: { ...machineCapabilities.corteDobra, enabled: e.target.checked } })} />
-                                                        <span className="font-bold text-sm text-slate-700 uppercase">Corte e Dobra</span>
-                                                    </div>
-                                                    {machineCapabilities.corteDobra?.enabled && (
-                                                        <div className="space-y-2">
-                                                            <div>
-                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase">Capacidade Específica (kg/h)</label>
-                                                                <input type="number" className="w-full p-1.5 border rounded text-xs" placeholder="Ex: 500"
-                                                                    value={machineCapabilities.corteDobra?.capacityKgPerHour || ''} onChange={e => setMachineCapabilities({ ...machineCapabilities, corteDobra: { ...machineCapabilities.corteDobra, capacityKgPerHour: e.target.value ? Number(e.target.value) : undefined } })} />
-                                                            </div>
-                                                            <div className="grid grid-cols-2 gap-2">
-                                                                <div>
-                                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Máx Dobras</label>
-                                                                    <input type="number" className="w-full p-1.5 border rounded text-xs" placeholder="Ex: 2" value={machineCapabilities.corteDobra?.maxBends || ''} onChange={e => setMachineCapabilities({ ...machineCapabilities, corteDobra: { ...machineCapabilities.corteDobra, maxBends: e.target.value ? Number(e.target.value) : undefined } })} />
-                                                                </div>
-                                                                <div>
-                                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Soma (cm)</label>
-                                                                    <input type="number" className="w-full p-1.5 border rounded text-xs" placeholder="A+B+C" value={machineCapabilities.corteDobra?.maxSumSides_cm || ''} onChange={e => setMachineCapabilities({ ...machineCapabilities, corteDobra: { ...machineCapabilities.corteDobra, maxSumSides_cm: e.target.value ? Number(e.target.value) : undefined } })} />
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase">Máx. Base c/ Múltiplas Dobras (cm)</label>
-                                                                <input type="number" className="w-full p-1.5 border rounded text-xs" placeholder="Ex: 200" value={machineCapabilities.corteDobra?.maxBaseForMultipleBends_cm || ''} onChange={e => setMachineCapabilities({ ...machineCapabilities, corteDobra: { ...machineCapabilities.corteDobra, maxBaseForMultipleBends_cm: e.target.value ? Number(e.target.value) : undefined } })} />
-                                                                <p className="text-[9px] text-slate-400 mt-0.5 leading-tight">Se a base (Lado A) for maior que isso num desenho com 2 ou mais dobras, ela será incompatível.</p>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
                                             </div>
                                         </div>
 
@@ -959,23 +930,37 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div className="space-y-3 p-3 bg-white rounded-xl border border-slate-200">
                                                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Turno 1</span>
-                                                    <div className="flex gap-2">
-                                                        <input type="time" value={machineShift1Start} onChange={e => setMachineShift1Start(e.target.value)}
-                                                            className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
-                                                        <span className="text-slate-400 self-center font-bold">-</span>
-                                                        <input type="time" value={machineShift1End} onChange={e => setMachineShift1End(e.target.value)}
-                                                            className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="flex gap-2 flex-1">
+                                                            <input type="time" value={machineShift1Start} onChange={e => setMachineShift1Start(e.target.value)}
+                                                                className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                                            <span className="text-slate-400 self-center font-bold">-</span>
+                                                            <input type="time" value={machineShift1End} onChange={e => setMachineShift1End(e.target.value)}
+                                                                className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                                        </div>
+                                                        {machineShift1Start && machineShift1End && (
+                                                            <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-1.5 rounded-lg whitespace-nowrap">
+                                                                {calculateShiftTime(machineShift1Start, machineShift1End)}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 {machineShiftType === '2turnos' && (
                                                     <div className="space-y-3 p-3 bg-white rounded-xl border border-slate-200">
                                                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Turno 2</span>
-                                                        <div className="flex gap-2">
-                                                            <input type="time" value={machineShift2Start} onChange={e => setMachineShift2Start(e.target.value)}
-                                                                className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
-                                                            <span className="text-slate-400 self-center font-bold">-</span>
-                                                            <input type="time" value={machineShift2End} onChange={e => setMachineShift2End(e.target.value)}
-                                                                className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="flex gap-2 flex-1">
+                                                                <input type="time" value={machineShift2Start} onChange={e => setMachineShift2Start(e.target.value)}
+                                                                    className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                                                <span className="text-slate-400 self-center font-bold">-</span>
+                                                                <input type="time" value={machineShift2End} onChange={e => setMachineShift2End(e.target.value)}
+                                                                    className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                                            </div>
+                                                            {machineShift2Start && machineShift2End && (
+                                                                <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-1.5 rounded-lg whitespace-nowrap">
+                                                                    {calculateShiftTime(machineShift2Start, machineShift2End)}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 )}
