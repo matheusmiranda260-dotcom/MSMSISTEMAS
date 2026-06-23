@@ -5601,8 +5601,8 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                         <h1 className="text-2xl font-black">{activeBrandingPartner?.companyName || 'Sua Empresa'}</h1>
                                     )}
                                     </div>
-                                    <div className="text-[9px] text-right font-semibold leading-tight w-2/3">
-                                        Ferros e Acessórios para Serralheria, Chapas, Tubos, Metalon e Perfilados - Ferros para Construção Civil, em Barras ou Colunas e Sapatas Montadas (pronto p/ a Obra) - Dobras Especiais até 1/2 polegada, Telhas, Corte Plasma, Steel Frame e muito mais. Confira!
+                                    <div className="text-[9px] text-right font-semibold leading-tight w-2/3 whitespace-pre-wrap">
+                                        {activeBrandingPartner?.servicesProvided || ''}
                                     </div>
                                 </div>
 

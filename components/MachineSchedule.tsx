@@ -101,6 +101,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
     currentUser
 }) => {
     const activeBrandingPartner = partners?.find(p => p.isActiveBranding) || null;
+    const [focusedDate, setFocusedDate] = useState<string | null>(null);
     const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [selectedMachineName, setSelectedMachineName] = useState<string | null>(null);
     const [schedulingDate, setSchedulingDate] = useState<string | null>(null);
@@ -282,7 +283,10 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
         return numbers.some(p => Math.abs(p - bValue) < 0.01);
     };
 
-    const dates = useMemo(() => getWorkingDays(workingDaysMode), [workingDaysMode]);
+    const dates = useMemo(() => {
+        if (focusedDate) return [focusedDate];
+        return getWorkingDays(workingDaysMode);
+    }, [workingDaysMode, focusedDate]);
 
     const activePartner = useMemo(() => {
         return partners.find(p => p.isActiveBranding) || partners[0] || null;
@@ -571,34 +575,35 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                     </div>
                 ) : (
                     <div className="min-w-max pb-4">
-                        <table className="w-full border-separate border-spacing-0 shadow-[8px_8px_16px_#d1d9e6,-8px_-8px_16px_#ffffff] rounded-2xl overflow-hidden bg-[#e2e8f0]/20 ring-1 ring-white/50 backdrop-blur-sm">
+                        <table className="w-full border-separate border-spacing-0 bg-white">
                             <thead className="sticky top-0 z-20">
                                 <tr>
-                                    <th className="p-4 w-48 bg-[#e2e8f0] sticky left-0 z-30 border-r border-b border-white/40 shadow-sm rounded-tl-2xl flex items-center justify-between">
-                                        <svg className="w-6 h-6 text-slate-400 drop-shadow-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                        <svg className="w-7 h-7 text-slate-500 drop-shadow-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                    <th className="p-4 w-48 bg-[#f8fafc] sticky left-0 z-30 border-r border-b border-slate-200 flex items-center justify-center h-full min-h-[72px]">
+                                        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-2 cursor-pointer hover:bg-slate-50 transition-colors">
+                                            <svg className="w-5 h-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                        </div>
                                     </th>
                                     {dates.map((dateStr, dIdx) => {
-                                        const isToday = dIdx === 0;
                                         const [y, m, d] = dateStr.split('-');
-                                        const dayLabel = isToday ? 'HOJE' : getDayOfWeek(dateStr).toUpperCase();
+                                        const dayLabel = getDayOfWeek(dateStr).substring(0, 3).toUpperCase();
+                                        const monthLabel = new Date(parseInt(y), parseInt(m)-1, parseInt(d)).toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
                                         
                                         const gradients = [
-                                            'bg-gradient-to-r from-[#172c4e] to-[#16385d]',
-                                            'bg-gradient-to-r from-[#16385d] to-[#154b70]',
-                                            'bg-gradient-to-r from-[#154b70] to-[#166687]',
-                                            'bg-gradient-to-r from-[#166687] to-[#1888a2]',
-                                            'bg-gradient-to-r from-[#1888a2] to-[#1caabd]',
-                                            'bg-gradient-to-r from-[#1caabd] to-[#20cfd4]',
-                                            'bg-gradient-to-r from-[#20cfd4] to-[#24e5e5]'
+                                            'bg-[#1e3a5f]',
+                                            'bg-[#194f83]',
+                                            'bg-[#156ea3]',
+                                            'bg-[#138ab7]',
+                                            'bg-[#11a9cc]',
+                                            'bg-[#0fc8e1]',
+                                            'bg-[#0deaf5]'
                                         ];
                                         const bgColor = gradients[dIdx] || 'bg-[#1e293b]';
                                         
                                         return (
-                                            <th key={dateStr} className={`p-4 text-center border-l border-white/20 border-b border-b-slate-900/10 min-w-[280px] shadow-sm ${bgColor} ${dIdx === dates.length - 1 ? 'rounded-tr-2xl' : ''}`}>
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <span className="font-extrabold text-white tracking-widest text-sm drop-shadow-md">{dayLabel}</span>
-                                                    <span className="font-bold text-white/80 text-sm drop-shadow-md">{d}/{m}</span>
+                                            <th key={dateStr} onDoubleClick={() => setFocusedDate(focusedDate === dateStr ? null : dateStr)} className={`p-4 text-center border-l border-white/20 border-b border-slate-200 min-w-[280px] ${bgColor} ${dIdx === dates.length - 1 ? 'rounded-tr-2xl' : ''} ${!focusedDate ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity select-none`} title="Dê um duplo clique para focar ou desfocar neste dia">
+                                                <div className="flex flex-col items-center justify-center gap-0.5">
+                                                    <span className="font-bold text-white tracking-wide text-sm drop-shadow-sm">{dayLabel}</span>
+                                                    <span className="font-normal text-white/90 text-xs drop-shadow-sm">{d} {monthLabel.replace('.', '')}</span>
                                                 </div>
                                             </th>
                                         );
@@ -614,37 +619,68 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                     
                                     return (
                                         <tr key={machine.name} className="group transition-colors">
-                                            <td className={`p-4 border-t border-t-white/60 border-r border-r-white/40 bg-[#f1f5f9] sticky left-0 z-10 w-48 shadow-[1px_0_0_0_#cbd5e1] align-middle ${isLastRow ? 'rounded-bl-2xl' : ''}`}>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="bg-gradient-to-br from-[#e0eaf5] to-[#c8d4e4] w-[42px] h-[42px] flex-shrink-0 rounded-xl shadow-[inset_1px_1px_2px_#ffffff,inset_-1px_-1px_2px_#94a3b8,2px_2px_4px_#94a3b8,-2px_-2px_4px_#ffffff] flex items-center justify-center overflow-hidden">
-                                                        {machine.imageUrl ? (
-                                                            <img src={machine.imageUrl} alt={machine.name} className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <svg className="w-7 h-7 text-slate-600 drop-shadow-sm" fill="currentColor" viewBox="0 0 24 24"><path d="M19.5 8h-15A1.5 1.5 0 003 9.5v5A1.5 1.5 0 004.5 16h15a1.5 1.5 0 001.5-1.5v-5A1.5 1.5 0 0019.5 8zM5 14H4v-3h1v3zm3 0H7v-3h1v3zm3 0h-1v-3h1v3zm6 0h-5v-3h5v3z" opacity="0.3"/><path d="M21 9.5A2.5 2.5 0 0018.5 7h-13A2.5 2.5 0 003 9.5v5A2.5 2.5 0 005.5 17h13a2.5 2.5 0 002.5-2.5v-5zM19 14.5a.5.5 0 01-.5.5h-13a.5.5 0 01-.5-.5v-5a.5.5 0 01.5-.5h13a.5.5 0 01.5.5v5z" opacity="0.7"/><path d="M17 10h1v4h-1zM14 10h1v4h-1zM11 10h1v4h-1zM8 10h1v4H8z" fill="#475569"/><circle cx="6" cy="12" r="1" fill="#475569"/></svg>
-                                                        )}
-                                                    </div>
-                                                    <div>
-                                                        <h3 className="font-black text-slate-800 text-[13px] uppercase tracking-tighter drop-shadow-sm leading-tight">{machine.name}</h3>
-                                                        <div className="flex flex-col mt-0.5">
-                                                            <div className="flex items-center gap-1.5">
-                                                                <div className={`w-2 h-2 rounded-full ${isOperante ? 'bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.8)]' : 'bg-slate-400 shadow-inner'}`} />
-                                                                <span className="text-[11px] font-bold text-slate-500 drop-shadow-sm">{isOperante ? 'Operante' : 'Ociosa'}</span>
+                                            <td className={`p-4 border-t border-slate-100 border-r border-slate-100 bg-white sticky left-0 z-10 w-48 align-middle ${isLastRow ? 'rounded-bl-2xl' : ''}`}>
+                                                <div className="flex flex-col items-center text-center gap-3">
+                                                    <div className="flex items-center gap-3 w-full justify-start">
+                                                        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white shadow-sm shrink-0 ${mIdx % 2 === 0 ? 'bg-[#22c55e]' : 'bg-[#3b82f6]'}`}>
+                                                            {machine.imageUrl ? (
+                                                                <img src={machine.imageUrl} alt={machine.name} className="w-full h-full object-cover rounded-full" />
+                                                            ) : (
+                                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex flex-col text-left">
+                                                            <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-tighter leading-tight">{machine.name}</h3>
+                                                            <div className="flex items-center gap-1 mt-1">
+                                                                <div className={`w-1.5 h-1.5 rounded-full ${isOperante ? (mIdx % 2 === 0 ? 'bg-[#22c55e]' : 'bg-[#3b82f6]') : 'bg-slate-300'}`} />
+                                                                <span className="text-[10px] font-semibold text-slate-600">{isOperante ? 'Operando' : 'Ociosa'}</span>
                                                             </div>
-                                                            {(() => {
-                                                                const availableMins = getMachineAvailableMins(machine);
-                                                                if (availableMins > 0) {
-                                                                    const hrs = Math.floor(availableMins / 60);
-                                                                    const mns = availableMins % 60;
-                                                                    return (
-                                                                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded mt-1 self-start inline-block">
-                                                                            {hrs}h {mns}m disp.
-                                                                        </span>
-                                                                    );
-                                                                }
-                                                                return null;
-                                                            })()}
                                                         </div>
                                                     </div>
+
+                                                    {(() => {
+                                                        const availableMins = getMachineAvailableMins(machine);
+                                                        if (availableMins > 0) {
+                                                            const todayDateStr = dates[0];
+                                                            const todayOrders = machineOrders.filter(mo => mo.startDate === todayDateStr && mo.machineId === machine.name);
+                                                            let totalProgrammedMinsToday = 0;
+                                                            todayOrders.forEach(mo => {
+                                                                const parsedNotes = (() => { try { return mo.notes ? JSON.parse(mo.notes) : {} } catch { return {} } })();
+                                                                const meters = Number(parsedNotes.totalMetros || 0);
+                                                                if (machine.capabilities?.estribo?.enabled && machine.capabilities.estribo.calculatedMetersPerHour) {
+                                                                    const mph = machine.capabilities.estribo.calculatedMetersPerHour;
+                                                                    if (mph > 0) totalProgrammedMinsToday += (meters / mph) * 60;
+                                                                }
+                                                            });
+
+                                                            const freeMinsToday = Math.max(0, availableMins - totalProgrammedMinsToday);
+                                                            
+                                                            const formatTime = (mins: number) => {
+                                                                const h = Math.floor(mins / 60);
+                                                                const m = Math.round(mins % 60);
+                                                                if (h > 0) return `${h}h${m.toString().padStart(2, '0')}`;
+                                                                return `${m}m`;
+                                                            };
+
+                                                            if (totalProgrammedMinsToday > 0) {
+                                                                return (
+                                                                    <div className="flex flex-col items-center justify-center bg-[#f0f7ff] rounded-lg p-2.5 border border-[#e0f2fe] w-full mt-2">
+                                                                        <span className="text-[11px] font-bold text-slate-600 leading-tight">{todayOrders.length} OPs programadas</span>
+                                                                        <span className="text-xl font-black text-[#2563eb] leading-tight my-1">{formatTime(freeMinsToday)}</span>
+                                                                        <span className="text-[11px] font-bold text-slate-600 leading-tight">disponível</span>
+                                                                    </div>
+                                                                );
+                                                            } else {
+                                                                return (
+                                                                    <div className="flex flex-col items-center justify-center bg-[#f0fdf4] rounded-lg p-2.5 border border-[#dcfce7] w-full mt-2">
+                                                                        <span className="text-[11px] font-bold text-slate-600 leading-tight">Livre hoje</span>
+                                                                        <span className="text-xl font-black text-[#16a34a] leading-tight mt-1">{formatTime(availableMins)}</span>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                        }
+                                                        return null;
+                                                    })()}
                                                 </div>
                                             </td>
                                             
@@ -709,10 +745,10 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                                 handleVisualScheduleClick(dateStr, machine.name);
                                                             }
                                                         }}
-                                                        className={`p-2 border-t border-white/60 border-l border-l-slate-300/30 align-top transition-all duration-300 ${
+                                                        className={`p-2 border-t border-slate-100 border-l border-slate-100 align-top transition-all duration-300 ${
                                                             isSchedulingMode && isCompatible 
-                                                                ? 'cursor-pointer hover:bg-green-100/40 relative' 
-                                                                : 'bg-[#f4f7fb]/60 hover:bg-[#eef2f7]/80'
+                                                                ? 'cursor-pointer hover:bg-green-50/40 relative' 
+                                                                : 'bg-white hover:bg-slate-50/50'
                                                         }`}
                                                     >
                                                         {isSchedulingMode && isCompatible && (
@@ -720,30 +756,22 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                         )}
                                                         
                                                         {cellOrders.length === 0 ? (
-                                                            <div className={`h-[88px] rounded-xl border-[1.5px] border-dashed flex flex-col items-center justify-center gap-2 transition-all ${isSchedulingMode && isCompatible ? 'border-green-400 bg-green-50/50 hover:border-green-500 hover:bg-green-100/70 shadow-sm' : 'border-slate-300/60 bg-transparent'}`}>
-                                                                {isSchedulingMode && isCompatible ? (
-                                                                    <>
-                                                                        <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center shadow-inner ring-1 ring-green-200">
-                                                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                                                                        </div>
-                                                                    </>
-                                                                ) : (
-                                                                    <svg className="w-6 h-6 text-slate-300/50 drop-shadow-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                                                                )}
+                                                            <div className={`h-[100px] rounded-xl border-[1.5px] border-dashed flex items-center justify-center transition-all ${isSchedulingMode && isCompatible ? 'border-green-400 bg-green-50/50 hover:border-green-500 hover:bg-green-100/70 shadow-sm' : 'border-slate-200 bg-transparent'}`}>
+                                                                <svg className="w-6 h-6 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
                                                             </div>
                                                         ) : (
-                                                            <div className="flex flex-col gap-2 relative z-0">
+                                                            <div className="flex flex-col gap-3 relative z-0">
                                                                 {cellOrders.map((mo, idx) => {
                                                                     const parsedNotes = (() => { try { return mo.notes ? JSON.parse(mo.notes) : {} } catch { return {} } })();
                                                                     const meters = Number(parsedNotes.totalMetros || 0).toFixed(2);
-                                                                    // Fix for dirty bitola strings in the database that might have appended weights (e.g., "10.00 mm0.62")
                                                                     const gauge = cleanGaugeString(mo.gauge || '');
                                                                     
-                                                                    // Tonalidades seguindo a imagem: Teal para alguns, Ouro/Amarelo para outros
                                                                     const isTeal = idx % 2 === 0;
-                                                                    const gradientClass = isTeal 
-                                                                        ? 'bg-gradient-to-br from-[#80d8d4] to-[#aee9e3] shadow-[4px_4px_8px_rgba(128,216,212,0.3),inset_1px_1px_1px_rgba(255,255,255,0.6)] text-[#0c4a46] border border-[#71ccc8]/50'
-                                                                        : 'bg-gradient-to-br from-[#d4a34b] to-[#dfbc71] shadow-[4px_4px_8px_rgba(212,163,75,0.3),inset_1px_1px_1px_rgba(255,255,255,0.4)] text-[#4a350c] border border-[#c5943d]/50';
+                                                                    const cardBgClass = isTeal 
+                                                                        ? 'bg-[#eef8ff] border-l-[#3b82f6] border-[#dbeafe]' // azulzinho
+                                                                        : 'bg-[#fff7ed] border-l-[#f97316] border-[#ffedd5]'; // laranjinha
+                                                                        
+                                                                    const textAccent = isTeal ? 'text-[#2563eb]' : 'text-[#ea580c]';
 
                                                                     const moTimeMins = (() => {
                                                                         if (machine.capabilities?.estribo?.enabled && machine.capabilities.estribo.calculatedMetersPerHour) {
@@ -756,60 +784,17 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                                     const timeDisplay = moTimeMins !== null ? (() => {
                                                                         const m = Math.floor(moTimeMins);
                                                                         const s = Math.round((moTimeMins - m) * 60);
-                                                                        return m > 0 ? `${m}m ${s}s` : `${s}s`;
+                                                                        return m > 0 ? `${m}m${s.toString().padStart(2, '0')}s` : `${s}s`;
                                                                     })() : null;
 
                                                                     return (
-                                                                        <div key={mo.id} className={`rounded-xl p-2.5 flex flex-col relative overflow-hidden group hover:-translate-y-0.5 hover:shadow-md transition-all ${gradientClass}`}>
-                                                                            <div className="flex justify-between items-start mb-1">
-                                                                                <div className={`font-black text-[11px] uppercase tracking-wide px-1.5 py-0.5 rounded shadow-sm flex items-center gap-1 ${isTeal ? 'bg-white/40 text-[#0f5e5a]' : 'bg-white/30 text-[#5e420f]'}`}>
-                                                                                    OP {mo.orderCode}
-                                                                                </div>
-                                                                                <div className="flex items-center gap-1 z-10">
-                                                                                    <button 
-                                                                                        onClick={(e) => { 
-                                                                                            e.stopPropagation(); 
-                                                                                            setPrintingMachineOrder(mo);
-                                                                                        }}
-                                                                                        className={`hover:scale-110 rounded p-1 transition-all flex items-center gap-1 ${mo.labelPrinted ? 'bg-green-600 text-white shadow-sm' : 'bg-slate-800/20 text-slate-900 hover:bg-slate-800/40'}`}
-                                                                                        title={mo.labelPrinted ? "Imprimir Etiqueta Novamente" : "Imprimir Etiqueta"}
-                                                                                    >
-                                                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                                                                                    </button>
-                                                                                    <button 
-                                                                                        onClick={(e) => { 
-                                                                                            e.stopPropagation(); 
-                                                                                            setEditingMachineOrder(mo); 
-                                                                                        }}
-                                                                                        className="hover:scale-110 bg-slate-800/10 hover:bg-slate-800/30 rounded p-1 transition-all"
-                                                                                        title="Editar Agendamento"
-                                                                                    >
-                                                                                        <svg className={`w-3.5 h-3.5 opacity-80 ${isTeal ? 'text-[#0f5e5a]' : 'text-[#5e420f]'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                                                                    </button>
-                                                                                </div>
+                                                                        <div key={mo.id} onDoubleClick={(e) => { e.stopPropagation(); setEditingMachineOrder(mo); }} className={`cursor-pointer rounded border border-l-[3px] px-2 py-1.5 flex items-center gap-2 overflow-hidden group hover:shadow-sm transition-all shadow-sm bg-white/70 hover:bg-white ${cardBgClass}`} title="Duplo clique para abrir opções">
+                                                                            <div className="font-extrabold text-[10px] text-slate-800 uppercase tracking-tight truncate flex-1 min-w-0" title={mo.clientName}>
+                                                                                OP {mo.orderCode || mo.orderNumber || idx+1} <span className="font-medium text-slate-500 tracking-normal ml-0.5">({mo.clientName})</span>
                                                                             </div>
-                                                                            <div className="font-extrabold text-[9px] leading-tight mt-0.5 truncate uppercase opacity-90" title={mo.clientName}>{mo.clientName}</div>
-                                                                            <div className="flex justify-between items-end mt-1.5 pt-1.5 border-t border-black/10">
-                                                                                <div className="flex flex-col">
-                                                                                    <span className="text-[7px] font-extrabold uppercase tracking-widest opacity-70">Bitola</span>
-                                                                                    <span className="text-[11px] font-black">{gauge}</span>
-                                                                                </div>
-                                                                                <div className="flex gap-2.5 text-right">
-                                                                                    <div className="flex flex-col items-end">
-                                                                                        <span className="text-[7px] font-extrabold uppercase tracking-widest opacity-70">Peças</span>
-                                                                                        <span className="font-black text-[10px] tracking-tight">{mo.osQuantity || mo.quantity || 0} un</span>
-                                                                                    </div>
-                                                                                    <div className="flex flex-col items-end">
-                                                                                        <span className="text-[7px] font-extrabold uppercase tracking-widest opacity-70">Total</span>
-                                                                                        <span className="font-black text-[10px] tracking-tight">{meters} m</span>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
+                                                                            <div className={`font-black text-[10px] tracking-tight shrink-0 ${textAccent}`}>{gauge}</div>
                                                                             {timeDisplay && (
-                                                                                <div className="flex justify-between items-center mt-1 pt-1 border-t border-black/5 text-[9px] font-bold">
-                                                                                    <span className="opacity-70">⚖️ {Number(mo.weight || 0).toFixed(1)}kg</span>
-                                                                                    <span className="opacity-80 bg-black/5 px-1.5 py-0.5 rounded">⏱️ ~{timeDisplay}</span>
-                                                                                </div>
+                                                                                <div className="text-[10px] font-bold text-slate-600 shrink-0">{timeDisplay}</div>
                                                                             )}
                                                                         </div>
                                                                     );
@@ -871,13 +856,21 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                 <div className="flex flex-col flex-1 min-h-0">
                     {/* MATRIZ DE AGENDAMENTO FIXA */}
                     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col flex-1 overflow-hidden min-h-0">
-                        <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center shrink-0">
-                            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                Visão Geral da Produção (Semana Atual)
-                                <button onClick={() => setShowConfigModal(true)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors shadow-sm bg-white border border-slate-200" title="Configurar Dias de Trabalho">
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        <div className="p-4 bg-white border-b border-slate-200 flex justify-between items-center shrink-0 rounded-t-2xl">
+                            <div className="flex flex-col">
+                                <h2 className="text-[22px] font-black text-slate-900 tracking-tight leading-tight">Visão Geral da Produção</h2>
+                                <span className="text-sm font-semibold text-slate-500">Semana Atual</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div onClick={() => setFocusedDate(null)} className={`flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 shadow-sm text-sm font-semibold cursor-pointer transition-colors ${focusedDate ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' : 'text-slate-700 hover:bg-slate-50'}`}>
+                                    <svg className="w-4 h-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                    {focusedDate ? 'Ver semana completa' : 'Esta semana'}
+                                    {!focusedDate && <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>}
+                                </div>
+                                <button onClick={() => setShowConfigModal(true)} className="p-2 text-slate-500 hover:text-blue-600 rounded-lg transition-colors shadow-sm bg-white border border-slate-200" title="Configurar Dias de Trabalho">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
                                 </button>
-                            </h2>
+                            </div>
                         </div>
                         {renderMatrix(false)}
                     </div>
@@ -1412,18 +1405,29 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                 Ver Plano de Corte Completo
                             </button>
                             
-                            <button 
-                                onClick={() => {
-                                    if (window.confirm('Tem certeza que deseja excluir esta OP da máquina?')) {
-                                        handleUnscheduleOrder(editingMachineOrder.id);
+                                <button 
+                                    onClick={() => {
+                                        setPrintingMachineOrder(editingMachineOrder);
                                         setEditingMachineOrder(null);
-                                    }
-                                }}
-                                className="w-full flex justify-center items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2.5 rounded-xl transition-colors border border-red-200"
-                            >
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                Excluir Programação
-                            </button>
+                                    }}
+                                    className="w-full flex justify-center items-center gap-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-2.5 rounded-xl transition-colors border border-slate-200 mt-2"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                                    Imprimir Etiqueta
+                                </button>
+                                
+                                <button 
+                                    onClick={() => {
+                                        if (window.confirm('Tem certeza que deseja excluir esta OP da máquina?')) {
+                                            handleUnscheduleOrder(editingMachineOrder.id);
+                                            setEditingMachineOrder(null);
+                                        }
+                                    }}
+                                    className="w-full flex justify-center items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2.5 rounded-xl transition-colors border border-red-200"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    Excluir Programação
+                                </button>
                         </div>
                     </div>
                 </div>
