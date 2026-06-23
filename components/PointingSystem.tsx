@@ -63,11 +63,14 @@ interface PointingSystemProps {
     activeBrandingPartner?: Partner | null;
     machineOrders?: import('../types').MachineOrder[];
     onAddMachineOrder?: (data: Partial<import('../types').MachineOrder>) => Promise<import('../types').MachineOrder | null>;
+    onDeleteMachineOrdersByQuote?: (quoteId: string) => Promise<void>;
 }
 
 const INITIAL_QUOTES: Quote[] = [];
 
-const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotification, gauges = [], activeBrandingPartner, machineOrders = [], onAddMachineOrder }) => {
+const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotification, gauges = [], activeBrandingPartner, machineOrders = [], onAddMachineOrder, onDeleteMachineOrdersByQuote }) => {
+    const [deletePasswordInput, setDeletePasswordInput] = useState('');
+    const [deletePasswordError, setDeletePasswordError] = useState(false);
     const [isLoadingData, setIsLoadingData] = useState(true);
 
     const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -337,7 +340,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
 
     // Modals control
     const [activeModal, setActiveModal] = useState<{
-        type: 'client' | 'salesperson' | 'notes' | 'products' | 'price' | 'duplicate' | 'print' | 'printFull' | 'printSteel' | 'print_orcamento' | 'checkout' | 'history' | 'delete' | 'export_production' | 'post_export' | 'print_corte' | 'print_etiqueta_maquina' | 'cd_anexar_desenho' | 'cd_alterar_bitolas';
+        type: 'client' | 'salesperson' | 'notes' | 'products' | 'price' | 'duplicate' | 'print' | 'printFull' | 'printSteel' | 'print_orcamento' | 'checkout' | 'history' | 'delete' | 'delete_production' | 'export_production' | 'post_export' | 'print_corte' | 'print_etiqueta_maquina' | 'cd_anexar_desenho' | 'cd_alterar_bitolas';
         quoteId: string;
     } | null>(null);
 
@@ -1966,6 +1969,7 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                                     <option value="print_orcamento">🖨️ Imprimir Modelo Cliente</option>
                                                     <option value="print_corte">✂️ Imprimir Plano de Corte</option>
                                                     <option value="print_etiqueta_maquina">🏷️ Imprimir Etiqueta Produção</option>
+                                                    <option value="delete_production">🗑️ Excluir OP (Gestor)</option>
                                                 </>
                                             )}
                                         </select>
@@ -6264,6 +6268,76 @@ const PointingSystem: React.FC<PointingSystemProps> = ({ currentUser, showNotifi
                                         setQuotes(prev => prev.filter(q => q.id !== activeQuote.id));
                                         setActiveModal(null);
                                         showNotification(`Orçamento nº ${activeQuote.id} excluído com sucesso!`, 'success');
+                                    }}
+                                    className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-5 rounded-xl text-xs uppercase transition"
+                                >
+                                    Confirmar Exclusão
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAL: Excluir OP de Produção (com senha do gestor) */}
+                    {activeModal.type === 'delete_production' && activeQuote && (
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                            <div className="bg-red-600 p-4 text-white flex justify-between items-center shrink-0">
+                                <h3 className="font-bold text-lg">🔐 Excluir OP de Produção</h3>
+                                <button onClick={() => { setActiveModal(null); setDeletePasswordInput(''); setDeletePasswordError(false); }} className="text-white text-xl font-bold">&times;</button>
+                            </div>
+                            <div className="p-6 space-y-4">
+                                <p className="text-sm text-slate-700 font-semibold">
+                                    Excluir permanentemente a OP <strong>nº {activeQuote.id}</strong>?
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                    Cliente: {activeQuote.clientName} — Valor: R$ {activeQuote.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
+                                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1">
+                                    <p className="text-xs font-bold text-amber-800">⚠️ Essa ação irá:</p>
+                                    <ul className="text-xs text-amber-700 list-disc list-inside space-y-0.5">
+                                        <li>Excluir o orçamento do sistema de apontamento</li>
+                                        <li>Remover todas as programações de máquina vinculadas</li>
+                                        <li>Apagar permanentemente do banco de dados</li>
+                                    </ul>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Senha do Gestor</label>
+                                    <input 
+                                        type="password" 
+                                        value={deletePasswordInput}
+                                        onChange={(e) => { setDeletePasswordInput(e.target.value); setDeletePasswordError(false); }}
+                                        placeholder="Digite a senha do gestor"
+                                        className={`w-full border rounded-xl p-2.5 text-sm font-semibold focus:outline-none focus:ring-2 ${deletePasswordError ? 'border-red-400 focus:ring-red-300 bg-red-50' : 'border-slate-300 focus:ring-blue-300 bg-slate-50'}`}
+                                        autoFocus
+                                    />
+                                    {deletePasswordError && <p className="text-xs text-red-500 font-bold">Senha incorreta! Somente o gestor pode excluir.</p>}
+                                </div>
+                                <p className="text-xs text-red-500 font-bold">Esta ação não pode ser desfeita.</p>
+                            </div>
+                            <div className="p-4 bg-slate-50 border-t flex justify-end gap-2 shrink-0">
+                                <button onClick={() => { setActiveModal(null); setDeletePasswordInput(''); setDeletePasswordError(false); }} className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-5 rounded-xl text-xs uppercase transition">Cancelar</button>
+                                <button
+                                    onClick={async () => {
+                                        if (deletePasswordInput !== '070223') {
+                                            setDeletePasswordError(true);
+                                            return;
+                                        }
+                                        try {
+                                            // 1. Remove machine orders linked to this quote
+                                            if (onDeleteMachineOrdersByQuote) {
+                                                await onDeleteMachineOrdersByQuote(activeQuote.id);
+                                            }
+                                            // 2. Remove from local state
+                                            setQuotes(prev => prev.filter(q => q.id !== activeQuote.id));
+                                            // 3. Delete from Supabase
+                                            await deleteQuoteFromDB(activeQuote.id);
+                                            showNotification(`OP nº ${activeQuote.id} excluída permanentemente com sucesso!`, 'success');
+                                        } catch (err) {
+                                            console.error('Error deleting production OP:', err);
+                                            showNotification('Erro ao excluir OP.', 'error');
+                                        }
+                                        setActiveModal(null);
+                                        setDeletePasswordInput('');
+                                        setDeletePasswordError(false);
                                     }}
                                     className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-5 rounded-xl text-xs uppercase transition"
                                 >

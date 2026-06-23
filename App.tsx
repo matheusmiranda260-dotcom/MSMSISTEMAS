@@ -2766,6 +2766,18 @@ const App: React.FC = () => {
         }
     };
 
+    const deleteMachineOrdersByQuote = async (quoteId: string) => {
+        const ordersToDelete = machineOrders.filter(mo => mo.orderCode === quoteId);
+        for (const mo of ordersToDelete) {
+            try {
+                await deleteItem('machine_orders', mo.id);
+            } catch (error) {
+                console.error('Error deleting machine order:', mo.id, error);
+            }
+        }
+        setMachineOrders(prev => prev.filter(mo => mo.orderCode !== quoteId));
+    };
+
     const renderPage = () => {
         const mcProps = {
             setPage, stock, currentUser, registerProduction, productionOrders, shiftReports,
@@ -2809,7 +2821,7 @@ const App: React.FC = () => {
             case 'documents': return <DocumentManager setPage={setPage} currentUser={currentUser} />;
             case 'gaugesManager': return <GaugesManager gauges={gauges} stock={stock} onAdd={addGauge} onDelete={deleteGauge} onUpdate={updateGauge} gaugeComponents={gaugeComponents} onSaveComponents={saveGaugeComponents} currentUser={currentUser} />;
             case 'labelConfig': return <LabelConfiguration gauges={gauges} showNotification={showNotification} activeBrandingPartner={activeBrandingPartner} />;
-            case 'pointingSystem': return <PointingSystem currentUser={currentUser} showNotification={showNotification} gauges={gauges} activeBrandingPartner={activeBrandingPartner} machineOrders={machineOrders} onAddMachineOrder={addMachineOrder} />;
+            case 'pointingSystem': return <PointingSystem currentUser={currentUser} showNotification={showNotification} gauges={gauges} activeBrandingPartner={activeBrandingPartner} machineOrders={machineOrders} onAddMachineOrder={addMachineOrder} onDeleteMachineOrdersByQuote={deleteMachineOrdersByQuote} />;
             case 'programarMaquinas': return (
                 <MachineSchedule 
                     partners={partners}
