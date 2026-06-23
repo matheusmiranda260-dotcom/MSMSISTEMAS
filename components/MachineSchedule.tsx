@@ -167,10 +167,6 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
 
     const isMachineCompatibleWithBitola = (machineGaugeRange: string, bitolaStr: string) => {
         if (!machineGaugeRange) return true;
-        const cleanMachineRange = String(machineGaugeRange).replace(/\s+/g, '').replace(',', '.');
-        const bounds = cleanMachineRange.split('-');
-        const min = parseFloat(bounds[0]) || 0;
-        const max = bounds.length > 1 ? parseFloat(bounds[1]) : min;
         
         let bValue = 0;
         const safeBitola = String(bitolaStr || '');
@@ -181,8 +177,22 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
             const noCA = safeBitola.replace(/CA\d+/i, '');
             bValue = parseFloat(noCA.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
         }
+
+        const cleanMachineRange = String(machineGaugeRange).toLowerCase().replace(/mm/g, '').replace(/\s+/g, '');
+        const matches = [...cleanMachineRange.matchAll(/\d+(?:[.,]\d+)?/g)];
+        const numbers = matches.map(m => parseFloat(m[0].replace(',', '.')));
         
-        return bValue >= min && bValue <= max;
+        if (numbers.length === 0) return true;
+
+        // Se tem exatamente 2 números e usou hífen, tratamos como um "Range" (Intervalo) Ex: 4.2-8.0
+        if (numbers.length === 2 && cleanMachineRange.includes('-')) {
+            const min = Math.min(numbers[0], numbers[1]);
+            const max = Math.max(numbers[0], numbers[1]);
+            if (bValue >= min && bValue <= max) return true;
+        }
+
+        // Caso contrário (ou se a verificação de range falhar), tratamos como uma lista de valores exatos permitidos
+        return numbers.some(p => Math.abs(p - bValue) < 0.01);
     };
 
     const dates = useMemo(() => getNext7Days(), []);
@@ -519,8 +529,12 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                         <tr key={machine.name} className="group transition-colors">
                                             <td className={`p-4 border-t border-t-white/60 border-r border-r-white/40 bg-[#f1f5f9] sticky left-0 z-10 w-48 shadow-[1px_0_0_0_#cbd5e1] align-middle ${isLastRow ? 'rounded-bl-2xl' : ''}`}>
                                                 <div className="flex items-center gap-3">
-                                                    <div className="bg-gradient-to-br from-[#e0eaf5] to-[#c8d4e4] p-2.5 rounded-xl shadow-[inset_1px_1px_2px_#ffffff,inset_-1px_-1px_2px_#94a3b8,2px_2px_4px_#94a3b8,-2px_-2px_4px_#ffffff]">
-                                                        <svg className="w-7 h-7 text-slate-600 drop-shadow-sm" fill="currentColor" viewBox="0 0 24 24"><path d="M19.5 8h-15A1.5 1.5 0 003 9.5v5A1.5 1.5 0 004.5 16h15a1.5 1.5 0 001.5-1.5v-5A1.5 1.5 0 0019.5 8zM5 14H4v-3h1v3zm3 0H7v-3h1v3zm3 0h-1v-3h1v3zm6 0h-5v-3h5v3z" opacity="0.3"/><path d="M21 9.5A2.5 2.5 0 0018.5 7h-13A2.5 2.5 0 003 9.5v5A2.5 2.5 0 005.5 17h13a2.5 2.5 0 002.5-2.5v-5zM19 14.5a.5.5 0 01-.5.5h-13a.5.5 0 01-.5-.5v-5a.5.5 0 01.5-.5h13a.5.5 0 01.5.5v5z" opacity="0.7"/><path d="M17 10h1v4h-1zM14 10h1v4h-1zM11 10h1v4h-1zM8 10h1v4H8z" fill="#475569"/><circle cx="6" cy="12" r="1" fill="#475569"/></svg>
+                                                    <div className="bg-gradient-to-br from-[#e0eaf5] to-[#c8d4e4] w-[42px] h-[42px] flex-shrink-0 rounded-xl shadow-[inset_1px_1px_2px_#ffffff,inset_-1px_-1px_2px_#94a3b8,2px_2px_4px_#94a3b8,-2px_-2px_4px_#ffffff] flex items-center justify-center overflow-hidden">
+                                                        {machine.imageUrl ? (
+                                                            <img src={machine.imageUrl} alt={machine.name} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <svg className="w-7 h-7 text-slate-600 drop-shadow-sm" fill="currentColor" viewBox="0 0 24 24"><path d="M19.5 8h-15A1.5 1.5 0 003 9.5v5A1.5 1.5 0 004.5 16h15a1.5 1.5 0 001.5-1.5v-5A1.5 1.5 0 0019.5 8zM5 14H4v-3h1v3zm3 0H7v-3h1v3zm3 0h-1v-3h1v3zm6 0h-5v-3h5v3z" opacity="0.3"/><path d="M21 9.5A2.5 2.5 0 0018.5 7h-13A2.5 2.5 0 003 9.5v5A2.5 2.5 0 005.5 17h13a2.5 2.5 0 002.5-2.5v-5zM19 14.5a.5.5 0 01-.5.5h-13a.5.5 0 01-.5-.5v-5a.5.5 0 01.5-.5h13a.5.5 0 01.5.5v5z" opacity="0.7"/><path d="M17 10h1v4h-1zM14 10h1v4h-1zM11 10h1v4h-1zM8 10h1v4H8z" fill="#475569"/><circle cx="6" cy="12" r="1" fill="#475569"/></svg>
+                                                        )}
                                                     </div>
                                                     <div>
                                                         <h3 className="font-black text-slate-800 text-[13px] uppercase tracking-tighter drop-shadow-sm leading-tight">{machine.name}</h3>
@@ -534,7 +548,56 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                             
                                             {dates.map((dateStr, dIdx) => {
                                                 const cellOrders = machineOrders.filter(mo => mo.startDate === dateStr && mo.machineId === machine.name).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-                                                const isCompatible = true;
+                                                
+                                                let isCompatible = true;
+                                                if (isSchedulingMode && pendingVisualSchedule) {
+                                                    // First check bitola limits
+                                                    if (!isMachineCompatibleWithBitola(machine.gaugeRange || '', pendingVisualSchedule.bitola)) {
+                                                        isCompatible = false;
+                                                    }
+                                                    
+                                                    // Then check shape/drawing limits
+                                                    if (isCompatible && machine.capabilities) {
+                                                        const quote = quotes.find(q => q.os === pendingVisualSchedule.quoteId);
+                                                    if (quote && quote.items) {
+                                                        const group = quote.items.find((g: any) => cleanGaugeString(g.bitola) === cleanGaugeString(pendingVisualSchedule.bitola));
+                                                        if (group && group.ferros) {
+                                                            for (const f of group.ferros) {
+                                                                const typeStr = (f.nomeElemento || f.tipo || f.drawingType || '').toUpperCase();
+                                                                let formatCat = 'reto';
+                                                                if (typeStr.includes('ESTRIBO')) formatCat = 'estribo';
+                                                                else if (typeStr.includes('CORTE') || typeStr.includes('DOBRA') || typeStr.includes('GANCHO') || f.ladoB) formatCat = 'corteDobra';
+
+                                                                if (formatCat === 'estribo') {
+                                                                    if (machine.capabilities.estribo?.enabled === false) isCompatible = false;
+                                                                    if (machine.capabilities.estribo?.maxSideA_cm && parseFloat(f.ladoA || '0') > machine.capabilities.estribo.maxSideA_cm) isCompatible = false;
+                                                                    if (machine.capabilities.estribo?.maxSideB_cm && parseFloat(f.ladoB || '0') > machine.capabilities.estribo.maxSideB_cm) isCompatible = false;
+                                                                } else if (formatCat === 'reto') {
+                                                                    if (machine.capabilities.reto?.enabled === false) isCompatible = false;
+                                                                    const compCm = getFerroTotalLengthCm(f, f.productInfo?.description || '');
+                                                                    if (machine.capabilities.reto?.maxLength_m && (compCm / 100) > machine.capabilities.reto.maxLength_m) isCompatible = false;
+                                                                } else if (formatCat === 'corteDobra') {
+                                                                    if (machine.capabilities.corteDobra?.enabled === false) isCompatible = false;
+                                                                    
+                                                                    // Check Max Base for Multiple Bends constraint
+                                                                    const maxBase = machine.capabilities.corteDobra?.maxBaseForMultipleBends_cm;
+                                                                    if (maxBase && isCompatible) {
+                                                                        // Pela convenção do usuário: Lado A é sempre a base. Lado B e C são as pernas/alturas.
+                                                                        // Se tem Lado B E Lado C, significa que tem múltiplas dobras (ex: formato em U).
+                                                                        const hasMultipleBends = (f.ladoB && parseFloat(f.ladoB) > 0) && (f.ladoC && parseFloat(f.ladoC) > 0);
+                                                                        const baseA = f.ladoA ? parseFloat(f.ladoA) : 0;
+                                                                        
+                                                                        if (hasMultipleBends && baseA > maxBase) {
+                                                                            isCompatible = false;
+                                                                        }
+                                                                    }
+                                                                }
+                                                                if (!isCompatible) break;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                }
                                                 
                                                 return (
                                                     <td 
@@ -579,6 +642,30 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                                     const gradientClass = isTeal 
                                                                         ? 'bg-gradient-to-br from-[#80d8d4] to-[#aee9e3] shadow-[4px_4px_8px_rgba(128,216,212,0.3),inset_1px_1px_1px_rgba(255,255,255,0.6)] text-[#0c4a46] border border-[#71ccc8]/50'
                                                                         : 'bg-gradient-to-br from-[#d4a34b] to-[#dfbc71] shadow-[4px_4px_8px_rgba(212,163,75,0.3),inset_1px_1px_1px_rgba(255,255,255,0.4)] text-[#4a350c] border border-[#c5943d]/50';
+
+                                                                    const moTimeMins = (() => {
+                                                                        let cap = machine.capacityKgPerHour || 0;
+                                                                        const quote = quotes.find(q => q.os === mo.orderCode);
+                                                                        const group = quote?.items?.find((g: any) => cleanGaugeString(g.bitola) === cleanGaugeString(mo.gauge));
+                                                                        const ferro = group?.ferros?.[0];
+
+                                                                        if (ferro && machine.capabilities) {
+                                                                            const typeStr = (ferro.nomeElemento || ferro.tipo || ferro.drawingType || '').toUpperCase();
+                                                                            let formatCat = 'reto';
+                                                                            if (typeStr.includes('ESTRIBO')) formatCat = 'estribo';
+                                                                            else if (typeStr.includes('CORTE') || typeStr.includes('DOBRA') || typeStr.includes('GANCHO') || ferro.ladoB) formatCat = 'corteDobra';
+
+                                                                            if (formatCat === 'estribo' && machine.capabilities.estribo?.enabled && machine.capabilities.estribo.calculatedMetersPerHour) {
+                                                                                const mph = machine.capabilities.estribo.calculatedMetersPerHour;
+                                                                                if (mph > 0) return (Number(meters) / mph) * 60;
+                                                                            }
+                                                                            if (formatCat === 'reto' && machine.capabilities.reto?.enabled) cap = machine.capabilities.reto.capacityKgPerHour || cap;
+                                                                            if (formatCat === 'corteDobra' && machine.capabilities.corteDobra?.enabled) cap = machine.capabilities.corteDobra.capacityKgPerHour || cap;
+                                                                        }
+                                                                        
+                                                                        if (!cap) return null;
+                                                                        return (Number(mo.weight || 0) / cap) * 60;
+                                                                    })();
 
                                                                     return (
                                                                         <div key={mo.id} className={`rounded-xl p-2.5 flex flex-col relative overflow-hidden group hover:-translate-y-0.5 hover:shadow-md transition-all ${gradientClass}`}>
@@ -626,6 +713,12 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                                                     </div>
                                                                                 </div>
                                                                             </div>
+                                                                            {moTimeMins !== null && (
+                                                                                <div className="flex justify-between items-center mt-1 pt-1 border-t border-black/5 text-[9px] font-bold">
+                                                                                    <span className="opacity-70">⚖️ {Number(mo.weight || 0).toFixed(1)}kg</span>
+                                                                                    <span className="opacity-80 bg-black/5 px-1.5 py-0.5 rounded">⏱️ ~{Math.ceil(moTimeMins)} min</span>
+                                                                                </div>
+                                                                            )}
                                                                         </div>
                                                                     );
                                                                 })}
@@ -846,35 +939,109 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                             <span className="text-[10px] text-slate-400 uppercase font-bold">Peso Total</span>
                                                             <span className="text-slate-800">{Number(g.totalWeight || 0).toFixed(2)} <span className="text-xs">kg</span></span>
                                                         </div>
-                                                        <div className="flex flex-col col-span-2">
-                                                            <span className="text-[10px] text-slate-400 uppercase font-bold">Quantidade de Metros</span>
-                                                            <span className="text-slate-800">{Number(g.totalMeters || 0).toFixed(2)} <span className="text-xs">m</span></span>
-                                                        </div>
+                                                                    <div className="flex flex-col">
+                                                                        <span className="text-[10px] text-slate-400 uppercase font-bold">Quantidade de Metros</span>
+                                                                        <span className="text-slate-800">{Number(g.totalMeters || 0).toFixed(2)} <span className="text-xs">m</span></span>
+                                                                    </div>
+                                                                    {relatedOrders.length > 0 && (
+                                                                        <div className="flex flex-col">
+                                                                            <span className="text-[10px] text-slate-400 uppercase font-bold">Tempo Programado</span>
+                                                                            <span className="text-slate-800">
+                                                                                ~{Math.ceil(relatedOrders.reduce((acc, ro) => {
+                                                                                    const machineForRo = activeMachines.find(m => m.name === ro.machineId);
+                                                                                    let roTimeMins = 0;
+                                                                                    if (machineForRo) {
+                                                                                        let cap = machineForRo.capacityKgPerHour || 0;
+                                                                                        const quote = quotes.find(q => q.os === ro.orderCode);
+                                                                                        const group = quote?.items?.find((g: any) => cleanGaugeString(g.bitola) === cleanGaugeString(ro.gauge));
+                                                                                        const ferro = group?.ferros?.[0];
+                                                                                        
+                                                                                        if (ferro && machineForRo.capabilities) {
+                                                                                            const typeStr = (ferro.nomeElemento || ferro.tipo || ferro.drawingType || '').toUpperCase();
+                                                                                            let formatCat = 'reto';
+                                                                                            if (typeStr.includes('ESTRIBO')) formatCat = 'estribo';
+                                                                                            else if (typeStr.includes('CORTE') || typeStr.includes('DOBRA') || typeStr.includes('GANCHO') || ferro.ladoB) formatCat = 'corteDobra';
+                                                                                            
+                                                                                            if (formatCat === 'estribo' && machineForRo.capabilities.estribo?.enabled && machineForRo.capabilities.estribo.calculatedMetersPerHour) {
+                                                                                                const mph = machineForRo.capabilities.estribo.calculatedMetersPerHour;
+                                                                                                const parsedNotes = (() => { try { return ro.notes ? JSON.parse(ro.notes) : {} } catch { return {} } })();
+                                                                                                const mtrs = Number(parsedNotes.totalMetros || 0);
+                                                                                                if (mph > 0) return acc + ((mtrs / mph) * 60);
+                                                                                            }
+                                                                                            if (formatCat === 'reto' && machineForRo.capabilities.reto?.enabled) cap = machineForRo.capabilities.reto.capacityKgPerHour || cap;
+                                                                                            if (formatCat === 'corteDobra' && machineForRo.capabilities.corteDobra?.enabled) cap = machineForRo.capabilities.corteDobra.capacityKgPerHour || cap;
+                                                                                        }
+                                                                                        
+                                                                                        if (cap > 0) roTimeMins = (Number(ro.weight || 0) / cap) * 60;
+                                                                                    }
+                                                                                    return acc + roTimeMins;
+                                                                                }, 0))} <span className="text-xs">min</span>
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
                                                     </div>
                                                 </div>
 
                                                 <div className="mt-2">
                                                     {isFullyScheduled ? (
                                                         <div className="bg-white rounded-lg p-2 border border-green-100 flex flex-col gap-2">
-                                                            {relatedOrders.map(ro => (
-                                                                <div key={ro.id} className="flex justify-between items-center bg-green-50 px-2 py-1.5 rounded border border-green-100">
-                                                                    <div className="flex flex-col">
-                                                                        <span className="text-[10px] text-green-800 font-bold">🗓️ {formatDateBr(ro.startDate)}</span>
-                                                                        <span className="text-[10px] text-green-600">🤖 {ro.machineId}</span>
-                                                                    </div>
-                                                                    <button 
-                                                                        onClick={() => {
-                                                                            if (window.confirm('Deseja remover este agendamento? A OP pode voltar para "Pendentes".')) {
-                                                                                handleUnscheduleOrder(ro.id);
+                                                            {relatedOrders.map(ro => {
+                                                                const machineForRo = activeMachines.find(m => m.name === ro.machineId);
+                                                                let roTimeMins = null;
+                                                                
+                                                                if (machineForRo) {
+                                                                    let cap = machineForRo.capacityKgPerHour || 0;
+                                                                    const quote = quotes.find(q => q.os === ro.orderCode);
+                                                                    const group = quote?.items?.find((g: any) => cleanGaugeString(g.bitola) === cleanGaugeString(ro.gauge));
+                                                                    const ferro = group?.ferros?.[0];
+                                                                    
+                                                                    if (ferro && machineForRo.capabilities) {
+                                                                        const typeStr = (ferro.nomeElemento || ferro.tipo || ferro.drawingType || '').toUpperCase();
+                                                                        let formatCat = 'reto';
+                                                                        if (typeStr.includes('ESTRIBO')) formatCat = 'estribo';
+                                                                        else if (typeStr.includes('CORTE') || typeStr.includes('DOBRA') || typeStr.includes('GANCHO') || ferro.ladoB) formatCat = 'corteDobra';
+
+                                                                        if (formatCat === 'estribo' && machineForRo.capabilities.estribo?.enabled && machineForRo.capabilities.estribo.calculatedMetersPerHour) {
+                                                                            const mph = machineForRo.capabilities.estribo.calculatedMetersPerHour;
+                                                                            const parsedNotes = (() => { try { return ro.notes ? JSON.parse(ro.notes) : {} } catch { return {} } })();
+                                                                            const mtrs = Number(parsedNotes.totalMetros || 0);
+                                                                            if (mph > 0) {
+                                                                                roTimeMins = (mtrs / mph) * 60;
+                                                                                cap = 0;
                                                                             }
-                                                                        }}
-                                                                        className="text-red-400 hover:text-red-600 p-1 bg-white rounded shadow-sm hover:shadow transition-all"
-                                                                        title="Remover Agendamento"
-                                                                    >
-                                                                        🗑️
-                                                                    </button>
-                                                                </div>
-                                                            ))}
+                                                                        }
+                                                                        if (cap > 0 && formatCat === 'reto' && machineForRo.capabilities.reto?.enabled) cap = machineForRo.capabilities.reto.capacityKgPerHour || cap;
+                                                                        if (cap > 0 && formatCat === 'corteDobra' && machineForRo.capabilities.corteDobra?.enabled) cap = machineForRo.capabilities.corteDobra.capacityKgPerHour || cap;
+                                                                    }
+                                                                    
+                                                                    if (cap > 0 && !roTimeMins) roTimeMins = (Number(ro.weight || 0) / cap) * 60;
+                                                                }
+
+                                                                return (
+                                                                    <div key={ro.id} className="flex justify-between items-center bg-green-50 px-2 py-1.5 rounded border border-green-100">
+                                                                        <div className="flex flex-col gap-0.5">
+                                                                            <span className="text-[10px] text-green-800 font-bold">🗓️ {formatDateBr(ro.startDate)}</span>
+                                                                            <span className="text-[10px] text-green-700">🤖 {ro.machineId}</span>
+                                                                            {roTimeMins !== null && (
+                                                                                <span className="text-[9px] text-green-600 bg-green-100/50 px-1 py-0.5 rounded self-start mt-0.5 font-semibold shadow-sm border border-green-200/50">
+                                                                                    ⏱️ ~{Math.ceil(roTimeMins)} min
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        <button 
+                                                                            onClick={() => {
+                                                                                if (window.confirm('Deseja remover este agendamento? A OP pode voltar para "Pendentes".')) {
+                                                                                    handleUnscheduleOrder(ro.id);
+                                                                                }
+                                                                            }}
+                                                                            className="text-red-400 hover:text-red-600 p-1 bg-white rounded shadow-sm hover:shadow transition-all"
+                                                                            title="Remover Agendamento"
+                                                                        >
+                                                                            🗑️
+                                                                        </button>
+                                                                    </div>
+                                                                );
+                                                            })}
                                                         </div>
                                                     ) : (
                                                         <button 
@@ -929,6 +1096,7 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                                     <th className="p-3 font-bold text-center border-r border-slate-300 w-32 uppercase">Comp. (cm)</th>
                                                                     <th className="p-3 font-bold text-center border-r border-slate-300 w-32 uppercase">Total (m)</th>
                                                                     <th className="p-3 font-bold text-center border-r border-slate-300 w-32 uppercase">Peso (kg)</th>
+                                                                    <th className="p-3 font-bold text-center border-r border-slate-300 w-32 uppercase">Tempo (min)</th>
                                                                     <th className="p-3 font-bold text-center w-40 uppercase">Desenho</th>
                                                                 </tr>
                                                             </thead>
@@ -966,6 +1134,39 @@ const MachineSchedule: React.FC<MachineScheduleProps> = ({
                                                                             </td>
                                                                             <td className="p-3 text-center border-r border-slate-300 font-bold text-slate-700">
                                                                                 {weightKg ? `${weightKg.toFixed(2)} kg` : '-'}
+                                                                            </td>
+                                                                            <td className="p-3 text-center border-r border-slate-300 font-bold text-slate-700">
+                                                                                {(() => {
+                                                                                    if (!weightKg) return '-';
+                                                                                    const machineId = selectedQuoteForDetails?.machineOrdersInfo?.[0]?.machineId;
+                                                                                    const machine = activeMachines.find(m => m.name === machineId);
+                                                                                    if (!machine) return '-';
+                                                                                    
+                                                                                    const typeStr = (ferro.nomeElemento || ferro.tipo || ferro.drawingType || '').toUpperCase();
+                                                                                    let formatCat = 'reto';
+                                                                                    if (typeStr.includes('ESTRIBO')) formatCat = 'estribo';
+                                                                                    else if (typeStr.includes('CORTE') || typeStr.includes('DOBRA') || typeStr.includes('GANCHO') || ferro.ladoB) formatCat = 'corteDobra';
+
+                                                                                    let cap = machine.capacityKgPerHour || 0;
+                                                                                    if (machine.capabilities) {
+                                                                                        if (formatCat === 'estribo' && machine.capabilities.estribo?.enabled && machine.capabilities.estribo.calculatedMetersPerHour) {
+                                                                                            // Usar fórmula exata baseada em metros/hora ao invés de Kg genérico!
+                                                                                            const compCm = getFerroTotalLengthCm(ferro, ferro.productInfo?.description || '');
+                                                                                            const totalMeters = (compCm / 100) * (ferro.quantidade || 0);
+                                                                                            const mph = machine.capabilities.estribo.calculatedMetersPerHour;
+                                                                                            if (mph > 0) {
+                                                                                                const mins = (totalMeters / mph) * 60;
+                                                                                                return `${Math.ceil(mins)} min`;
+                                                                                            }
+                                                                                        }
+                                                                                        if (formatCat === 'reto' && machine.capabilities.reto?.enabled) cap = machine.capabilities.reto.capacityKgPerHour || cap;
+                                                                                        if (formatCat === 'corteDobra' && machine.capabilities.corteDobra?.enabled) cap = machine.capabilities.corteDobra.capacityKgPerHour || cap;
+                                                                                    }
+                                                                                    
+                                                                                    if (!cap) return '-';
+                                                                                    const mins = (weightKg / cap) * 60;
+                                                                                    return `${Math.ceil(mins)} min`;
+                                                                                })()}
                                                                             </td>
                                                                             <td className="p-2 text-center align-middle">
                                                                                 <div className="flex justify-center items-center h-full w-full">

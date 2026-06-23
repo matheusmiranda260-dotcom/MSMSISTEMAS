@@ -891,8 +891,37 @@ export interface ShiftStaff {
     quantity: number;
 }
 
+export interface MachineCapabilities {
+    estribo?: {
+        enabled: boolean;
+        benchmarkPiecesPerHour?: number;
+        benchmarkWires?: number;
+        benchmarkLinearCm?: number;
+        calculatedMetersPerHour?: number;
+        maxSideA_cm?: number;
+        maxSideB_cm?: number;
+        maxSideC_cm?: number;
+        maxSideD_cm?: number;
+        capacityKgPerHour?: number;
+    };
+    reto?: {
+        enabled: boolean;
+        maxLength_m?: number;
+        maxBarsAtOnce?: number;
+        capacityKgPerHour?: number;
+    };
+    corteDobra?: {
+        enabled: boolean;
+        maxBends?: number;
+        maxSumSides_cm?: number;
+        maxBaseForMultipleBends_cm?: number;
+        capacityKgPerHour?: number;
+    };
+}
+
 export interface MachineConfig {
     name: string;
+    imageUrl?: string;
     capacityKgPerHour: number;
     gaugeRange: string;
     speedMetersPerSecond?: number;
@@ -908,6 +937,7 @@ export interface MachineConfig {
     lunchEnd?: string;
     shift1Staff?: ShiftStaff[];
     shift2Staff?: ShiftStaff[];
+    capabilities?: MachineCapabilities;
 }
 
 export interface ArmadoEmployee {

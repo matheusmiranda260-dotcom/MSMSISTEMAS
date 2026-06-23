@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { Partner, MachineConfig, ArmadoTeam, ArmadoEmployee } from '../types';
+import type { Partner, MachineConfig, ArmadoTeam, ArmadoEmployee, MachineCapabilities } from '../types';
 import { uploadFile } from '../services/supabaseService';
 
 interface PartnerConfigProps {
@@ -81,6 +81,7 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
     const [showMachineForm, setShowMachineForm] = useState(false);
     const [editingMachineIdx, setEditingMachineIdx] = useState<number | null>(null);
     const [machineName, setMachineName] = useState('');
+    const [machineImageUrl, setMachineImageUrl] = useState('');
     const [machineCapacity, setMachineCapacity] = useState('');
     const [machineGauge, setMachineGauge] = useState('');
     const [machineSpeed, setMachineSpeed] = useState('');
@@ -96,6 +97,11 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
     const [machineLunchEnd, setMachineLunchEnd] = useState('');
     const [machineShift1Staff, setMachineShift1Staff] = useState<{ function: string; quantity: number }[]>([]);
     const [machineShift2Staff, setMachineShift2Staff] = useState<{ function: string; quantity: number }[]>([]);
+    const [machineCapabilities, setMachineCapabilities] = useState<MachineCapabilities>({
+        estribo: { enabled: false },
+        reto: { enabled: false },
+        corteDobra: { enabled: false }
+    });
     const [newStaffFunction, setNewStaffFunction] = useState('');
     const [newStaffQuantity, setNewStaffQuantity] = useState('');
     const [staffForShift, setStaffForShift] = useState<1 | 2>(1);
@@ -142,6 +148,7 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
         setShowMachineForm(false);
         setEditingMachineIdx(null);
         setMachineName('');
+        setMachineImageUrl('');
         setMachineCapacity('');
         setMachineGauge('');
         setMachineSpeed('');
@@ -157,6 +164,11 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
         setMachineLunchEnd('');
         setMachineShift1Staff([]);
         setMachineShift2Staff([]);
+        setMachineCapabilities({
+            estribo: { enabled: false },
+            reto: { enabled: false },
+            corteDobra: { enabled: false }
+        });
         setNewStaffFunction('');
         setNewStaffQuantity('');
     };
@@ -195,6 +207,25 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
         resetArmadoTeamForm();
     };
 
+    const handleMachineImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setIsUploading(true);
+        try {
+            const path = `machine-images/${Date.now()}-${file.name}`;
+            const url = await uploadFile('kb-files', path, file);
+            if (url) {
+                setMachineImageUrl(url);
+                showNotification('Imagem da máquina carregada com sucesso!', 'success');
+            }
+        } catch (err) {
+            console.error('Error uploading machine image:', err);
+            showNotification('Erro ao carregar imagem da máquina.', 'error');
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
     const handleSaveMachine = () => {
         if (!machineName.trim()) {
             showNotification('Nome da máquina é obrigatório.', 'error');
@@ -207,6 +238,7 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
 
         const machine: MachineConfig = {
             name: machineName.trim(),
+            imageUrl: machineImageUrl.trim() || undefined,
             capacityKgPerHour: parseFloat(machineCapacity),
             gaugeRange: machineGauge.trim(),
             speedMetersPerSecond: machineSpeed ? parseFloat(machineSpeed) : undefined,
@@ -222,6 +254,7 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
             lunchEnd: machineShiftType !== 'continuo' && machineHasLunch ? machineLunchEnd : undefined,
             shift1Staff: machineShiftType !== 'continuo' && machineShift1Staff.length > 0 ? machineShift1Staff : undefined,
             shift2Staff: machineShiftType === '2turnos' && machineShift2Staff.length > 0 ? machineShift2Staff : undefined,
+            capabilities: machineCapabilities,
         };
 
         if (editingMachineIdx !== null) {
@@ -662,6 +695,7 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
                                                             onClick={() => {
                                                                 setEditingMachineIdx(idx);
                                                                 setMachineName(m.name);
+                                                                setMachineImageUrl(m.imageUrl || '');
                                                                 setMachineCapacity(String(m.capacityKgPerHour));
                                                                 setMachineGauge(m.gaugeRange);
                                                                 setMachineSpeed(m.speedMetersPerSecond ? String(m.speedMetersPerSecond) : '');
@@ -677,6 +711,7 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
                                                                 setMachineLunchEnd(m.lunchEnd || '');
                                                                 setMachineShift1Staff(m.shift1Staff || []);
                                                                 setMachineShift2Staff(m.shift2Staff || []);
+                                                                setMachineCapabilities(m.capabilities || { estribo: { enabled: false }, reto: { enabled: false }, corteDobra: { enabled: false } });
                                                                 setShowMachineForm(true);
                                                             }}
                                                             className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-lg transition-colors text-xs border border-blue-200"
@@ -709,6 +744,31 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
                                         <h4 className="text-xs font-black text-slate-600 uppercase tracking-wider">
                                             {editingMachineIdx !== null ? 'Editar Máquina' : 'Nova Máquina'}
                                         </h4>
+                                        
+                                        {/* Machine Image Upload */}
+                                        <div className="flex items-center gap-4 mb-4">
+                                            <div className="w-20 h-20 bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden flex-shrink-0 relative">
+                                                {machineImageUrl ? (
+                                                    <img src={machineImageUrl} alt="Máquina" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <svg className="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                )}
+                                            </div>
+                                            <div className="flex-1">
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Foto da Máquina (Opcional)</label>
+                                                <div className="flex items-center gap-2">
+                                                    <label className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                                                        {isUploading ? 'Enviando...' : 'Escolher Imagem'}
+                                                        <input type="file" className="hidden" accept="image/*" onChange={handleMachineImageUpload} disabled={isUploading} />
+                                                    </label>
+                                                    {machineImageUrl && (
+                                                        <button type="button" onClick={() => setMachineImageUrl('')} className="text-xs text-red-500 hover:text-red-700 font-bold transition-colors">Remover</button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                             <div>
                                                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Nome da Máquina *</label>
@@ -741,6 +801,137 @@ const PartnerConfig: React.FC<PartnerConfigProps> = ({
                                                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Trabalha com Quantos Ferros</label>
                                                 <input type="number" min="1" value={machineMaxBars} onChange={e => setMachineMaxBars(e.target.value)}
                                                     placeholder="Ex: 2" className="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                                            </div>
+                                        </div>
+
+                                        {/* Regras de Produção Avançadas */}
+                                        <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 mt-4">
+                                            <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-4">Avançado: Regras de Produção</h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                {/* Estribos */}
+                                                <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                                                    <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
+                                                        <input type="checkbox" checked={machineCapabilities.estribo?.enabled} 
+                                                            onChange={e => setMachineCapabilities({ ...machineCapabilities, estribo: { ...machineCapabilities.estribo, enabled: e.target.checked } })} />
+                                                        <span className="font-bold text-sm text-slate-700 uppercase">Estribos</span>
+                                                    </div>
+                                                    {machineCapabilities.estribo?.enabled && (
+                                                        <div className="space-y-3">
+                                                            <div className="grid grid-cols-3 gap-2">
+                                                                <div>
+                                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Peças/Hora</label>
+                                                                    <input type="number" className="w-full p-1.5 border rounded text-xs" placeholder="Ex: 1000"
+                                                                        value={machineCapabilities.estribo?.benchmarkPiecesPerHour || ''} 
+                                                                        onChange={e => {
+                                                                            const val = e.target.value ? Number(e.target.value) : undefined;
+                                                                            const wires = machineCapabilities.estribo?.benchmarkWires || 1;
+                                                                            const linear = machineCapabilities.estribo?.benchmarkLinearCm || 0;
+                                                                            const mph = val && linear ? (val * linear / 100) * wires : undefined;
+                                                                            setMachineCapabilities({ ...machineCapabilities, estribo: { ...machineCapabilities.estribo, benchmarkPiecesPerHour: val, calculatedMetersPerHour: mph } });
+                                                                        }} />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Nº Fios</label>
+                                                                    <input type="number" min="1" className="w-full p-1.5 border rounded text-xs" placeholder="Ex: 1"
+                                                                        value={machineCapabilities.estribo?.benchmarkWires || ''} 
+                                                                        onChange={e => {
+                                                                            const val = e.target.value ? Number(e.target.value) : undefined;
+                                                                            const pcs = machineCapabilities.estribo?.benchmarkPiecesPerHour || 0;
+                                                                            const linear = machineCapabilities.estribo?.benchmarkLinearCm || 0;
+                                                                            const mph = pcs && linear && val ? (pcs * linear / 100) * val : undefined;
+                                                                            setMachineCapabilities({ ...machineCapabilities, estribo: { ...machineCapabilities.estribo, benchmarkWires: val, calculatedMetersPerHour: mph } });
+                                                                        }} />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Base (cm)</label>
+                                                                    <input type="number" className="w-full p-1.5 border rounded text-xs" placeholder="Ex: 58"
+                                                                        value={machineCapabilities.estribo?.benchmarkLinearCm || ''} 
+                                                                        onChange={e => {
+                                                                            const val = e.target.value ? Number(e.target.value) : undefined;
+                                                                            const pcs = machineCapabilities.estribo?.benchmarkPiecesPerHour || 0;
+                                                                            const wires = machineCapabilities.estribo?.benchmarkWires || 1;
+                                                                            const mph = pcs && val ? (pcs * val / 100) * wires : undefined;
+                                                                            setMachineCapabilities({ ...machineCapabilities, estribo: { ...machineCapabilities.estribo, benchmarkLinearCm: val, calculatedMetersPerHour: mph } });
+                                                                        }} />
+                                                                </div>
+                                                            </div>
+                                                            {machineCapabilities.estribo?.calculatedMetersPerHour && (
+                                                                <div className="bg-blue-50 border border-blue-100 rounded-md p-2 flex items-center justify-between text-xs">
+                                                                    <span className="text-blue-600 font-bold uppercase tracking-wider text-[10px]">Veloc. Calc:</span>
+                                                                    <span className="text-blue-800 font-black text-right">
+                                                                        {Math.round(machineCapabilities.estribo.calculatedMetersPerHour)} m/h <br/>
+                                                                        <span className="text-[10px] text-blue-600/80">~{((machineCapabilities.estribo.calculatedMetersPerHour * 100) / 3600).toFixed(1)} cm/s</span>
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                                                                <div>
+                                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase">A Máx (cm)</label>
+                                                                    <input type="number" className="w-full p-1.5 border rounded text-xs" value={machineCapabilities.estribo?.maxSideA_cm || ''} onChange={e => setMachineCapabilities({ ...machineCapabilities, estribo: { ...machineCapabilities.estribo, maxSideA_cm: e.target.value ? Number(e.target.value) : undefined } })} />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase">B Máx (cm)</label>
+                                                                    <input type="number" className="w-full p-1.5 border rounded text-xs" value={machineCapabilities.estribo?.maxSideB_cm || ''} onChange={e => setMachineCapabilities({ ...machineCapabilities, estribo: { ...machineCapabilities.estribo, maxSideB_cm: e.target.value ? Number(e.target.value) : undefined } })} />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Retos */}
+                                                <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                                                    <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
+                                                        <input type="checkbox" checked={machineCapabilities.reto?.enabled} 
+                                                            onChange={e => setMachineCapabilities({ ...machineCapabilities, reto: { ...machineCapabilities.reto, enabled: e.target.checked } })} />
+                                                        <span className="font-bold text-sm text-slate-700 uppercase">Retos</span>
+                                                    </div>
+                                                    {machineCapabilities.reto?.enabled && (
+                                                        <div className="space-y-2">
+                                                            <div>
+                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase">Capacidade Específica (kg/h)</label>
+                                                                <input type="number" className="w-full p-1.5 border rounded text-xs" placeholder="Ex: 800"
+                                                                    value={machineCapabilities.reto?.capacityKgPerHour || ''} onChange={e => setMachineCapabilities({ ...machineCapabilities, reto: { ...machineCapabilities.reto, capacityKgPerHour: e.target.value ? Number(e.target.value) : undefined } })} />
+                                                            </div>
+                                                            <div>
+                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase">Comp. Máx (m)</label>
+                                                                <input type="number" className="w-full p-1.5 border rounded text-xs" value={machineCapabilities.reto?.maxLength_m || ''} onChange={e => setMachineCapabilities({ ...machineCapabilities, reto: { ...machineCapabilities.reto, maxLength_m: e.target.value ? Number(e.target.value) : undefined } })} />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Dobras */}
+                                                <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                                                    <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
+                                                        <input type="checkbox" checked={machineCapabilities.corteDobra?.enabled} 
+                                                            onChange={e => setMachineCapabilities({ ...machineCapabilities, corteDobra: { ...machineCapabilities.corteDobra, enabled: e.target.checked } })} />
+                                                        <span className="font-bold text-sm text-slate-700 uppercase">Corte e Dobra</span>
+                                                    </div>
+                                                    {machineCapabilities.corteDobra?.enabled && (
+                                                        <div className="space-y-2">
+                                                            <div>
+                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase">Capacidade Específica (kg/h)</label>
+                                                                <input type="number" className="w-full p-1.5 border rounded text-xs" placeholder="Ex: 500"
+                                                                    value={machineCapabilities.corteDobra?.capacityKgPerHour || ''} onChange={e => setMachineCapabilities({ ...machineCapabilities, corteDobra: { ...machineCapabilities.corteDobra, capacityKgPerHour: e.target.value ? Number(e.target.value) : undefined } })} />
+                                                            </div>
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                                <div>
+                                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Máx Dobras</label>
+                                                                    <input type="number" className="w-full p-1.5 border rounded text-xs" placeholder="Ex: 2" value={machineCapabilities.corteDobra?.maxBends || ''} onChange={e => setMachineCapabilities({ ...machineCapabilities, corteDobra: { ...machineCapabilities.corteDobra, maxBends: e.target.value ? Number(e.target.value) : undefined } })} />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Soma (cm)</label>
+                                                                    <input type="number" className="w-full p-1.5 border rounded text-xs" placeholder="A+B+C" value={machineCapabilities.corteDobra?.maxSumSides_cm || ''} onChange={e => setMachineCapabilities({ ...machineCapabilities, corteDobra: { ...machineCapabilities.corteDobra, maxSumSides_cm: e.target.value ? Number(e.target.value) : undefined } })} />
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase">Máx. Base c/ Múltiplas Dobras (cm)</label>
+                                                                <input type="number" className="w-full p-1.5 border rounded text-xs" placeholder="Ex: 200" value={machineCapabilities.corteDobra?.maxBaseForMultipleBends_cm || ''} onChange={e => setMachineCapabilities({ ...machineCapabilities, corteDobra: { ...machineCapabilities.corteDobra, maxBaseForMultipleBends_cm: e.target.value ? Number(e.target.value) : undefined } })} />
+                                                                <p className="text-[9px] text-slate-400 mt-0.5 leading-tight">Se a base (Lado A) for maior que isso num desenho com 2 ou mais dobras, ela será incompatível.</p>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
 
