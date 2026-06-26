@@ -53,13 +53,17 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
     };
 
     React.useEffect(() => {
-        if (['stock', 'stockAdd', 'stockTransfer', 'pointingSystem'].includes(page)) {
+        if (['stock', 'stockAdd', 'stockTransfer'].includes(page)) {
             setExpandedMenus(prev => prev.includes('stock') ? prev : [...prev, 'stock']);
+        } else if (['pointingSystem'].includes(page)) {
+            setExpandedMenus(prev => prev.includes('pointing') ? prev : [...prev, 'pointing']);
+        } else if (['customersManagement', 'customerRegistration'].includes(page)) {
+            setExpandedMenus(prev => prev.includes('customers') ? prev : [...prev, 'customers']);
         } else if (['desbobinadeiraDashboard', 'desbobinadeiraInProgress', 'desbobinadeiraPending', 'desbobinadeiraCompleted', 'desbobinadeiraReports'].includes(page)) {
             setExpandedMenus(prev => prev.includes('desbobinadeira') ? prev : [...prev, 'desbobinadeira']);
         } else if (['programarMaquinas'].includes(page)) {
-            setExpandedMenus(prev => prev.includes('programarMaquinas') ? prev : [...prev, 'programarMaquinas']);
-            setIsCollapsed(true);
+            setExpandedMenus(prev => prev.includes('machines') ? prev : [...prev, 'machines']);
+            if (isCollapsed) setIsCollapsed(false);
         } else if (['peopleManagement', 'continuousImprovement'].includes(page)) {
             setExpandedMenus(prev => prev.includes('people') ? prev : [...prev, 'people']);
         }
@@ -173,9 +177,101 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
             </div>
 
             <div className="sidebar-content">
+                {/* PEDIDOS E ORÇAMENTO */}
+                <div className="sidebar-category">
+                    <div className="sidebar-category-title">{isCollapsed ? '📝' : '📝 Pedidos e Orçamento'}</div>
+
+                    <button
+                        onClick={() => toggleMenu('customers')}
+                        className={`sidebar-item ${['customersManagement', 'customerRegistration'].includes(page) ? 'active' : ''} justify-between group`}
+                        title={isCollapsed ? 'Clientes' : ''}
+                    >
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="sidebar-item-icon shrink-0">
+                                <UserGroupIcon className="w-full h-full" />
+                            </div>
+                            {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap">Clientes</span>}
+                        </div>
+                        {!isCollapsed && (
+                            <ChevronRightIcon className={`w-3 h-3 text-slate-500 transition-transform duration-200 ${expandedMenus.includes('customers') ? 'rotate-90' : ''}`} />
+                        )}
+                    </button>
+
+                    {!isCollapsed && expandedMenus.includes('customers') && (
+                        <div className="ml-4 pl-4 border-l border-slate-700/50 flex flex-col gap-0.5 mt-1 mb-2 animate-in slide-in-from-left-2 duration-200">
+                            <button onClick={() => setPage('customerRegistration')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'customerRegistration' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                ✨ Novo Cadastro
+                            </button>
+                            <button onClick={() => setPage('customersManagement')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'customersManagement' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                👥 Gestão de Clientes
+                            </button>
+                        </div>
+                    )}
+                </div>
+
                 {/* ESTOQUE */}
                 <div className="sidebar-category">
                     <div className="sidebar-category-title">{isCollapsed ? '📦' : '📦 Estoque'}</div>
+
+                    {hasPermission('pointingSystem') && (
+                        <>
+                            {/* Collapsible Sistema de Apontamento */}
+                            <button
+                                onClick={() => toggleMenu('pointing')}
+                                className={`sidebar-item ${['pointingSystem'].includes(page) ? 'active' : ''} justify-between group`}
+                                title={isCollapsed ? 'Sistema Apontamento' : ''}
+                            >
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    <div className="sidebar-item-icon shrink-0">
+                                        <ClipboardListIcon className="w-full h-full" />
+                                    </div>
+                                    {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap">Sistema Apontamento</span>}
+                                </div>
+                                {!isCollapsed && (
+                                    <ChevronRightIcon className={`w-3 h-3 text-slate-500 transition-transform duration-200 ${expandedMenus.includes('pointing') ? 'rotate-90' : ''}`} />
+                                )}
+                            </button>
+
+                            {/* Submenu */}
+                            {!isCollapsed && expandedMenus.includes('pointing') && (
+                                <div className="ml-4 pl-4 border-l border-slate-700/50 flex flex-col gap-0.5 mt-1 mb-2 animate-in slide-in-from-left-2 duration-200">
+                                    <button onClick={() => setPage('pointingSystem')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'pointingSystem' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                        📋 Apontamentos
+                                    </button>
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {hasPermission('programarMaquinas') && (
+                        <>
+                            {/* Collapsible Máquinas */}
+                            <button
+                                onClick={() => toggleMenu('machines')}
+                                className={`sidebar-item ${['programarMaquinas'].includes(page) ? 'active' : ''} justify-between group`}
+                                title={isCollapsed ? 'Máquinas' : ''}
+                            >
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    <div className="sidebar-item-icon shrink-0">
+                                        <CogIcon className="w-full h-full" />
+                                    </div>
+                                    {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap">Máquinas</span>}
+                                </div>
+                                {!isCollapsed && (
+                                    <ChevronRightIcon className={`w-3 h-3 text-slate-500 transition-transform duration-200 ${expandedMenus.includes('machines') ? 'rotate-90' : ''}`} />
+                                )}
+                            </button>
+
+                            {/* Submenu */}
+                            {!isCollapsed && expandedMenus.includes('machines') && (
+                                <div className="ml-4 pl-4 border-l border-slate-700/50 flex flex-col gap-0.5 mt-1 mb-2 animate-in slide-in-from-left-2 duration-200">
+                                    <button onClick={() => setPage('programarMaquinas')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'programarMaquinas' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                        📅 Programar Máquinas
+                                    </button>
+                                </div>
+                            )}
+                        </>
+                    )}
 
                     {hasPermission('stock') && (
                         <>
@@ -199,16 +295,6 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                             {/* Submenu */}
                             {!isCollapsed && expandedMenus.includes('stock') && (
                                 <div className="ml-4 pl-4 border-l border-slate-700/50 flex flex-col gap-0.5 mt-1 mb-2 animate-in slide-in-from-left-2 duration-200">
-                                    {hasPermission('pointingSystem') && (
-                                        <button onClick={() => setPage('pointingSystem')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'pointingSystem' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
-                                            📋 Sistema Apontamento
-                                        </button>
-                                    )}
-                                    {hasPermission('programarMaquinas') && (
-                                        <button onClick={() => setPage('programarMaquinas')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'programarMaquinas' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
-                                            📅 Programar Máquinas
-                                        </button>
-                                    )}
                                     {hasPermission('stockAdd') && (
                                         <button onClick={() => setPage('stockAdd')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'stockAdd' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
                                             + Conferência

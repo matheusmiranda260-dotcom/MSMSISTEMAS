@@ -954,3 +954,16 @@ tr:hover td {
   animation: pulse-red 1.5s infinite ease-in-out;
 }
 @media print { .print-hidden { display: none !important; } .print-content { overflow: visible !important; height: auto !important; } }
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fix for autofill in dark themed inputs */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #0D3B54 inset !important;
+    -webkit-text-fill-color: white !important;
+    background-color: transparent !important;
+}

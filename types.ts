@@ -1,6 +1,6 @@
 // types.ts
 
-export type Page = 'login' | 'menu' | 'stock' | 'stockAdd' | 'stockTransfer' | 'documents' | 'finishedGoods' | 'productionOrder' | 'productionDashboard' | 'meetingsTasks' | 'continuousImprovement' | 'peopleManagement' | 'reports' | 'userManagement' | 'gaugesManager' | 'partsManager' | 'workInstructions' | 'people' | 'finished_goods' | 'spare_parts' | 'quality' | 'instructions' | 'weighing' | 'meetings' | 'downtimeConfigs' | 'desbobinadeira' | 'desbobinadeiraDashboard' | 'desbobinadeiraInProgress' | 'desbobinadeiraPending' | 'desbobinadeiraCompleted' | 'desbobinadeiraReports' | 'productionOrderDesbobinadeira' | 'trefila' | 'trefilaInProgress' | 'trefilaPending' | 'trefilaCompleted' | 'trefilaReports' | 'trefilaParts' | 'trefilaWeighing' | 'trefilaRings' | 'trelica' | 'trelicaInProgress' | 'trelicaPending' | 'trelicaCompleted' | 'trelicaReports' | 'trelicaParts' | 'productionOrderTrelica' | 'labelConfig' | 'partnerConfig' | 'pointingSystem' | 'programarMaquinas' | 'blank';
+export type Page = 'login' | 'menu' | 'stock' | 'stockAdd' | 'stockTransfer' | 'documents' | 'finishedGoods' | 'productionOrder' | 'productionDashboard' | 'meetingsTasks' | 'continuousImprovement' | 'peopleManagement' | 'reports' | 'userManagement' | 'gaugesManager' | 'partsManager' | 'workInstructions' | 'people' | 'finished_goods' | 'spare_parts' | 'quality' | 'instructions' | 'weighing' | 'meetings' | 'downtimeConfigs' | 'desbobinadeira' | 'desbobinadeiraDashboard' | 'desbobinadeiraInProgress' | 'desbobinadeiraPending' | 'desbobinadeiraCompleted' | 'desbobinadeiraReports' | 'productionOrderDesbobinadeira' | 'trefila' | 'trefilaInProgress' | 'trefilaPending' | 'trefilaCompleted' | 'trefilaReports' | 'trefilaParts' | 'trefilaWeighing' | 'trefilaRings' | 'trelica' | 'trelicaInProgress' | 'trelicaPending' | 'trelicaCompleted' | 'trelicaReports' | 'trelicaParts' | 'productionOrderTrelica' | 'labelConfig' | 'partnerConfig' | 'pointingSystem' | 'programarMaquinas' | 'customersManagement' | 'customerRegistration' | 'blank';
 
 export interface DowntimeConfig {
     id: string;
@@ -18,6 +18,24 @@ export interface Document {
     createdAt?: string;
     author?: string;
     fileType?: string;
+}
+
+export interface Customer {
+    id: string;
+    customerType: 'Pessoa Física' | 'Pessoa Jurídica';
+    code: string;
+    name: string;
+    document1: string; // CPF ou CNPJ
+    document2?: string; // RG ou Inscrição Estadual
+    tradeName?: string; // Nome Fantasia (PJ)
+    birthDate?: string; // Data de nascimento
+    email?: string;
+    phone?: string;
+    addressMain?: string; // Residencial
+    addressDelivery?: string; // Entrega
+    addressBilling?: string; // Correspondente
+    additionalInfo?: string;
+    createdAt?: string;
 }
 
 export interface EmployeeDocument {
