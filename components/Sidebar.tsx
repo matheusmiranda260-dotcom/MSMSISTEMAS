@@ -57,7 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
             setExpandedMenus(prev => prev.includes('stock') ? prev : [...prev, 'stock']);
         } else if (['pointingSystem'].includes(page)) {
             setExpandedMenus(prev => prev.includes('pointing') ? prev : [...prev, 'pointing']);
-        } else if (['customersManagement', 'customerRegistration'].includes(page)) {
+        } else if (['customersManagement', 'customerRegistration', 'customerOrders'].includes(page)) {
             setExpandedMenus(prev => prev.includes('customers') ? prev : [...prev, 'customers']);
         } else if (['desbobinadeiraDashboard', 'desbobinadeiraInProgress', 'desbobinadeiraPending', 'desbobinadeiraCompleted', 'desbobinadeiraReports'].includes(page)) {
             setExpandedMenus(prev => prev.includes('desbobinadeira') ? prev : [...prev, 'desbobinadeira']);
@@ -183,7 +183,7 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
 
                     <button
                         onClick={() => toggleMenu('customers')}
-                        className={`sidebar-item ${['customersManagement', 'customerRegistration'].includes(page) ? 'active' : ''} justify-between group`}
+                        className={`sidebar-item ${['customersManagement', 'customerRegistration', 'customerOrders'].includes(page) ? 'active' : ''} justify-between group`}
                         title={isCollapsed ? 'Clientes' : ''}
                     >
                         <div className="flex items-center gap-3 overflow-hidden">
@@ -204,6 +204,9 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                             </button>
                             <button onClick={() => setPage('customersManagement')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'customersManagement' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
                                 👥 Gestão de Clientes
+                            </button>
+                            <button onClick={() => setPage('customerOrders')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'customerOrders' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                📝 Lançar Pedidos
                             </button>
                         </div>
                     )}

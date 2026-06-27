@@ -33,8 +33,9 @@ import DocumentManager from './components/DocumentManager';
 import DowntimeConfigManager from './components/DowntimeConfigManager';
 import CustomerRegistration from './components/CustomerRegistration';
 import CustomersManagement from './components/CustomersManagement';
+import { CustomerOrders } from './components/CustomerOrders';
 import { supabase } from './supabaseClient';
-import type { StockGauge, StickyNote, GaugeComponent } from './types';
+import type { StockGauge, StickyNote, GaugeComponent, CommercialOrder } from './types';
 
 import { fetchTable, insertItem, updateItem, deleteItem, deleteItemByColumn, updateItemByColumn, mapToCamelCase, fetchByColumn } from './services/supabaseService';
 import { useAllRealtimeSubscriptions } from './hooks/useSupabaseRealtime';
@@ -111,6 +112,7 @@ const App: React.FC = () => {
     const [downtimeConfigs, setDowntimeConfigs] = useState<DowntimeConfig[]>([]);
     const [partners, setPartners] = useState<Partner[]>([]);
     const [customers, setCustomers] = useState<Customer[]>([]);
+    const [commercialOrders, setCommercialOrders] = useState<CommercialOrder[]>([]);
 
     const activeBrandingPartner = useMemo(() => {
         return partners.find(p => p.isActiveBranding) || null;
@@ -178,7 +180,7 @@ const App: React.FC = () => {
                     fetchedUsers, fetchedEmployees, fetchedStock, fetchedConferences, fetchedTransfers,
                     fetchedOrders, fetchedFinishedGoods, fetchedPontas, fetchedFGTransfers,
                     fetchedParts, fetchedReports, fetchedProductionRecords, fetchedGauges, fetchedNotes, fetchedMeetings, fetchedCategories, fetchedDowntimeConfigs,
-                    fetchedAccessLogs, fetchedComponents, fetchedPartners, fetchedMachineOrders, fetchedCustomers
+                    fetchedAccessLogs, fetchedGaugeComponents, fetchedPartners, fetchedMachineOrders, fetchedCustomers, fetchedCommercialOrders
                 ] = await Promise.all([
                     fetchTable<User>('app_users').catch(() => []),
                     fetchTable<Employee>('employees').catch(() => []),
@@ -202,7 +204,8 @@ const App: React.FC = () => {
                     fetchTable<GaugeComponent>('gauge_components').catch(() => []),
                     fetchTable<Partner>('partners').catch(() => []),
                     fetchTable<MachineOrder>('machine_orders').catch(() => []),
-                    fetchTable<Customer>('customers').catch(() => [])
+                    fetchTable<Customer>('customers').catch(() => []),
+                    fetchTable<CommercialOrder>('commercial_orders').catch(() => [])
                 ]);
 
                 setUsers(fetchedUsers);
@@ -219,6 +222,7 @@ const App: React.FC = () => {
                 setShiftReports(fetchedReports);
                 setMachineOrders(fetchedMachineOrders);
                 setCustomers(fetchedCustomers || []);
+                setCommercialOrders(fetchedCommercialOrders || []);
 
                 let partnersToSet = fetchedPartners;
                 if (!fetchedPartners || fetchedPartners.length === 0) {
@@ -291,8 +295,8 @@ const App: React.FC = () => {
                 // Merge database components and local storage components
                 const finalComponentsMap = new Map<string, GaugeComponent>();
                 localComponents.forEach(c => finalComponentsMap.set(c.id, c));
-                if (fetchedComponents) {
-                    fetchedComponents.forEach(c => finalComponentsMap.set(c.id, c));
+                if (fetchedGaugeComponents) {
+                    fetchedGaugeComponents.forEach(c => finalComponentsMap.set(c.id, c));
                 }
                 const finalComponents = Array.from(finalComponentsMap.values());
                 localStorage.setItem('msm_local_gauge_components', JSON.stringify(finalComponents));
@@ -376,7 +380,7 @@ const App: React.FC = () => {
         setUsers,
         setAccessLogs,
         setGaugeComponents,
-        setCustomers,
+        setCommercialOrders,
     }), []);
 
     useAllRealtimeSubscriptions(realtimeSetters, !!currentUser);
@@ -2827,6 +2831,7 @@ const App: React.FC = () => {
             case 'peopleManagement': return <PeopleManagement setPage={setPage} currentUser={currentUser} activeBrandingPartner={activeBrandingPartner} />;
             case 'customerRegistration': return <CustomerRegistration setPage={setPage} customers={customers} />;
             case 'customersManagement': return <CustomersManagement setPage={setPage} customers={customers} />;
+            case 'customerOrders': return <CustomerOrders setPage={setPage} customers={customers} commercialOrders={commercialOrders} />;
             case 'documents': return <DocumentManager setPage={setPage} currentUser={currentUser} />;
             case 'gaugesManager': return <GaugesManager gauges={gauges} stock={stock} onAdd={addGauge} onDelete={deleteGauge} onUpdate={updateGauge} gaugeComponents={gaugeComponents} onSaveComponents={saveGaugeComponents} currentUser={currentUser} />;
             case 'labelConfig': return <LabelConfiguration gauges={gauges} showNotification={showNotification} activeBrandingPartner={activeBrandingPartner} />;

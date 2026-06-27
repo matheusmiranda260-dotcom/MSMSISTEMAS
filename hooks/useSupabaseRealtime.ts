@@ -6,7 +6,8 @@ import type {
     FinishedProductItem, PontaItem, FinishedGoodsTransferRecord,
     PartsRequest, ShiftReport, ProductionRecord,
     StickyNote, Meeting, MeetingCategory, DowntimeConfig, User,
-    UserAccessLog, StockGauge, GaugeComponent, MachineOrder, Customer
+    UserAccessLog, StockGauge, GaugeComponent, MachineOrder, Customer,
+    CommercialOrder
 } from '../types';
 import { mapToCamelCase } from '../services/supabaseService';
 
@@ -33,6 +34,7 @@ interface RealtimeSetters {
     setGaugeComponents?: React.Dispatch<React.SetStateAction<GaugeComponent[]>>;
     setMachineOrders?: React.Dispatch<React.SetStateAction<MachineOrder[]>>;
     setCustomers?: React.Dispatch<React.SetStateAction<Customer[]>>;
+    setCommercialOrders?: React.Dispatch<React.SetStateAction<CommercialOrder[]>>;
 }
 
 /**
@@ -272,6 +274,12 @@ export function useAllRealtimeSubscriptions(setters: RealtimeSetters, enabled: b
         if (setters.setCustomers) {
             createSubscription<Customer>('customers', setters.setCustomers);
         }
+
+        if (setters.setCommercialOrders) {
+            createSubscription<CommercialOrder>('commercial_orders', setters.setCommercialOrders);
+        }
+
+        channelsRef.current = channels;
 
         console.log(`[Realtime] ${channels.length} subscriptions ativas`);
 
