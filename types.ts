@@ -430,17 +430,32 @@ export interface KaizenProblem {
 }
 
 export interface CommercialOrder {
-    id: string;
+    id?: string;
     orderNumber: string;
     date: string;
     salesperson: string;
     clientCode: string;
     clientName: string;
     clientCity: string;
-    clientObs: string;
+    clientObs?: string;
     price: number;
     status: string;
+    projectIdent?: string;
+    paymentCondition?: string;
+    totalWeight?: number;
     createdAt?: string;
+}
+
+export interface CommercialOrderItem {
+    id?: string;
+    order_id?: string; // Note: using snake_case as it matches Supabase schema, but can map to camelCase if needed
+    codigo: string;
+    folha: string;
+    descricao: string;
+    tipo: string;
+    peso: number;
+    valor: number;
+    bitolas_details?: Record<string, number>;
 }
 
 export interface MeetingItem {

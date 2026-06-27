@@ -223,12 +223,27 @@ export const upsertItem = async <T>(table: string, item: T, onConflict: string =
 };
 
 /** Delete item by id */
-export const deleteItem = async (table: string, id: string): Promise<void> => {
-    const { error } = await supabase.from(table).delete().eq('id', id);
+export const deleteItem = async (table: string, id: string) => {
+    const { error } = await supabase
+        .from(table)
+        .delete()
+        .eq('id', id);
+
     if (error) {
-        console.error(`Error deleting from ${table}:`, error);
-        throw error;
+        throw new Error(error.message);
     }
+};
+
+export const fetchItems = async (table: string, select = '*', filter?: { column: string, value: any }) => {
+    let query = supabase.from(table).select(select);
+    if (filter) {
+        query = query.eq(filter.column, filter.value);
+    }
+    const { data, error } = await query;
+    if (error) {
+        throw new Error(error.message);
+    }
+    return data;
 };
 
 /** Delete by arbitrary column */

@@ -1,17 +1,20 @@
-import React, { useState } from 'react';
-import type { Page, Customer, CommercialOrder } from '../types';
-import { insertItem } from '../services/supabaseService';
+import React, { useState, useEffect } from 'react';
+import type { Page, Customer, CommercialOrder, User } from '../types';
+import { insertItem, deleteItem } from '../services/supabaseService';
+import { OrderItemsEditor } from './OrderItemsEditor';
 
 interface CustomerOrdersProps {
     setPage: (page: Page) => void;
     customers: Customer[];
     commercialOrders: CommercialOrder[];
+    currentUser: User | null;
 }
 
-export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, customers, commercialOrders }) => {
+export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, customers, commercialOrders, currentUser }) => {
     const [search, setSearch] = useState('');
     const [orderBy, setOrderBy] = useState<'id' | 'clientCode'>('id');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [editingOrder, setEditingOrder] = useState<CommercialOrder | null>(null);
 
     // Form fields for New Order
     const [clientSearchTerm, setClientSearchTerm] = useState('');
@@ -86,13 +89,13 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
         const newQuote = {
             orderNumber: nextId,
             date: today,
-            salesperson: 'VENDEDOR',
+            salesperson: (currentUser?.name || currentUser?.username || 'SISTEMA').toUpperCase(),
             clientCode: selectedClient.code || '1001',
             clientName: selectedClient.name,
             clientCity: selectedClient.addressMain || '',
             clientObs: newObservations.trim() ? `OBS: ${newObservations.trim()}` : '',
             price: 0.00,
-            status: 'Orçamento Vazio'
+            status: 'Orçamento'
         };
 
         try {
@@ -105,14 +108,31 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
         
         // Reset states and close
         setIsAddModalOpen(false);
+        setSearch('');
         setSelectedClient(null);
-        setClientSearchTerm('');
+        setSearchError('');
         setNewObservations('');
+    };
+
+    const handleDeleteOrder = async (id: string) => {
+        if (window.confirm('Tem certeza que deseja excluir este orçamento?')) {
+            try {
+                await deleteItem('commercial_orders', id);
+            } catch (error) {
+                console.error('Erro ao excluir orçamento:', error);
+                alert('Erro ao excluir orçamento.');
+            }
+        }
     };
 
     const getRowClass = (status?: string) => {
         if (!status) return 'bg-emerald-50/70 border-b border-emerald-100 hover:bg-emerald-100/50 text-slate-800';
         const clean = status.toLowerCase();
+        
+        if (clean === 'orçamento') {
+            return 'bg-orange-100 border-b-2 border-orange-300 hover:bg-orange-200 text-slate-900 font-medium shadow-sm';
+        }
+        
         if (clean === 'orçamento vazio' || clean === 'orçamento incompleto') {
             return 'bg-red-50/70 border-b border-red-100 hover:bg-red-100/50 text-slate-800';
         }
@@ -122,16 +142,51 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
         return 'bg-emerald-50/70 border-b border-emerald-100 hover:bg-emerald-100/50 text-slate-800';
     };
 
+    const totalOrcamentos = commercialOrders.filter(o => o.status?.toLowerCase().includes('orçamento')).length;
+    const totalPedidos = commercialOrders.filter(o => !o.status?.toLowerCase().includes('orçamento')).length;
+
+    if (editingOrder) {
+        return (
+            <OrderItemsEditor
+                order={editingOrder}
+                onClose={() => setEditingOrder(null)}
+                onSaveSuccess={() => {
+                    // It will automatically refresh due to Realtime subscriptions
+                }}
+            />
+        );
+    }
+
     return (
         <div className="p-4 md:p-8 space-y-6">
-            {/* Top Navigation */}
+            {/* Top Navigation with Mini Dashboard */}
             <div className="flex items-center justify-between no-print">
-                <div>
-                    <h1 className="text-3xl font-black text-slate-900 flex items-center gap-2">
-                        <span>📝 Lançar Orçamentos / Pedidos</span>
-                    </h1>
-                    <p className="text-xs text-slate-500 font-bold uppercase mt-1">MSM Sistemas • Setor Comercial</p>
+                <div className="flex items-center gap-8">
+                    <div>
+                        <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                            <span className="text-4xl">📝</span>
+                            Lançar Orçamentos / Pedidos
+                        </h1>
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">MSM SISTEMAS • SETOR COMERCIAL</p>
+                    </div>
+
+                    {/* Mini Dashboard KPIs */}
+                    <div className="flex gap-3">
+                        <div className="bg-white border border-slate-200 shadow-sm rounded-xl px-5 py-2 flex flex-col items-center justify-center min-w-[120px]">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Orçamentos</span>
+                            <span className="text-2xl font-black text-orange-500">{totalOrcamentos}</span>
+                        </div>
+                        <div className="bg-white border border-slate-200 shadow-sm rounded-xl px-5 py-2 flex flex-col items-center justify-center min-w-[120px]">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pedidos</span>
+                            <span className="text-2xl font-black text-emerald-600">{totalPedidos}</span>
+                        </div>
+                        <div className="bg-white border border-slate-200 shadow-sm rounded-xl px-5 py-2 flex flex-col items-center justify-center min-w-[120px]">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total</span>
+                            <span className="text-2xl font-black text-slate-700">{commercialOrders.length}</span>
+                        </div>
+                    </div>
                 </div>
+
                 <div className="flex gap-3">
                     <button 
                         onClick={() => setIsAddModalOpen(true)}
@@ -211,7 +266,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         <td className="p-4 text-center font-bold text-slate-700 text-xs">{q.salesperson}</td>
                                         <td className="p-4">
                                             <div className="flex flex-col">
-                                                <span className="font-extrabold text-slate-950 text-xs">
+                                                <span className="font-extrabold text-slate-950 text-xs uppercase">
                                                     ({q.clientCode}) {q.clientName}
                                                 </span>
                                                 <span className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">{q.clientCity}</span>
@@ -220,11 +275,29 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         </td>
                                         <td className="p-4 text-center font-black text-slate-900 text-sm">
                                             R$ {(q.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                            <div className="text-[9px] font-bold text-slate-500 uppercase tracking-tight mt-0.5 italic">{q.status}</div>
+                                            {(!q.price || q.price === 0) ? (
+                                                <div className="text-[10px] font-black text-red-600 uppercase tracking-tight mt-1 animate-pulse flex items-center justify-center gap-1">
+                                                    <span>⚠️</span> INCOMPLETO
+                                                </div>
+                                            ) : (
+                                                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-tight mt-0.5 italic">{q.status}</div>
+                                            )}
                                         </td>
                                         <td className="p-4 text-center">
-                                            <select className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer">
+                                            <select 
+                                                className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
+                                                onChange={(e) => {
+                                                    if (e.target.value === 'delete') {
+                                                        if (q.id) handleDeleteOrder(q.id);
+                                                    } else if (e.target.value === 'edit') {
+                                                        setEditingOrder(q);
+                                                    }
+                                                    e.target.value = '';
+                                                }}
+                                            >
                                                 <option value="">Ações...</option>
+                                                <option value="edit">✏️ Editar Orçamento</option>
+                                                <option value="delete">🗑️ Excluir Orçamento</option>
                                             </select>
                                         </td>
                                     </tr>
