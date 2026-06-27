@@ -327,12 +327,16 @@ tr:hover td {
   /* 1. Reset Root to be layout neutral */
   #root,
   html,
-  body {
+  body,
+  .app-container,
+  .main-content {
     display: block !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: visible !important;
     height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
   .no-print,
@@ -343,10 +347,8 @@ tr:hover td {
   /* 4. Position the container at the very top-left of the page */
   .print-modal-container {
     display: block !important;
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
+    position: relative !important;
+    width: auto !important;
     height: auto !important;
     min-height: 100% !important;
     background: white !important;
@@ -360,7 +362,7 @@ tr:hover td {
   .print-modal-content {
     box-shadow: none !important;
     border: none !important;
-    width: 100% !important;
+    width: auto !important;
     max-width: none !important;
     /* Remove max-width constraint */
     max-height: none !important;

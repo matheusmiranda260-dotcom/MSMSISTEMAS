@@ -2831,7 +2831,7 @@ const App: React.FC = () => {
             case 'peopleManagement': return <PeopleManagement setPage={setPage} currentUser={currentUser} activeBrandingPartner={activeBrandingPartner} />;
             case 'customerRegistration': return <CustomerRegistration setPage={setPage} customers={customers} />;
             case 'customersManagement': return <CustomersManagement setPage={setPage} customers={customers} />;
-            case 'customerOrders': return <CustomerOrders setPage={setPage} customers={customers} commercialOrders={commercialOrders} currentUser={currentUser} />;
+            case 'customerOrders': return <CustomerOrders setPage={setPage} customers={customers} commercialOrders={commercialOrders} currentUser={currentUser} activeBrandingPartner={activeBrandingPartner} />;
             case 'documents': return <DocumentManager setPage={setPage} currentUser={currentUser} />;
             case 'gaugesManager': return <GaugesManager gauges={gauges} stock={stock} onAdd={addGauge} onDelete={deleteGauge} onUpdate={updateGauge} gaugeComponents={gaugeComponents} onSaveComponents={saveGaugeComponents} currentUser={currentUser} />;
             case 'labelConfig': return <LabelConfiguration gauges={gauges} showNotification={showNotification} activeBrandingPartner={activeBrandingPartner} />;
@@ -2973,7 +2973,7 @@ const App: React.FC = () => {
                         </div>
                     </header>
                 )}
-                <div className={currentUser && page !== 'login' ? 'p-4' : ''}>
+                <div className={currentUser && page !== 'login' ? 'p-4 print:p-0' : ''}>
                     {renderPage()}
                 </div>
             </main>

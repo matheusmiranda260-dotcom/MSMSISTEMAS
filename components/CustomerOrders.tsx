@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import type { Page, Customer, CommercialOrder, User } from '../types';
+import type { Page, Customer, CommercialOrder, User, Partner } from '../types';
 import { insertItem, deleteItem } from '../services/supabaseService';
 import { OrderItemsEditor } from './OrderItemsEditor';
+import { OrderPrintView } from './OrderPrintView';
 
 interface CustomerOrdersProps {
     setPage: (page: Page) => void;
     customers: Customer[];
     commercialOrders: CommercialOrder[];
     currentUser: User | null;
+    activeBrandingPartner?: Partner | null;
 }
 
-export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, customers, commercialOrders, currentUser }) => {
+export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, customers, commercialOrders, currentUser, activeBrandingPartner }) => {
     const [search, setSearch] = useState('');
     const [orderBy, setOrderBy] = useState<'id' | 'clientCode'>('id');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingOrder, setEditingOrder] = useState<CommercialOrder | null>(null);
+    const [printingOrder, setPrintingOrder] = useState<CommercialOrder | null>(null);
 
     // Form fields for New Order
     const [clientSearchTerm, setClientSearchTerm] = useState('');
@@ -291,12 +294,15 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                         if (q.id) handleDeleteOrder(q.id);
                                                     } else if (e.target.value === 'edit') {
                                                         setEditingOrder(q);
+                                                    } else if (e.target.value === 'print') {
+                                                        setPrintingOrder(q);
                                                     }
                                                     e.target.value = '';
                                                 }}
                                             >
                                                 <option value="">Ações...</option>
                                                 <option value="edit">✏️ Editar Orçamento</option>
+                                                <option value="print">🖨️ Imprimir Orçamento</option>
                                                 <option value="delete">🗑️ Excluir Orçamento</option>
                                             </select>
                                         </td>
@@ -419,6 +425,15 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Print View Modal */}
+            {printingOrder && (
+                <OrderPrintView 
+                    order={printingOrder} 
+                    onClose={() => setPrintingOrder(null)} 
+                    activeBrandingPartner={activeBrandingPartner}
+                />
             )}
         </div>
     );
