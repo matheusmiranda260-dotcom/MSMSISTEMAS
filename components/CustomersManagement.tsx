@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { updateItem, deleteItem } from '../services/supabaseService';
-import type { Page, Customer } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { updateItem, deleteItem, fetchByColumn, fetchTable } from '../services/supabaseService';
+import type { Page, Customer, CommercialOrder, CommercialOrderItem, StockGauge } from '../types';
 import { SearchIcon, UserGroupIcon, PlusIcon, DocumentTextIcon, LocationIcon, UserIcon, XIcon } from './icons';
 import { maskCPF, maskCNPJ, maskRG, maskPhone } from '../utils/masks';
 
@@ -16,6 +16,86 @@ const CustomersManagement: React.FC<CustomersManagementProps> = ({ setPage, cust
     const [editForm, setEditForm] = useState<Partial<Customer>>({});
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    const [customerOrders, setCustomerOrders] = useState<CommercialOrder[]>([]);
+    const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+
+    const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+    const [expandedOrderItems, setExpandedOrderItems] = useState<CommercialOrderItem[]>([]);
+    const [isLoadingExpanded, setIsLoadingExpanded] = useState(false);
+
+    const [gauges, setGauges] = useState<StockGauge[]>([]);
+
+    const bitolasSummaryMemo = useMemo(() => {
+        const summary: Record<string, { kg: number }> = {};
+        expandedOrderItems.forEach(item => {
+            const bitolas = (item as any).bitolasDetails || item.bitolas_details;
+            if (bitolas) {
+                Object.entries(bitolas).forEach(([bitolaId, kg]) => {
+                    const kgNum = Number(kg) || 0;
+                    if (kgNum > 0) {
+                        if (!summary[bitolaId]) {
+                            summary[bitolaId] = { kg: 0 };
+                        }
+                        summary[bitolaId].kg += kgNum;
+                    }
+                });
+            }
+        });
+        return summary;
+    }, [expandedOrderItems]);
+
+    useEffect(() => {
+        const loadGauges = async () => {
+            try {
+                const data = await fetchTable<StockGauge>('stock_gauges');
+                setGauges(data);
+            } catch (err) {
+                console.error('Error fetching gauges:', err);
+            }
+        };
+        loadGauges();
+    }, []);
+
+    const handleToggleOrder = async (orderId: string) => {
+        if (expandedOrderId === orderId) {
+            setExpandedOrderId(null);
+            setExpandedOrderItems([]);
+            return;
+        }
+        
+        setExpandedOrderId(orderId);
+        setIsLoadingExpanded(true);
+        try {
+            const items = await fetchByColumn<CommercialOrderItem>('commercial_order_items', 'order_id', orderId);
+            setExpandedOrderItems(items);
+        } catch (error) {
+            console.error('Error fetching order items:', error);
+            setExpandedOrderItems([]);
+        } finally {
+            setIsLoadingExpanded(false);
+        }
+    };
+
+    useEffect(() => {
+        const fetchOrders = async () => {
+            if (selectedCustomer?.code) {
+                setIsLoadingOrders(true);
+                try {
+                    const orders = await fetchByColumn<CommercialOrder>('commercial_orders', 'client_code', selectedCustomer.code);
+                    setCustomerOrders(orders);
+                } catch (err) {
+                    console.error('Error fetching orders for customer', err);
+                    setCustomerOrders([]);
+                } finally {
+                    setIsLoadingOrders(false);
+                }
+            } else {
+                setCustomerOrders([]);
+            }
+        };
+        fetchOrders();
+    }, [selectedCustomer?.code]);
 
     const handleDeleteClick = async () => {
         if (!selectedCustomer) return;
@@ -193,159 +273,296 @@ const CustomersManagement: React.FC<CustomersManagementProps> = ({ setPage, cust
                 </div>
             </div>
 
-            {/* Modal de Detalhes */}
+            {/* Modal de Dashboard do Cliente */}
             {selectedCustomer && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-                    <div className="bg-[#0D3B54] rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl border border-white/10 animate-slideUp">
-                        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-2 bg-black/70 backdrop-blur-md animate-fadeIn">
+                    <div className="bg-[#0A2A3D] rounded-2xl w-[98vw] h-[96vh] max-w-none flex flex-col shadow-2xl border border-white/10 animate-slideUp overflow-hidden">
+                        {/* Header */}
+                        <div className="p-5 border-b border-white/10 flex justify-between items-center bg-[#0D3B54]">
                             <h2 className="text-xl font-black text-white uppercase tracking-wider flex items-center gap-3">
-                                <DocumentTextIcon className="w-6 h-6 text-[#00E5FF]" />
-                                {isEditing ? 'Editar Cliente' : 'Detalhes do Cliente'}
+                                <UserIcon className="w-6 h-6 text-[#00E5FF]" />
+                                Dashboard do Cliente
                             </h2>
-                            <button onClick={() => { setSelectedCustomer(null); setIsEditing(false); }} className="text-slate-400 hover:text-white transition-colors">
-                                <XIcon className="w-6 h-6" />
+                            <button onClick={() => { setSelectedCustomer(null); setIsEditing(false); }} className="text-slate-400 hover:text-white transition-colors bg-white/5 hover:bg-red-500/20 p-2 rounded-lg">
+                                <XIcon className="w-5 h-5" />
                             </button>
                         </div>
                         
-                        <div className="p-6 space-y-6">
-                            <div className="grid grid-cols-2 gap-6">
-                                <div>
-                                    <div className="text-xs font-black text-slate-500 uppercase tracking-wider mb-1">Nome / Razão Social</div>
-                                    {isEditing ? (
-                                        <input type="text" autoComplete="new-password" className="w-full bg-[#0A2A3D]/50 border border-white/10 rounded-lg px-3 py-1.5 text-white focus:border-[#00E5FF] outline-none" value={editForm.name || ''} onChange={e => setEditForm({...editForm, name: e.target.value})} />
-                                    ) : (
-                                        <div className="text-lg font-bold text-white">{selectedCustomer.name}</div>
-                                    )}
-                                </div>
-                                <div>
-                                    <div className="text-xs font-black text-slate-500 uppercase tracking-wider mb-1">Código</div>
-                                    <div className="text-lg font-bold text-[#00E5FF]">{selectedCustomer.code} <span className="text-xs text-slate-500 font-normal ml-2">(Não editável)</span></div>
-                                </div>
-                                {selectedCustomer.customerType === 'Pessoa Jurídica' && (
-                                    <div>
-                                        <div className="text-xs font-black text-slate-500 uppercase tracking-wider mb-1">Nome Fantasia</div>
-                                        {isEditing ? (
-                                            <input type="text" className="w-full bg-[#0A2A3D]/50 border border-white/10 rounded-lg px-3 py-1.5 text-white focus:border-[#00E5FF] outline-none" value={editForm.tradeName || ''} onChange={e => setEditForm({...editForm, tradeName: e.target.value})} />
-                                        ) : (
-                                            <div className="text-base font-bold text-slate-300">{selectedCustomer.tradeName || '-'}</div>
-                                        )}
-                                    </div>
-                                )}
-                                <div>
-                                    <div className="text-xs font-black text-slate-500 uppercase tracking-wider mb-1">Tipo</div>
-                                    <div className="text-base font-bold text-slate-300">{selectedCustomer.customerType} <span className="text-xs text-slate-500 font-normal ml-2">(Não editável)</span></div>
-                                </div>
-                                <div>
-                                    <div className="text-xs font-black text-slate-500 uppercase tracking-wider mb-1">{selectedCustomer.customerType === 'Pessoa Física' ? 'CPF' : 'CNPJ'}</div>
-                                    {isEditing ? (
-                                        <input type="text" autoComplete="new-password" className="w-full bg-[#0A2A3D]/50 border border-white/10 rounded-lg px-3 py-1.5 text-white focus:border-[#00E5FF] outline-none" value={editForm.document1 || ''} onChange={e => setEditForm({...editForm, document1: selectedCustomer.customerType === 'Pessoa Física' ? maskCPF(e.target.value) : maskCNPJ(e.target.value)})} />
-                                    ) : (
-                                        <div className="text-base font-bold text-slate-300">{selectedCustomer.document1}</div>
-                                    )}
-                                </div>
-                                <div>
-                                    <div className="text-xs font-black text-slate-500 uppercase tracking-wider mb-1">{selectedCustomer.customerType === 'Pessoa Física' ? 'RG' : 'Inscrição Estadual'}</div>
-                                    {isEditing ? (
-                                        <input type="text" autoComplete="new-password" className="w-full bg-[#0A2A3D]/50 border border-white/10 rounded-lg px-3 py-1.5 text-white focus:border-[#00E5FF] outline-none" value={editForm.document2 || ''} onChange={e => setEditForm({...editForm, document2: selectedCustomer.customerType === 'Pessoa Física' ? maskRG(e.target.value) : e.target.value})} />
-                                    ) : (
-                                        <div className="text-base font-bold text-slate-300">{selectedCustomer.document2 || '-'}</div>
-                                    )}
-                                </div>
-                                {(selectedCustomer.birthDate || isEditing) && selectedCustomer.customerType === 'Pessoa Física' && (
-                                    <div>
-                                        <div className="text-xs font-black text-slate-500 uppercase tracking-wider mb-1">Data de Nascimento</div>
-                                        {isEditing ? (
-                                            <input type="date" autoComplete="new-password" className="w-full bg-[#0A2A3D]/50 border border-white/10 rounded-lg px-3 py-1.5 text-white focus:border-[#00E5FF] outline-none" value={editForm.birthDate || ''} onChange={e => setEditForm({...editForm, birthDate: e.target.value})} />
-                                        ) : (
-                                            <div className="text-base font-bold text-slate-300">{selectedCustomer.birthDate ? new Date(selectedCustomer.birthDate).toLocaleDateString('pt-BR') : '-'}</div>
-                                        )}
-                                    </div>
-                                )}
-                                <div>
-                                    <div className="text-xs font-black text-slate-500 uppercase tracking-wider mb-1">E-mail</div>
-                                    {isEditing ? (
-                                        <input type="email" autoComplete="new-password" className="w-full bg-[#0A2A3D]/50 border border-white/10 rounded-lg px-3 py-1.5 text-white focus:border-[#00E5FF] outline-none" value={editForm.email || ''} onChange={e => setEditForm({...editForm, email: e.target.value})} />
-                                    ) : (
-                                        <div className="text-base font-bold text-slate-300">{selectedCustomer.email || '-'}</div>
-                                    )}
-                                </div>
-                                <div>
-                                    <div className="text-xs font-black text-slate-500 uppercase tracking-wider mb-1">Telefone</div>
-                                    {isEditing ? (
-                                        <input type="tel" autoComplete="new-password" className="w-full bg-[#0A2A3D]/50 border border-white/10 rounded-lg px-3 py-1.5 text-white focus:border-[#00E5FF] outline-none" value={editForm.phone || ''} onChange={e => setEditForm({...editForm, phone: maskPhone(e.target.value)})} />
-                                    ) : (
-                                        <div className="text-base font-bold text-slate-300">{selectedCustomer.phone || '-'}</div>
-                                    )}
-                                </div>
-                            </div>
+                        {/* Body */}
+                        <div className="flex-1 flex overflow-hidden">
                             
-                            <hr className="border-white/10" />
-                            
-                            <div className="space-y-4">
-                                {(selectedCustomer.addressMain || isEditing) && (
-                                    <div>
-                                        <div className="text-xs font-black text-slate-500 uppercase tracking-wider mb-1">
-                                            {selectedCustomer.customerType === 'Pessoa Física' ? 'Endereço Residencial' : 'Localização'}
-                                        </div>
-                                        {isEditing ? (
-                                            <input type="text" autoComplete="new-password" className="w-full bg-[#0A2A3D]/50 border border-white/10 rounded-lg px-3 py-1.5 text-white focus:border-[#00E5FF] outline-none" value={editForm.addressMain || ''} onChange={e => setEditForm({...editForm, addressMain: e.target.value})} />
-                                        ) : (
-                                            <div className="text-sm font-medium text-slate-300 bg-white/5 p-3 rounded-xl border border-white/5">{selectedCustomer.addressMain}</div>
-                                        )}
+                            {/* Left Column - Customer Details */}
+                            <div className="w-1/3 bg-[#0D3B54]/30 border-r border-white/10 flex flex-col overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
+                                <div className="p-6">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-lg font-bold text-[#00E5FF]">Dados Cadastrais</h3>
+                                        <button onClick={handleEditClick} className="text-xs font-bold bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors text-white">Editar</button>
                                     </div>
-                                )}
-                                {(selectedCustomer.addressDelivery || selectedCustomer.addressBilling || isEditing) && (
-                                    <div>
-                                        <div className="text-xs font-black text-slate-500 uppercase tracking-wider mb-1">
-                                            {selectedCustomer.customerType === 'Pessoa Física' ? 'Endereço de Entrega' : 'Endereço de Correspondência'}
+                                    
+                                    <div className="space-y-5">
+                                        <div>
+                                            <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Nome / Razão Social</div>
+                                            {isEditing ? (
+                                                <input type="text" className="w-full bg-[#0A2A3D] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-[#00E5FF] outline-none" value={editForm.name || ''} onChange={e => setEditForm({...editForm, name: e.target.value})} />
+                                            ) : (
+                                                <div className="text-base font-bold text-white leading-tight">{selectedCustomer.name}</div>
+                                            )}
                                         </div>
-                                        {isEditing ? (
-                                            <input 
-                                                type="text" 
-                                                autoComplete="off" 
-                                                className="w-full bg-[#0A2A3D]/50 border border-white/10 rounded-lg px-3 py-1.5 text-white focus:border-[#00E5FF] outline-none" 
-                                                value={selectedCustomer.customerType === 'Pessoa Física' ? (editForm.addressDelivery || '') : (editForm.addressBilling || '')} 
-                                                onChange={e => {
-                                                    if (selectedCustomer.customerType === 'Pessoa Física') {
-                                                        setEditForm({...editForm, addressDelivery: e.target.value});
-                                                    } else {
-                                                        setEditForm({...editForm, addressBilling: e.target.value});
-                                                    }
-                                                }} 
-                                            />
-                                        ) : (
-                                            <div className="text-sm font-medium text-slate-300 bg-white/5 p-3 rounded-xl border border-white/5">
-                                                {selectedCustomer.customerType === 'Pessoa Física' ? selectedCustomer.addressDelivery : selectedCustomer.addressBilling}
+                                        <div className="flex gap-4">
+                                            <div className="flex-1">
+                                                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Código</div>
+                                                <div className="text-sm font-bold text-[#00E5FF] bg-[#00E5FF]/10 px-2 py-1 rounded inline-block">{selectedCustomer.code}</div>
                                             </div>
-                                        )}
+                                            <div className="flex-1">
+                                                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Tipo</div>
+                                                <div className="text-sm font-bold text-slate-300">{selectedCustomer.customerType}</div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{selectedCustomer.customerType === 'Pessoa Física' ? 'CPF' : 'CNPJ'}</div>
+                                            {isEditing ? (
+                                                <input type="text" className="w-full bg-[#0A2A3D] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-[#00E5FF] outline-none" value={editForm.document1 || ''} onChange={e => setEditForm({...editForm, document1: selectedCustomer.customerType === 'Pessoa Física' ? maskCPF(e.target.value) : maskCNPJ(e.target.value)})} />
+                                            ) : (
+                                                <div className="text-sm font-bold text-slate-300">{selectedCustomer.document1}</div>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Telefone</div>
+                                            {isEditing ? (
+                                                <input type="tel" className="w-full bg-[#0A2A3D] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-[#00E5FF] outline-none" value={editForm.phone || ''} onChange={e => setEditForm({...editForm, phone: maskPhone(e.target.value)})} />
+                                            ) : (
+                                                <div className="text-sm font-bold text-slate-300">{selectedCustomer.phone || '-'}</div>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Endereço Principal</div>
+                                            {isEditing ? (
+                                                <textarea rows={2} className="w-full bg-[#0A2A3D] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-[#00E5FF] outline-none resize-none" value={editForm.addressMain || ''} onChange={e => setEditForm({...editForm, addressMain: e.target.value})} />
+                                            ) : (
+                                                <div className="text-sm text-slate-400 bg-black/20 p-3 rounded-lg border border-white/5">{selectedCustomer.addressMain || 'Não informado'}</div>
+                                            )}
+                                        </div>
                                     </div>
-                                )}
+                                    
+                                    {isEditing && (
+                                        <div className="mt-8 flex flex-col gap-3">
+                                            <button onClick={handleSaveEdit} disabled={isSaving} className="w-full py-3 rounded-xl font-bold bg-[#00E5FF] hover:bg-[#00B4CC] text-[#0A2A3D] transition-colors disabled:opacity-50">
+                                                {isSaving ? 'Salvando...' : 'Salvar Alterações'}
+                                            </button>
+                                            <button onClick={() => setIsEditing(false)} className="w-full py-3 rounded-xl font-bold bg-white/5 hover:bg-white/10 text-white transition-colors">
+                                                Cancelar Edição
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="p-6 border-t border-white/10 bg-black/20 flex justify-end gap-3">
-                            {isEditing ? (
-                                <>
-                                    <button onClick={() => setIsEditing(false)} className="px-6 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 text-white transition-colors">
-                                        Cancelar
-                                    </button>
-                                    <button onClick={handleSaveEdit} disabled={isSaving} className="px-6 py-2.5 rounded-xl font-bold bg-[#00E5FF] hover:bg-[#00B4CC] text-[#0A2A3D] transition-colors disabled:opacity-50">
-                                        {isSaving ? 'Salvando...' : 'Salvar Alterações'}
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <button onClick={handleDeleteClick} disabled={isDeleting} className="px-6 py-2.5 rounded-xl font-bold bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-colors mr-auto border border-red-500/30 hover:border-red-500/60 disabled:opacity-50">
-                                        {isDeleting ? 'Excluindo...' : 'Excluir'}
-                                    </button>
-                                    <button onClick={handleEditClick} className="px-6 py-2.5 rounded-xl font-bold bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors border border-amber-500/30">
-                                        Editar
-                                    </button>
-                                    <button onClick={() => setSelectedCustomer(null)} className="px-6 py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 text-white transition-colors">
-                                        Fechar
-                                    </button>
-                                </>
-                            )}
+                            {/* Right Column - Dashboard */}
+                            <div className="w-2/3 bg-black/20 flex flex-col overflow-hidden">
+                                {/* Metrics Cards */}
+                                <div className="p-6 grid grid-cols-3 gap-4 border-b border-white/5">
+                                    <div className="bg-[#0D3B54]/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
+                                        <div>
+                                            <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Total de Pedidos</div>
+                                            <div className="text-2xl font-black text-white">{customerOrders.length}</div>
+                                        </div>
+                                        <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
+                                            <DocumentTextIcon className="w-5 h-5" />
+                                        </div>
+                                    </div>
+                                    <div className="bg-[#0D3B54]/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
+                                        <div>
+                                            <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Peso Total (KG)</div>
+                                            <div className="text-2xl font-black text-white">
+                                                {customerOrders.reduce((acc, order) => acc + (order.totalWeight || 0), 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                            </div>
+                                        </div>
+                                        <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400">
+                                            <div className="font-bold text-xs">KG</div>
+                                        </div>
+                                    </div>
+                                    <div className="bg-[#0D3B54]/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
+                                        <div>
+                                            <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Valor Total Movimentado</div>
+                                            <div className="text-2xl font-black text-[#00E5FF]">
+                                                R$ {customerOrders.reduce((acc, order) => acc + (order.price || 0), 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                            </div>
+                                        </div>
+                                        <div className="w-10 h-10 rounded-full bg-[#00E5FF]/20 flex items-center justify-center text-[#00E5FF]">
+                                            <div className="font-bold text-sm">R$</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {/* Orders List */}
+                                <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-white/10">
+                                    <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                        Histórico de Orçamentos / Pedidos
+                                    </h3>
+                                    
+                                    {isLoadingOrders ? (
+                                        <div className="text-center py-10 text-slate-400 font-medium">Carregando histórico...</div>
+                                    ) : customerOrders.length === 0 ? (
+                                        <div className="text-center py-10 bg-white/5 border border-dashed border-white/10 rounded-xl">
+                                            <DocumentTextIcon className="w-10 h-10 text-slate-600 mx-auto mb-2" />
+                                            <p className="text-slate-400 font-medium">Nenhum pedido encontrado para este cliente.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {customerOrders.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(order => (
+                                                <div key={order.id} className="bg-white/5 border border-white/10 hover:border-white/20 rounded-xl flex flex-col overflow-hidden transition-colors">
+                                                    <div 
+                                                        className="p-4 flex items-center justify-between cursor-pointer"
+                                                        onClick={() => order.id && handleToggleOrder(order.id)}
+                                                    >
+                                                        <div className="flex gap-4 items-center">
+                                                            <div className="w-12 h-12 bg-black/20 rounded-lg flex flex-col items-center justify-center border border-white/5">
+                                                                <span className="text-[10px] text-slate-500 font-bold uppercase">Nº</span>
+                                                                <span className="text-sm font-black text-white">{order.orderNumber}</span>
+                                                            </div>
+                                                            <div>
+                                                                <div className="font-bold text-white text-sm">Orçamento emitido em {new Date(order.date).toLocaleDateString('pt-BR')}</div>
+                                                                <div className="text-xs text-slate-400 mt-0.5 flex gap-3">
+                                                                    <span>Vendedor: <strong className="text-slate-300">{order.salesperson}</strong></span>
+                                                                    <span>Status: <strong className={order.status === 'Vendido' ? 'text-green-400' : 'text-amber-400'}>{order.status}</strong></span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className="text-lg font-black text-[#00E5FF]">
+                                                                R$ {order.price.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                                            </div>
+                                                            <div className="text-xs text-slate-400 font-medium">
+                                                                {order.totalWeight ? `${order.totalWeight.toLocaleString('pt-BR', {minimumFractionDigits: 2})} kg` : '-'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {expandedOrderId === order.id && (
+                                                        <div className="bg-black/40 border-t border-white/5 p-4 animate-fadeIn">
+                                                            <h4 className="text-xs font-bold text-[#00E5FF] uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                                                                </svg>
+                                                                Itens do Orçamento
+                                                            </h4>
+                                                            {isLoadingExpanded ? (
+                                                                <div className="text-xs text-slate-400">Carregando itens...</div>
+                                                            ) : expandedOrderItems.length === 0 ? (
+                                                                <div className="text-xs text-slate-400">Nenhum item cadastrado neste orçamento.</div>
+                                                            ) : (
+                                                                <div className="overflow-x-auto rounded-lg border border-white/5">
+                                                                    <table className="w-full text-left text-xs">
+                                                                        <thead className="bg-white/5 text-slate-400">
+                                                                            <tr>
+                                                                                <th className="p-2 font-medium">Cód.</th>
+                                                                                <th className="p-2 font-medium">Folha</th>
+                                                                                <th className="p-2 font-medium">Descrição</th>
+                                                                                <th className="p-2 font-medium">Qtde</th>
+                                                                                <th className="p-2 font-medium text-right">Peso (KG)</th>
+                                                                                <th className="p-2 font-medium text-right">Total</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody className="divide-y divide-white/5 text-slate-400 bg-black/20">
+                                                                            {expandedOrderItems.map(item => (
+                                                                                <tr key={item.id} className="hover:bg-white/5 text-slate-400">
+                                                                                    <td className="p-2">{item.codigo}</td>
+                                                                                    <td className="p-2">{item.folha || '-'}</td>
+                                                                                    <td className="p-2 max-w-[200px] truncate" title={item.descricao}>{item.descricao}</td>
+                                                                                    <td className="p-2">{item.tipo}</td>
+                                                                                    <td className="p-2 text-right text-slate-300">{item.peso.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                                                                    <td className="p-2 text-right text-slate-300">R$ {item.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                                                                </tr>
+                                                                            ))}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Resumo do Aço */}
+                                                            {expandedOrderItems.length > 0 && gauges.length > 0 && (
+                                                                <div className="mt-4">
+                                                                    <h4 className="text-xs font-bold text-[#00E5FF] uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
+                                                                        </svg>
+                                                                        Resumo do Aço
+                                                                    </h4>
+                                                                    <div className="overflow-x-auto rounded-lg border border-white/5">
+                                                                        <table className="w-full text-left text-xs">
+                                                                            <thead className="bg-white/5 text-slate-400">
+                                                                                <tr>
+                                                                                    <th className="p-2 font-medium">Cód.</th>
+                                                                                    <th className="p-2 font-medium">Descrição Material</th>
+                                                                                    <th className="p-2 font-medium text-right">Qtde (KG)</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody className="divide-y divide-white/5 text-slate-400 bg-black/20">
+                                                                                {Object.keys(bitolasSummaryMemo).map(bitolaId => {
+                                                                                        const gauge = gauges.find(g => g.id === bitolaId);
+                                                                                        const kg = bitolasSummaryMemo[bitolaId].kg;
+                                                                                        let desc = 'AÇO DESCONHECIDO';
+                                                                                        if (gauge) {
+                                                                                            const name = gauge.commercialName || gauge.materialType;
+                                                                                            const prefix = name.toUpperCase().startsWith('CD ') ? '' : 'CD ';
+                                                                                            desc = `${prefix}${name} ${gauge.gauge}`;
+                                                                                        }
+                                                                                        const cod = gauge?.productCode || '';
+                                                                                        
+                                                                                        return (
+                                                                                            <tr key={bitolaId} className="hover:bg-white/5 text-slate-400">
+                                                                                                <td className="p-2">{cod}</td>
+                                                                                                <td className="p-2 uppercase">{desc}</td>
+                                                                                                <td className="p-2 text-right text-slate-300">{kg.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                                                                            </tr>
+                                                                                        );
+                                                                                    })}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Linha do Tempo / Histórico */}
+                                                            <div className="mt-6 border-t border-white/5 pt-4">
+                                                                <h4 className="text-xs font-bold text-[#00E5FF] uppercase tracking-wider mb-4 flex items-center gap-2">
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                    </svg>
+                                                                    Linha do Tempo / Movimentações
+                                                                </h4>
+                                                                {(!order.history || order.history.length === 0) ? (
+                                                                    <div className="text-xs text-slate-500 italic">Nenhum histórico registrado.</div>
+                                                                ) : (
+                                                                    <div className="space-y-4">
+                                                                        {order.history.map((log, index) => (
+                                                                            <div key={index} className="flex gap-4 relative">
+                                                                                <div className="w-2 h-2 rounded-full bg-[#00E5FF] mt-1.5 absolute left-[-16px]"></div>
+                                                                                <div className="border-l-2 border-white/10 absolute left-[-13px] top-4 bottom-[-16px]" style={{ display: index === order.history!.length - 1 ? 'none' : 'block' }}></div>
+                                                                                <div>
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <span className="text-xs font-bold text-white">{log.action}</span>
+                                                                                        <span className="text-[10px] text-slate-400 bg-black/30 px-2 py-0.5 rounded-full">{new Date(log.date).toLocaleString('pt-BR')}</span>
+                                                                                    </div>
+                                                                                    <div className="text-xs text-slate-400 mt-1">Por: <span className="font-bold text-slate-300">{log.user}</span></div>
+                                                                                    {log.details && (
+                                                                                        <div className="text-xs text-slate-300 bg-white/5 p-2 rounded-md mt-2 border border-white/5">{log.details}</div>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            
                         </div>
                     </div>
                 </div>

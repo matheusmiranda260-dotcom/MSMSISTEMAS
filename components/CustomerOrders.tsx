@@ -98,7 +98,12 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
             clientCity: selectedClient.addressMain || '',
             clientObs: newObservations.trim() ? `OBS: ${newObservations.trim()}` : '',
             price: 0.00,
-            status: 'Orçamento'
+            status: 'Orçamento',
+            history: [{
+                date: new Date().toISOString(),
+                user: (currentUser?.name || currentUser?.username || 'SISTEMA').toUpperCase(),
+                action: 'Orçamento iniciado'
+            }]
         };
 
         try {

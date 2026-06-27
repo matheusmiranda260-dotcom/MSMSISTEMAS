@@ -6,7 +6,7 @@ import MainMenu from './components/MainMenu';
 import StockControl from './components/StockControl';
 import MachineControl from './components/MachineControl';
 import ProductionOrder from './components/ProductionOrder';
-import ProductionOrderDesbobinadeira from './components/ProductionOrderDesbobinadeira';
+
 import DesbobinadeiraDashboard from './components/DesbobinadeiraDashboard';
 import Reports from './components/Reports';
 import UserManagement from './components/UserManagement';
@@ -25,8 +25,6 @@ import PeopleManagement from './components/PeopleManagement';
 import StockTransfer from './components/StockTransfer';
 import GaugesManager from './components/GaugesManager';
 import LabelConfiguration from './components/LabelConfiguration';
-import PointingSystem from './components/PointingSystem';
-import MachineSchedule from './components/MachineSchedule';
 import StickyNotes from './components/StickyNotes';
 import MeetingsTasks from './components/MeetingsTasks';
 import DocumentManager from './components/DocumentManager';
@@ -2810,15 +2808,8 @@ const App: React.FC = () => {
             case 'stockTransfer': return <StockTransfer stock={stock} transfers={transfers} setPage={setPage} createTransfer={createTransfer} gauges={gauges} />;
 
 
-            case 'desbobinadeiraDashboard': return <DesbobinadeiraDashboard productionOrders={productionOrders} />;
-            case 'desbobinadeira': return <MachineControl machineType="Desbobinadeira 1" {...mcProps} initialView="dashboard" initialModal={null} />;
-            case 'desbobinadeiraInProgress': return <MachineControl machineType="Desbobinadeira 1" {...mcProps} initialView="in_progress" initialModal={null} />;
-            case 'desbobinadeiraPending': return <MachineControl machineType="Desbobinadeira 1" {...mcProps} initialView="pending" initialModal={null} />;
-            case 'desbobinadeiraCompleted': return <MachineControl machineType="Desbobinadeira 1" {...mcProps} initialView="completed" initialModal={null} />;
-            case 'desbobinadeiraReports': return <MachineControl machineType="Desbobinadeira 1" {...mcProps} initialView="dashboard" initialModal="reports" />;
-
             case 'productionOrder': return <ProductionOrder setPage={setPage} stock={stock} productionOrders={productionOrders} addProductionOrder={addProductionOrder} showNotification={showNotification} updateProductionOrder={updateProductionOrder} deleteProductionOrder={deleteProductionOrder} gauges={gauges} currentUser={currentUser} />;
-            case 'productionOrderDesbobinadeira': return <ProductionOrderDesbobinadeira setPage={setPage} stock={stock} productionOrders={productionOrders} addProductionOrder={addProductionOrder} showNotification={showNotification} updateProductionOrder={updateProductionOrder} deleteProductionOrder={deleteProductionOrder} gauges={gauges} currentUser={currentUser} />;
+
             case 'blank': return <div style={{ height: '100vh', background: '#f0f2f5' }} />;
             case 'productionDashboard': return <ProductionDashboard setPage={setPage} productionOrders={productionOrders} stock={stock} currentUser={currentUser} downtimeConfigs={downtimeConfigs} />;
             case 'userManagement': return <UserManagement users={users} employees={employees} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} setPage={setPage} accessLogs={accessLogs} />;
@@ -2835,19 +2826,6 @@ const App: React.FC = () => {
             case 'documents': return <DocumentManager setPage={setPage} currentUser={currentUser} />;
             case 'gaugesManager': return <GaugesManager gauges={gauges} stock={stock} onAdd={addGauge} onDelete={deleteGauge} onUpdate={updateGauge} gaugeComponents={gaugeComponents} onSaveComponents={saveGaugeComponents} currentUser={currentUser} />;
             case 'labelConfig': return <LabelConfiguration gauges={gauges} showNotification={showNotification} activeBrandingPartner={activeBrandingPartner} />;
-            case 'pointingSystem': return <PointingSystem currentUser={currentUser} showNotification={showNotification} gauges={gauges} activeBrandingPartner={activeBrandingPartner} machineOrders={machineOrders} onAddMachineOrder={addMachineOrder} onDeleteMachineOrdersByQuote={deleteMachineOrdersByQuote} />;
-            case 'programarMaquinas': return (
-                <MachineSchedule 
-                    partners={partners}
-                    machineOrders={machineOrders}
-                    productionOrders={productionOrders}
-                    onAddMachineOrder={addMachineOrder}
-                    onUpdateMachineOrder={updateMachineOrder}
-                    onDeleteMachineOrder={deleteMachineOrder}
-                    showNotification={showNotification}
-                    currentUser={currentUser}
-                />
-            );
             case 'partnerConfig': return (
                 <PartnerConfig 
                     partners={partners} 

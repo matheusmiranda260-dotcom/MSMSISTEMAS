@@ -12,6 +12,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     const [items, setItems] = useState<CommercialOrderItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [projectIdent, setProjectIdent] = useState(order.projectIdent || '');
+    const [deliveryTime, setDeliveryTime] = useState(order.deliveryTime || '');
     const [paymentCondition, setPaymentCondition] = useState(order.paymentCondition || '');
     const [isSaving, setIsSaving] = useState(false);
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -177,12 +178,24 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         setIsSaving(true);
         try {
             // Update the main order with totals and metadata
+            const statusToSave = totalValue > 0 ? (order.status.toLowerCase().includes('incompleto') ? 'Orçamento' : order.status) : order.status;
+            
+            const newHistoryEntry = {
+                date: new Date().toISOString(),
+                user: order.salesperson || 'SISTEMA',
+                action: 'Orçamento atualizado',
+                details: `Valor total: R$ ${totalValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})} | Peso: ${totalWeight.toLocaleString('pt-BR', {minimumFractionDigits: 2})} kg | Status: ${statusToSave}`
+            };
+            const updatedHistory = [...(order.history || []), newHistoryEntry];
+
             await updateItem('commercial_orders', order.id, {
                 projectIdent: projectIdent,
+                delivery_time: deliveryTime,
                 paymentCondition: paymentCondition,
                 totalWeight: totalWeight,
                 price: totalValue, // Update main price
-                status: totalValue > 0 ? (order.status.toLowerCase().includes('incompleto') ? 'Orçamento' : order.status) : order.status
+                status: statusToSave,
+                history: updatedHistory
             });
             onSaveSuccess();
             onClose();
@@ -286,15 +299,27 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                             </div>
                         </div>
 
-                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                            <div className="font-bold text-slate-400 text-[10px] uppercase tracking-widest mb-2">Identif. do Projeto</div>
-                            <input 
-                                type="text" 
-                                className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold w-full uppercase bg-slate-50 focus:bg-white transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                value={projectIdent}
-                                onChange={e => setProjectIdent(e.target.value)}
-                                placeholder="Ex: Projeto Estrutural - 04 Folhas"
-                            />
+                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
+                            <div>
+                                <div className="font-bold text-slate-400 text-[10px] uppercase tracking-widest mb-2">Identif. do Projeto</div>
+                                <input 
+                                    type="text" 
+                                    className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold w-full uppercase bg-slate-50 focus:bg-white transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                    value={projectIdent}
+                                    onChange={e => setProjectIdent(e.target.value)}
+                                    placeholder="Ex: Projeto Estrutural - 04 Folhas"
+                                />
+                            </div>
+                            <div>
+                                <div className="font-bold text-slate-400 text-[10px] uppercase tracking-widest mb-2">Prazo de Entrega</div>
+                                <input 
+                                    type="text" 
+                                    className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold w-full uppercase bg-slate-50 focus:bg-white transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                    value={deliveryTime}
+                                    onChange={e => setDeliveryTime(e.target.value)}
+                                    placeholder="Ex: 10 DIAS ÚTEIS"
+                                />
+                            </div>
                         </div>
                     </div>
 

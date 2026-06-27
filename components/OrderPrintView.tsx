@@ -268,7 +268,7 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
                                 </div>
                                 <div className="w-1/3 p-1.5 flex">
                                     <span className="font-bold w-[120px]">Prazo de entrega:</span> 
-                                    <span className="uppercase">10 DIAS ÚTEIS</span>
+                                    <span className="uppercase">{order.deliveryTime || '10 DIAS ÚTEIS'}</span>
                                 </div>
                             </div>
                         </div>

@@ -429,6 +429,13 @@ export interface KaizenProblem {
     responsibleIds?: string[];
 }
 
+export interface OrderHistoryEntry {
+    date: string;
+    user: string;
+    action: string;
+    details?: string;
+}
+
 export interface CommercialOrder {
     id?: string;
     orderNumber: string;
@@ -441,9 +448,11 @@ export interface CommercialOrder {
     price: number;
     status: string;
     projectIdent?: string;
+    deliveryTime?: string;
     paymentCondition?: string;
     totalWeight?: number;
     createdAt?: string;
+    history?: OrderHistoryEntry[];
 }
 
 export interface CommercialOrderItem {

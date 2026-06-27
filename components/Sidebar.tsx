@@ -216,65 +216,7 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                 <div className="sidebar-category">
                     <div className="sidebar-category-title">{isCollapsed ? '📦' : '📦 Estoque'}</div>
 
-                    {hasPermission('pointingSystem') && (
-                        <>
-                            {/* Collapsible Sistema de Apontamento */}
-                            <button
-                                onClick={() => toggleMenu('pointing')}
-                                className={`sidebar-item ${['pointingSystem'].includes(page) ? 'active' : ''} justify-between group`}
-                                title={isCollapsed ? 'Sistema Apontamento' : ''}
-                            >
-                                <div className="flex items-center gap-3 overflow-hidden">
-                                    <div className="sidebar-item-icon shrink-0">
-                                        <ClipboardListIcon className="w-full h-full" />
-                                    </div>
-                                    {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap">Sistema Apontamento</span>}
-                                </div>
-                                {!isCollapsed && (
-                                    <ChevronRightIcon className={`w-3 h-3 text-slate-500 transition-transform duration-200 ${expandedMenus.includes('pointing') ? 'rotate-90' : ''}`} />
-                                )}
-                            </button>
 
-                            {/* Submenu */}
-                            {!isCollapsed && expandedMenus.includes('pointing') && (
-                                <div className="ml-4 pl-4 border-l border-slate-700/50 flex flex-col gap-0.5 mt-1 mb-2 animate-in slide-in-from-left-2 duration-200">
-                                    <button onClick={() => setPage('pointingSystem')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'pointingSystem' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
-                                        📋 Apontamentos
-                                    </button>
-                                </div>
-                            )}
-                        </>
-                    )}
-
-                    {hasPermission('programarMaquinas') && (
-                        <>
-                            {/* Collapsible Máquinas */}
-                            <button
-                                onClick={() => toggleMenu('machines')}
-                                className={`sidebar-item ${['programarMaquinas'].includes(page) ? 'active' : ''} justify-between group`}
-                                title={isCollapsed ? 'Máquinas' : ''}
-                            >
-                                <div className="flex items-center gap-3 overflow-hidden">
-                                    <div className="sidebar-item-icon shrink-0">
-                                        <CogIcon className="w-full h-full" />
-                                    </div>
-                                    {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap">Máquinas</span>}
-                                </div>
-                                {!isCollapsed && (
-                                    <ChevronRightIcon className={`w-3 h-3 text-slate-500 transition-transform duration-200 ${expandedMenus.includes('machines') ? 'rotate-90' : ''}`} />
-                                )}
-                            </button>
-
-                            {/* Submenu */}
-                            {!isCollapsed && expandedMenus.includes('machines') && (
-                                <div className="ml-4 pl-4 border-l border-slate-700/50 flex flex-col gap-0.5 mt-1 mb-2 animate-in slide-in-from-left-2 duration-200">
-                                    <button onClick={() => setPage('programarMaquinas')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'programarMaquinas' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
-                                        📅 Programar Máquinas
-                                    </button>
-                                </div>
-                            )}
-                        </>
-                    )}
 
                     {hasPermission('stock') && (
                         <>
@@ -373,47 +315,7 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                         <MenuItem target="gaugesManager" label="Configuração de Materiais" icon={CogIcon} />
                         <MenuItem target="labelConfig" label="Configuração de Etiqueta" icon={CogIcon} />
 
-                        {/* Projetos Novos (Laboratório) */}
-                        <>
-                            <button
-                                onClick={() => toggleMenu('desbobinadeira')}
-                                className={`sidebar-item ${['desbobinadeiraDashboard', 'desbobinadeiraInProgress', 'desbobinadeiraPending', 'desbobinadeiraCompleted', 'desbobinadeiraReports'].includes(page) ? 'active' : ''} justify-between group mt-2`}
-                                title={isCollapsed ? 'Projetos Novos' : ''}
-                            >
-                                <div className="flex items-center gap-3 overflow-hidden">
-                                    <div className="sidebar-item-icon shrink-0">
-                                        <CogIcon className="w-full h-full text-slate-400 group-hover:text-[#00E5FF] transition-colors" />
-                                    </div>
-                                    {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap text-slate-300 font-bold group-hover:text-white transition-colors">🔬 Projetos Novos</span>}
-                                </div>
-                                {!isCollapsed && (
-                                    <ChevronRightIcon className={`w-3 h-3 text-slate-500 transition-transform duration-200 ${expandedMenus.includes('desbobinadeira') ? 'rotate-90' : ''}`} />
-                                )}
-                            </button>
 
-                            {!isCollapsed && expandedMenus.includes('desbobinadeira') && (
-                                <div className="ml-4 pl-4 border-l border-slate-700/50 flex flex-col gap-0.5 mt-1 mb-2 animate-in slide-in-from-left-2 duration-200">
-                                    <button onClick={() => setPage('desbobinadeiraDashboard')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'desbobinadeiraDashboard' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
-                                        📊 Dashboard
-                                    </button>
-                                    <button onClick={() => setPage('desbobinadeiraInProgress')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'desbobinadeiraInProgress' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
-                                        ⚙️ Em Produção
-                                    </button>
-                                    <button onClick={() => setPage('desbobinadeiraPending')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'desbobinadeiraPending' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
-                                        📋 Próximas Produções
-                                    </button>
-                                    <button onClick={() => setPage('desbobinadeiraCompleted')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'desbobinadeiraCompleted' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
-                                        📦 Produções Finalizadas
-                                    </button>
-                                    <button onClick={() => setPage('desbobinadeiraReports')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'desbobinadeiraReports' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
-                                        📑 Relatórios de Turno
-                                    </button>
-                                    <button onClick={() => setPage('productionOrderDesbobinadeira')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'productionOrderDesbobinadeira' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
-                                        📋 Criar Ordem
-                                    </button>
-                                </div>
-                            )}
-                        </>
                     </div>
                 )}
             </div>
