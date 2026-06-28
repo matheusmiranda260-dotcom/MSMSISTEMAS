@@ -347,8 +347,8 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                 <th className="p-4 text-center font-bold text-xs uppercase w-24 border-r border-black">Data</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-28 border-r border-black">Vendedor</th>
                                 <th className="p-4 font-bold text-xs uppercase min-w-[250px] max-w-[350px] border-r border-black">Cliente</th>
-                                <th className="p-4 text-center font-bold text-xs uppercase w-32 border-r border-black">Leitura</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-full border-r border-black">Orçamento</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-32 border-r border-black">Leitura</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-32 border-r border-black">Status</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-36 border-r border-black">Preço</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase min-w-[180px]">Ações</th>
@@ -385,6 +385,19 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                             </div>
                                         </td>
                                         <td className="p-4 text-center border-r border-black">
+                                            {isOrcamento ? (
+                                                isIncomplete ? (
+                                                    <div className="text-[12px] font-black text-red-600 uppercase tracking-tight animate-pulse flex items-center justify-center gap-1">
+                                                        <span>⚠️</span> INCOMPLETO
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-[10px] font-black text-green-600 uppercase tracking-tight animate-pulse flex items-center justify-center gap-1">
+                                                        <span>✅</span> ORÇAMENTO COMPLETO AGUARDANDO CLIENTE
+                                                    </div>
+                                                )
+                                            ) : null}
+                                        </td>
+                                        <td className="p-4 text-center border-r border-black">
                                             {q.readingStartedAt || q.readingFinishedAt ? (
                                                 <div className="flex flex-col items-center justify-center gap-1">
                                                     {q.readingStartedAt && (
@@ -403,19 +416,6 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                             ) : (
                                                 <span className="text-[9px] font-bold text-slate-400 italic">Pendente</span>
                                             )}
-                                        </td>
-                                        <td className="p-4 text-center border-r border-black">
-                                            {isOrcamento ? (
-                                                isIncomplete ? (
-                                                    <div className="text-[12px] font-black text-red-600 uppercase tracking-tight animate-pulse flex items-center justify-center gap-1">
-                                                        <span>⚠️</span> INCOMPLETO
-                                                    </div>
-                                                ) : (
-                                                    <div className="text-[10px] font-black text-green-600 uppercase tracking-tight animate-pulse flex items-center justify-center gap-1">
-                                                        <span>✅</span> ORÇAMENTO COMPLETO AGUARDANDO CLIENTE
-                                                    </div>
-                                                )
-                                            ) : null}
                                         </td>
                                         <td className="p-4 text-center border-r border-black">
                                             {q.status?.toLowerCase() === 'aguardando engenharia' ? (
