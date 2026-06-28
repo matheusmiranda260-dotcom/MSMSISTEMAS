@@ -154,10 +154,15 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
         const [year, month, day] = authorizeDate.split('-');
         const deadline = `${day}/${month}/${year} às ${authorizeTime}`;
 
+        // Get current date/time for startedAt
+        const now = new Date();
+        const startedAt = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getFullYear()} às ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
         try {
             await updateItem('commercial_orders', orderToAuthorize.id!, { 
                 status: 'Em processo de leitura',
-                engineeringDeadline: deadline
+                engineeringDeadline: deadline,
+                readingStartedAt: startedAt
             });
             setIsAuthorizeModalOpen(false);
             setOrderToAuthorize(null);
@@ -184,10 +189,14 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
             return;
         }
 
+        const now = new Date();
+        const finishedAt = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getFullYear()} às ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
         try {
             await updateItem('commercial_orders', orderToFinishReading.id!, { 
                 status: 'Leitura Finalizada, aguardo setor de produção',
-                projectData: parsedData
+                projectData: parsedData,
+                readingFinishedAt: finishedAt
             });
             setIsFinishReadingModalOpen(false);
             setOrderToFinishReading(null);

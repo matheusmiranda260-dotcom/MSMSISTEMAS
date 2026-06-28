@@ -453,6 +453,8 @@ export interface CommercialOrder {
     totalWeight?: number;
     createdAt?: string;
     engineeringDeadline?: string;
+    readingStartedAt?: string;
+    readingFinishedAt?: string;
     projectData?: any;
     history?: OrderHistoryEntry[];
 }

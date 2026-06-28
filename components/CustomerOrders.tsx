@@ -316,6 +316,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                 <th className="p-4 text-center font-bold text-xs uppercase w-24">Data</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-28">Vendedor</th>
                                 <th className="p-4 font-bold text-xs uppercase">Cliente</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-32">Leitura</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-32">Status</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-36">Preço</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-48">Ações</th>
@@ -346,6 +347,22 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 <span className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">{q.clientCity}</span>
                                                 {q.clientObs && <span className="text-[9px] font-semibold text-sky-600 mt-1 italic">{q.clientObs}</span>}
                                             </div>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            {q.readingStartedAt && (
+                                                <div className="flex flex-col items-center justify-center gap-1">
+                                                    <div className="flex flex-col items-center bg-slate-50 px-2 py-1 rounded border border-slate-200">
+                                                        <span className="text-[8px] font-black text-slate-500 uppercase">Início</span>
+                                                        <span className="text-[9px] font-bold text-slate-700">{q.readingStartedAt}</span>
+                                                    </div>
+                                                    {q.readingFinishedAt && (
+                                                        <div className="flex flex-col items-center bg-blue-50 px-2 py-1 rounded border border-blue-200">
+                                                            <span className="text-[8px] font-black text-blue-500 uppercase">Fim</span>
+                                                            <span className="text-[9px] font-bold text-blue-700">{q.readingFinishedAt}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="p-4 text-center">
                                             {q.status?.toLowerCase() === 'aguardando engenharia' ? (
