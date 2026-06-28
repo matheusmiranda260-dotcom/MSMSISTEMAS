@@ -2839,7 +2839,7 @@ const App: React.FC = () => {
 
             case 'blank': return <div style={{ height: '100vh', background: '#f0f2f5' }} />;
             case 'productionDashboard': return <ProductionDashboard setPage={setPage} productionOrders={productionOrders} stock={stock} currentUser={currentUser} downtimeConfigs={downtimeConfigs} />;
-            case 'userManagement': return <UserManagement users={users} employees={employees} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} setPage={setPage} accessLogs={accessLogs} />;
+            case 'userManagement': return <UserManagement users={users} employees={employees} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} setPage={setPage} accessLogs={accessLogs} currentUser={currentUser} />;
             case 'finishedGoods': return <FinishedGoods finishedGoods={finishedGoods} pontasStock={pontasStock} setPage={setPage} finishedGoodsTransfers={finishedGoodsTransfers} createFinishedGoodsTransfer={createFinishedGoodsTransfer} onDelete={deleteFinishedGoods} onUpdateFinishedGood={updateFinishedGood} onUpdatePonta={updatePonta} currentUser={currentUser} users={users} />;
 
 
