@@ -201,7 +201,7 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                         <div className="ml-4 pl-4 border-l border-slate-700/50 flex flex-col gap-0.5 mt-1 mb-2 animate-in slide-in-from-left-2 duration-200">
 
                             <button onClick={() => setPage('customerOrders')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'customerOrders' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
-                                📝 Lançar Pedidos
+                                📝 Gestão de Vendas
                             </button>
                         </div>
                     )}

@@ -197,7 +197,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                     <div>
                         <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
                             <span className="text-4xl">📝</span>
-                            Lançar Orçamentos / Pedidos
+                            Gestão de Vendas
                         </h1>
                         <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">MSM SISTEMAS • SETOR COMERCIAL</p>
                     </div>
