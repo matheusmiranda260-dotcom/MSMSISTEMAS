@@ -207,6 +207,23 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                     )}
                 </div>
 
+                {/* PRODUÇÃO */}
+                <div className="sidebar-category">
+                    <div className="sidebar-category-title">{isCollapsed ? '⚙️' : '⚙️ Produção'}</div>
+                    <button
+                        onClick={() => setPage('productionOrder')}
+                        className={`sidebar-item ${page === 'productionOrder' ? 'active' : ''} justify-between group`}
+                        title={isCollapsed ? 'Gestão de Pedidos' : ''}
+                    >
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="sidebar-item-icon shrink-0">
+                                <CogIcon className="w-full h-full" />
+                            </div>
+                            {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap">Gestão de Pedidos</span>}
+                        </div>
+                    </button>
+                </div>
+
                 {/* ESTOQUE */}
                 <div className="sidebar-category">
                     <div className="sidebar-category-title">{isCollapsed ? '📦' : '📦 Estoque'}</div>
