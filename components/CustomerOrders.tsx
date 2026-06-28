@@ -382,7 +382,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 {q.clientObs && <span className="text-[9px] font-semibold text-sky-600 mt-1 italic">{q.clientObs}</span>}
                                             </div>
                                         </td>
-                                        <td className={`p-4 text-center border-r border-black transition-colors duration-300 ${isIncomplete ? 'bg-red-500 animate-[pulse_1.5s_ease-in-out_infinite]' : isComplete ? 'bg-green-500 animate-[pulse_1.5s_ease-in-out_infinite]' : ''}`}>
+                                        <td className={`p-4 text-center border-r border-black transition-colors duration-300 ${isIncomplete ? 'bg-red-500' : isComplete ? 'bg-green-500' : ''}`}>
                                             {isOrcamento ? (
                                                 isIncomplete ? (
                                                     <div className="text-[12px] font-black text-white uppercase tracking-tight flex items-center justify-center gap-1 drop-shadow-md">
