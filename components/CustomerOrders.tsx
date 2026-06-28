@@ -346,9 +346,9 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                 <th className="p-4 text-center font-bold text-xs uppercase w-20 border-r border-black">Nº</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-24 border-r border-black">Data</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-28 border-r border-black">Vendedor</th>
-                                <th className="p-4 font-bold text-xs uppercase w-full min-w-[250px] border-r border-black">Cliente</th>
-                                <th className="p-4 text-center font-bold text-xs uppercase w-56 border-r border-black">Orçamento</th>
-                                <th className="p-4 text-center font-bold text-xs uppercase w-32 border-r border-black">Leitura</th>
+                                <th className="p-4 font-bold text-xs uppercase w-[350px] min-w-[250px] border-r border-black">Cliente</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-full min-w-[220px] border-r border-black">Orçamento</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-48 border-r border-black">Leitura</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase min-w-[180px]">Ações</th>
                             </tr>
                         </thead>
