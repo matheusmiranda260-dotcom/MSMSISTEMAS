@@ -14,47 +14,24 @@ interface UserManagementProps {
 
 const permissionCategories = [
     {
+        title: '📝 Clientes',
+        permissions: [
+            { page: 'customerRegistration', label: '✨ Novo Cadastro' },
+            { page: 'customersManagement', label: '👥 Gestão de Clientes' },
+            { page: 'customerOrders', label: '📝 Lançar Pedidos' },
+        ]
+    },
+    {
         title: '📦 Estoque',
         permissions: [
-            { page: 'pointingSystem', label: 'Sistema Apontamento (Orçamentos)' },
             { page: 'stock', label: 'Gestão de Lotes (Relatórios e Filtros)' },
             { page: 'stockAdd', label: 'Conferência: Adicionar Material' },
             { page: 'stockTransfer', label: 'Transferência entre Setores' },
         ]
     },
     {
-        title: '🏭 Produção - Trefila',
-        permissions: [
-            { page: 'trefila', label: 'Dashboard Trefila (Visão Geral)' },
-            { page: 'trefilaInProgress', label: 'Painel: Máquina em Operação' },
-            { page: 'trefilaWeighing', label: 'Pesagem de Rolos' },
-            { page: 'trefilaBitolaCheck', label: 'Aferir Bitola (Qualidade)' },
-            { page: 'trefilaPending', label: 'Próximas Produções (Fila)' },
-            { page: 'trefilaCompleted', label: 'Histórico de Produções' },
-            { page: 'trefilaReports', label: 'Relatórios de Turno' },
-            { page: 'trefilaParts', label: 'Gerenciador de Peças (Trefila)' },
-            { page: 'trefilaRings', label: 'Setup de Anéis (Trocas)' },
-            { page: 'productionOrder', label: 'Criar Ordem de Produção' },
-        ]
-    },
-    {
-        title: '🏗️ Produção - Treliça',
-        permissions: [
-            { page: 'trelica', label: 'Dashboard Treliça (Visão Geral)' },
-            { page: 'trelicaInProgress', label: 'Painel: Máquina em Operação' },
-            { page: 'trelicaPending', label: 'Próximas Produções (Fila)' },
-            { page: 'trelicaCompleted', label: 'Histórico de Produções' },
-            { page: 'trelicaReports', label: 'Relatórios de Turno' },
-            { page: 'trelicaParts', label: 'Gerenciador de Peças (Treliça)' },
-            { page: 'productionOrderTrelica', label: 'Criar Ordem de Produção' },
-            { page: 'finishedGoods', label: 'Estoque de Produto Acabado' },
-        ]
-    },
-    {
         title: '🧪 Qualidade e Suporte',
         permissions: [
-            { page: 'laboratory', label: '🔬 Laboratório (Ensaios e Testes)' },
-            { page: 'productionDashboard', label: '📊 Dashboard Gerencial de Produção' },
             { page: 'reports', label: '📈 Relatórios e KPIs Estratégicos' },
             { page: 'continuousImprovement', label: '💡 Melhoria Contínua (Kaizen)' },
             { page: 'workInstructions', label: '📖 Instruções de Trabalho (POP)' },
