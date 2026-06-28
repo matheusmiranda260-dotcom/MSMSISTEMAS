@@ -349,7 +349,6 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                 <th className="p-4 font-bold text-xs uppercase w-full min-w-[250px] border-r border-black">Cliente</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-56 border-r border-black">Orçamento</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-32 border-r border-black">Leitura</th>
-                                <th className="p-4 text-center font-bold text-xs uppercase w-32 border-r border-black">Status</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-36 border-r border-black">Preço</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase min-w-[180px]">Ações</th>
                             </tr>
@@ -415,34 +414,6 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 </div>
                                             ) : (
                                                 <span className="text-[9px] font-bold text-slate-400 italic">Pendente</span>
-                                            )}
-                                        </td>
-                                        <td className="p-4 text-center border-r border-black">
-                                            {q.status?.toLowerCase() === 'aguardando engenharia' ? (
-                                                <div className="bg-red-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full animate-pulse whitespace-nowrap shadow-md border border-red-600">
-                                                    Aguardando Eng.
-                                                </div>
-                                            ) : q.status?.toLowerCase() === 'em processo de leitura' ? (
-                                                <div className="flex flex-col items-center">
-                                                    <span className="bg-orange-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm">
-                                                        Em Leitura
-                                                    </span>
-                                                    {q.engineeringDeadline && (
-                                                        <span className="text-[8px] font-bold text-orange-700 mt-1 uppercase whitespace-nowrap">
-                                                            Até: {q.engineeringDeadline}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            ) : q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? (
-                                                <div className="bg-orange-500 text-white text-[9px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm border border-orange-600">
-                                                    Aguardando Produção
-                                                </div>
-                                            ) : (
-                                                <div className="flex flex-col items-center gap-1">
-                                                    <div className="text-[9px] font-bold text-slate-500 uppercase tracking-tight italic">
-                                                        {q.status || 'N/A'}
-                                                    </div>
-                                                </div>
                                             )}
                                         </td>
                                         <td className="p-4 text-center font-black text-slate-900 text-sm border-r border-black">
