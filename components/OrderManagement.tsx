@@ -25,6 +25,11 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
     const [authorizeDate, setAuthorizeDate] = useState('');
     const [authorizeTime, setAuthorizeTime] = useState('');
 
+    // Finish Reading Modal
+    const [isFinishReadingModalOpen, setIsFinishReadingModalOpen] = useState(false);
+    const [orderToFinishReading, setOrderToFinishReading] = useState<CommercialOrder | null>(null);
+    const [jsonContent, setJsonContent] = useState('');
+
     // Form fields for New Order
     const [clientSearchTerm, setClientSearchTerm] = useState('');
     const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
@@ -164,6 +169,35 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
         }
     };
 
+    const handleFinishReading = async () => {
+        if (!orderToFinishReading) return;
+        if (!jsonContent.trim()) {
+            alert('Por favor, cole o conteúdo JSON do projeto.');
+            return;
+        }
+
+        let parsedData;
+        try {
+            parsedData = JSON.parse(jsonContent);
+        } catch (e) {
+            alert('JSON inválido. Por favor, verifique o conteúdo.');
+            return;
+        }
+
+        try {
+            await updateItem('commercial_orders', orderToFinishReading.id!, { 
+                status: 'Leitura Finalizada, aguardo setor de produção',
+                projectData: parsedData
+            });
+            setIsFinishReadingModalOpen(false);
+            setOrderToFinishReading(null);
+            setJsonContent('');
+        } catch (error) {
+            console.error('Erro ao finalizar leitura:', error);
+            alert('Erro ao finalizar leitura.');
+        }
+    };
+
     const getRowClass = (status?: string) => {
         if (!status) return 'bg-emerald-50/70 border-b border-emerald-100 hover:bg-emerald-100/50 text-slate-800';
         const clean = status.toLowerCase();
@@ -176,6 +210,9 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
         }
         if (clean === 'em processo de leitura') {
             return 'bg-orange-100 border-b-2 border-orange-400 hover:bg-orange-200 text-slate-900 font-medium shadow-sm';
+        }
+        if (clean === 'leitura finalizada, aguardo setor de produção') {
+            return 'bg-blue-100 border-b-2 border-blue-400 hover:bg-blue-200 text-slate-900 font-medium shadow-sm';
         }
         if (clean === 'aguardando engenharia') {
             return 'bg-green-200 border-b-2 border-green-400 hover:bg-green-300 text-slate-900 font-medium shadow-sm';
@@ -352,6 +389,10 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                                                         </span>
                                                     )}
                                                 </div>
+                                            ) : q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? (
+                                                <div className="bg-blue-500 text-white text-[9px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm border border-blue-600">
+                                                    Leitura Concluída
+                                                </div>
                                             ) : (
                                                 <div className="text-[9px] font-bold text-slate-500 uppercase tracking-tight italic">
                                                     {q.status || 'N/A'}
@@ -375,6 +416,9 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                                                     } else if (e.target.value === 'approve') {
                                                         setOrderToAuthorize(q);
                                                         setIsAuthorizeModalOpen(true);
+                                                    } else if (e.target.value === 'finish_reading') {
+                                                        setOrderToFinishReading(q);
+                                                        setIsFinishReadingModalOpen(true);
                                                     }
                                                     e.target.value = '';
                                                 }}
@@ -383,6 +427,9 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                                                 <option value="print">🖨️ Imprimir Pedido</option>
                                                 {q.status?.toLowerCase() === 'aguardando engenharia' && (
                                                     <option value="approve">✅ Autorizar Pedido</option>
+                                                )}
+                                                {q.status?.toLowerCase() === 'em processo de leitura' && (
+                                                    <option value="finish_reading">🏁 Finalizar Leitura</option>
                                                 )}
                                             </select>
                                         </td>
@@ -562,6 +609,49 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                                 className="bg-sky-600 hover:bg-sky-700 text-white font-extrabold px-6 py-3 rounded-xl shadow-md transition-all"
                             >
                                 Confirmar e Autorizar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Finalizar Leitura */}
+            {isFinishReadingModalOpen && orderToFinishReading && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-slate-50 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-slate-200 bg-white">
+                            <h2 className="text-xl font-black text-slate-900">Finalizar Leitura</h2>
+                            <p className="text-sm font-bold text-slate-500 uppercase mt-1">
+                                Cole o conteúdo JSON do projeto abaixo
+                            </p>
+                        </div>
+                        <div className="p-6 flex flex-col gap-5">
+                            <div>
+                                <label className="block text-xs font-black text-slate-700 uppercase mb-2">Dados do Projeto (JSON)</label>
+                                <textarea 
+                                    value={jsonContent}
+                                    onChange={(e) => setJsonContent(e.target.value)}
+                                    className="w-full bg-slate-100 border border-slate-300 rounded-xl p-3 text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 h-64 resize-none"
+                                    placeholder='{"projeto": "..."}'
+                                />
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-slate-200 bg-white flex justify-end gap-3">
+                            <button
+                                onClick={() => {
+                                    setIsFinishReadingModalOpen(false);
+                                    setOrderToFinishReading(null);
+                                    setJsonContent('');
+                                }}
+                                className="px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleFinishReading}
+                                className="bg-sky-600 hover:bg-sky-700 text-white font-extrabold px-6 py-3 rounded-xl shadow-md transition-all"
+                            >
+                                Salvar Projeto e Finalizar
                             </button>
                         </div>
                     </div>

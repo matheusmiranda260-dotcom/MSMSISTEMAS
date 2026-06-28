@@ -162,6 +162,9 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
         if (clean === 'em processo de leitura') {
             return 'bg-orange-100 border-b-2 border-orange-400 hover:bg-orange-200 text-slate-900 font-medium shadow-sm';
         }
+        if (clean === 'leitura finalizada, aguardo setor de produção') {
+            return 'bg-blue-100 border-b-2 border-blue-400 hover:bg-blue-200 text-slate-900 font-medium shadow-sm';
+        }
         if (clean === 'aguardando engenharia') {
             return 'bg-green-200 border-b-2 border-green-400 hover:bg-green-300 text-slate-900 font-medium shadow-sm';
         }
@@ -359,6 +362,10 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                             Até: {q.engineeringDeadline}
                                                         </span>
                                                     )}
+                                                </div>
+                                            ) : q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? (
+                                                <div className="bg-blue-500 text-white text-[9px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm border border-blue-600">
+                                                    Leitura Concluída
                                                 </div>
                                             ) : (
                                                 <div className="text-[9px] font-bold text-slate-500 uppercase tracking-tight italic">
