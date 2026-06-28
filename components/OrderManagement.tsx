@@ -643,7 +643,9 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                         </div>
                         <div className="p-6 flex flex-col gap-5">
                             <div>
-                                <label className="block text-xs font-black text-slate-700 uppercase mb-2">Dados do Projeto (JSON)</label>
+                                <label className="block text-xs font-black text-slate-700 uppercase mb-2">
+                                    Dados do Projeto (JSON) <span className="text-red-500">*</span>
+                                </label>
                                 <textarea 
                                     value={jsonContent}
                                     onChange={(e) => setJsonContent(e.target.value)}
@@ -665,7 +667,12 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                             </button>
                             <button
                                 onClick={handleFinishReading}
-                                className="bg-sky-600 hover:bg-sky-700 text-white font-extrabold px-6 py-3 rounded-xl shadow-md transition-all"
+                                disabled={!jsonContent.trim()}
+                                className={`font-extrabold px-6 py-3 rounded-xl shadow-md transition-all ${
+                                    jsonContent.trim()
+                                        ? 'bg-sky-600 hover:bg-sky-700 text-white'
+                                        : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                                }`}
                             >
                                 Salvar Projeto e Finalizar
                             </button>
