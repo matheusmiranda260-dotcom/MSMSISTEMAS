@@ -18,6 +18,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingOrder, setEditingOrder] = useState<CommercialOrder | null>(null);
     const [printingOrder, setPrintingOrder] = useState<CommercialOrder | null>(null);
+    const [activeTab, setActiveTab] = useState<'ativos' | 'finalizados'>('ativos');
     
     // Auth Modal
     const [isAuthorizeModalOpen, setIsAuthorizeModalOpen] = useState(false);
@@ -221,7 +222,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
             return 'bg-orange-100 border-b-2 border-orange-400 hover:bg-orange-200 text-slate-900 font-medium shadow-sm';
         }
         if (clean === 'leitura finalizada, aguardo setor de produção') {
-            return 'bg-orange-100 border-b-2 border-orange-400 hover:bg-orange-200 text-slate-900 font-medium shadow-sm';
+            return 'bg-green-100 border-b-2 border-green-400 hover:bg-green-200 text-slate-900 font-medium shadow-sm';
         }
         if (clean === 'aguardando engenharia') {
             return 'bg-red-200 border-b-2 border-red-400 hover:bg-red-300 text-slate-900 font-medium shadow-sm';
@@ -255,6 +256,11 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
             
             if (!matchesSearch) return false;
         }
+
+        // Filter by active tab
+        const isFinished = o.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção';
+        if (activeTab === 'ativos' && isFinished) return false;
+        if (activeTab === 'finalizados' && !isFinished) return false;
 
         return true;
     });
@@ -303,27 +309,44 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
             {/* Classification & Search Bar */}
             <div className="bg-white p-5 rounded-2xl border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
                 <div className="flex flex-wrap items-center gap-6">
-                    <div className="flex items-center gap-2">
-                        <input 
-                            type="radio" 
-                            id="order-budget"
-                            name="orderBy"
-                            checked={orderBy === 'id'}
-                            onChange={() => setOrderBy('id')}
-                            className="accent-sky-600 w-4 h-4 cursor-pointer"
-                        />
-                        <label htmlFor="order-budget" className="text-xs font-bold text-slate-700 uppercase cursor-pointer">Classificar por Nº de Orçamento</label>
+                    <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
+                        <button 
+                            onClick={() => setActiveTab('ativos')}
+                            className={`px-4 py-1.5 rounded-md text-xs font-bold uppercase transition-all ${activeTab === 'ativos' ? 'bg-white shadow-sm text-sky-700' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Projetos Ativos
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('finalizados')}
+                            className={`px-4 py-1.5 rounded-md text-xs font-bold uppercase transition-all ${activeTab === 'finalizados' ? 'bg-white shadow-sm text-sky-700' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Projetos Finalizados
+                        </button>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <input 
-                            type="radio" 
-                            id="order-client"
-                            name="orderBy"
-                            checked={orderBy === 'clientCode'}
-                            onChange={() => setOrderBy('clientCode')}
-                            className="accent-sky-600 w-4 h-4 cursor-pointer"
-                        />
-                        <label htmlFor="order-client" className="text-xs font-bold text-slate-700 uppercase cursor-pointer">Classificar por Cód. Cliente</label>
+
+                    <div className="flex items-center gap-4 border-l border-slate-200 pl-6">
+                        <div className="flex items-center gap-2">
+                            <input 
+                                type="radio" 
+                                id="order-budget"
+                                name="orderBy"
+                                checked={orderBy === 'id'}
+                                onChange={() => setOrderBy('id')}
+                                className="accent-sky-600 w-4 h-4 cursor-pointer"
+                            />
+                            <label htmlFor="order-budget" className="text-xs font-bold text-slate-700 uppercase cursor-pointer">Classificar por Nº de Orçamento</label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <input 
+                                type="radio" 
+                                id="order-client"
+                                name="orderBy"
+                                checked={orderBy === 'clientCode'}
+                                onChange={() => setOrderBy('clientCode')}
+                                className="accent-sky-600 w-4 h-4 cursor-pointer"
+                            />
+                            <label htmlFor="order-client" className="text-xs font-bold text-slate-700 uppercase cursor-pointer">Classificar por Cód. Cliente</label>
+                        </div>
                     </div>
                 </div>
 
@@ -399,8 +422,8 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                                                     )}
                                                 </div>
                                             ) : q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? (
-                                                <div className="bg-orange-500 text-white text-[9px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm border border-orange-600">
-                                                    Aguardando Produção
+                                                <div className="bg-green-600 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm border border-green-700 inline-block">
+                                                    Finalizado
                                                 </div>
                                             ) : (
                                                 <div className="text-[9px] font-bold text-slate-500 uppercase tracking-tight italic">
