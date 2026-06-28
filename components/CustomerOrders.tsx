@@ -346,8 +346,8 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                 <th className="p-4 text-center font-bold text-xs uppercase w-20">Nº</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-24">Data</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-28">Vendedor</th>
-                                <th className="p-4 font-bold text-xs uppercase">Cliente</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-32">Leitura</th>
+                                <th className="p-4 font-bold text-xs uppercase">Cliente</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-32">Status</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-36">Preço</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-48">Ações</th>
@@ -370,15 +370,6 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         <td className="p-4 text-center font-black text-slate-900 text-sm">{q.orderNumber}</td>
                                         <td className="p-4 text-center font-bold text-slate-600 text-xs">{formattedDate}</td>
                                         <td className="p-4 text-center font-bold text-slate-700 text-xs">{q.salesperson}</td>
-                                        <td className="p-4">
-                                            <div className="flex flex-col">
-                                                <span className="font-extrabold text-slate-950 text-xs uppercase">
-                                                    ({q.clientCode}) {q.clientName}
-                                                </span>
-                                                <span className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">{q.clientCity}</span>
-                                                {q.clientObs && <span className="text-[9px] font-semibold text-sky-600 mt-1 italic">{q.clientObs}</span>}
-                                            </div>
-                                        </td>
                                         <td className="p-4 text-center">
                                             {q.readingStartedAt || q.readingFinishedAt ? (
                                                 <div className="flex flex-col items-center justify-center gap-1">
@@ -398,6 +389,15 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                             ) : (
                                                 <span className="text-[9px] font-bold text-slate-400 italic">Pendente</span>
                                             )}
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="flex flex-col">
+                                                <span className="font-extrabold text-slate-950 text-xs uppercase">
+                                                    ({q.clientCode}) {q.clientName}
+                                                </span>
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">{q.clientCity}</span>
+                                                {q.clientObs && <span className="text-[9px] font-semibold text-sky-600 mt-1 italic">{q.clientObs}</span>}
+                                            </div>
                                         </td>
                                         <td className="p-4 text-center">
                                             {q.status?.toLowerCase() === 'aguardando engenharia' ? (
