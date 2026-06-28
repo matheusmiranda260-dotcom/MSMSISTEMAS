@@ -282,6 +282,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                                 <th className="p-4 text-center font-bold text-xs uppercase w-24">Data</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-28">Vendedor</th>
                                 <th className="p-4 font-bold text-xs uppercase">Cliente</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-32">Status</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-36">Preço</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-48">Ações</th>
                             </tr>
@@ -312,14 +313,23 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                                                 {q.clientObs && <span className="text-[9px] font-semibold text-sky-600 mt-1 italic">{q.clientObs}</span>}
                                             </div>
                                         </td>
-                                        <td className="p-4 text-center font-black text-slate-900 text-sm">
-                                            R$ {(q.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                            {(!q.price || q.price === 0) ? (
-                                                <div className="text-[10px] font-black text-red-600 uppercase tracking-tight mt-1 animate-pulse flex items-center justify-center gap-1">
-                                                    <span>⚠️</span> INCOMPLETO
+                                        <td className="p-4 text-center">
+                                            {q.status?.toLowerCase() === 'aguardando engenharia' ? (
+                                                <div className="bg-red-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full animate-pulse whitespace-nowrap shadow-md border border-red-600">
+                                                    Aguardando Eng.
                                                 </div>
                                             ) : (
-                                                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-tight mt-0.5 italic">{q.status}</div>
+                                                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-tight italic">
+                                                    {q.status || 'N/A'}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="p-4 text-center font-black text-slate-900 text-sm">
+                                            R$ {(q.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            {(!q.price || q.price === 0) && (
+                                                <div className="text-[10px] font-black text-red-600 uppercase tracking-tight mt-1 flex items-center justify-center gap-1">
+                                                    <span>⚠️</span> INCOMPLETO
+                                                </div>
                                             )}
                                         </td>
                                         <td className="p-4 text-center">
