@@ -19,6 +19,12 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
     const [editingOrder, setEditingOrder] = useState<CommercialOrder | null>(null);
     const [printingOrder, setPrintingOrder] = useState<CommercialOrder | null>(null);
 
+    // Gestor Delete Order
+    const [deleteGestorModalOpen, setDeleteGestorModalOpen] = useState(false);
+    const [orderToDeleteGestor, setOrderToDeleteGestor] = useState<CommercialOrder | null>(null);
+    const [deleteGestorPassword, setDeleteGestorPassword] = useState('');
+    const [deleteGestorError, setDeleteGestorError] = useState('');
+
     // Form fields for New Order
     const [clientSearchTerm, setClientSearchTerm] = useState('');
     const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
@@ -129,6 +135,31 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
             } catch (error) {
                 console.error('Erro ao excluir orçamento:', error);
                 alert('Erro ao excluir orçamento.');
+            }
+        }
+    };
+
+    const handleConfirmDeleteGestor = async () => {
+        setDeleteGestorError('');
+        if (!deleteGestorPassword) {
+            setDeleteGestorError('A senha é obrigatória.');
+            return;
+        }
+
+        if (deleteGestorPassword !== currentUser?.password) {
+            setDeleteGestorError('Senha incorreta.');
+            return;
+        }
+
+        if (orderToDeleteGestor?.id) {
+            try {
+                await deleteItem('commercial_orders', orderToDeleteGestor.id);
+                setDeleteGestorModalOpen(false);
+                setOrderToDeleteGestor(null);
+                setDeleteGestorPassword('');
+            } catch (error) {
+                console.error('Erro ao excluir pedido:', error);
+                setDeleteGestorError('Erro ao excluir o pedido. Verifique sua conexão e tente novamente.');
             }
         }
     };
@@ -408,6 +439,11 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 onChange={(e) => {
                                                     if (e.target.value === 'delete') {
                                                         if (q.id) handleDeleteOrder(q.id);
+                                                    } else if (e.target.value === 'delete_gestor') {
+                                                        setOrderToDeleteGestor(q);
+                                                        setDeleteGestorPassword('');
+                                                        setDeleteGestorError('');
+                                                        setDeleteGestorModalOpen(true);
                                                     } else if (e.target.value === 'edit') {
                                                         setEditingOrder(q);
                                                     } else if (e.target.value === 'print') {
@@ -428,6 +464,9 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                         <option value="export">➡️ Exportar Pedido</option>
                                                         <option value="delete">🗑️ Excluir Orçamento</option>
                                                     </>
+                                                )}
+                                                {isGestor && (
+                                                    <option value="delete_gestor" className="text-red-600 font-bold">🗑️ Excluir Projeto (Gestor)</option>
                                                 )}
                                             </select>
                                         </td>
@@ -559,6 +598,68 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                     onClose={() => setPrintingOrder(null)} 
                     activeBrandingPartner={activeBrandingPartner}
                 />
+            )}
+
+            {/* Gestor Delete Modal */}
+            {deleteGestorModalOpen && orderToDeleteGestor && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-slate-200 bg-red-50 flex items-center gap-4">
+                            <div className="bg-red-100 p-3 rounded-full text-red-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-black text-red-900">Excluir Projeto (Gestor)</h2>
+                                <p className="text-sm font-bold text-red-700 mt-1">Pedido: {orderToDeleteGestor.orderNumber}</p>
+                            </div>
+                        </div>
+
+                        <div className="p-6 flex-1 space-y-4">
+                            <p className="text-sm font-medium text-slate-700">
+                                Você está prestes a excluir este projeto do sistema <span className="font-bold text-red-600">definitivamente</span>. Essa ação não pode ser desfeita.
+                            </p>
+
+                            <div className="space-y-2 pt-2">
+                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">
+                                    Confirme com sua senha de gestor
+                                </label>
+                                <input
+                                    type="password"
+                                    value={deleteGestorPassword}
+                                    onChange={(e) => setDeleteGestorPassword(e.target.value)}
+                                    placeholder="Digite sua senha..."
+                                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-slate-900 font-bold focus:border-red-500 focus:ring-2 focus:ring-red-200 outline-none transition-all"
+                                    onKeyDown={(e) => e.key === 'Enter' && handleConfirmDeleteGestor()}
+                                />
+                                {deleteGestorError && (
+                                    <p className="text-xs font-bold text-red-500 mt-1">{deleteGestorError}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
+                            <button
+                                onClick={() => {
+                                    setDeleteGestorModalOpen(false);
+                                    setOrderToDeleteGestor(null);
+                                    setDeleteGestorPassword('');
+                                    setDeleteGestorError('');
+                                }}
+                                className="px-5 py-2.5 rounded-xl font-bold bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleConfirmDeleteGestor}
+                                className="px-5 py-2.5 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white transition-colors shadow-md shadow-red-500/20"
+                            >
+                                Confirmar Exclusão
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
