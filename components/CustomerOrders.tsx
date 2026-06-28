@@ -349,6 +349,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                 <th className="p-4 font-bold text-xs uppercase w-[350px] min-w-[250px] border-r border-black">Cliente</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-full min-w-[220px] border-r border-black">Orçamento</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-48 border-r border-black">Leitura</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-48 border-r border-black">Pedido</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase min-w-[180px]">Ações</th>
                             </tr>
                         </thead>
@@ -468,6 +469,9 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                     )}
                                                 </div>
                                             )}
+                                        </td>
+                                        <td className="p-4 text-center border-r border-black">
+                                            {/* Espaço para a coluna Pedido */}
                                         </td>
                                         <td className="p-4 text-center">
                                             <select 
