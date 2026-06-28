@@ -399,7 +399,39 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                         </div>
                                                     </div>
                                                 )
-                                            ) : null}
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center gap-1 drop-shadow-sm">
+                                                    <div className="text-[14px] font-black text-slate-900 uppercase tracking-tight">
+                                                        PEDIDO FECHADO
+                                                    </div>
+                                                    <div className="flex items-center justify-center gap-1.5 bg-black/5 px-2 py-0.5 rounded border border-black/10 text-[10px] font-black whitespace-nowrap text-slate-900">
+                                                        <span>R$ {(q.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                                        {q.totalWeight ? <span className="opacity-80 px-1 border-l border-black/20">{(q.totalWeight).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kg</span> : null}
+                                                    </div>
+                                                    <div className="text-[9px] font-bold text-slate-500 uppercase">
+                                                        {q.createdAt ? new Date(q.createdAt).toLocaleString('pt-BR') : q.date}
+                                                    </div>
+                                                    <div className="mt-1">
+                                                        {q.status?.toLowerCase() === 'aguardando engenharia' ? (
+                                                            <div className="bg-red-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm border border-red-600 inline-block">
+                                                                Aguardando Eng.
+                                                            </div>
+                                                        ) : q.status?.toLowerCase() === 'em processo de leitura' ? (
+                                                            <div className="bg-orange-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm inline-block">
+                                                                Em Leitura
+                                                            </div>
+                                                        ) : q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? (
+                                                            <div className="bg-orange-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm border border-orange-600 inline-block">
+                                                                Aguardando Produção
+                                                            </div>
+                                                        ) : (
+                                                            <div className="text-[9px] font-bold text-slate-500 uppercase tracking-tight italic">
+                                                                {q.status || 'N/A'}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="p-4 text-center border-r border-black">
                                             {q.readingStartedAt || q.readingFinishedAt ? (
