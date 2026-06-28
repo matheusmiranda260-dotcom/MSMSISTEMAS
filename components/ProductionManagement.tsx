@@ -22,6 +22,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
     // View Project Modal
     const [isViewProjectModalOpen, setIsViewProjectModalOpen] = useState(false);
     const [orderToView, setOrderToView] = useState<CommercialOrder | null>(null);
+    const [viewMode, setViewMode] = useState<'detalhado' | 'resumo'>('detalhado');
 
     // Form fields for New Order
     const [clientSearchTerm, setClientSearchTerm] = useState('');
@@ -571,13 +572,29 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
                         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                            <div>
-                                <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">
-                                    Projeto: Pedido {orderToView.orderNumber}
-                                </h2>
-                                <p className="text-sm font-medium text-slate-500 mt-1">
-                                    Cliente: {orderToView.clientName}
-                                </p>
+                            <div className="flex items-center gap-6">
+                                <div>
+                                    <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">
+                                        Projeto: Pedido {orderToView.orderNumber}
+                                    </h2>
+                                    <p className="text-sm font-medium text-slate-500 mt-1">
+                                        Cliente: {orderToView.clientName}
+                                    </p>
+                                </div>
+                                <div className="flex bg-slate-200 rounded-lg p-1">
+                                    <button
+                                        onClick={() => setViewMode('detalhado')}
+                                        className={`px-4 py-1.5 text-sm font-bold rounded-md transition-colors ${viewMode === 'detalhado' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        Detalhado
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode('resumo')}
+                                        className={`px-4 py-1.5 text-sm font-bold rounded-md transition-colors ${viewMode === 'resumo' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        Resumo Total
+                                    </button>
+                                </div>
                             </div>
                             <button 
                                 onClick={() => setIsViewProjectModalOpen(false)}
@@ -611,6 +628,66 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                         if (!groups[mm]) groups[mm] = [];
                                         groups[mm].push(item);
                                     });
+
+                                    if (viewMode === 'resumo') {
+                                        let grandTotalComp = 0;
+                                        let grandTotalPeso = 0;
+                                        let grandTotalQtd = 0;
+
+                                        return (
+                                            <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+                                                <div className="bg-slate-800 px-4 py-2 flex items-center justify-center">
+                                                    <h3 className="text-white font-bold text-lg uppercase tracking-widest">Resumo Geral</h3>
+                                                </div>
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-center border-collapse">
+                                                        <thead>
+                                                            <tr className="bg-slate-200 border-b-2 border-slate-300">
+                                                                <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Bitola</th>
+                                                                <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Aço</th>
+                                                                <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Comp. (m)</th>
+                                                                <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Peso (Kg)</th>
+                                                                <th className="p-3 text-sm font-black text-slate-700 uppercase">Quantidade (Peças)</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {Object.entries(groups).map(([mm, items], idx) => {
+                                                                const totalPeso = items.reduce((acc, curr) => acc + (parseFloat(curr.peso?.toString().replace(',','.')) || 0), 0);
+                                                                // Convert cm to meters => / 100
+                                                                const totalMetros = items.reduce((acc, curr) => acc + ((parseFloat(curr.qunti?.toString() || curr.quantidade?.toString() || curr.qtd?.toString()) || 0) * (parseFloat(curr.comprimento?.toString()) || 0)), 0) / 100;
+                                                                const totalQtd = items.reduce((acc, curr) => acc + (parseInt(curr.qunti?.toString() || curr.quantidade?.toString() || curr.qtd?.toString()) || 0), 0);
+                                                                
+                                                                grandTotalComp += totalMetros;
+                                                                grandTotalPeso += totalPeso;
+                                                                grandTotalQtd += totalQtd;
+                                                                
+                                                                let aco = 'CA50';
+                                                                if (mm === '5,00' || mm === '5.00' || mm === '5' || mm === '6,00' || mm === '6.00' || mm === '6') aco = 'CA60';
+
+                                                                return (
+                                                                    <tr key={idx} className="border-b border-slate-200 hover:bg-slate-50">
+                                                                        <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{mm}</td>
+                                                                        <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{aco}</td>
+                                                                        <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{totalMetros.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                                        <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{totalPeso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                                        <td className="p-3 text-sm font-medium text-slate-700">{totalQtd}</td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                        <tfoot className="bg-slate-100 border-t-2 border-slate-300">
+                                                            <tr>
+                                                                <td colSpan={2} className="p-3 text-sm font-black text-slate-800 uppercase text-right border-r border-slate-300">TOTAL:</td>
+                                                                <td className="p-3 text-sm font-black text-slate-800 border-r border-slate-300">{grandTotalComp.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                                <td className="p-3 text-sm font-black text-slate-800 border-r border-slate-300">{grandTotalPeso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                                <td className="p-3 text-sm font-black text-slate-800">{grandTotalQtd}</td>
+                                                            </tr>
+                                                        </tfoot>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
 
                                     return (
                                         <div className="space-y-8">
