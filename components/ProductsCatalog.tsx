@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import type { StockGauge, StockItem } from '../types';
+import type { StockGauge, StockItem, Page } from '../types';
 
 interface ProductsCatalogProps {
     gauges: StockGauge[];
     stock: StockItem[];
+    setPage: (page: Page) => void;
 }
 
-export const ProductsCatalog: React.FC<ProductsCatalogProps> = ({ gauges, stock }) => {
+export const ProductsCatalog: React.FC<ProductsCatalogProps> = ({ gauges, stock, setPage }) => {
     const [search, setSearch] = useState('');
 
     const catalogData = useMemo(() => {
@@ -53,6 +54,14 @@ export const ProductsCatalog: React.FC<ProductsCatalogProps> = ({ gauges, stock 
                         Produtos Cadastrados
                     </h1>
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">CATÁLOGO E PREÇOS</p>
+                </div>
+                <div>
+                    <button 
+                        onClick={() => setPage('customerOrders')}
+                        className="bg-white border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-800 font-bold py-2 px-4 rounded-xl transition-all shadow-sm flex items-center gap-2 text-sm"
+                    >
+                        <span>⬅️ Voltar</span>
+                    </button>
                 </div>
             </div>
 

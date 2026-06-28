@@ -2851,7 +2851,7 @@ const App: React.FC = () => {
             case 'customerRegistration': return <CustomerRegistration setPage={setPage} customers={customers} />;
             case 'customersManagement': return <CustomersManagement setPage={setPage} customers={customers} />;
             case 'customerOrders': return <CustomerOrders setPage={setPage} customers={customers} commercialOrders={commercialOrders} currentUser={currentUser} activeBrandingPartner={activeBrandingPartner} />;
-            case 'productsCatalog': return <ProductsCatalog gauges={gauges} stock={stock} />;
+            case 'productsCatalog': return <ProductsCatalog gauges={gauges} stock={stock} setPage={setPage} />;
             case 'documents': return <DocumentManager setPage={setPage} currentUser={currentUser} />;
             case 'gaugesManager': return <GaugesManager gauges={gauges} stock={stock} onAdd={addGauge} onDelete={deleteGauge} onUpdate={updateGauge} gaugeComponents={gaugeComponents} onSaveComponents={saveGaugeComponents} currentUser={currentUser} />;
             case 'labelConfig': return <LabelConfiguration gauges={gauges} showNotification={showNotification} activeBrandingPartner={activeBrandingPartner} />;
