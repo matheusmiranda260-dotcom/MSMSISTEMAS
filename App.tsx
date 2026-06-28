@@ -482,8 +482,8 @@ const App: React.FC = () => {
         const restartLogs = accessLogs.filter(log => log.username === 'SYSTEM_RESTART');
         if (restartLogs.length > 0) {
             // Pegar o mais recente
-            const latestRestart = restartLogs.sort((a, b) => new Date(b.login_at).getTime() - new Date(a.login_at).getTime())[0];
-            const restartTime = new Date(latestRestart.login_at).getTime();
+            const latestRestart = restartLogs.sort((a, b) => new Date(b.loginAt).getTime() - new Date(a.loginAt).getTime())[0];
+            const restartTime = new Date(latestRestart.loginAt).getTime();
             
             // Se o sistema foi reiniciado DEPOIS que o usuário logou, force logout
             if (restartTime > loginTime) {
