@@ -202,6 +202,13 @@ const CustomersManagement: React.FC<CustomersManagementProps> = ({ setPage, cust
                     </div>
 
                     <button
+                        onClick={() => setPage('customerOrders')}
+                        className="bg-slate-700/50 text-slate-200 hover:bg-slate-700 hover:text-white px-5 py-2.5 rounded-xl font-bold text-sm tracking-wide transition-all shadow-md flex items-center gap-2 border border-white/10"
+                    >
+                        ⬅️ Voltar
+                    </button>
+
+                    <button
                         onClick={() => setPage('customerRegistration')}
                         className="bg-[#00E5FF] text-[#0A2A3D] hover:bg-[#00B4CC] px-5 py-2.5 rounded-xl font-bold text-sm tracking-wide transition-all shadow-lg shadow-[#00E5FF]/20 flex items-center gap-2"
                     >
