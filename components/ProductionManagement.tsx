@@ -647,7 +647,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                 <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Aço</th>
                                                                 <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Comp. (m)</th>
                                                                 <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Peso (Kg)</th>
-                                                                <th className="p-3 text-sm font-black text-slate-700 uppercase">Quantidade (Peças)</th>
+                                                                <th className="p-3 text-sm font-black text-slate-700 uppercase">Quantidade de O.S.</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -655,7 +655,10 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                 const totalPeso = items.reduce((acc, curr) => acc + (parseFloat(curr.peso?.toString().replace(',','.')) || 0), 0);
                                                                 // Convert cm to meters => / 100
                                                                 const totalMetros = items.reduce((acc, curr) => acc + ((parseFloat(curr.qunti?.toString() || curr.quantidade?.toString() || curr.qtd?.toString()) || 0) * (parseFloat(curr.comprimento?.toString()) || 0)), 0) / 100;
-                                                                const totalQtd = items.reduce((acc, curr) => acc + (parseInt(curr.qunti?.toString() || curr.quantidade?.toString() || curr.qtd?.toString()) || 0), 0);
+                                                                
+                                                                // Calculate unique OSs for this bitola
+                                                                const uniqueOs = new Set(items.map(item => item.os));
+                                                                const totalQtd = uniqueOs.size;
                                                                 
                                                                 grandTotalComp += totalMetros;
                                                                 grandTotalPeso += totalPeso;
