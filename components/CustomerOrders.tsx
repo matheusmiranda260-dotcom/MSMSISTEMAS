@@ -346,8 +346,9 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                 <th className="p-4 text-center font-bold text-xs uppercase w-20">Nº</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-24">Data</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-28">Vendedor</th>
-                                <th className="p-4 font-bold text-xs uppercase">Cliente</th>
+                                <th className="p-4 font-bold text-xs uppercase min-w-[250px] max-w-[350px]">Cliente</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-32">Leitura</th>
+                                <th className="w-full"></th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-32">Status</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-36">Preço</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-48">Ações</th>
@@ -399,6 +400,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 <span className="text-[9px] font-bold text-slate-400 italic">Pendente</span>
                                             )}
                                         </td>
+                                        <td></td>
                                         <td className="p-4 text-center">
                                             {q.status?.toLowerCase() === 'aguardando engenharia' ? (
                                                 <div className="bg-red-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full animate-pulse whitespace-nowrap shadow-md border border-red-600">
