@@ -159,6 +159,9 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
         if (clean === 'preço desatualizado') {
             return 'bg-amber-50/70 border-b border-amber-100 hover:bg-amber-100/50 text-slate-800';
         }
+        if (clean === 'em processo de leitura') {
+            return 'bg-orange-100 border-b-2 border-orange-400 hover:bg-orange-200 text-slate-900 font-medium shadow-sm';
+        }
         if (clean === 'aguardando engenharia') {
             return 'bg-green-200 border-b-2 border-green-400 hover:bg-green-300 text-slate-900 font-medium shadow-sm';
         }
@@ -345,6 +348,17 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                             {q.status?.toLowerCase() === 'aguardando engenharia' ? (
                                                 <div className="bg-red-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full animate-pulse whitespace-nowrap shadow-md border border-red-600">
                                                     Aguardando Eng.
+                                                </div>
+                                            ) : q.status?.toLowerCase() === 'em processo de leitura' ? (
+                                                <div className="flex flex-col items-center">
+                                                    <span className="bg-orange-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm">
+                                                        Em Leitura
+                                                    </span>
+                                                    {q.engineeringDeadline && (
+                                                        <span className="text-[8px] font-bold text-orange-700 mt-1 uppercase whitespace-nowrap">
+                                                            Até: {q.engineeringDeadline}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <div className="text-[9px] font-bold text-slate-500 uppercase tracking-tight italic">

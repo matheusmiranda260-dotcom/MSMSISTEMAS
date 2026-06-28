@@ -452,6 +452,7 @@ export interface CommercialOrder {
     paymentCondition?: string;
     totalWeight?: number;
     createdAt?: string;
+    engineeringDeadline?: string;
     history?: OrderHistoryEntry[];
 }
 

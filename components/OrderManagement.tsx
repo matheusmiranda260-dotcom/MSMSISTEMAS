@@ -18,6 +18,12 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingOrder, setEditingOrder] = useState<CommercialOrder | null>(null);
     const [printingOrder, setPrintingOrder] = useState<CommercialOrder | null>(null);
+    
+    // Auth Modal
+    const [isAuthorizeModalOpen, setIsAuthorizeModalOpen] = useState(false);
+    const [orderToAuthorize, setOrderToAuthorize] = useState<CommercialOrder | null>(null);
+    const [authorizeDate, setAuthorizeDate] = useState('');
+    const [authorizeTime, setAuthorizeTime] = useState('');
 
     // Form fields for New Order
     const [clientSearchTerm, setClientSearchTerm] = useState('');
@@ -133,14 +139,28 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
         }
     };
 
-    const handleApproveOrder = async (order: CommercialOrder) => {
-        if (window.confirm('Deseja autorizar a produção deste pedido?')) {
-            try {
-                await updateItem('commercial_orders', order.id!, { status: 'Autorizado Engenharia' });
-            } catch (error) {
-                console.error('Erro ao autorizar pedido:', error);
-                alert('Erro ao autorizar pedido.');
-            }
+    const handleApproveOrder = async () => {
+        if (!orderToAuthorize) return;
+        if (!authorizeDate || !authorizeTime) {
+            alert('Por favor, informe a data e hora do término da leitura.');
+            return;
+        }
+        
+        const [year, month, day] = authorizeDate.split('-');
+        const deadline = `${day}/${month}/${year} às ${authorizeTime}`;
+
+        try {
+            await updateItem('commercial_orders', orderToAuthorize.id!, { 
+                status: 'Em processo de leitura',
+                engineeringDeadline: deadline
+            });
+            setIsAuthorizeModalOpen(false);
+            setOrderToAuthorize(null);
+            setAuthorizeDate('');
+            setAuthorizeTime('');
+        } catch (error) {
+            console.error('Erro ao autorizar pedido:', error);
+            alert('Erro ao autorizar pedido.');
         }
     };
 
@@ -153,6 +173,9 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
         }
         if (clean === 'preço desatualizado') {
             return 'bg-amber-50/70 border-b border-amber-100 hover:bg-amber-100/50 text-slate-800';
+        }
+        if (clean === 'em processo de leitura') {
+            return 'bg-orange-100 border-b-2 border-orange-400 hover:bg-orange-200 text-slate-900 font-medium shadow-sm';
         }
         if (clean === 'aguardando engenharia') {
             return 'bg-green-200 border-b-2 border-green-400 hover:bg-green-300 text-slate-900 font-medium shadow-sm';
@@ -318,6 +341,17 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                                                 <div className="bg-red-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full animate-pulse whitespace-nowrap shadow-md border border-red-600">
                                                     Aguardando Eng.
                                                 </div>
+                                            ) : q.status?.toLowerCase() === 'em processo de leitura' ? (
+                                                <div className="flex flex-col items-center">
+                                                    <span className="bg-orange-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm">
+                                                        Em Leitura
+                                                    </span>
+                                                    {q.engineeringDeadline && (
+                                                        <span className="text-[8px] font-bold text-orange-700 mt-1 uppercase whitespace-nowrap">
+                                                            Até: {q.engineeringDeadline}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             ) : (
                                                 <div className="text-[9px] font-bold text-slate-500 uppercase tracking-tight italic">
                                                     {q.status || 'N/A'}
@@ -336,25 +370,20 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                                             <select 
                                                 className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
                                                 onChange={(e) => {
-                                                    if (e.target.value === 'delete') {
-                                                        if (q.id) handleDeleteOrder(q.id);
-                                                    } else if (e.target.value === 'edit') {
-                                                        setEditingOrder(q);
-                                                    } else if (e.target.value === 'print') {
+                                                    if (e.target.value === 'print') {
                                                         setPrintingOrder(q);
                                                     } else if (e.target.value === 'approve') {
-                                                        handleApproveOrder(q);
+                                                        setOrderToAuthorize(q);
+                                                        setIsAuthorizeModalOpen(true);
                                                     }
                                                     e.target.value = '';
                                                 }}
                                             >
                                                 <option value="">Ações...</option>
-                                                <option value="edit">✏️ Ver/Editar Pedido</option>
                                                 <option value="print">🖨️ Imprimir Pedido</option>
                                                 {q.status?.toLowerCase() === 'aguardando engenharia' && (
                                                     <option value="approve">✅ Autorizar Pedido</option>
                                                 )}
-                                                <option value="delete">🗑️ Excluir Pedido</option>
                                             </select>
                                         </td>
                                     </tr>
@@ -485,6 +514,58 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                     onClose={() => setPrintingOrder(null)} 
                     activeBrandingPartner={activeBrandingPartner}
                 />
+            )}
+            {/* Modal de Autorização */}
+            {isAuthorizeModalOpen && orderToAuthorize && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-slate-50 w-full max-w-md rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-slate-200 bg-white">
+                            <h2 className="text-xl font-black text-slate-900">Autorizar Pedido</h2>
+                            <p className="text-sm font-bold text-slate-500 uppercase mt-1">
+                                Defina o tempo de leitura do projeto
+                            </p>
+                        </div>
+                        <div className="p-6 flex flex-col gap-5">
+                            <div>
+                                <label className="block text-xs font-black text-slate-700 uppercase mb-2">Data de Término</label>
+                                <input 
+                                    type="date"
+                                    value={authorizeDate}
+                                    onChange={(e) => setAuthorizeDate(e.target.value)}
+                                    className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-700 uppercase mb-2">Hora de Término</label>
+                                <input 
+                                    type="time"
+                                    value={authorizeTime}
+                                    onChange={(e) => setAuthorizeTime(e.target.value)}
+                                    className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                />
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-slate-200 bg-white flex justify-end gap-3">
+                            <button
+                                onClick={() => {
+                                    setIsAuthorizeModalOpen(false);
+                                    setOrderToAuthorize(null);
+                                    setAuthorizeDate('');
+                                    setAuthorizeTime('');
+                                }}
+                                className="px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleApproveOrder}
+                                className="bg-sky-600 hover:bg-sky-700 text-white font-extrabold px-6 py-3 rounded-xl shadow-md transition-all"
+                            >
+                                Confirmar e Autorizar
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
