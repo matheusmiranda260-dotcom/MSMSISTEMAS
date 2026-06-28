@@ -150,8 +150,32 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
         return 'bg-emerald-50/70 border-b border-emerald-100 hover:bg-emerald-100/50 text-slate-800';
     };
 
-    const totalOrcamentos = commercialOrders.filter(o => o.status?.toLowerCase().includes('orçamento')).length;
-    const totalPedidos = commercialOrders.filter(o => !o.status?.toLowerCase().includes('orçamento')).length;
+    const isGestor = currentUser?.role === 'gestor' || currentUser?.role === 'admin';
+    const baseOrders = (commercialOrders || []).filter(o => {
+        if (!isGestor) {
+            const userName = (currentUser?.name || currentUser?.username || '').toUpperCase();
+            const orderSalesperson = (o.salesperson || '').toUpperCase();
+            if (orderSalesperson !== userName) {
+                return false;
+            }
+        }
+
+        if (search.trim()) {
+            const term = search.toLowerCase().trim();
+            const matchesSearch = 
+                (o.orderNumber && String(o.orderNumber).toLowerCase().includes(term)) ||
+                (o.clientName && o.clientName.toLowerCase().includes(term)) ||
+                (o.clientCode && String(o.clientCode).toLowerCase().includes(term)) ||
+                (o.salesperson && o.salesperson.toLowerCase().includes(term));
+            
+            if (!matchesSearch) return false;
+        }
+
+        return true;
+    });
+
+    const totalOrcamentos = baseOrders.filter(o => o.status?.toLowerCase().includes('orçamento')).length;
+    const totalPedidos = baseOrders.filter(o => !o.status?.toLowerCase().includes('orçamento')).length;
 
     if (editingOrder) {
         return (
@@ -190,7 +214,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                         </div>
                         <div className="bg-white border border-slate-200 shadow-sm rounded-xl px-5 py-2 flex flex-col items-center justify-center min-w-[120px]">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total</span>
-                            <span className="text-2xl font-black text-slate-700">{commercialOrders.length}</span>
+                            <span className="text-2xl font-black text-slate-700">{baseOrders.length}</span>
                         </div>
                     </div>
                 </div>
@@ -261,7 +285,12 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                             </tr>
                         </thead>
                         <tbody>
-                            {[...(commercialOrders || [])].sort((a, b) => String(b.orderNumber || '').localeCompare(String(a.orderNumber || ''))).map((q) => {
+                            {[...baseOrders].sort((a, b) => {
+                                if (orderBy === 'id') {
+                                    return String(b.orderNumber || '').localeCompare(String(a.orderNumber || ''));
+                                }
+                                return String(a.clientCode || '').localeCompare(String(b.clientCode || ''));
+                            }).map((q) => {
                                 // Formatar a data para o padrão BR caso venha como YYYY-MM-DD
                                 const formattedDate = (q.date && String(q.date).includes('-')) 
                                     ? String(q.date).split('-').reverse().join('/') 
