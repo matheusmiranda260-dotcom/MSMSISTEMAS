@@ -471,6 +471,29 @@ const App: React.FC = () => {
         }
     }, [currentUser?.id]);
 
+    // LÓGICA DE REINÍCIO (FORCE LOGOUT GLOBAL)
+    useEffect(() => {
+        if (!currentUser) return;
+        
+        const loginTimeStr = localStorage.getItem('msm_user_login_time');
+        const loginTime = loginTimeStr ? parseInt(loginTimeStr, 10) : 0;
+        
+        // Verifica se há um evento SYSTEM_RESTART mais recente que o login do usuário atual
+        const restartLogs = accessLogs.filter(log => log.username === 'SYSTEM_RESTART');
+        if (restartLogs.length > 0) {
+            // Pegar o mais recente
+            const latestRestart = restartLogs.sort((a, b) => new Date(b.login_at).getTime() - new Date(a.login_at).getTime())[0];
+            const restartTime = new Date(latestRestart.login_at).getTime();
+            
+            // Se o sistema foi reiniciado DEPOIS que o usuário logou, force logout
+            if (restartTime > loginTime) {
+                console.log('🔄 Sistema foi reiniciado globalmente. Desconectando usuário.');
+                handleLogout();
+                showNotification('O sistema foi reiniciado. Por favor, faça login novamente.', 'warning');
+            }
+        }
+    }, [accessLogs, currentUser]);
+
     const handleUserSession = (supabaseUser: any) => {
         const role = (supabaseUser.email?.includes('gestor') || supabaseUser.email?.includes('admin') || supabaseUser.email === 'matheusmiranda357@gmail.com') ? 'gestor' : 'user';
 
@@ -483,6 +506,7 @@ const App: React.FC = () => {
         };
         setCurrentUser(appUser);
         localStorage.setItem('msm_user', JSON.stringify(appUser));
+        localStorage.setItem('msm_user_login_time', Date.now().toString());
         setPage(role === 'gestor' ? 'productionDashboard' : 'menu');
     };
 
@@ -531,6 +555,7 @@ const App: React.FC = () => {
 
                 setCurrentUser(appUser);
                 localStorage.setItem('msm_user', JSON.stringify(appUser));
+                localStorage.setItem('msm_user_login_time', Date.now().toString());
                 setPage('blank');
                 showNotification(`Bem-vindo, ${appUser.username}!`, 'success');
                 return;
@@ -547,6 +572,7 @@ const App: React.FC = () => {
                 };
                 setCurrentUser(adminUser);
                 localStorage.setItem('msm_user', JSON.stringify(adminUser));
+                localStorage.setItem('msm_user_login_time', Date.now().toString());
                 setPage('blank');
                 showNotification('Login realizado com sucesso (Modo Gestor).', 'success');
                 return;
@@ -572,6 +598,7 @@ const App: React.FC = () => {
             }
         }
         localStorage.removeItem('msm_user');
+        localStorage.removeItem('msm_user_login_time');
         setCurrentUser(null);
         setPage('login');
     };

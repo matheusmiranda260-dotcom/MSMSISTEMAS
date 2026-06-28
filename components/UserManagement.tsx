@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { supabase } from '../supabaseClient';
 import type { Page, User, Employee, UserAccessLog } from '../types';
 import { ArrowLeftIcon, PencilIcon, TrashIcon, WarningIcon } from './icons';
 
@@ -10,6 +11,7 @@ interface UserManagementProps {
     deleteUser: (userId: string) => void;
     setPage: (page: Page) => void;
     accessLogs: UserAccessLog[];
+    currentUser?: User | null;
 }
 
 const permissionCategories = [
@@ -50,8 +52,6 @@ const permissionCategories = [
         ]
     }
 ];
-
-const manageablePages = permissionCategories.flatMap(c => c.permissions.map(p => p.page as Page));
 
 const UserModal: React.FC<{
     user?: User | null;
@@ -338,7 +338,31 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, employees, addUs
                 <h1 className="text-3xl font-bold text-slate-800">Gerenciar Usuários</h1>
             </header>
 
-            <div className="mb-6 flex justify-end">
+            <div className="mb-6 flex justify-between items-center">
+                <button
+                    onClick={async () => {
+                        if (!window.confirm('ALERTA: Tem certeza que deseja reiniciar o sistema?\n\nTodos os usuários ativos (inclusive você) serão desconectados imediatamente e precisarão fazer login novamente.')) return;
+                        try {
+                            const newAccessLog = {
+                                id: (crypto as any).randomUUID ? (crypto as any).randomUUID() : 'log-' + Date.now(),
+                                user_id: currentUser?.id || '00000000-0000-0000-0000-000000000000',
+                                username: 'SYSTEM_RESTART',
+                                login_at: new Date().toISOString()
+                            };
+                            await supabase.from('user_access_logs').insert([newAccessLog]);
+                            alert('Comando de reinício enviado! Todos os usuários serão desconectados em instantes.');
+                        } catch (e) {
+                            console.error('Error restarting system:', e);
+                            alert('Erro ao enviar o comando de reinício.');
+                        }
+                    }}
+                    className="flex items-center gap-2 bg-gradient-to-r from-red-600 to-rose-700 text-white font-bold py-2 px-4 rounded-lg hover:from-red-700 hover:to-rose-800 transition shadow-md shadow-red-500/20 active:scale-[0.98]"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    Reiniciar Sistema
+                </button>
                 <button
                     onClick={() => setIsModalOpen(true)}
                     className="bg-[#0F3F5C] hover:bg-[#0A2A3D] text-white font-bold py-2 px-4 rounded-lg transition"
