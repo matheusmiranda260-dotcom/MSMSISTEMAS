@@ -32,6 +32,7 @@ import DowntimeConfigManager from './components/DowntimeConfigManager';
 import CustomerRegistration from './components/CustomerRegistration';
 import CustomersManagement from './components/CustomersManagement';
 import { CustomerOrders } from './components/CustomerOrders';
+import { OrderManagement } from './components/OrderManagement';
 import { ProductsCatalog } from './components/ProductsCatalog';
 import { supabase } from './supabaseClient';
 import type { StockGauge, StickyNote, GaugeComponent, CommercialOrder } from './types';
@@ -2836,6 +2837,7 @@ const App: React.FC = () => {
             case 'stockTransfer': return <StockTransfer stock={stock} transfers={transfers} setPage={setPage} createTransfer={createTransfer} gauges={gauges} />;
 
 
+            case 'orderManagement': return <OrderManagement setPage={setPage} customers={customers} commercialOrders={commercialOrders} currentUser={currentUser} activeBrandingPartner={activeBrandingPartner} />;
             case 'productionOrder': return <ProductionOrder setPage={setPage} stock={stock} productionOrders={productionOrders} addProductionOrder={addProductionOrder} showNotification={showNotification} updateProductionOrder={updateProductionOrder} deleteProductionOrder={deleteProductionOrder} gauges={gauges} currentUser={currentUser} />;
 
             case 'blank': return <div style={{ height: '100vh', background: '#f0f2f5' }} />;

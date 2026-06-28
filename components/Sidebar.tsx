@@ -211,8 +211,8 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                 <div className="sidebar-category">
                     <div className="sidebar-category-title">{isCollapsed ? '⚙️' : '⚙️ Produção'}</div>
                     <button
-                        onClick={() => setPage('productionOrder')}
-                        className={`sidebar-item ${page === 'productionOrder' ? 'active' : ''} justify-between group`}
+                        onClick={() => setPage('orderManagement')}
+                        className={`sidebar-item ${page === 'orderManagement' ? 'active' : ''} justify-between group`}
                         title={isCollapsed ? 'Gestão de Pedidos' : ''}
                     >
                         <div className="flex items-center gap-3 overflow-hidden">
