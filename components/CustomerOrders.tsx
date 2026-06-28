@@ -191,7 +191,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
             return 'bg-amber-50/70 border-b border-amber-100 hover:bg-amber-100/50 text-slate-800';
         }
         if (clean === 'em processo de leitura') {
-            return 'bg-orange-100 border-b-2 border-orange-400 hover:bg-orange-200 text-slate-900 font-medium shadow-sm';
+            return 'bg-green-200 border-b-2 border-green-400 hover:bg-green-300 text-slate-900 font-medium shadow-sm';
         }
         if (clean === 'leitura finalizada, aguardo setor de produção') {
             return 'bg-orange-100 border-b-2 border-orange-400 hover:bg-orange-200 text-slate-900 font-medium shadow-sm';
@@ -414,7 +414,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 </div>
                                             )}
                                         </td>
-                                        <td className={`p-4 text-center border-r border-black transition-colors duration-300 ${!isOrcamento && q.status?.toLowerCase() === 'aguardando engenharia' ? 'bg-red-500' : ''}`}>
+                                        <td className={`p-4 text-center border-r border-black transition-colors duration-300 ${!isOrcamento && q.status?.toLowerCase() === 'aguardando engenharia' ? 'bg-red-500' : ''} ${!isOrcamento && q.status?.toLowerCase() === 'em processo de leitura' ? 'bg-orange-600' : ''}`}>
                                             {!isOrcamento && q.status?.toLowerCase() === 'aguardando engenharia' ? (
                                                 <div className="flex flex-col items-center justify-center h-full drop-shadow-sm">
                                                     <div className="text-[12px] font-black text-slate-900 uppercase tracking-tight leading-tight">
@@ -426,8 +426,15 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                     {!isOrcamento && (
                                                         <div>
                                                             {q.status?.toLowerCase() === 'em processo de leitura' ? (
-                                                                <div className="bg-orange-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm inline-block">
-                                                                    Em Leitura
+                                                                <div className="flex flex-col items-center drop-shadow-sm">
+                                                                    <div className="bg-orange-800 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-md border border-orange-400 inline-block animate-[pulse_1s_ease-in-out_infinite]">
+                                                                        Em Leitura
+                                                                    </div>
+                                                                    {q.engineeringDeadline && (
+                                                                        <div className="text-[9px] font-black text-white mt-2 uppercase tracking-wide bg-black/20 px-2 py-0.5 rounded border border-white/10 shadow-inner">
+                                                                            Prazo: {q.engineeringDeadline}
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             ) : q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? (
                                                                 <div className="bg-orange-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm border border-orange-600 inline-block">
