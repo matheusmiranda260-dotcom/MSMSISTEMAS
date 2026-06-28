@@ -366,6 +366,8 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                     ? String(q.date).split('-').reverse().join('/') 
                                     : (q.date || '');
 
+                                const isIncomplete = (!q.price || q.price === 0) && q.status?.toLowerCase() === 'orçamento';
+
                                 return (
                                     <tr key={q.id} className={`${getRowClass(q.status)} transition-colors`}>
                                         <td className="p-4 text-center font-black text-slate-900 text-sm border-r border-black">{q.orderNumber}</td>
@@ -401,8 +403,14 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                             )}
                                         </td>
                                         <td className="border-r border-black"></td>
-                                        <td className="p-4 text-center border-r border-black">
-                                            {q.status?.toLowerCase() === 'aguardando engenharia' ? (
+                                        <td className={`${isIncomplete ? 'bg-red-500 animate-[pulse_1.5s_ease-in-out_infinite]' : ''} p-4 text-center border-r border-black`}>
+                                            {isIncomplete ? (
+                                                <div className="flex flex-col items-center justify-center h-full">
+                                                    <div className="text-[14px] font-black text-white uppercase tracking-tight flex items-center justify-center gap-1 drop-shadow-md">
+                                                        <span>⚠️</span> INCOMPLETO
+                                                    </div>
+                                                </div>
+                                            ) : q.status?.toLowerCase() === 'aguardando engenharia' ? (
                                                 <div className="bg-red-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full animate-pulse whitespace-nowrap shadow-md border border-red-600">
                                                     Aguardando Eng.
                                                 </div>
@@ -426,11 +434,6 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                     <div className="text-[9px] font-bold text-slate-500 uppercase tracking-tight italic">
                                                         {q.status || 'N/A'}
                                                     </div>
-                                                    {(!q.price || q.price === 0) && q.status?.toLowerCase() === 'orçamento' && (
-                                                        <div className="text-[10px] font-black text-red-600 uppercase tracking-tight flex items-center justify-center gap-1">
-                                                            <span>⚠️</span> INCOMPLETO
-                                                        </div>
-                                                    )}
                                                 </div>
                                             )}
                                         </td>
