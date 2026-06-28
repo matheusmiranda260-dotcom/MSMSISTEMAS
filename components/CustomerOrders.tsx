@@ -420,18 +420,20 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                     Aguardando Produção
                                                 </div>
                                             ) : (
-                                                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-tight italic">
-                                                    {q.status || 'N/A'}
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <div className="text-[9px] font-bold text-slate-500 uppercase tracking-tight italic">
+                                                        {q.status || 'N/A'}
+                                                    </div>
+                                                    {(!q.price || q.price === 0) && q.status?.toLowerCase() === 'orçamento' && (
+                                                        <div className="text-[10px] font-black text-red-600 uppercase tracking-tight flex items-center justify-center gap-1">
+                                                            <span>⚠️</span> INCOMPLETO
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </td>
                                         <td className="p-4 text-center font-black text-slate-900 text-sm">
                                             R$ {(q.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                            {(!q.price || q.price === 0) && (
-                                                <div className="text-[10px] font-black text-red-600 uppercase tracking-tight mt-1 flex items-center justify-center gap-1">
-                                                    <span>⚠️</span> INCOMPLETO
-                                                </div>
-                                            )}
                                         </td>
                                         <td className="p-4 text-center">
                                             <select 
