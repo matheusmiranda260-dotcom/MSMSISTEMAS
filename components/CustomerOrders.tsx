@@ -343,15 +343,15 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-800 text-white">
-                                <th className="p-4 text-center font-bold text-xs uppercase w-20">Nº</th>
-                                <th className="p-4 text-center font-bold text-xs uppercase w-24">Data</th>
-                                <th className="p-4 text-center font-bold text-xs uppercase w-28">Vendedor</th>
-                                <th className="p-4 font-bold text-xs uppercase min-w-[250px] max-w-[350px]">Cliente</th>
-                                <th className="p-4 text-center font-bold text-xs uppercase w-32">Leitura</th>
-                                <th className="w-full"></th>
-                                <th className="p-4 text-center font-bold text-xs uppercase w-32">Status</th>
-                                <th className="p-4 text-center font-bold text-xs uppercase w-36">Preço</th>
-                                <th className="p-4 text-center font-bold text-xs uppercase w-48">Ações</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-20 border-r border-slate-700">Nº</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-24 border-r border-slate-700">Data</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-28 border-r border-slate-700">Vendedor</th>
+                                <th className="p-4 font-bold text-xs uppercase min-w-[250px] max-w-[350px] border-r border-slate-700">Cliente</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-32 border-r border-slate-700">Leitura</th>
+                                <th className="w-full border-r border-slate-700"></th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-32 border-r border-slate-700">Status</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-36 border-r border-slate-700">Preço</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase min-w-[180px]">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -368,10 +368,10 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
 
                                 return (
                                     <tr key={q.id} className={`${getRowClass(q.status)} transition-colors`}>
-                                        <td className="p-4 text-center font-black text-slate-900 text-sm">{q.orderNumber}</td>
-                                        <td className="p-4 text-center font-bold text-slate-600 text-xs">{formattedDate}</td>
-                                        <td className="p-4 text-center font-bold text-slate-700 text-xs">{q.salesperson}</td>
-                                        <td className="p-4">
+                                        <td className="p-4 text-center font-black text-slate-900 text-sm border-r border-slate-200/60">{q.orderNumber}</td>
+                                        <td className="p-4 text-center font-bold text-slate-600 text-xs border-r border-slate-200/60">{formattedDate}</td>
+                                        <td className="p-4 text-center font-bold text-slate-700 text-xs border-r border-slate-200/60">{q.salesperson}</td>
+                                        <td className="p-4 border-r border-slate-200/60">
                                             <div className="flex flex-col">
                                                 <span className="font-extrabold text-slate-950 text-xs uppercase">
                                                     ({q.clientCode}) {q.clientName}
@@ -380,7 +380,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 {q.clientObs && <span className="text-[9px] font-semibold text-sky-600 mt-1 italic">{q.clientObs}</span>}
                                             </div>
                                         </td>
-                                        <td className="p-4 text-center">
+                                        <td className="p-4 text-center border-r border-slate-200/60">
                                             {q.readingStartedAt || q.readingFinishedAt ? (
                                                 <div className="flex flex-col items-center justify-center gap-1">
                                                     {q.readingStartedAt && (
@@ -400,8 +400,8 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 <span className="text-[9px] font-bold text-slate-400 italic">Pendente</span>
                                             )}
                                         </td>
-                                        <td></td>
-                                        <td className="p-4 text-center">
+                                        <td className="border-r border-slate-200/60"></td>
+                                        <td className="p-4 text-center border-r border-slate-200/60">
                                             {q.status?.toLowerCase() === 'aguardando engenharia' ? (
                                                 <div className="bg-red-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full animate-pulse whitespace-nowrap shadow-md border border-red-600">
                                                     Aguardando Eng.
@@ -434,7 +434,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 </div>
                                             )}
                                         </td>
-                                        <td className="p-4 text-center font-black text-slate-900 text-sm">
+                                        <td className="p-4 text-center font-black text-slate-900 text-sm border-r border-slate-200/60">
                                             R$ {(q.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                         </td>
                                         <td className="p-4 text-center">
