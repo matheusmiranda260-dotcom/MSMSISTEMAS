@@ -222,6 +222,18 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                             {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap">Gestão de Pedidos - Eng</span>}
                         </div>
                     </button>
+                    <button
+                        onClick={() => setPage('productionManagement')}
+                        className={`sidebar-item ${page === 'productionManagement' ? 'active' : ''} justify-between group mt-1`}
+                        title={isCollapsed ? 'Gestão de Produção' : ''}
+                    >
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="sidebar-item-icon shrink-0">
+                                <span className="w-full h-full flex items-center justify-center text-lg">🏭</span>
+                            </div>
+                            {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap">Gestão de Produção</span>}
+                        </div>
+                    </button>
                 </div>
 
                 {/* ESTOQUE */}
