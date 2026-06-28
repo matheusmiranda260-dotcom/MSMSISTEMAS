@@ -183,7 +183,7 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
 
                     <button
                         onClick={() => toggleMenu('customers')}
-                        className={`sidebar-item ${['customersManagement', 'customerRegistration', 'customerOrders'].includes(page) ? 'active' : ''} justify-between group`}
+                        className={`sidebar-item ${['customersManagement', 'customerRegistration', 'customerOrders', 'productsCatalog'].includes(page) ? 'active' : ''} justify-between group`}
                         title={isCollapsed ? 'Clientes' : ''}
                     >
                         <div className="flex items-center gap-3 overflow-hidden">
@@ -207,6 +207,9 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                             </button>
                             <button onClick={() => setPage('customerOrders')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'customerOrders' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
                                 📝 Lançar Pedidos
+                            </button>
+                            <button onClick={() => setPage('productsCatalog')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'productsCatalog' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                🏷️ Produtos Cadastrados
                             </button>
                         </div>
                     )}
