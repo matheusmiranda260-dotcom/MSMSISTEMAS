@@ -348,8 +348,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                 <th className="p-4 text-center font-bold text-xs uppercase w-28 border-r border-black">Vendedor</th>
                                 <th className="p-4 font-bold text-xs uppercase min-w-[250px] max-w-[350px] border-r border-black">Cliente</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-32 border-r border-black">Leitura</th>
-                                <th className="w-full border-r border-black"></th>
-                                <th className="p-4 text-center font-bold text-xs uppercase w-32 border-r border-black">Status</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-full border-r border-black">Status</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-36 border-r border-black">Preço</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase min-w-[180px]">Ações</th>
                             </tr>
@@ -366,7 +365,9 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                     ? String(q.date).split('-').reverse().join('/') 
                                     : (q.date || '');
 
-                                const isIncomplete = (!q.price || q.price === 0) && q.status?.toLowerCase() === 'orçamento';
+                                const isOrcamento = q.status?.toLowerCase() === 'orçamento';
+                                const isIncomplete = isOrcamento && (!q.price || q.price === 0);
+                                const isComplete = isOrcamento && (q.price && q.price > 0);
 
                                 return (
                                     <tr key={q.id} className={`${getRowClass(q.status)} transition-colors`}>
@@ -402,12 +403,17 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 <span className="text-[9px] font-bold text-slate-400 italic">Pendente</span>
                                             )}
                                         </td>
-                                        <td className="border-r border-black"></td>
-                                        <td className={`${isIncomplete ? 'bg-red-500 animate-[pulse_1.5s_ease-in-out_infinite]' : ''} p-4 text-center border-r border-black`}>
+                                        <td className={`${isIncomplete ? 'bg-red-500 animate-[pulse_1.5s_ease-in-out_infinite]' : isComplete ? 'bg-green-500 animate-[pulse_1.5s_ease-in-out_infinite]' : ''} p-4 text-center border-r border-black`}>
                                             {isIncomplete ? (
                                                 <div className="flex flex-col items-center justify-center h-full">
                                                     <div className="text-[14px] font-black text-white uppercase tracking-tight flex items-center justify-center gap-1 drop-shadow-md">
-                                                        <span>⚠️</span> INCOMPLETO
+                                                        <span>⚠️</span> ORÇAMENTO INCOMPLETO
+                                                    </div>
+                                                </div>
+                                            ) : isComplete ? (
+                                                <div className="flex flex-col items-center justify-center h-full">
+                                                    <div className="text-[12px] font-black text-white uppercase tracking-tight flex items-center justify-center gap-1 drop-shadow-md">
+                                                        <span>✅</span> ORÇAMENTO COMPLETO AGUARDANDO CLIENTE
                                                     </div>
                                                 </div>
                                             ) : q.status?.toLowerCase() === 'aguardando engenharia' ? (
