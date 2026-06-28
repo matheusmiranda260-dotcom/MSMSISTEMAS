@@ -349,19 +349,23 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                             </div>
                                         </td>
                                         <td className="p-4 text-center">
-                                            {q.readingStartedAt && (
+                                            {q.readingStartedAt || q.readingFinishedAt ? (
                                                 <div className="flex flex-col items-center justify-center gap-1">
-                                                    <div className="flex flex-col items-center bg-slate-50 px-2 py-1 rounded border border-slate-200">
-                                                        <span className="text-[8px] font-black text-slate-500 uppercase">Início</span>
-                                                        <span className="text-[9px] font-bold text-slate-700">{q.readingStartedAt}</span>
-                                                    </div>
+                                                    {q.readingStartedAt && (
+                                                        <div className="flex flex-col items-center bg-slate-50 px-2 py-1 rounded border border-slate-200 w-full min-w-[90px]">
+                                                            <span className="text-[8px] font-black text-slate-500 uppercase">Início</span>
+                                                            <span className="text-[9px] font-bold text-slate-700">{q.readingStartedAt}</span>
+                                                        </div>
+                                                    )}
                                                     {q.readingFinishedAt && (
-                                                        <div className="flex flex-col items-center bg-blue-50 px-2 py-1 rounded border border-blue-200">
+                                                        <div className="flex flex-col items-center bg-blue-50 px-2 py-1 rounded border border-blue-200 w-full min-w-[90px]">
                                                             <span className="text-[8px] font-black text-blue-500 uppercase">Fim</span>
                                                             <span className="text-[9px] font-bold text-blue-700">{q.readingFinishedAt}</span>
                                                         </div>
                                                     )}
                                                 </div>
+                                            ) : (
+                                                <span className="text-[9px] font-bold text-slate-400 italic">Pendente</span>
                                             )}
                                         </td>
                                         <td className="p-4 text-center">
