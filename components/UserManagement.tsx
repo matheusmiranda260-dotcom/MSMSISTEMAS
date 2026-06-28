@@ -53,6 +53,8 @@ const permissionCategories = [
     }
 ];
 
+const manageablePages = permissionCategories.flatMap(c => c.permissions.map(p => p.page as Page));
+
 const UserModal: React.FC<{
     user?: User | null;
     employees: Employee[];
