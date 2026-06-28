@@ -349,7 +349,6 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                 <th className="p-4 font-bold text-xs uppercase w-full min-w-[250px] border-r border-black">Cliente</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-56 border-r border-black">Orçamento</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-32 border-r border-black">Leitura</th>
-                                <th className="p-4 text-center font-bold text-xs uppercase w-36 border-r border-black">Preço</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase min-w-[180px]">Ações</th>
                             </tr>
                         </thead>
@@ -390,8 +389,14 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                         <span>⚠️</span> INCOMPLETO
                                                     </div>
                                                 ) : (
-                                                    <div className="text-[10px] font-black text-white uppercase tracking-tight flex items-center justify-center gap-1 drop-shadow-md">
-                                                        <span>✅</span> ORÇAMENTO COMPLETO AGUARDANDO CLIENTE
+                                                    <div className="flex flex-col items-center justify-center text-white drop-shadow-md">
+                                                        <div className="text-[7px] font-black uppercase tracking-tight flex items-center justify-center gap-1 leading-tight text-center">
+                                                            <span>✅</span> ORÇAMENTO COMPLETO<br/>AGUARDANDO CLIENTE
+                                                        </div>
+                                                        <div className="mt-1 flex items-center justify-center gap-1.5 bg-white/20 px-2 py-0.5 rounded border border-white/30 text-[9px] font-black whitespace-nowrap">
+                                                            <span>R$ {(q.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                                            {q.totalWeight ? <span className="opacity-80 px-1 border-l border-white/30">{(q.totalWeight).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kg</span> : null}
+                                                        </div>
                                                     </div>
                                                 )
                                             ) : null}
@@ -415,9 +420,6 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                             ) : (
                                                 <span className="text-[9px] font-bold text-slate-400 italic">Pendente</span>
                                             )}
-                                        </td>
-                                        <td className="p-4 text-center font-black text-slate-900 text-sm border-r border-black">
-                                            R$ {(q.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                         </td>
                                         <td className="p-4 text-center">
                                             <select 
