@@ -213,13 +213,13 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                     <button
                         onClick={() => setPage('orderManagement')}
                         className={`sidebar-item ${page === 'orderManagement' ? 'active' : ''} justify-between group`}
-                        title={isCollapsed ? 'Gestão de Pedidos' : ''}
+                        title={isCollapsed ? 'Gestão de Pedidos - Engenharia' : ''}
                     >
                         <div className="flex items-center gap-3 overflow-hidden">
                             <div className="sidebar-item-icon shrink-0">
                                 <CogIcon className="w-full h-full" />
                             </div>
-                            {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap">Gestão de Pedidos</span>}
+                            {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap">Gestão de Pedidos - Eng</span>}
                         </div>
                     </button>
                 </div>

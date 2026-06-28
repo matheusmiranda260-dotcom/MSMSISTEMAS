@@ -212,9 +212,9 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                     <div>
                         <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
                             <span className="text-4xl">📝</span>
-                            Gestão de Pedidos
+                            Gestão de Pedidos - Engenharia
                         </h1>
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">MSM SISTEMAS • SETOR DE PRODUÇÃO</p>
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">MSM SISTEMAS • SETOR DE ENGENHARIA</p>
                     </div>
 
                     {/* Mini Dashboard KPIs */}
