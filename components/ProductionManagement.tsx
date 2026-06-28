@@ -566,97 +566,104 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                     activeBrandingPartner={activeBrandingPartner}
                 />
             )}
-            {/* Modal de Autorização */}
-            {isAuthorizeModalOpen && orderToAuthorize && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-slate-50 w-full max-w-md rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="p-6 border-b border-slate-200 bg-white">
-                            <h2 className="text-xl font-black text-slate-900">Autorizar Pedido</h2>
-                            <p className="text-sm font-bold text-slate-500 uppercase mt-1">
-                                Defina o tempo de leitura do projeto
-                            </p>
-                        </div>
-                        <div className="p-6 flex flex-col gap-5">
+            {/* View Project Modal */}
+            {isViewProjectModalOpen && orderToView && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+                        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
                             <div>
-                                <label className="block text-xs font-black text-slate-700 uppercase mb-2">Data de Término</label>
-                                <input 
-                                    type="date"
-                                    value={authorizeDate}
-                                    onChange={(e) => setAuthorizeDate(e.target.value)}
-                                    className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                                />
+                                <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">
+                                    Projeto: Pedido {orderToView.orderNumber}
+                                </h2>
+                                <p className="text-sm font-medium text-slate-500 mt-1">
+                                    Cliente: {orderToView.clientName}
+                                </p>
                             </div>
-                            <div>
-                                <label className="block text-xs font-black text-slate-700 uppercase mb-2">Hora de Término</label>
-                                <input 
-                                    type="time"
-                                    value={authorizeTime}
-                                    onChange={(e) => setAuthorizeTime(e.target.value)}
-                                    className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                                />
-                            </div>
-                        </div>
-                        <div className="p-6 border-t border-slate-200 bg-white flex justify-end gap-3">
-                            <button
-                                onClick={() => {
-                                    setIsAuthorizeModalOpen(false);
-                                    setOrderToAuthorize(null);
-                                    setAuthorizeDate('');
-                                    setAuthorizeTime('');
-                                }}
-                                className="px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                            <button 
+                                onClick={() => setIsViewProjectModalOpen(false)}
+                                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
                             >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleApproveOrder}
-                                className="bg-sky-600 hover:bg-sky-700 text-white font-extrabold px-6 py-3 rounded-xl shadow-md transition-all"
-                            >
-                                Confirmar e Autorizar
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                             </button>
                         </div>
-                    </div>
-                </div>
-            )}
+                        
+                        <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
+                            {(() => {
+                                try {
+                                    const data = orderToView.projectData;
+                                    if (!Array.isArray(data)) {
+                                        return <div className="p-4 text-red-500 font-bold">O formato do projeto salvo não é uma lista JSON válida ou está vazio. Verifique como foi salvo.</div>;
+                                    }
 
-            {/* Modal de Finalizar Leitura */}
-            {isFinishReadingModalOpen && orderToFinishReading && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-slate-50 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="p-6 border-b border-slate-200 bg-white">
-                            <h2 className="text-xl font-black text-slate-900">Finalizar Leitura</h2>
-                            <p className="text-sm font-bold text-slate-500 uppercase mt-1">
-                                Cole o conteúdo JSON do projeto abaixo
-                            </p>
-                        </div>
-                        <div className="p-6 flex flex-col gap-5">
-                            <div>
-                                <label className="block text-xs font-black text-slate-700 uppercase mb-2">Dados do Projeto (JSON)</label>
-                                <textarea 
-                                    value={jsonContent}
-                                    onChange={(e) => setJsonContent(e.target.value)}
-                                    className="w-full bg-slate-100 border border-slate-300 rounded-xl p-3 text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 h-64 resize-none"
-                                    placeholder='{"projeto": "..."}'
-                                />
-                            </div>
-                        </div>
-                        <div className="p-6 border-t border-slate-200 bg-white flex justify-end gap-3">
-                            <button
-                                onClick={() => {
-                                    setIsFinishReadingModalOpen(false);
-                                    setOrderToFinishReading(null);
-                                    setJsonContent('');
-                                }}
-                                className="px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleFinishReading}
-                                className="bg-sky-600 hover:bg-sky-700 text-white font-extrabold px-6 py-3 rounded-xl shadow-md transition-all"
-                            >
-                                Salvar Projeto e Finalizar
-                            </button>
+                                    // Normalize keys to lowercase and trim
+                                    const normalizedData = data.map(item => {
+                                        const newItem: any = {};
+                                        for (const key in item) {
+                                            newItem[key.trim().toLowerCase()] = item[key];
+                                        }
+                                        return newItem;
+                                    });
+
+                                    // Group by bitola (mm)
+                                    const groups: Record<string, any[]> = {};
+                                    normalizedData.forEach(item => {
+                                        const mm = item.mm || item.bitola || item.diametro || 'Indefinido';
+                                        if (!groups[mm]) groups[mm] = [];
+                                        groups[mm].push(item);
+                                    });
+
+                                    return (
+                                        <div className="space-y-8">
+                                            {Object.entries(groups).map(([mm, items]) => {
+                                                const totalPeso = items.reduce((acc, curr) => acc + (parseFloat(curr.peso?.toString().replace(',','.')) || 0), 0);
+                                                const totalMetros = items.reduce((acc, curr) => acc + ((parseFloat(curr.qunti?.toString()) || 0) * (parseFloat(curr.comprimento?.toString()) || 0)), 0);
+
+                                                return (
+                                                    <div key={mm} className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+                                                        <div className="bg-slate-800 px-4 py-2 flex items-center justify-between">
+                                                            <h3 className="text-white font-bold text-sm uppercase">Bitola: {mm} mm</h3>
+                                                        </div>
+                                                        <div className="overflow-x-auto">
+                                                            <table className="w-full text-left border-collapse">
+                                                                <thead>
+                                                                    <tr className="bg-slate-50 border-b border-slate-200">
+                                                                        <th className="p-3 text-xs font-bold text-slate-500 uppercase">OS</th>
+                                                                        <th className="p-3 text-xs font-bold text-slate-500 uppercase">POS</th>
+                                                                        <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">QTD</th>
+                                                                        <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Comprimento</th>
+                                                                        <th className="p-3 text-xs font-bold text-slate-500 uppercase text-right">Peso</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {items.map((item, idx) => (
+                                                                        <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/50">
+                                                                            <td className="p-3 text-sm font-medium text-slate-700">{item.os || '-'}</td>
+                                                                            <td className="p-3 text-sm font-bold text-slate-900">{item.pos || '-'}</td>
+                                                                            <td className="p-3 text-sm text-center font-medium text-slate-600">{item.qunti || item.quantidade || item.qtd || '-'}</td>
+                                                                            <td className="p-3 text-sm text-center font-medium text-slate-600">{item.comprimento || '-'}</td>
+                                                                            <td className="p-3 text-sm text-right font-bold text-slate-700">{parseFloat(item.peso?.toString().replace(',','.') || '0').toFixed(2)} kg</td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                                <tfoot className="bg-slate-50/80">
+                                                                    <tr>
+                                                                        <td colSpan={2} className="p-3 text-xs font-bold text-slate-500 uppercase text-right">Totais desta bitola:</td>
+                                                                        <td className="p-3 text-sm text-center font-black text-slate-800">{items.reduce((acc, curr) => acc + (parseInt(curr.qunti?.toString() || curr.quantidade?.toString() || curr.qtd?.toString()) || 0), 0)} un</td>
+                                                                        <td className="p-3 text-sm text-center font-black text-slate-800">{totalMetros.toFixed(2)} cm</td>
+                                                                        <td className="p-3 text-sm text-right font-black text-sky-600">{totalPeso.toFixed(2)} kg</td>
+                                                                    </tr>
+                                                                </tfoot>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                } catch (e) {
+                                    return <div className="p-4 text-red-500">Erro ao processar dados do projeto.</div>;
+                                }
+                            })()}
                         </div>
                     </div>
                 </div>
