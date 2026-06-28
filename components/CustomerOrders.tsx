@@ -385,17 +385,17 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         <td className={`p-4 text-center border-r border-black transition-colors duration-300 ${isIncomplete ? 'bg-red-500' : isComplete ? 'bg-green-500' : ''}`}>
                                             {isOrcamento ? (
                                                 isIncomplete ? (
-                                                    <div className="text-[12px] font-black text-white uppercase tracking-tight flex items-center justify-center gap-1 drop-shadow-md">
+                                                    <div className="text-[12px] font-black text-slate-900 uppercase tracking-tight flex items-center justify-center gap-1 drop-shadow-sm">
                                                         <span>⚠️</span> INCOMPLETO
                                                     </div>
                                                 ) : (
-                                                    <div className="flex flex-col items-center justify-center text-white drop-shadow-md">
-                                                        <div className="text-[7px] font-black uppercase tracking-tight flex items-center justify-center gap-1 leading-tight text-center">
+                                                    <div className="flex flex-col items-center justify-center text-slate-900 drop-shadow-sm">
+                                                        <div className="text-[8px] font-black uppercase tracking-tight flex items-center justify-center gap-1 leading-tight text-center">
                                                             <span>✅</span> ORÇAMENTO COMPLETO<br/>AGUARDANDO CLIENTE
                                                         </div>
-                                                        <div className="mt-1 flex items-center justify-center gap-1.5 bg-white/20 px-2 py-0.5 rounded border border-white/30 text-[9px] font-black whitespace-nowrap">
+                                                        <div className="mt-1 flex items-center justify-center gap-1.5 bg-black/5 px-2 py-0.5 rounded border border-black/10 text-[10px] font-black whitespace-nowrap">
                                                             <span>R$ {(q.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                                            {q.totalWeight ? <span className="opacity-80 px-1 border-l border-white/30">{(q.totalWeight).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kg</span> : null}
+                                                            {q.totalWeight ? <span className="opacity-80 px-1 border-l border-black/20">{(q.totalWeight).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kg</span> : null}
                                                         </div>
                                                     </div>
                                                 )
