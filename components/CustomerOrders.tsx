@@ -346,8 +346,8 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                 <th className="p-4 text-center font-bold text-xs uppercase w-20 border-r border-black">Nº</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-24 border-r border-black">Data</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-28 border-r border-black">Vendedor</th>
-                                <th className="p-4 font-bold text-xs uppercase min-w-[250px] max-w-[350px] border-r border-black">Cliente</th>
-                                <th className="p-4 text-center font-bold text-xs uppercase w-full border-r border-black">Orçamento</th>
+                                <th className="p-4 font-bold text-xs uppercase w-full min-w-[250px] border-r border-black">Cliente</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-56 border-r border-black">Orçamento</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-32 border-r border-black">Leitura</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-32 border-r border-black">Status</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-36 border-r border-black">Preço</th>
@@ -384,14 +384,14 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 {q.clientObs && <span className="text-[9px] font-semibold text-sky-600 mt-1 italic">{q.clientObs}</span>}
                                             </div>
                                         </td>
-                                        <td className="p-4 text-center border-r border-black">
+                                        <td className={`p-4 text-center border-r border-black transition-colors duration-300 ${isIncomplete ? 'bg-red-500 animate-[pulse_1.5s_ease-in-out_infinite]' : isComplete ? 'bg-green-500 animate-[pulse_1.5s_ease-in-out_infinite]' : ''}`}>
                                             {isOrcamento ? (
                                                 isIncomplete ? (
-                                                    <div className="text-[12px] font-black text-red-600 uppercase tracking-tight animate-pulse flex items-center justify-center gap-1">
+                                                    <div className="text-[12px] font-black text-white uppercase tracking-tight flex items-center justify-center gap-1 drop-shadow-md">
                                                         <span>⚠️</span> INCOMPLETO
                                                     </div>
                                                 ) : (
-                                                    <div className="text-[10px] font-black text-green-600 uppercase tracking-tight animate-pulse flex items-center justify-center gap-1">
+                                                    <div className="text-[10px] font-black text-white uppercase tracking-tight flex items-center justify-center gap-1 drop-shadow-md">
                                                         <span>✅</span> ORÇAMENTO COMPLETO AGUARDANDO CLIENTE
                                                     </div>
                                                 )
