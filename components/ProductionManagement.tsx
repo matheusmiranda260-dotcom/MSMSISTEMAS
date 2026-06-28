@@ -239,6 +239,9 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
     const baseOrders = (commercialOrders || []).filter(o => {
         // Apenas mostra os pedidos (onde status não é 'orçamento')
         if (o.status?.toLowerCase().includes('orçamento')) return false;
+        
+        // Esconde pedidos que ainda estão na Engenharia
+        if (o.status?.toLowerCase() === 'aguardando engenharia' || o.status?.toLowerCase() === 'em processo de leitura') return false;
 
         if (!isGestor) {
             const userName = (currentUser?.name || currentUser?.username || '').toUpperCase();
