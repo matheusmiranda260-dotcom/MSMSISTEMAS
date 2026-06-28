@@ -402,7 +402,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                             ) : (
                                                 <div className="flex flex-col items-center justify-center gap-1 drop-shadow-sm">
                                                     <div className="text-[14px] font-black text-slate-900 uppercase tracking-tight">
-                                                        PEDIDO FECHADO
+                                                        ORÇAMENTO FECHADO
                                                     </div>
                                                     <div className="flex items-center justify-center gap-1.5 bg-black/5 px-2 py-0.5 rounded border border-black/10 text-[10px] font-black whitespace-nowrap text-slate-900">
                                                         <span>R$ {(q.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
@@ -411,47 +411,52 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                     <div className="text-[9px] font-bold text-slate-500 uppercase">
                                                         {q.createdAt ? new Date(q.createdAt).toLocaleString('pt-BR') : q.date}
                                                     </div>
-                                                    <div className="mt-1">
-                                                        {q.status?.toLowerCase() === 'aguardando engenharia' ? (
-                                                            <div className="bg-red-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm border border-red-600 inline-block">
-                                                                Aguardando Eng.
-                                                            </div>
-                                                        ) : q.status?.toLowerCase() === 'em processo de leitura' ? (
-                                                            <div className="bg-orange-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm inline-block">
-                                                                Em Leitura
-                                                            </div>
-                                                        ) : q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? (
-                                                            <div className="bg-orange-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm border border-orange-600 inline-block">
-                                                                Aguardando Produção
-                                                            </div>
-                                                        ) : (
-                                                            <div className="text-[9px] font-bold text-slate-500 uppercase tracking-tight italic">
-                                                                {q.status || 'N/A'}
-                                                            </div>
-                                                        )}
-                                                    </div>
                                                 </div>
                                             )}
                                         </td>
                                         <td className="p-4 text-center border-r border-black">
-                                            {q.readingStartedAt || q.readingFinishedAt ? (
-                                                <div className="flex flex-col items-center justify-center gap-1">
-                                                    {q.readingStartedAt && (
-                                                        <div className="flex flex-col items-center bg-slate-50 px-2 py-1 rounded border border-slate-200 w-full min-w-[90px]">
-                                                            <span className="text-[8px] font-black text-slate-500 uppercase">Início</span>
-                                                            <span className="text-[9px] font-bold text-slate-700">{q.readingStartedAt}</span>
-                                                        </div>
-                                                    )}
-                                                    {q.readingFinishedAt && (
-                                                        <div className="flex flex-col items-center bg-blue-50 px-2 py-1 rounded border border-blue-200 w-full min-w-[90px]">
-                                                            <span className="text-[8px] font-black text-blue-500 uppercase">Fim</span>
-                                                            <span className="text-[9px] font-bold text-blue-700">{q.readingFinishedAt}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <span className="text-[9px] font-bold text-slate-400 italic">Pendente</span>
-                                            )}
+                                            <div className="flex flex-col items-center justify-center gap-2">
+                                                {!isOrcamento && (
+                                                    <div>
+                                                        {q.status?.toLowerCase() === 'aguardando engenharia' ? (
+                                                            <div className="bg-red-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-md border border-red-600 inline-block">
+                                                                Aguardando Eng.
+                                                            </div>
+                                                        ) : q.status?.toLowerCase() === 'em processo de leitura' ? (
+                                                            <div className="bg-orange-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm inline-block">
+                                                                Em Leitura
+                                                            </div>
+                                                        ) : q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? (
+                                                            <div className="bg-orange-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm border border-orange-600 inline-block">
+                                                                Aguardando Produção
+                                                            </div>
+                                                        ) : (
+                                                            <div className="text-[10px] font-bold text-slate-600 uppercase tracking-tight italic bg-slate-100 px-2 py-1 rounded border border-slate-200">
+                                                                {q.status || 'N/A'}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                
+                                                {q.readingStartedAt || q.readingFinishedAt ? (
+                                                    <div className="flex flex-col items-center justify-center gap-1 w-full">
+                                                        {q.readingStartedAt && (
+                                                            <div className="flex flex-col items-center bg-slate-50 px-2 py-1 rounded border border-slate-200 w-full min-w-[90px]">
+                                                                <span className="text-[8px] font-black text-slate-500 uppercase">Início</span>
+                                                                <span className="text-[9px] font-bold text-slate-700">{q.readingStartedAt}</span>
+                                                            </div>
+                                                        )}
+                                                        {q.readingFinishedAt && (
+                                                            <div className="flex flex-col items-center bg-blue-50 px-2 py-1 rounded border border-blue-200 w-full min-w-[90px]">
+                                                                <span className="text-[8px] font-black text-blue-500 uppercase">Fim</span>
+                                                                <span className="text-[9px] font-bold text-blue-700">{q.readingFinishedAt}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-[9px] font-bold text-slate-400 italic">Leitura Pendente</span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="p-4 text-center">
                                             <select 
