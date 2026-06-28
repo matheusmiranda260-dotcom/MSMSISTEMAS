@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Page, Customer, CommercialOrder, User, Partner } from '../types';
-import { insertItem, deleteItem } from '../services/supabaseService';
+import { insertItem, deleteItem, updateItem } from '../services/supabaseService';
 import { OrderItemsEditor } from './OrderItemsEditor';
 import { OrderPrintView } from './OrderPrintView';
 
@@ -133,6 +133,18 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
         }
     };
 
+    const handleExportOrder = async (order: CommercialOrder) => {
+        if (window.confirm('LEMBRETE IMPORTANTE:\n\nPor favor, certifique-se de enviar por e-mail ou WhatsApp os projetos/documentos do pedido.\n\nDeseja confirmar a exportação deste pedido?')) {
+            try {
+                // Ao exportar, o status muda para Aguardando Engenharia
+                await updateItem('commercial_orders', order.id!, { status: 'Aguardando Engenharia' });
+            } catch (error) {
+                console.error('Erro ao exportar pedido:', error);
+                alert('Erro ao exportar pedido.');
+            }
+        }
+    };
+
     const getRowClass = (status?: string) => {
         if (!status) return 'bg-emerald-50/70 border-b border-emerald-100 hover:bg-emerald-100/50 text-slate-800';
         const clean = status.toLowerCase();
@@ -146,6 +158,12 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
         }
         if (clean === 'preço desatualizado') {
             return 'bg-amber-50/70 border-b border-amber-100 hover:bg-amber-100/50 text-slate-800';
+        }
+        if (clean === 'aguardando engenharia') {
+            return 'bg-green-200 border-b-2 border-green-400 hover:bg-green-300 text-slate-900 font-medium shadow-sm';
+        }
+        if (clean === 'autorizado engenharia' || clean === 'pedido autorizado') {
+            return 'bg-emerald-100 border-b-2 border-emerald-300 hover:bg-emerald-200 text-slate-900 font-medium shadow-sm';
         }
         return 'bg-emerald-50/70 border-b border-emerald-100 hover:bg-emerald-100/50 text-slate-800';
     };
@@ -342,6 +360,8 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                         setEditingOrder(q);
                                                     } else if (e.target.value === 'print') {
                                                         setPrintingOrder(q);
+                                                    } else if (e.target.value === 'export') {
+                                                        handleExportOrder(q);
                                                     }
                                                     e.target.value = '';
                                                 }}
@@ -349,6 +369,9 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 <option value="">Ações...</option>
                                                 <option value="edit">✏️ Editar Orçamento</option>
                                                 <option value="print">🖨️ Imprimir Orçamento</option>
+                                                {q.status?.toLowerCase() === 'orçamento' && (
+                                                    <option value="export">➡️ Exportar Pedido</option>
+                                                )}
                                                 <option value="delete">🗑️ Excluir Orçamento</option>
                                             </select>
                                         </td>
