@@ -221,6 +221,12 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
 
                 <div className="flex gap-3">
                     <button 
+                        onClick={() => setPage('productsCatalog')}
+                        className="bg-white border border-slate-200 hover:border-purple-300 text-slate-700 hover:text-purple-600 font-extrabold py-2 px-4 rounded-xl transition-all shadow-sm flex items-center gap-2 text-sm"
+                    >
+                        <span>🏷️ Consultar Produtos</span>
+                    </button>
+                    <button 
                         onClick={() => setPage('customersManagement')}
                         className="bg-white border border-slate-200 hover:border-sky-300 text-slate-700 hover:text-sky-600 font-extrabold py-2 px-4 rounded-xl transition-all shadow-sm flex items-center gap-2 text-sm"
                     >
