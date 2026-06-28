@@ -224,7 +224,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
             return 'bg-orange-100 border-b-2 border-orange-400 hover:bg-orange-200 text-slate-900 font-medium shadow-sm';
         }
         if (clean === 'aguardando engenharia') {
-            return 'bg-green-200 border-b-2 border-green-400 hover:bg-green-300 text-slate-900 font-medium shadow-sm';
+            return 'bg-red-200 border-b-2 border-red-400 hover:bg-red-300 text-slate-900 font-medium shadow-sm';
         }
         if (clean === 'autorizado engenharia' || clean === 'pedido autorizado') {
             return 'bg-emerald-100 border-b-2 border-emerald-300 hover:bg-emerald-200 text-slate-900 font-medium shadow-sm';
@@ -409,7 +409,14 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                                             )}
                                         </td>
                                         <td className="p-4 text-center font-black text-slate-900 text-sm">
-                                            R$ {(q.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            <div>
+                                                R$ {(q.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            </div>
+                                            {q.totalWeight ? (
+                                                <div className="text-[10px] text-slate-500 font-bold mt-0.5">
+                                                    {q.totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kg
+                                                </div>
+                                            ) : null}
                                             {(!q.price || q.price === 0) && (
                                                 <div className="text-[10px] font-black text-red-600 uppercase tracking-tight mt-1 flex items-center justify-center gap-1">
                                                     <span>⚠️</span> INCOMPLETO
