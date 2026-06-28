@@ -367,12 +367,16 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 }}
                                             >
                                                 <option value="">Ações...</option>
-                                                <option value="edit">✏️ Editar Orçamento</option>
+                                                {q.status?.toLowerCase() === 'orçamento' && (
+                                                    <option value="edit">✏️ Editar Orçamento</option>
+                                                )}
                                                 <option value="print">🖨️ Imprimir Orçamento</option>
                                                 {q.status?.toLowerCase() === 'orçamento' && (
-                                                    <option value="export">➡️ Exportar Pedido</option>
+                                                    <>
+                                                        <option value="export">➡️ Exportar Pedido</option>
+                                                        <option value="delete">🗑️ Excluir Orçamento</option>
+                                                    </>
                                                 )}
-                                                <option value="delete">🗑️ Excluir Orçamento</option>
                                             </select>
                                         </td>
                                     </tr>
