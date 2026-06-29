@@ -244,30 +244,30 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
     return (
         <div className="p-4 md:p-8 space-y-6 bg-slate-50 min-h-screen">
             {/* Top Navigation with Mini Dashboard */}
-            <div className="bg-[#1c3a40] text-white rounded-[2rem] p-6 shadow-xl flex flex-col xl:flex-row xl:items-center justify-between gap-6 no-print">
+            <div className="bg-[#0A2A3D] text-white rounded-[2rem] p-6 shadow-xl flex flex-col xl:flex-row xl:items-center justify-between gap-6 no-print">
                 <div className="flex flex-col md:flex-row md:items-center gap-6">
                     <div className="flex flex-col">
                         <div className="flex items-center gap-3">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-teal-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
-                            <h1 className="text-2xl font-black tracking-tight">Gestão de Vendas</h1>
+                            <h1 className="text-2xl font-black tracking-tight text-white">Gestão de Vendas</h1>
                         </div>
-                        <p className="text-[10px] font-bold text-teal-200/60 uppercase tracking-widest mt-1 ml-11">- MSM SISTEMAS</p>
+                        <p className="text-[10px] font-bold text-sky-200/60 uppercase tracking-widest mt-1 ml-11">- MSM SISTEMAS</p>
                     </div>
 
                     {/* Mini Dashboard KPIs */}
                     <div className="flex flex-wrap gap-4 md:ml-6">
-                        <div className="bg-[#264b52] rounded-2xl px-5 py-3 flex items-center justify-between w-[150px] shadow-inner border border-white/5">
+                        <div className="bg-white/10 rounded-2xl px-5 py-3 flex items-center justify-between w-[150px] shadow-inner border border-white/5 backdrop-blur-sm">
                             <div className="flex flex-col">
-                                <span className="text-[10px] font-bold text-teal-200/70 uppercase tracking-wider">Orçamentos</span>
+                                <span className="text-[10px] font-bold text-sky-200/70 uppercase tracking-wider">Orçamentos</span>
                                 <span className="text-2xl font-black text-orange-400">{totalOrcamentos}</span>
                             </div>
-                            <div className="w-8 h-8 rounded-full border-[3px] border-[#1c3a40] border-t-orange-400 border-r-orange-400 opacity-80 rotate-45"></div>
+                            <div className="w-8 h-8 rounded-full border-[3px] border-[#0A2A3D] border-t-orange-400 border-r-orange-400 opacity-80 rotate-45"></div>
                         </div>
-                        <div className="bg-[#264b52] rounded-2xl px-5 py-3 flex items-center justify-between w-[150px] shadow-inner border border-white/5">
+                        <div className="bg-white/10 rounded-2xl px-5 py-3 flex items-center justify-between w-[150px] shadow-inner border border-white/5 backdrop-blur-sm">
                             <div className="flex flex-col">
-                                <span className="text-[10px] font-bold text-teal-200/70 uppercase tracking-wider">Pedidos</span>
+                                <span className="text-[10px] font-bold text-sky-200/70 uppercase tracking-wider">Pedidos</span>
                                 <span className="text-2xl font-black text-emerald-400">{totalPedidos}</span>
                             </div>
                             <div className="w-8 h-8 flex items-center justify-center bg-emerald-400/20 text-emerald-400 font-black text-[10px] rounded-full border border-emerald-400/30">
@@ -281,13 +281,13 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                     <div className="flex flex-wrap gap-3 xl:self-end">
                         <button 
                             onClick={() => setPage('productsCatalog')}
-                            className="bg-[#264b52] hover:bg-[#2d5961] text-teal-100 font-bold py-2.5 px-4 rounded-full transition-all shadow-sm flex items-center gap-2 text-xs uppercase tracking-wider border border-white/5"
+                            className="bg-white/10 hover:bg-white/20 text-sky-100 font-bold py-2.5 px-4 rounded-full transition-all shadow-sm flex items-center gap-2 text-xs uppercase tracking-wider border border-white/5 backdrop-blur-sm"
                         >
                             <span>🏷️ Consultar Produtos</span>
                         </button>
                         <button 
                             onClick={() => setPage('customersManagement')}
-                            className="bg-[#264b52] hover:bg-[#2d5961] text-teal-100 font-bold py-2.5 px-4 rounded-full transition-all shadow-sm flex items-center gap-2 text-xs uppercase tracking-wider border border-white/5"
+                            className="bg-white/10 hover:bg-white/20 text-sky-100 font-bold py-2.5 px-4 rounded-full transition-all shadow-sm flex items-center gap-2 text-xs uppercase tracking-wider border border-white/5 backdrop-blur-sm"
                         >
                             <span>👥 Gestão de Clientes</span>
                         </button>
@@ -338,16 +338,6 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
 
             {/* Main Content Area - Cards */}
             <div className="space-y-6 no-print">
-                {/* Fake Header Row for alignment (Desktop only) */}
-                <div className="hidden xl:grid grid-cols-12 gap-4 px-8 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-[-10px]">
-                    <div className="col-span-4 opacity-0">IDENTIFICAÇÃO</div>
-                    <div className="col-span-1 text-center">ORÇAMENTO</div>
-                    <div className="col-span-1 text-center">LEITURA</div>
-                    <div className="col-span-2 text-center">PEDIDO</div>
-                    <div className="col-span-1 text-center">PCP</div>
-                    <div className="col-span-1 text-center">ENTREGA</div>
-                    <div className="col-span-2 text-center">AÇÕES</div>
-                </div>
 
                 {[...baseOrders].sort((a, b) => {
                     if (orderBy === 'id') {
@@ -363,11 +353,11 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                     const isIncomplete = isOrcamento && (!q.price || q.price === 0);
                     
                     // Card background color logic
-                    let cardBg = 'bg-[#7ab397]'; // Default sage green
-                    let cardBorder = 'border-[#62977d]';
+                    let cardBg = 'bg-[#9CB4C4]'; // Default slate blue
+                    let cardBorder = 'border-[#7A95A8]';
                     
                     if (isOrcamento && isIncomplete) {
-                        cardBg = 'bg-[#98bfa9] opacity-90'; // Lighter for incomplete
+                        cardBg = 'bg-[#B3C8D6] opacity-90'; // Lighter for incomplete
                     } else if (q.status?.toLowerCase() === 'em processo de leitura') {
                         cardBg = 'bg-[#e59b69]'; // Orange for reading
                         cardBorder = 'border-[#c97d4b]';
@@ -418,15 +408,22 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         <span className="font-black text-slate-900 text-lg">{q.orderNumber}</span>
                                         <span className="text-[10px] font-bold text-slate-800/70">{formattedDate}</span>
                                     </div>
-                                    <div className="w-12 h-12 bg-slate-200 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm">
-                                        <span className="text-xl">👤</span>
-                                    </div>
+                                    <div className="w-px h-10 bg-black/10 hidden xl:block mx-1"></div>
                                     <div className="flex flex-col flex-grow">
                                         <span className="font-black text-slate-950 text-xs uppercase leading-tight">
                                             ({q.clientCode}) {q.clientName}
                                         </span>
                                         <span className="text-[9px] font-bold text-slate-800 uppercase mt-0.5 max-w-[200px] truncate">{q.clientCity}</span>
-                                        {q.clientObs && <span className="text-[9px] font-black text-slate-900/80 mt-1 italic">{q.clientObs}</span>}
+                                        
+                                        <div className="flex flex-col gap-1 mt-1.5">
+                                            <span className="text-[10px] font-black text-[#0A2A3D] uppercase tracking-tight flex items-center gap-1.5 bg-white/40 px-2 py-0.5 rounded border border-black/5 self-start shadow-sm">
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-sky-600">
+                                                    <path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" />
+                                                </svg>
+                                                VENDEDOR: {q.salesperson || 'NÃO INFORMADO'}
+                                            </span>
+                                            {q.clientObs && <span className="text-[9px] font-black text-slate-900/80 italic">{q.clientObs}</span>}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -444,13 +441,13 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
 
                                         const getDotClasses = (stageName: string, isPastOrActive: boolean) => {
                                             if (activeStage === stageName) return 'bg-orange-500 ring-4 ring-orange-500/40 scale-[1.3] animate-pulse shadow-[0_0_15px_rgba(249,115,22,0.6)]';
-                                            if (isPastOrActive) return 'bg-[#2a4e55] ring-4 ring-white/40 scale-110';
+                                            if (isPastOrActive) return 'bg-emerald-500 ring-4 ring-emerald-500/30 scale-110 shadow-[0_0_10px_rgba(16,185,129,0.4)]';
                                             return 'bg-black/20';
                                         };
 
                                         const getLabelClasses = (stageName: string, isPastOrActive: boolean) => {
                                             if (activeStage === stageName) return 'text-orange-600';
-                                            if (isPastOrActive) return 'text-[#1c3a40]';
+                                            if (isPastOrActive) return 'text-emerald-700';
                                             return 'text-black/40';
                                         };
 
