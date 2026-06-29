@@ -180,12 +180,8 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
         if (!status) return 'bg-emerald-50/70 border-b border-emerald-100 text-slate-800';
         const clean = status.toLowerCase();
         
-        if (clean === 'orçamento') {
-            return 'bg-orange-100 border-b-2 border-orange-300 text-slate-900 font-medium shadow-sm';
-        }
-        
-        if (clean === 'orçamento vazio' || clean === 'orçamento incompleto') {
-            return 'bg-red-50/70 border-b border-red-100 text-slate-800';
+        if (clean === 'orçamento' || clean === 'orçamento vazio' || clean === 'orçamento incompleto') {
+            return 'bg-emerald-50/70 border-b border-emerald-100 text-slate-800';
         }
         if (clean === 'preço desatualizado') {
             return 'bg-amber-50/70 border-b border-amber-100 text-slate-800';
@@ -415,7 +411,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 </div>
                                             )}
                                         </td>
-                                        <td className={`p-4 text-center border-r border-black transition-colors duration-300 ${!isOrcamento && q.status?.toLowerCase() === 'aguardando engenharia' ? 'bg-red-500' : ''} ${!isOrcamento && q.status?.toLowerCase() === 'em processo de leitura' ? 'bg-orange-600' : ''}`}>
+                                        <td className={`p-4 text-center border-r border-black transition-colors duration-300 ${isOrcamento ? 'bg-white' : ''} ${!isOrcamento && q.status?.toLowerCase() === 'aguardando engenharia' ? 'bg-red-500' : ''} ${!isOrcamento && q.status?.toLowerCase() === 'em processo de leitura' ? 'bg-orange-600' : ''}`}>
                                             {!isOrcamento && q.status?.toLowerCase() === 'aguardando engenharia' ? (
                                                 <div className="flex flex-col items-center justify-center h-full drop-shadow-sm">
                                                     <div className="text-[12px] font-black text-slate-900 uppercase tracking-tight leading-tight">
@@ -507,7 +503,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 </div>
                                             )}
                                         </td>
-                                        <td className={`p-4 text-center border-r border-black transition-colors duration-300 ${!isOrcamento && q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? 'bg-red-200' : ''}`}>
+                                        <td className={`p-4 text-center border-r border-black transition-colors duration-300 ${isOrcamento ? 'bg-white' : ''} ${!isOrcamento && q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? 'bg-red-200' : ''}`}>
                                             {!isOrcamento && q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? (
                                                 (() => {
                                                     let projectWeight = 0;
@@ -572,7 +568,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 })()
                                             ) : null}
                                         </td>
-                                        <td className="p-4 text-center">
+                                        <td className={`p-4 text-center ${isOrcamento ? 'bg-white' : ''}`}>
                                             <select 
                                                 className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
                                                 onChange={(e) => {
