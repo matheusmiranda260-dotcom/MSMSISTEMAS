@@ -475,7 +475,10 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                                     } catch (e) {}
 
                                                                     return (
-                                                                        <div className="flex flex-col items-center bg-white/90 px-2 py-1.5 rounded border border-black/10 shadow-sm w-full min-w-[100px]">
+                                                                        <div className="flex flex-col items-center gap-0.5 bg-white/90 px-2 py-1.5 rounded border border-black/10 shadow-sm w-full min-w-[100px]">
+                                                                            <span className="text-[8px] font-black text-slate-500 uppercase">Finalizado em</span>
+                                                                            <span className="text-[9px] font-bold text-slate-700">{q.readingFinishedAt}</span>
+                                                                            <div className="w-full border-t border-slate-200 my-0.5"></div>
                                                                             <span className="text-[8px] font-black text-slate-500 uppercase">Tempo Total</span>
                                                                             <span className="text-[11px] font-black text-green-700">{totalTime || '-'}</span>
                                                                         </div>
