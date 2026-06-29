@@ -177,11 +177,11 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
     };
 
     const getRowClass = (status?: string) => {
-        if (!status) return 'bg-emerald-50/70 border-b border-emerald-100 text-slate-800';
+        if (!status) return 'bg-green-200 border-b-2 border-green-400 text-slate-900 font-medium shadow-sm';
         const clean = status.toLowerCase();
         
         if (clean === 'orçamento' || clean === 'orçamento vazio' || clean === 'orçamento incompleto') {
-            return 'bg-emerald-50/70 border-b border-emerald-100 text-slate-800';
+            return 'bg-green-200 border-b-2 border-green-400 text-slate-900 font-medium shadow-sm';
         }
         if (clean === 'preço desatualizado') {
             return 'bg-amber-50/70 border-b border-amber-100 text-slate-800';
@@ -198,7 +198,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
         if (clean === 'autorizado engenharia' || clean === 'pedido autorizado') {
             return 'bg-emerald-100 border-b-2 border-emerald-300 text-slate-900 font-medium shadow-sm';
         }
-        return 'bg-emerald-50/70 border-b border-emerald-100 text-slate-800';
+        return 'bg-green-200 border-b-2 border-green-400 text-slate-900 font-medium shadow-sm';
     };
 
     const isGestor = currentUser?.role === 'gestor' || currentUser?.role === 'admin';
