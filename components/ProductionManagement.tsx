@@ -6,6 +6,82 @@ import { OrderPrintView } from './OrderPrintView';
 
 import { supabase } from '../supabaseClient';
 
+const calculateTotalMachineHours = (machine: any) => {
+    let totalMinutes = 0;
+    const parseTime = (t: string) => {
+        if (!t) return null;
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+    };
+
+    if (machine.shift1Start && machine.shift1End) {
+        const start = parseTime(machine.shift1Start);
+        const end = parseTime(machine.shift1End);
+        if (start !== null && end !== null) {
+            let dur = end - start;
+            if (dur < 0) dur += 24 * 60;
+            totalMinutes += dur;
+        }
+    }
+
+    if (machine.shiftType === '2turnos' && machine.shift2Start && machine.shift2End) {
+        const start = parseTime(machine.shift2Start);
+        const end = parseTime(machine.shift2End);
+        if (start !== null && end !== null) {
+            let dur = end - start;
+            if (dur < 0) dur += 24 * 60;
+            totalMinutes += dur;
+        }
+    }
+
+    if (machine.hasLunchBreak && machine.lunchStart && machine.lunchEnd) {
+        const start = parseTime(machine.lunchStart);
+        const end = parseTime(machine.lunchEnd);
+        if (start !== null && end !== null) {
+            let dur = end - start;
+            if (dur < 0) dur += 24 * 60;
+            totalMinutes -= dur;
+        }
+    }
+
+    if (totalMinutes <= 0) return '0h';
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (minutes === 0) return `${hours}h`;
+    return `${hours}h${minutes.toString().padStart(2, '0')}`;
+};
+
+const getOrderColor = (orderNumber: string) => {
+    if (!orderNumber) return { bg: 'bg-emerald-50/95', border: 'border-emerald-200', text: 'text-emerald-800', titleText: 'text-emerald-900', titleBorder: 'border-emerald-100', timeBg: 'bg-emerald-100/50', timeText: 'text-emerald-700' };
+    const baseNum = orderNumber.split('-')[0];
+    const palettes = [
+        { bg: 'bg-emerald-50/95', border: 'border-emerald-200', text: 'text-emerald-800', titleText: 'text-emerald-900', titleBorder: 'border-emerald-100', timeBg: 'bg-emerald-100/50', timeText: 'text-emerald-700' },
+        { bg: 'bg-blue-50/95', border: 'border-blue-200', text: 'text-blue-800', titleText: 'text-blue-900', titleBorder: 'border-blue-100', timeBg: 'bg-blue-100/50', timeText: 'text-blue-700' },
+        { bg: 'bg-purple-50/95', border: 'border-purple-200', text: 'text-purple-800', titleText: 'text-purple-900', titleBorder: 'border-purple-100', timeBg: 'bg-purple-100/50', timeText: 'text-purple-700' },
+        { bg: 'bg-amber-50/95', border: 'border-amber-200', text: 'text-amber-800', titleText: 'text-amber-900', titleBorder: 'border-amber-100', timeBg: 'bg-amber-100/50', timeText: 'text-amber-700' },
+        { bg: 'bg-rose-50/95', border: 'border-rose-200', text: 'text-rose-800', titleText: 'text-rose-900', titleBorder: 'border-rose-100', timeBg: 'bg-rose-100/50', timeText: 'text-rose-700' }
+    ];
+    let hash = 0;
+    for (let i = 0; i < baseNum.length; i++) {
+        hash = baseNum.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return palettes[Math.abs(hash) % palettes.length];
+};
+
+const formatMachineTime = (decimalHours: number) => {
+    const totalSeconds = Math.round(decimalHours * 3600);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    
+    let parts = [];
+    if (h > 0) parts.push(`${h}h`);
+    if (m > 0 || h > 0) parts.push(`${m.toString().padStart(2, '0')}m`);
+    parts.push(`${s.toString().padStart(2, '0')}s`);
+    
+    return parts.join(' ');
+};
+
 interface OrderManagementProps {
     setPage: (page: Page) => void;
     customers: Customer[];
@@ -30,9 +106,10 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
 
     // Modal Programar Maquina variables (moved to top for useEffect dependencies)
     const [isProgramModalOpen, setIsProgramModalOpen] = useState(false);
-    const [programData, setProgramData] = useState<{bitola: string, peso: number, orderNum: string, quantity: number} | null>(null);
+    const [programData, setProgramData] = useState<{bitola: string, peso: number, orderNum: string, quantity: number, compM?: number} | null>(null);
     const [weekOffset, setWeekOffset] = useState(0);
     const [showSaturday, setShowSaturday] = useState(true);
+    const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
     useEffect(() => {
         if (!orderToView) {
@@ -58,7 +135,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
         const fetchAll = async () => {
             try {
                 const { data } = await supabase.from('production_orders')
-                    .select('id, machine, creation_date, total_weight, target_bitola, status, order_number, quantity_os')
+                    .select('id, machine, creation_date, total_weight, total_meters, target_bitola, status, order_number, quantity_os')
                     .in('status', ['pending', 'in_progress']);
                 if (data) setAllProgrammedOrders(data);
             } catch(e) {}
@@ -101,6 +178,18 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
         monday.setDate(today.getDate() + diffToMonday + (weekOffset * 7));
         
         const dayNames = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+        
+        if (selectedDay !== null) {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + selectedDay);
+            days.push({
+                date: d.toISOString().split('T')[0],
+                name: dayNames[selectedDay],
+                shortDate: `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`
+            });
+            return days;
+        }
+
         const numDays = showSaturday ? 6 : 5;
         
         for (let i = 0; i < numDays; i++) {
@@ -128,6 +217,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
             targetBitola: programData.bitola,
             selectedLotIds: [],
             totalWeight: parseFloat(programWeight.toString().replace(',','.')),
+            totalMeters: parseFloat(programData.compM?.toString().replace(',','.') || '0'),
             isGhostOrder: true,
             inputBitola: '',
             status: 'pending',
@@ -747,6 +837,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                         let grandTotalComp = 0;
                                         let grandTotalPeso = 0;
                                         let grandTotalQtd = 0;
+                                        let grandTotalHours = 0;
 
                                         const orderItemsGrouped = Object.entries(groups).map(([mm, items]) => {
                                             const totalPeso = items.reduce((acc, curr) => acc + (parseFloat(curr.peso?.toString().replace(',','.')) || 0), 0);
@@ -769,7 +860,8 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                 <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Aço</th>
                                                                 <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Comp. (m)</th>
                                                                 <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Peso (Kg)</th>
-                                                                <th className="p-3 text-sm font-black text-slate-700 uppercase">Qtd O.S.</th>
+                                                                <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Qtd O.S.</th>
+                                                                <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Sugestão Máquina</th>
                                                                 <th className="p-3 text-sm font-black text-slate-700 uppercase">Status</th>
                                                             </tr>
                                                         </thead>
@@ -780,6 +872,28 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                 grandTotalPeso += item.totalWeight;
                                                                 grandTotalQtd += item.quantity;
                                                                 
+                                                                const normalizedTarget = parseFloat(item.bitola.replace(',', '.').replace(/[^\d.]/g, ''));
+                                                                let bestMachine: any = null;
+                                                                let bestMachineHours = 0;
+
+                                                                if (activeBrandingPartner?.machines) {
+                                                                    const compatibleMachines = activeBrandingPartner.machines.filter(m => {
+                                                                        if (!m.gaugeRange) return false;
+                                                                        const ranges = m.gaugeRange.split(/[-;|\/]+/).map((s: string) => parseFloat(s.replace(',', '.').replace(/[^\d.]/g, '')));
+                                                                        return ranges.includes(normalizedTarget);
+                                                                    });
+                                                                    
+                                                                    if (compatibleMachines.length > 0) {
+                                                                        bestMachine = compatibleMachines[0];
+                                                                        const mph = bestMachine.capabilities?.estribo?.calculatedMetersPerHour || 0;
+                                                                        if (mph > 0) {
+                                                                            bestMachineHours = item.totalLength / mph;
+                                                                        }
+                                                                    }
+                                                                }
+
+                                                                grandTotalHours += bestMachineHours;
+
                                                                 return (
                                                                     <tr key={idx} className="border-b border-slate-200 hover:bg-slate-50">
                                                                         <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{item.bitola}</td>
@@ -787,20 +901,52 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                         <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{item.totalLength.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                                                         <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{item.totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                                                         <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{item.quantity}</td>
+                                                                        <td className="p-3 text-sm border-r border-slate-200">
+                                                                            {bestMachine ? (
+                                                                                <div className="flex flex-col items-center justify-center gap-1">
+                                                                                    <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200 uppercase">{bestMachine.name}</span>
+                                                                                    {bestMachineHours > 0 && (
+                                                                                        <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                                                            {formatMachineTime(bestMachineHours)}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                            ) : (
+                                                                                <span className="text-[9px] font-bold text-slate-400 uppercase">N/A</span>
+                                                                            )}
+                                                                        </td>
                                                                         <td className="p-3 text-sm text-center">
                                                                             {programmedInfo ? (
-                                                                                <div className="flex flex-col items-center justify-center bg-emerald-50 px-3 py-1 rounded border border-emerald-100">
-                                                                                    <span className="text-[10px] font-black text-emerald-600 uppercase">Programado</span>
-                                                                                    <span className="text-[9px] font-bold text-emerald-400">{programmedInfo.creation_date?.substring(0,10).split('-').reverse().join('/')} - {programmedInfo.machine}</span>
+                                                                                <div className="flex flex-col items-center justify-center bg-emerald-50 px-3 py-1 rounded border border-emerald-100 relative group overflow-hidden h-[42px] min-w-[120px]">
+                                                                                    <div className="flex flex-col items-center justify-center group-hover:-translate-y-8 transition-transform duration-300">
+                                                                                        <span className="text-[10px] font-black text-emerald-600 uppercase">Programado</span>
+                                                                                        <span className="text-[9px] font-bold text-emerald-400">{programmedInfo.creation_date?.substring(0,10).split('-').reverse().join('/')} - {programmedInfo.machine}</span>
+                                                                                    </div>
+                                                                                    <button 
+                                                                                        onClick={async (e) => {
+                                                                                            e.stopPropagation();
+                                                                                            if (window.confirm(`Deseja remover a programação da bitola ${item.bitola}mm?`)) {
+                                                                                                try {
+                                                                                                    await supabase.from('production_orders').delete().eq('id', programmedInfo.id);
+                                                                                                    setProgrammedOrders(prev => prev.filter(p => p.id !== programmedInfo.id));
+                                                                                                    setAllProgrammedOrders(prev => prev.filter(p => p.id !== programmedInfo.id));
+                                                                                                } catch (err) { alert('Erro ao remover programação'); }
+                                                                                            }
+                                                                                        }}
+                                                                                        className="absolute inset-0 bg-red-50 text-red-600 font-bold text-[10px] uppercase flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-8 group-hover:translate-y-0 cursor-pointer hover:bg-red-100"
+                                                                                    >
+                                                                                        Remover
+                                                                                    </button>
                                                                                 </div>
                                                                             ) : (
                                                                                 <button 
                                                                                     onClick={() => {
-                                                                                        setProgramData({ bitola: item.bitola, peso: item.totalWeight, orderNum: orderToView?.orderNumber || '', quantity: item.quantity });
+                                                                                        setProgramData({ bitola: item.bitola, peso: item.totalWeight, orderNum: orderToView?.orderNumber || '', quantity: item.quantity, compM: item.totalLength });
                                                                                         setProgramBitolaOriginal(item.bitola);
                                                                                         setProgramOrderNumber(`${orderToView?.orderNumber || ''}-${item.bitola.replace(',', '.')}`);
                                                                                         setProgramWeight(item.totalWeight.toString());
-                                                                                        setProgramMachine(item.aco === 'CA60' ? 'Trefila 1' : 'Treliça');
+                                                                                        setProgramMachine(bestMachine ? bestMachine.name : (item.aco === 'CA60' ? 'Trefila 1' : 'Treliça'));
                                                                                         setIsProgramModalOpen(true);
                                                                                     }}
                                                                                     className="text-[9px] bg-slate-800 text-white font-bold px-2 py-1 rounded-md hover:bg-sky-600 transition uppercase shadow-sm"
@@ -818,7 +964,16 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                 <td colSpan={2} className="p-3 text-sm font-black text-slate-800 uppercase text-right border-r border-slate-300">TOTAL:</td>
                                                                 <td className="p-3 text-sm font-black text-slate-800 border-r border-slate-300">{grandTotalComp.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                                                 <td className="p-3 text-sm font-black text-slate-800 border-r border-slate-300">{grandTotalPeso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                                                <td className="p-3 text-sm font-black text-slate-800">{grandTotalQtd}</td>
+                                                                <td className="p-3 text-sm font-black text-slate-800 border-r border-slate-300">{grandTotalQtd}</td>
+                                                                <td className="p-3 text-sm font-black text-sky-800 border-r border-slate-300 text-center">
+                                                                    {grandTotalHours > 0 ? (
+                                                                        <div className="flex items-center justify-center gap-1">
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                                            {formatMachineTime(grandTotalHours)}
+                                                                        </div>
+                                                                    ) : '-'}
+                                                                </td>
+                                                                <td></td>
                                                             </tr>
                                                         </tfoot>
                                                     </table>
@@ -906,15 +1061,63 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                             
                             <div className="flex items-center gap-4">
                                 <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
-                                    <button onClick={() => setShowSaturday(false)} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${!showSaturday ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Seg a Sex</button>
-                                    <button onClick={() => setShowSaturday(true)} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${showSaturday ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Seg a Sáb</button>
+                                    <select 
+                                        value={selectedDay !== null ? selectedDay.toString() : (showSaturday ? 'seg-sab' : 'seg-sex')}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (val === 'seg-sex') { setSelectedDay(null); setShowSaturday(false); }
+                                            else if (val === 'seg-sab') { setSelectedDay(null); setShowSaturday(true); }
+                                            else { setSelectedDay(Number(val)); }
+                                        }}
+                                        className="px-3 py-1.5 text-xs font-bold rounded-md bg-transparent text-slate-700 outline-none cursor-pointer hover:bg-white transition-colors"
+                                    >
+                                        <option value="seg-sex">Seg a Sex</option>
+                                        <option value="seg-sab">Seg a Sáb</option>
+                                        <option disabled>────────</option>
+                                        <option value="0">Segunda</option>
+                                        <option value="1">Terça</option>
+                                        <option value="2">Quarta</option>
+                                        <option value="3">Quinta</option>
+                                        <option value="4">Sexta</option>
+                                        <option value="5">Sábado</option>
+                                    </select>
                                 </div>
                                 <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
-                                    <button onClick={() => setWeekOffset(w => w - 1)} className="p-1.5 hover:bg-white rounded-md text-slate-500 hover:text-slate-800 transition-colors">
+                                    <button 
+                                        onClick={() => {
+                                            if (selectedDay !== null) {
+                                                if (selectedDay === 0) {
+                                                    setWeekOffset(w => w - 1);
+                                                    setSelectedDay(5);
+                                                } else {
+                                                    setSelectedDay(selectedDay - 1);
+                                                }
+                                            } else {
+                                                setWeekOffset(w => w - 1);
+                                            }
+                                        }} 
+                                        className="p-1.5 hover:bg-white rounded-md text-slate-500 hover:text-slate-800 transition-colors"
+                                    >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                                     </button>
-                                    <span className="text-xs font-bold text-slate-700 px-2 uppercase tracking-wider">Semana</span>
-                                    <button onClick={() => setWeekOffset(w => w + 1)} className="p-1.5 hover:bg-white rounded-md text-slate-500 hover:text-slate-800 transition-colors">
+                                    <span className="text-xs font-bold text-slate-700 px-2 uppercase tracking-wider">
+                                        {selectedDay !== null ? 'Dia' : 'Semana'}
+                                    </span>
+                                    <button 
+                                        onClick={() => {
+                                            if (selectedDay !== null) {
+                                                if (selectedDay === 5) {
+                                                    setWeekOffset(w => w + 1);
+                                                    setSelectedDay(0);
+                                                } else {
+                                                    setSelectedDay(selectedDay + 1);
+                                                }
+                                            } else {
+                                                setWeekOffset(w => w + 1);
+                                            }
+                                        }} 
+                                        className="p-1.5 hover:bg-white rounded-md text-slate-500 hover:text-slate-800 transition-colors"
+                                    >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                                     </button>
                                 </div>
@@ -975,11 +1178,18 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                 <div className="w-48 shrink-0 p-4 border-r border-slate-200 flex flex-col justify-center bg-white shadow-[2px_0_5px_rgba(0,0,0,0.02)] z-10 relative">
                                                     <div className="flex items-center gap-3">
                                                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow-md shrink-0 ${isCompatible ? (mIdx % 2 === 0 ? 'bg-sky-500' : 'bg-indigo-500') : 'bg-slate-300'}`}>
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h4"/><path d="M14 12h4"/></svg>
+                                                            {machine.imageUrl ? (
+                                                                <img src={machine.imageUrl} alt={machine.name} className="w-full h-full object-cover rounded-xl" />
+                                                            ) : (
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h4"/><path d="M14 12h4"/></svg>
+                                                            )}
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <span className="font-black text-slate-700 text-sm leading-tight">{machine.name}</span>
-                                                            <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5 tracking-wider">Cap: {machine.capacityKgPerHour || 0} kg/h</span>
+                                                            <span className="text-[9px] font-bold text-sky-600 uppercase mt-0.5 tracking-wider bg-sky-50 px-1.5 py-0.5 rounded self-start border border-sky-100 flex items-center gap-1">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                                T. DISP: {calculateTotalMachineHours(machine)}
+                                                            </span>
                                                         </div>
                                                     </div>
                                                     {!isCompatible && (
@@ -997,16 +1207,46 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                         
                                                         
                                                         {cellOrders.length > 0 && (
-                                                            <div className="absolute top-1 left-1 right-1 flex flex-col gap-1 pointer-events-none z-10 max-h-[90%] overflow-hidden">
-                                                                {cellOrders.map(po => (
-                                                                    <div key={po.id} className="bg-emerald-50/95 backdrop-blur border border-emerald-200 rounded px-1.5 py-1 text-[9px] text-emerald-800 shadow-sm flex flex-col gap-0.5">
-                                                                        <div className="font-black text-[10px] text-emerald-900 border-b border-emerald-100 pb-0.5 mb-0.5">Nº {po.order_number}</div>
+                                                            <div className="absolute top-1 left-1 right-1 flex flex-col gap-1 z-10 max-h-[90%] overflow-hidden">
+                                                                {cellOrders.map(po => {
+                                                                    const machineData = activeBrandingPartner?.machines?.find(m => m.name === po.machine);
+                                                                    const mph = machineData?.capabilities?.estribo?.calculatedMetersPerHour || 0;
+                                                                    let estimatedHours = 0;
+                                                                    if (po.total_meters && mph > 0) {
+                                                                        estimatedHours = po.total_meters / mph;
+                                                                    }
+                                                                    const c = getOrderColor(po.order_number);
+
+                                                                    return (
+                                                                    <div key={po.id} className={`${c.bg} backdrop-blur border ${c.border} rounded px-1.5 py-1 text-[9px] ${c.text} shadow-sm flex flex-col gap-0.5 relative group/card`}>
+                                                                        <div className={`font-black text-[10px] ${c.titleText} border-b ${c.titleBorder} pb-0.5 mb-0.5`}>Nº {po.order_number}</div>
                                                                         <div className="flex justify-between font-medium">
                                                                             <span>Bitola: {po.target_bitola} mm</span>
                                                                             <span>{po.quantity_os || 0} OS</span>
                                                                         </div>
+                                                                        {estimatedHours > 0 && (
+                                                                            <div className={`text-[8px] font-bold ${c.timeText} ${c.timeBg} rounded px-1 mt-0.5 self-start flex items-center gap-1 border ${c.border}`}>
+                                                                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                                                {formatMachineTime(estimatedHours)}
+                                                                            </div>
+                                                                        )}
+                                                                        <button
+                                                                            onClick={async (e) => {
+                                                                                e.stopPropagation();
+                                                                                if (window.confirm(`Deseja remover a programação da OS ${po.order_number}?`)) {
+                                                                                    try {
+                                                                                        await supabase.from('production_orders').delete().eq('id', po.id);
+                                                                                        setAllProgrammedOrders(prev => prev.filter(p => p.id !== po.id));
+                                                                                        setProgrammedOrders(prev => prev.filter(p => p.id !== po.id));
+                                                                                    } catch(err) { alert('Erro ao remover'); }
+                                                                                }
+                                                                            }}
+                                                                            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity shadow-md hover:bg-red-600 z-20 cursor-pointer"
+                                                                        >
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                                                        </button>
                                                                     </div>
-                                                                ))}
+                                                                )})}
                                                             </div>
                                                         )}
 

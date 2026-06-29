@@ -1,8 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import type { Page, Customer, CommercialOrder, User, Partner } from '../types';
 import { insertItem, deleteItem, updateItem } from '../services/supabaseService';
+import { supabase } from '../supabaseClient';
 import { OrderItemsEditor } from './OrderItemsEditor';
 import { OrderPrintView } from './OrderPrintView';
+
+const formatMachineTime = (decimalHours: number) => {
+    const totalSeconds = Math.round(decimalHours * 3600);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    
+    let parts = [];
+    if (h > 0) parts.push(`${h}h`);
+    if (m > 0 || h > 0) parts.push(`${m.toString().padStart(2, '0')}m`);
+    parts.push(`${s.toString().padStart(2, '0')}s`);
+    
+    return parts.join(' ');
+};
 
 interface CustomerOrdersProps {
     setPage: (page: Page) => void;
@@ -154,6 +169,14 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
 
         if (orderToDeleteGestor?.id) {
             try {
+                if (orderToDeleteGestor.orderNumber) {
+                    // Delete related production orders (OS geradas)
+                    await supabase
+                        .from('production_orders')
+                        .delete()
+                        .ilike('order_number', `${orderToDeleteGestor.orderNumber}-%`);
+                }
+
                 await deleteItem('commercial_orders', orderToDeleteGestor.id);
                 setDeleteGestorModalOpen(false);
                 setOrderToDeleteGestor(null);
@@ -364,6 +387,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                     let projectWeight = 0;
                     let projectOsCount = 0;
                     let projectBitolas: string[] = [];
+                    let projectEstimatedHours = 0;
                     try {
                         if (q.projectData && Array.isArray(q.projectData)) {
                             const normalizedData = q.projectData.map(item => {
@@ -383,6 +407,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                             
                             Object.entries(groups).forEach(([mm, items]) => {
                                 const totalPeso = items.reduce((acc, curr) => acc + (parseFloat(curr.peso?.toString().replace(',','.')) || 0), 0);
+                                const totalLength = items.reduce((acc, curr) => acc + ((parseFloat(curr.qunti?.toString() || curr.quantidade?.toString() || curr.qtd?.toString()) || 0) * (parseFloat(curr.comprimento?.toString()) || 0)), 0) / 100;
                                 const uniqueOs = new Set(items.map(item => item.os));
                                 const totalQtd = uniqueOs.size;
                                 
@@ -390,6 +415,21 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                 projectOsCount += totalQtd;
                                 if (mm !== 'Indefinido' && !projectBitolas.includes(mm)) {
                                     projectBitolas.push(mm);
+                                }
+                                
+                                const normalizedTarget = parseFloat(mm.replace(',', '.').replace(/[^\d.]/g, ''));
+                                if (activeBrandingPartner?.machines) {
+                                    const compatibleMachines = activeBrandingPartner.machines.filter(m => {
+                                        if (!m.gaugeRange) return false;
+                                        const ranges = m.gaugeRange.split(/[-;|\/]+/).map((s: string) => parseFloat(s.replace(',', '.').replace(/[^\d.]/g, '')));
+                                        return ranges.includes(normalizedTarget);
+                                    });
+                                    if (compatibleMachines.length > 0) {
+                                        const mph = compatibleMachines[0].capabilities?.estribo?.calculatedMetersPerHour || 0;
+                                        if (mph > 0) {
+                                            projectEstimatedHours += totalLength / mph;
+                                        }
+                                    }
                                 }
                             });
                         }
@@ -570,6 +610,9 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                                 {st === 'leitura finalizada, aguardo setor de produção' ? (
                                                                     <>
                                                                         <span className="text-orange-600 font-black uppercase animate-pulse">- AGUARDANDO PRODUÇÃO</span>
+                                                                        {projectEstimatedHours > 0 && (
+                                                                            <span className="text-sky-600 font-bold uppercase">- TEMPO: {formatMachineTime(projectEstimatedHours)}</span>
+                                                                        )}
                                                                     </>
                                                                 ) : (
                                                                     <span className="text-slate-400 italic">Pendente...</span>
