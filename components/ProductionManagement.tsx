@@ -4,6 +4,8 @@ import { insertItem, deleteItem, updateItem } from '../services/supabaseService'
 import { OrderItemsEditor } from './OrderItemsEditor';
 import { OrderPrintView } from './OrderPrintView';
 
+import { supabase } from '../supabaseClient';
+
 interface OrderManagementProps {
     setPage: (page: Page) => void;
     customers: Customer[];
@@ -18,11 +20,51 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingOrder, setEditingOrder] = useState<CommercialOrder | null>(null);
     const [printingOrder, setPrintingOrder] = useState<CommercialOrder | null>(null);
+    const [programmedOrders, setProgrammedOrders] = useState<any[]>([]);
+    const [allProgrammedOrders, setAllProgrammedOrders] = useState<any[]>([]);
     
     // View Project Modal
     const [isViewProjectModalOpen, setIsViewProjectModalOpen] = useState(false);
     const [orderToView, setOrderToView] = useState<CommercialOrder | null>(null);
     const [viewMode, setViewMode] = useState<'detalhado' | 'resumo'>('detalhado');
+
+    // Modal Programar Maquina variables (moved to top for useEffect dependencies)
+    const [isProgramModalOpen, setIsProgramModalOpen] = useState(false);
+    const [programData, setProgramData] = useState<{bitola: string, peso: number, orderNum: string, quantity: number} | null>(null);
+    const [weekOffset, setWeekOffset] = useState(0);
+    const [showSaturday, setShowSaturday] = useState(true);
+
+    useEffect(() => {
+        if (!orderToView) {
+            setProgrammedOrders([]);
+            return;
+        }
+        const fetchProgrammed = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('production_orders')
+                    .select('id, target_bitola, creation_date, machine')
+                    .eq('related_commercial_order_id', orderToView.id);
+                if (data && !error) {
+                    setProgrammedOrders(data);
+                }
+            } catch (e) { console.error(e); }
+        };
+        fetchProgrammed();
+    }, [orderToView, isViewProjectModalOpen, isProgramModalOpen]);
+
+    useEffect(() => {
+        if (!isProgramModalOpen) return;
+        const fetchAll = async () => {
+            try {
+                const { data } = await supabase.from('production_orders')
+                    .select('id, machine, creation_date, total_weight, target_bitola, status, order_number, quantity_os')
+                    .in('status', ['pending', 'in_progress']);
+                if (data) setAllProgrammedOrders(data);
+            } catch(e) {}
+        };
+        fetchAll();
+    }, [isProgramModalOpen]);
 
     // Form fields for New Order
     const [clientSearchTerm, setClientSearchTerm] = useState('');
@@ -43,6 +85,66 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
     const [isFinishReadingModalOpen, setIsFinishReadingModalOpen] = useState(false);
     const [orderToFinishReading, setOrderToFinishReading] = useState<CommercialOrder | null>(null);
     const [jsonContent, setJsonContent] = useState('');
+
+    const [programMachine, setProgramMachine] = useState('Trefila 1');
+    const [programOrderNumber, setProgramOrderNumber] = useState('');
+    const [programWeight, setProgramWeight] = useState('');
+    const [programBitolaOriginal, setProgramBitolaOriginal] = useState('');
+
+    const getWorkingDays = () => {
+        const days = [];
+        const today = new Date();
+        const dayOfWeek = today.getDay();
+        const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        
+        const monday = new Date(today);
+        monday.setDate(today.getDate() + diffToMonday + (weekOffset * 7));
+        
+        const dayNames = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+        const numDays = showSaturday ? 6 : 5;
+        
+        for (let i = 0; i < numDays; i++) {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+            days.push({
+                date: d.toISOString().split('T')[0],
+                name: dayNames[i],
+                shortDate: `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`
+            });
+        }
+        return days;
+    };
+
+    const handleProgramMachine = async (dateStr: string, machineName: string) => {
+        if (!programData || !orderToView) return;
+        if (!programOrderNumber.trim() || !programWeight) {
+            alert('Preencha os campos obrigatórios.');
+            return;
+        }
+
+        const newOrder = {
+            orderNumber: programOrderNumber.trim(),
+            machine: machineName,
+            targetBitola: programData.bitola,
+            selectedLotIds: [],
+            totalWeight: parseFloat(programWeight.toString().replace(',','.')),
+            isGhostOrder: true,
+            inputBitola: '',
+            status: 'pending',
+            creationDate: dateStr + 'T12:00:00Z',
+            relatedCommercialOrderId: orderToView.id,
+            quantityOs: programData.quantity
+        };
+
+        try {
+            await insertItem('production_orders', newOrder as any);
+            alert(`Máquina ${machineName} programada para o dia ${dateStr.split('-').reverse().join('/')} com sucesso!`);
+            setIsProgramModalOpen(false);
+        } catch (error: any) {
+            console.error('Erro ao programar máquina:', error);
+            alert(`Erro ao programar máquina: ${error?.message || JSON.stringify(error)}`);
+        }
+    };
 
     const handleSearchClient = () => {
         setSearchError('');
@@ -302,7 +404,16 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                 </div>
 
                 <div className="flex gap-3">
-                    {/* Botões de atalho omitidos para o setor de produção */}
+                    <button 
+                        onClick={() => {
+                            setProgramData(null);
+                            setIsProgramModalOpen(true);
+                        }}
+                        className="bg-sky-500 hover:bg-sky-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-sm transition-all text-sm uppercase tracking-wider"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                        Visão Semanal
+                    </button>
                 </div>
             </div>
 
@@ -637,6 +748,14 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                         let grandTotalPeso = 0;
                                         let grandTotalQtd = 0;
 
+                                        const orderItemsGrouped = Object.entries(groups).map(([mm, items]) => {
+                                            const totalPeso = items.reduce((acc, curr) => acc + (parseFloat(curr.peso?.toString().replace(',','.')) || 0), 0);
+                                            const totalMetros = items.reduce((acc, curr) => acc + ((parseFloat(curr.qunti?.toString() || curr.quantidade?.toString() || curr.qtd?.toString()) || 0) * (parseFloat(curr.comprimento?.toString()) || 0)), 0) / 100;
+                                            const uniqueOs = new Set(items.map(item => item.os));
+                                            const totalQtd = uniqueOs.size;
+                                            return { bitola: mm, aco: (['5,00', '5.00', '5', '6,00', '6.00', '6'].includes(mm)) ? 'CA60' : 'CA50', totalLength: totalMetros, totalWeight: totalPeso, quantity: totalQtd };
+                                        });
+
                                         return (
                                             <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
                                                 <div className="bg-slate-800 px-4 py-2 flex items-center justify-center">
@@ -650,33 +769,46 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                 <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Aço</th>
                                                                 <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Comp. (m)</th>
                                                                 <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Peso (Kg)</th>
-                                                                <th className="p-3 text-sm font-black text-slate-700 uppercase">Quantidade de O.S.</th>
+                                                                <th className="p-3 text-sm font-black text-slate-700 uppercase">Qtd O.S.</th>
+                                                                <th className="p-3 text-sm font-black text-slate-700 uppercase">Status</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            {Object.entries(groups).map(([mm, items], idx) => {
-                                                                const totalPeso = items.reduce((acc, curr) => acc + (parseFloat(curr.peso?.toString().replace(',','.')) || 0), 0);
-                                                                // Convert cm to meters => / 100
-                                                                const totalMetros = items.reduce((acc, curr) => acc + ((parseFloat(curr.qunti?.toString() || curr.quantidade?.toString() || curr.qtd?.toString()) || 0) * (parseFloat(curr.comprimento?.toString()) || 0)), 0) / 100;
+                                                            {orderItemsGrouped.map((item, idx) => {
+                                                                const programmedInfo = programmedOrders.find(po => po.target_bitola === item.bitola);
+                                                                grandTotalComp += item.totalLength;
+                                                                grandTotalPeso += item.totalWeight;
+                                                                grandTotalQtd += item.quantity;
                                                                 
-                                                                // Calculate unique OSs for this bitola
-                                                                const uniqueOs = new Set(items.map(item => item.os));
-                                                                const totalQtd = uniqueOs.size;
-                                                                
-                                                                grandTotalComp += totalMetros;
-                                                                grandTotalPeso += totalPeso;
-                                                                grandTotalQtd += totalQtd;
-                                                                
-                                                                let aco = 'CA50';
-                                                                if (mm === '5,00' || mm === '5.00' || mm === '5' || mm === '6,00' || mm === '6.00' || mm === '6') aco = 'CA60';
-
                                                                 return (
                                                                     <tr key={idx} className="border-b border-slate-200 hover:bg-slate-50">
-                                                                        <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{mm}</td>
-                                                                        <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{aco}</td>
-                                                                        <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{totalMetros.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                                                        <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{totalPeso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                                                        <td className="p-3 text-sm font-medium text-slate-700">{totalQtd}</td>
+                                                                        <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{item.bitola}</td>
+                                                                        <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{item.aco}</td>
+                                                                        <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{item.totalLength.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                                        <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{item.totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                                        <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{item.quantity}</td>
+                                                                        <td className="p-3 text-sm text-center">
+                                                                            {programmedInfo ? (
+                                                                                <div className="flex flex-col items-center justify-center bg-emerald-50 px-3 py-1 rounded border border-emerald-100">
+                                                                                    <span className="text-[10px] font-black text-emerald-600 uppercase">Programado</span>
+                                                                                    <span className="text-[9px] font-bold text-emerald-400">{programmedInfo.creation_date?.substring(0,10).split('-').reverse().join('/')} - {programmedInfo.machine}</span>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <button 
+                                                                                    onClick={() => {
+                                                                                        setProgramData({ bitola: item.bitola, peso: item.totalWeight, orderNum: orderToView?.orderNumber || '', quantity: item.quantity });
+                                                                                        setProgramBitolaOriginal(item.bitola);
+                                                                                        setProgramOrderNumber(`${orderToView?.orderNumber || ''}-${item.bitola.replace(',', '.')}`);
+                                                                                        setProgramWeight(item.totalWeight.toString());
+                                                                                        setProgramMachine(item.aco === 'CA60' ? 'Trefila 1' : 'Treliça');
+                                                                                        setIsProgramModalOpen(true);
+                                                                                    }}
+                                                                                    className="text-[9px] bg-slate-800 text-white font-bold px-2 py-1 rounded-md hover:bg-sky-600 transition uppercase shadow-sm"
+                                                                                >
+                                                                                    Programar
+                                                                                </button>
+                                                                            )}
+                                                                        </td>
                                                                     </tr>
                                                                 );
                                                             })}
@@ -747,6 +879,171 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                     return <div className="p-4 text-red-500">Erro ao processar dados do projeto.</div>;
                                 }
                             })()}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Programar Maquina (Semana Matriz) */}
+{isProgramModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-[98vw] max-w-[1800px] h-[95vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-slate-200 bg-slate-50 flex justify-between items-center shrink-0">
+                            <div>
+                                <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-sky-500"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                                    {programData ? 'Programar Produção' : 'Visão Geral da Produção'}
+                                    <span className="text-sm font-medium bg-slate-100 text-slate-500 px-2 py-1 rounded-md ml-2 border border-slate-200">
+                                        {weekOffset === 0 ? '(Semana Atual)' : weekOffset === 1 ? '(Próxima Semana)' : weekOffset === -1 ? '(Semana Passada)' : `(${weekOffset > 0 ? '+' : ''}${weekOffset} Semanas)`}
+                                    </span>
+                                </h2>
+                                {programData && (
+                                    <p className="text-sm font-medium text-slate-500 mt-1">
+                                        Pedido: <span className="font-bold text-slate-800">{orderToView?.orderNumber}</span> | Bitola: <span className="font-bold text-sky-600">{programBitolaOriginal} mm</span> | Peso: <span className="font-bold text-slate-800">{parseFloat(programWeight).toFixed(2)} kg</span>
+                                    </p>
+                                )}
+                            </div>
+                            
+                            <div className="flex items-center gap-4">
+                                <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                                    <button onClick={() => setShowSaturday(false)} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${!showSaturday ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Seg a Sex</button>
+                                    <button onClick={() => setShowSaturday(true)} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${showSaturday ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Seg a Sáb</button>
+                                </div>
+                                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
+                                    <button onClick={() => setWeekOffset(w => w - 1)} className="p-1.5 hover:bg-white rounded-md text-slate-500 hover:text-slate-800 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                                    </button>
+                                    <span className="text-xs font-bold text-slate-700 px-2 uppercase tracking-wider">Semana</span>
+                                    <button onClick={() => setWeekOffset(w => w + 1)} className="p-1.5 hover:bg-white rounded-md text-slate-500 hover:text-slate-800 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-6">
+                                {programData && (
+                                    <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Número da O.P.</label>
+                                        <input 
+                                            type="text" 
+                                            value={programOrderNumber}
+                                            onChange={e => setProgramOrderNumber(e.target.value)}
+                                            className="w-32 bg-transparent text-slate-800 font-bold focus:outline-none focus:text-sky-600 transition-colors"
+                                            required
+                                        />
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-300"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                    </div>
+                                )}
+                                <button onClick={() => setIsProgramModalOpen(false)} className="p-2 text-slate-400 hover:text-rose-500 bg-slate-200 hover:bg-rose-100 rounded-full transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div className="flex-1 overflow-auto p-6 bg-slate-100/50">
+                            <div className="min-w-max border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden">
+                                {/* Header Row (Days) */}
+                                <div className="flex border-b border-slate-200 bg-slate-800 text-white shadow-md relative z-20">
+                                    <div className="w-48 shrink-0 p-4 border-r border-slate-700 flex flex-col justify-center bg-slate-900/50">
+                                        <div className="text-xs font-black tracking-widest text-slate-400 uppercase">Selecione para</div>
+                                        <div className="text-lg font-black tracking-wider text-white">MÁQUINAS</div>
+                                    </div>
+                                    {getWorkingDays().map(day => (
+                                        <div key={day.date} className="flex-1 min-w-[140px] p-3 text-center border-r border-slate-700/50 last:border-0 flex flex-col items-center justify-center">
+                                            <div className="text-[10px] font-black text-sky-400 uppercase tracking-widest">{day.name}</div>
+                                            <div className="text-xl font-bold mt-0.5">{day.shortDate}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                                {/* Machine Rows */}
+                                <div className="flex flex-col relative z-10">
+                                    {(activeBrandingPartner?.machines || [
+                                        { name: 'Trefila 1', capacityKgPerHour: 500 },
+                                        { name: 'Trefila 2', capacityKgPerHour: 500 },
+                                        { name: 'Treliça', capacityKgPerHour: 800 }
+                                    ]).map((machine, mIdx) => {
+                                        const normalizedTarget = parseFloat(programBitolaOriginal.replace(',', '.').replace(/[^\d.]/g, ''));
+                                        let isCompatible = false;
+                                        if (machine.gaugeRange) {
+                                            const ranges = machine.gaugeRange.split(/[-;|\/]+/).map((s: string) => parseFloat(s.replace(',', '.').replace(/[^\d.]/g, '')));
+                                            isCompatible = ranges.includes(normalizedTarget);
+                                        }
+                                        
+                                        return (
+                                            <div key={machine.name} className="flex border-b border-slate-100 last:border-0 hover:bg-slate-50/80 transition-colors group">
+                                                <div className="w-48 shrink-0 p-4 border-r border-slate-200 flex flex-col justify-center bg-white shadow-[2px_0_5px_rgba(0,0,0,0.02)] z-10 relative">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow-md shrink-0 ${isCompatible ? (mIdx % 2 === 0 ? 'bg-sky-500' : 'bg-indigo-500') : 'bg-slate-300'}`}>
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h4"/><path d="M14 12h4"/></svg>
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-black text-slate-700 text-sm leading-tight">{machine.name}</span>
+                                                            <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5 tracking-wider">Cap: {machine.capacityKgPerHour || 0} kg/h</span>
+                                                        </div>
+                                                    </div>
+                                                    {!isCompatible && (
+                                                        <div className="mt-2 text-[9px] font-bold text-amber-500 bg-amber-50 px-2 py-1 rounded border border-amber-100 self-start">
+                                                            Não Recomendada
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {getWorkingDays().map(day => {
+                                                    const cellOrders = allProgrammedOrders.filter(po => po.machine === machine.name && po.creation_date?.startsWith(day.date));
+                                                    const cellWeight = cellOrders.reduce((sum, po) => sum + (Number(po.total_weight) || 0), 0);
+
+                                                    return (
+                                                    <div key={`${machine.name}-${day.date}`} className="flex-1 min-w-[140px] border-r border-slate-100 last:border-0 p-2.5 relative flex flex-col gap-2">
+                                                        
+                                                        
+                                                        {cellOrders.length > 0 && (
+                                                            <div className="absolute top-1 left-1 right-1 flex flex-col gap-1 pointer-events-none z-10 max-h-[90%] overflow-hidden">
+                                                                {cellOrders.map(po => (
+                                                                    <div key={po.id} className="bg-emerald-50/95 backdrop-blur border border-emerald-200 rounded px-1.5 py-1 text-[9px] text-emerald-800 shadow-sm flex flex-col gap-0.5">
+                                                                        <div className="font-black text-[10px] text-emerald-900 border-b border-emerald-100 pb-0.5 mb-0.5">Nº {po.order_number}</div>
+                                                                        <div className="flex justify-between font-medium">
+                                                                            <span>Bitola: {po.target_bitola} mm</span>
+                                                                            <span>{po.quantity_os || 0} OS</span>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
+                                                        <button
+                                                            disabled={!programData}
+                                                            onClick={() => {
+                                                                if (!programData) return;
+                                                                if (!isCompatible) {
+                                                                    const conf = window.confirm(`Atenção: A bitola ${programBitolaOriginal}mm não é o padrão desta máquina. Deseja programar mesmo assim?`);
+                                                                    if (!conf) return;
+                                                                }
+                                                                handleProgramMachine(day.date, machine.name);
+                                                            }}
+                                                            className={`w-full h-full min-h-[100px] border-[2px] border-dashed rounded-xl flex flex-col items-center justify-center transition-all duration-200 group/btn pt-6
+                                                                ${!programData ? 'border-slate-100 hover:bg-slate-50/50 cursor-default' : 
+                                                                  isCompatible 
+                                                                    ? 'border-slate-200 hover:border-sky-400 hover:bg-sky-50/80 text-slate-300 hover:text-sky-500 hover:shadow-md hover:scale-[1.02] cursor-pointer' 
+                                                                    : 'border-slate-100 hover:border-amber-400 hover:bg-amber-50/50 text-slate-200 hover:text-amber-500 cursor-pointer'}`}
+                                                        >
+                                                            {programData && (
+                                                                <div className="flex flex-col items-center gap-1.5 opacity-0 group-hover/btn:opacity-100 transition-opacity transform translate-y-2 group-hover/btn:translate-y-0">
+                                                                    <div className={`p-2 rounded-full ${isCompatible ? 'bg-sky-100 text-sky-500' : 'bg-amber-100 text-amber-500'}`}>
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                                                    </div>
+                                                                    <span className="text-[10px] font-black uppercase tracking-widest mt-1 text-center leading-tight">
+                                                                        {isCompatible ? 'Programar Aqui' : 'Forçar Prog.'}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                )})}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -358,14 +358,12 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                     
                     if (isOrcamento && isIncomplete) {
                         cardBg = 'bg-[#B3C8D6] opacity-90'; // Lighter for incomplete
-                    } else if (q.status?.toLowerCase() === 'em processo de leitura') {
-                        cardBg = 'bg-[#e59b69]'; // Orange for reading
-                        cardBorder = 'border-[#c97d4b]';
                     }
 
                     // Process Project Data if available
                     let projectWeight = 0;
                     let projectOsCount = 0;
+                    let projectBitolas: string[] = [];
                     try {
                         if (q.projectData && Array.isArray(q.projectData)) {
                             const normalizedData = q.projectData.map(item => {
@@ -390,6 +388,9 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                 
                                 projectWeight += totalPeso;
                                 projectOsCount += totalQtd;
+                                if (mm !== 'Indefinido' && !projectBitolas.includes(mm)) {
+                                    projectBitolas.push(mm);
+                                }
                             });
                         }
                     } catch (e) {}
@@ -433,8 +434,8 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         const st = q.status?.toLowerCase() || '';
                                         let activeStage = 'orcamento';
                                         if (st === 'orçamento') activeStage = 'orcamento';
-                                        else if (st === 'em processo de leitura') activeStage = 'leitura';
-                                        else if (st.includes('aguardo setor de produção') || st.includes('aguardando engenharia')) activeStage = 'pedido';
+                                        else if (st === 'em processo de leitura' || st === 'aguardando engenharia') activeStage = 'leitura';
+                                        else if (st.includes('aguardo setor de produção')) activeStage = 'pcp';
                                         else if (st.includes('produção') || st.includes('pcp') || st === 'fechado') activeStage = 'pcp';
                                         else if (st.includes('entreg') && !st.includes('entregue') && !st.includes('finalizado')) activeStage = 'entrega';
                                         else if (st.includes('entregue') || st.includes('finalizado')) activeStage = 'completed';
@@ -461,6 +462,13 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                             </svg>
                                         );
 
+                                        const GearIcon = () => (
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-white animate-[spin_3s_linear_infinite]">
+                                                <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
+                                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/>
+                                            </svg>
+                                        );
+
                                         return (
                                             <div className="flex-1 flex items-center justify-between px-6 relative h-16 w-full xl:w-auto mt-4 xl:mt-0">
                                                 {/* The connecting line in background */}
@@ -479,7 +487,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                             </div>
                                                             <div className="pt-8 flex flex-col gap-1 whitespace-nowrap">
                                                                 <span className="font-black text-slate-800 text-[11px] uppercase flex items-center gap-1.5">
-                                                                    {isOrcamento ? (isIncomplete ? <><span className="text-red-500">⚠️</span> INCOMPLETO</> : <><span className="text-emerald-500">✅</span> FECHADO</>) : 'FECHADO'}
+                                                                    {isOrcamento ? (isIncomplete ? <><span className="text-red-500">⚠️</span> INCOMPLETO</> : <><span className="text-amber-500">⏳</span> COMPLETO (AGUARDANDO CLIENTE)</>) : 'FECHADO'}
                                                                 </span>
                                                                 {(q.totalWeight || projectWeight > 0) ? (
                                                                     <span className="text-[10px] text-slate-600 font-bold">
@@ -496,7 +504,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 
                                                 <div className="relative flex flex-col items-center gap-2 z-10 w-16 group">
                                                     <div className={`w-5 h-5 flex items-center justify-center rounded-full transition-all duration-300 ${getDotClasses('leitura', !isOrcamento)}`}>
-                                                        {isCompleted('leitura', !isOrcamento) && <Checkmark />}
+                                                        {isCompleted('leitura', !isOrcamento) ? <Checkmark /> : (activeStage === 'leitura' ? <GearIcon /> : null)}
                                                     </div>
                                                     <span className={`text-[9px] font-black uppercase mt-1 transition-all ${getLabelClasses('leitura', !isOrcamento)}`}>Leitura</span>
                                                     {!isOrcamento && expandedOrderId === q.id && (
@@ -507,6 +515,8 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                             <div className="pt-8 flex flex-col gap-2 text-[10px] text-slate-600 font-medium whitespace-nowrap">
                                                                 {q.status?.toLowerCase() === 'em processo de leitura' ? (
                                                                     <span className="text-orange-600 font-black uppercase animate-pulse">- EM LEITURA</span>
+                                                                ) : q.status?.toLowerCase() === 'aguardando engenharia' ? (
+                                                                    <span className="text-orange-600 font-black uppercase animate-pulse">- AGUARDANDO APROVAÇÃO</span>
                                                                 ) : q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? (
                                                                     <span className="text-emerald-600 font-black uppercase">- FINALIZADA</span>
                                                                 ) : (
@@ -521,18 +531,23 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 </div>
                                                 
                                                 <div className="relative flex flex-col items-center gap-2 z-10 w-16 group">
-                                                    <div className={`w-5 h-5 flex items-center justify-center rounded-full transition-all duration-300 ${getDotClasses('pedido', !isOrcamento && (st.includes('produção') || st.includes('engenharia') || st.includes('fechado')))}`}>
-                                                        {isCompleted('pedido', !isOrcamento && (st.includes('produção') || st.includes('engenharia') || st.includes('fechado'))) && <Checkmark />}
+                                                    <div className={`w-5 h-5 flex items-center justify-center rounded-full transition-all duration-300 ${getDotClasses('pedido', !isOrcamento && (st.includes('produção') || st.includes('fechado')))}`}>
+                                                        {isCompleted('pedido', !isOrcamento && (st.includes('produção') || st.includes('fechado'))) && <Checkmark />}
                                                     </div>
-                                                    <span className={`text-[9px] font-black uppercase mt-1 transition-all ${getLabelClasses('pedido', !isOrcamento && (st.includes('produção') || st.includes('engenharia') || st.includes('fechado')))}`}>Pedido</span>
+                                                    <span className={`text-[9px] font-black uppercase mt-1 transition-all ${getLabelClasses('pedido', !isOrcamento && (st.includes('produção') || st.includes('fechado')))}`}>Pedido</span>
                                                     {!isOrcamento && expandedOrderId === q.id && (
                                                         <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-white rounded-xl p-3 shadow-xl border border-slate-100 flex flex-col min-w-[150px] z-30 cursor-default" onClick={(e) => e.stopPropagation()}>
                                                             <div className="bg-[#2a4e55] text-white text-[10px] font-black px-3 py-1.5 rounded-t-lg absolute top-0 left-0 right-0 text-center uppercase tracking-widest shadow-sm">
                                                                 Pedido
                                                             </div>
                                                             <div className="pt-8 flex flex-col gap-2 text-[10px] text-slate-600 font-medium whitespace-nowrap">
-                                                                {(st.includes('produção') || st.includes('engenharia') || st.includes('fechado')) ? (
-                                                                    <span className="text-emerald-600 font-black uppercase">- APROVADO</span>
+                                                                {(st.includes('produção') || st.includes('aguardo setor de produção') || st.includes('fechado')) ? (
+                                                                    <>
+                                                                        <span className="text-emerald-600 font-black uppercase">- APROVADO</span>
+                                                                        {projectWeight > 0 && <span>- PESO: <span className="font-bold text-slate-800">{projectWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg</span></span>}
+                                                                        {projectOsCount > 0 && <span>- O.S.: <span className="font-bold text-slate-800">{projectOsCount}</span></span>}
+                                                                        {projectBitolas.length > 0 && <span>- BITOLAS: <span className="font-bold text-slate-800">{projectBitolas.join(', ')}</span></span>}
+                                                                    </>
                                                                 ) : (
                                                                     <span className="text-slate-400 italic">Pendente...</span>
                                                                 )}
@@ -543,7 +558,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
 
                                                 <div className="relative flex flex-col items-center gap-2 z-10 w-16 group">
                                                     <div className={`w-5 h-5 flex items-center justify-center rounded-full transition-all duration-300 ${getDotClasses('pcp', !isOrcamento && st.includes('pcp'))}`}>
-                                                        {isCompleted('pcp', !isOrcamento && st.includes('pcp')) && <Checkmark />}
+                                                        {isCompleted('pcp', !isOrcamento && st.includes('pcp')) ? <Checkmark /> : (activeStage === 'pcp' ? <GearIcon /> : null)}
                                                     </div>
                                                     <span className={`text-[9px] font-black uppercase mt-1 transition-all ${getLabelClasses('pcp', !isOrcamento && st.includes('pcp'))}`}>PCP</span>
                                                     {!isOrcamento && expandedOrderId === q.id && (
@@ -552,12 +567,9 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                                 PCP
                                                             </div>
                                                             <div className="pt-8 flex flex-col gap-2 text-[10px] text-slate-600 font-medium whitespace-nowrap">
-                                                                {st === 'aguardando engenharia' ? (
-                                                                    <span className="text-red-600 font-black uppercase">- AGUARDANDO ENGENHARIA</span>
-                                                                ) : st === 'leitura finalizada, aguardo setor de produção' ? (
+                                                                {st === 'leitura finalizada, aguardo setor de produção' ? (
                                                                     <>
-                                                                        <span className="text-slate-800 font-black uppercase">- AGUARDANDO PRODUÇÃO</span>
-                                                                        {projectOsCount > 0 && <span className="mt-1 bg-slate-100 px-2 py-1 rounded font-bold text-slate-700 border border-slate-200 self-start">{projectOsCount} O.S. GERADAS</span>}
+                                                                        <span className="text-orange-600 font-black uppercase animate-pulse">- AGUARDANDO PRODUÇÃO</span>
                                                                     </>
                                                                 ) : (
                                                                     <span className="text-slate-400 italic">Pendente...</span>
@@ -615,12 +627,14 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         {q.status?.toLowerCase() === 'orçamento' && (
                                             <option value="edit">✏️ Editar</option>
                                         )}
-                                        <option value="print">🖨️ Imprimir</option>
+                                        {!isIncomplete && (
+                                            <option value="print">🖨️ Imprimir</option>
+                                        )}
+                                        {q.status?.toLowerCase() === 'orçamento' && !isIncomplete && (
+                                            <option value="export">➡️ Exportar</option>
+                                        )}
                                         {q.status?.toLowerCase() === 'orçamento' && (
-                                            <>
-                                                <option value="export">➡️ Exportar</option>
-                                                <option value="delete">🗑️ Excluir</option>
-                                            </>
+                                            <option value="delete">🗑️ Excluir</option>
                                         )}
                                         {isGestor && (
                                             <option value="delete_gestor" className="text-red-600 font-bold">🗑️ Excluir (Gestor)</option>
