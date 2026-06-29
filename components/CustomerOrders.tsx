@@ -506,21 +506,67 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         </td>
                                         <td className={`p-4 text-center border-r border-black transition-colors duration-300 ${!isOrcamento && q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? 'bg-red-200' : ''}`}>
                                             {!isOrcamento && q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? (
-                                                <div className="flex flex-col items-center justify-center gap-1.5 drop-shadow-sm h-full">
-                                                    <div className="text-[11px] font-black text-slate-900 uppercase tracking-tight leading-tight bg-white/50 px-2 py-1 rounded border border-red-300">
-                                                        AGUARDANDO PRAZO<br/>DA PRODUÇÃO
-                                                    </div>
-                                                    <div className="flex flex-col items-center justify-center mt-1 bg-white px-2 py-1 rounded-md shadow-sm border border-red-300 w-full">
-                                                        <div className="text-[11px] font-black text-slate-900">
-                                                            R$ {(q.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                                        </div>
-                                                        {q.totalWeight ? (
-                                                            <div className="text-[10px] font-bold text-slate-500 border-t border-slate-100 mt-0.5 pt-0.5 w-full">
-                                                                {(q.totalWeight).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kg
+                                                (() => {
+                                                    let projectWeight = 0;
+                                                    let projectOsCount = 0;
+
+                                                    try {
+                                                        if (q.projectData && Array.isArray(q.projectData)) {
+                                                            const normalizedData = q.projectData.map(item => {
+                                                                const newItem: any = {};
+                                                                for (const key in item) {
+                                                                    newItem[key.trim().toLowerCase()] = item[key];
+                                                                }
+                                                                return newItem;
+                                                            });
+                                                            
+                                                            const groups: Record<string, any[]> = {};
+                                                            normalizedData.forEach(item => {
+                                                                const mm = item.mm || item.bitola || item.diametro || 'Indefinido';
+                                                                if (!groups[mm]) groups[mm] = [];
+                                                                groups[mm].push(item);
+                                                            });
+                                                            
+                                                            Object.entries(groups).forEach(([mm, items]) => {
+                                                                const totalPeso = items.reduce((acc, curr) => acc + (parseFloat(curr.peso?.toString().replace(',','.')) || 0), 0);
+                                                                const uniqueOs = new Set(items.map(item => item.os));
+                                                                const totalQtd = uniqueOs.size;
+                                                                
+                                                                projectWeight += totalPeso;
+                                                                projectOsCount += totalQtd;
+                                                            });
+                                                        }
+                                                    } catch (e) {}
+
+                                                    return (
+                                                        <div className="flex flex-col items-center justify-center gap-1.5 drop-shadow-sm h-full">
+                                                            <div className="text-[11px] font-black text-slate-900 uppercase tracking-tight leading-tight bg-white/50 px-2 py-1 rounded border border-red-300 text-center">
+                                                                AGUARDANDO PRAZO<br/>DA PRODUÇÃO
                                                             </div>
-                                                        ) : null}
-                                                    </div>
-                                                </div>
+                                                            {(projectWeight > 0 || projectOsCount > 0) ? (
+                                                                <div className="flex flex-col items-center justify-center mt-1 bg-white px-2 py-1 rounded-md shadow-sm border border-red-300 w-full text-center">
+                                                                    <div className="text-[11px] font-black text-slate-900">
+                                                                        {projectWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg
+                                                                    </div>
+                                                                    <div className="text-[10px] font-bold text-slate-500 border-t border-slate-100 mt-0.5 pt-0.5 w-full">
+                                                                        {projectOsCount} O.S.
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex flex-col items-center justify-center mt-1 bg-white px-2 py-1 rounded-md shadow-sm border border-red-300 w-full">
+                                                                    <div className="text-[11px] font-black text-slate-900">
+                                                                        R$ {(q.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                    </div>
+                                                                    {q.totalWeight ? (
+                                                                        <div className="text-[10px] font-bold text-slate-500 border-t border-slate-100 mt-0.5 pt-0.5 w-full">
+                                                                            {(q.totalWeight).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kg
+                                                                        </div>
+                                                                    ) : null}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()
                                             ) : null}
                                         </td>
                                         <td className="p-4 text-center">
