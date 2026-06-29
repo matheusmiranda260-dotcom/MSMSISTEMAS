@@ -177,32 +177,32 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
     };
 
     const getRowClass = (status?: string) => {
-        if (!status) return 'bg-emerald-50/70 border-b border-emerald-100 hover:bg-emerald-100/50 text-slate-800';
+        if (!status) return 'bg-emerald-50/70 border-b border-emerald-100 text-slate-800';
         const clean = status.toLowerCase();
         
         if (clean === 'orçamento') {
-            return 'bg-orange-100 border-b-2 border-orange-300 hover:bg-orange-200 text-slate-900 font-medium shadow-sm';
+            return 'bg-orange-100 border-b-2 border-orange-300 text-slate-900 font-medium shadow-sm';
         }
         
         if (clean === 'orçamento vazio' || clean === 'orçamento incompleto') {
-            return 'bg-red-50/70 border-b border-red-100 hover:bg-red-100/50 text-slate-800';
+            return 'bg-red-50/70 border-b border-red-100 text-slate-800';
         }
         if (clean === 'preço desatualizado') {
-            return 'bg-amber-50/70 border-b border-amber-100 hover:bg-amber-100/50 text-slate-800';
+            return 'bg-amber-50/70 border-b border-amber-100 text-slate-800';
         }
         if (clean === 'em processo de leitura') {
-            return 'bg-green-200 border-b-2 border-green-400 hover:bg-green-300 text-slate-900 font-medium shadow-sm';
+            return 'bg-green-200 border-b-2 border-green-400 text-slate-900 font-medium shadow-sm';
         }
         if (clean === 'leitura finalizada, aguardo setor de produção') {
-            return 'bg-green-200 border-b-2 border-green-400 hover:bg-green-300 text-slate-900 font-medium shadow-sm';
+            return 'bg-green-200 border-b-2 border-green-400 text-slate-900 font-medium shadow-sm';
         }
         if (clean === 'aguardando engenharia') {
-            return 'bg-green-200 border-b-2 border-green-400 hover:bg-green-300 text-slate-900 font-medium shadow-sm';
+            return 'bg-green-200 border-b-2 border-green-400 text-slate-900 font-medium shadow-sm';
         }
         if (clean === 'autorizado engenharia' || clean === 'pedido autorizado') {
-            return 'bg-emerald-100 border-b-2 border-emerald-300 hover:bg-emerald-200 text-slate-900 font-medium shadow-sm';
+            return 'bg-emerald-100 border-b-2 border-emerald-300 text-slate-900 font-medium shadow-sm';
         }
-        return 'bg-emerald-50/70 border-b border-emerald-100 hover:bg-emerald-100/50 text-slate-800';
+        return 'bg-emerald-50/70 border-b border-emerald-100 text-slate-800';
     };
 
     const isGestor = currentUser?.role === 'gestor' || currentUser?.role === 'admin';
@@ -415,7 +415,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 </div>
                                             )}
                                         </td>
-                                        <td className={`p-4 text-center border-r border-black transition-colors duration-300 ${!isOrcamento && q.status?.toLowerCase() === 'aguardando engenharia' ? 'bg-red-500' : ''} ${!isOrcamento && q.status?.toLowerCase() === 'em processo de leitura' ? 'bg-orange-600' : ''} ${!isOrcamento && q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? 'bg-green-500' : ''}`}>
+                                        <td className={`p-4 text-center border-r border-black transition-colors duration-300 ${!isOrcamento && q.status?.toLowerCase() === 'aguardando engenharia' ? 'bg-red-500' : ''} ${!isOrcamento && q.status?.toLowerCase() === 'em processo de leitura' ? 'bg-orange-600' : ''}`}>
                                             {!isOrcamento && q.status?.toLowerCase() === 'aguardando engenharia' ? (
                                                 <div className="flex flex-col items-center justify-center h-full drop-shadow-sm">
                                                     <div className="text-[12px] font-black text-slate-900 uppercase tracking-tight leading-tight">
