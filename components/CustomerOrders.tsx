@@ -194,7 +194,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
             return 'bg-green-200 border-b-2 border-green-400 hover:bg-green-300 text-slate-900 font-medium shadow-sm';
         }
         if (clean === 'leitura finalizada, aguardo setor de produção') {
-            return 'bg-orange-100 border-b-2 border-orange-400 hover:bg-orange-200 text-slate-900 font-medium shadow-sm';
+            return 'bg-green-200 border-b-2 border-green-400 hover:bg-green-300 text-slate-900 font-medium shadow-sm';
         }
         if (clean === 'aguardando engenharia') {
             return 'bg-green-200 border-b-2 border-green-400 hover:bg-green-300 text-slate-900 font-medium shadow-sm';
@@ -415,7 +415,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 </div>
                                             )}
                                         </td>
-                                        <td className={`p-4 text-center border-r border-black transition-colors duration-300 ${!isOrcamento && q.status?.toLowerCase() === 'aguardando engenharia' ? 'bg-red-500' : ''} ${!isOrcamento && q.status?.toLowerCase() === 'em processo de leitura' ? 'bg-orange-600' : ''}`}>
+                                        <td className={`p-4 text-center border-r border-black transition-colors duration-300 ${!isOrcamento && q.status?.toLowerCase() === 'aguardando engenharia' ? 'bg-red-500' : ''} ${!isOrcamento && q.status?.toLowerCase() === 'em processo de leitura' ? 'bg-orange-600' : ''} ${!isOrcamento && q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? 'bg-green-500' : ''}`}>
                                             {!isOrcamento && q.status?.toLowerCase() === 'aguardando engenharia' ? (
                                                 <div className="flex flex-col items-center justify-center h-full drop-shadow-sm">
                                                     <div className="text-[12px] font-black text-slate-900 uppercase tracking-tight leading-tight">
@@ -438,8 +438,8 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                                     )}
                                                                 </div>
                                                             ) : q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? (
-                                                                <div className="bg-orange-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm border border-orange-600 inline-block">
-                                                                    Aguardando Produção
+                                                                <div className="bg-green-700 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm border border-green-800 inline-block">
+                                                                    Leitura Finalizada
                                                                 </div>
                                                             ) : (
                                                                 <div className="text-[10px] font-bold text-slate-600 uppercase tracking-tight italic bg-slate-100 px-2 py-1 rounded border border-slate-200">
@@ -451,17 +451,51 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                     
                                                     {q.readingStartedAt || q.readingFinishedAt ? (
                                                         <div className="flex flex-col items-center justify-center gap-1 w-full">
-                                                            {q.readingStartedAt && (
-                                                                <div className="flex flex-col items-center bg-slate-50 px-2 py-1 rounded border border-slate-200 w-full min-w-[90px]">
-                                                                    <span className="text-[8px] font-black text-slate-500 uppercase">Início</span>
-                                                                    <span className="text-[9px] font-bold text-slate-700">{q.readingStartedAt}</span>
-                                                                </div>
-                                                            )}
-                                                            {q.readingFinishedAt && (
-                                                                <div className="flex flex-col items-center bg-blue-50 px-2 py-1 rounded border border-blue-200 w-full min-w-[90px]">
-                                                                    <span className="text-[8px] font-black text-blue-500 uppercase">Fim</span>
-                                                                    <span className="text-[9px] font-bold text-blue-700">{q.readingFinishedAt}</span>
-                                                                </div>
+                                                            {q.readingStartedAt && q.readingFinishedAt ? (
+                                                                (() => {
+                                                                    let totalTime = '';
+                                                                    try {
+                                                                        const parseDateStr = (dateStr: string) => {
+                                                                            const [datePart, timePart] = dateStr.split(' às ');
+                                                                            const [d, m, y] = datePart.split('/');
+                                                                            return new Date(`${y}-${m}-${d}T${timePart}:00`);
+                                                                        };
+                                                                        const start = parseDateStr(q.readingStartedAt);
+                                                                        const end = parseDateStr(q.readingFinishedAt);
+                                                                        const diffMs = end.getTime() - start.getTime();
+                                                                        if (diffMs >= 0) {
+                                                                            const diffHrs = Math.floor(diffMs / 3600000);
+                                                                            const diffMins = Math.floor((diffMs % 3600000) / 60000);
+                                                                            if (diffHrs > 0) {
+                                                                                totalTime = `${diffHrs}h ${diffMins}m`;
+                                                                            } else {
+                                                                                totalTime = `${diffMins}m`;
+                                                                            }
+                                                                        }
+                                                                    } catch (e) {}
+
+                                                                    return (
+                                                                        <div className="flex flex-col items-center bg-white/90 px-2 py-1.5 rounded border border-black/10 shadow-sm w-full min-w-[100px]">
+                                                                            <span className="text-[8px] font-black text-slate-500 uppercase">Tempo Total</span>
+                                                                            <span className="text-[11px] font-black text-green-700">{totalTime || '-'}</span>
+                                                                        </div>
+                                                                    );
+                                                                })()
+                                                            ) : (
+                                                                <>
+                                                                    {q.readingStartedAt && (
+                                                                        <div className="flex flex-col items-center bg-slate-50 px-2 py-1 rounded border border-slate-200 w-full min-w-[90px]">
+                                                                            <span className="text-[8px] font-black text-slate-500 uppercase">Início</span>
+                                                                            <span className="text-[9px] font-bold text-slate-700">{q.readingStartedAt}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {q.readingFinishedAt && (
+                                                                        <div className="flex flex-col items-center bg-blue-50 px-2 py-1 rounded border border-blue-200 w-full min-w-[90px]">
+                                                                            <span className="text-[8px] font-black text-blue-500 uppercase">Fim</span>
+                                                                            <span className="text-[9px] font-bold text-blue-700">{q.readingFinishedAt}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </>
                                                             )}
                                                         </div>
                                                     ) : (
@@ -470,8 +504,24 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 </div>
                                             )}
                                         </td>
-                                        <td className="p-4 text-center border-r border-black">
-                                            {/* Espaço para a coluna Pedido */}
+                                        <td className={`p-4 text-center border-r border-black transition-colors duration-300 ${!isOrcamento && q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? 'bg-red-200' : ''}`}>
+                                            {!isOrcamento && q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? (
+                                                <div className="flex flex-col items-center justify-center gap-1.5 drop-shadow-sm h-full">
+                                                    <div className="text-[11px] font-black text-slate-900 uppercase tracking-tight leading-tight bg-white/50 px-2 py-1 rounded border border-red-300">
+                                                        AGUARDANDO PRAZO<br/>DA PRODUÇÃO
+                                                    </div>
+                                                    <div className="flex flex-col items-center justify-center mt-1 bg-white px-2 py-1 rounded-md shadow-sm border border-red-300 w-full">
+                                                        <div className="text-[11px] font-black text-slate-900">
+                                                            R$ {(q.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                        </div>
+                                                        {q.totalWeight ? (
+                                                            <div className="text-[10px] font-bold text-slate-500 border-t border-slate-100 mt-0.5 pt-0.5 w-full">
+                                                                {(q.totalWeight).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kg
+                                                            </div>
+                                                        ) : null}
+                                                    </div>
+                                                </div>
+                                            ) : null}
                                         </td>
                                         <td className="p-4 text-center">
                                             <select 
