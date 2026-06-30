@@ -208,6 +208,85 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
         }
     };
 
+    const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            // Carregar via CDN para garantir que funcione sem problemas de build do Vite
+            const loadPdfJs = async () => {
+                if ((window as any).pdfjsLib) return (window as any).pdfjsLib;
+                return new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+                    script.onload = () => {
+                        const lib = (window as any).pdfjsLib;
+                        lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                        resolve(lib);
+                    };
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            };
+
+            const pdfjsLib: any = await loadPdfJs();
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            let fullText = '';
+
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items
+                    .map((item: any) => item.str.trim())
+                    .filter((str: string) => str.length > 0)
+                    .join(' ');
+                fullText += pageText + ' ';
+            }
+
+            console.log("Texto extraído do PDF:", fullText);
+
+            // O formato extraído pelo pdfjs saiu misturado, exatamente assim:
+            // "220 Peso (kg) OS Ø (mm) Aço Qtde Compr. (cm) 12,5 CA50 6 12,710 1 Feixe único N1 Pos."
+            const regex = /(\d+)\s+Peso \(kg\)\s+OS\s+Ø \(mm\)\s+Aço\s+Qtde\s+Compr\.\s*\(cm\)\s+(\d+(?:,\d+)?)\s+CA\d+\s+(\d+)\s+(\d+(?:,\d+)?)\s+(\d+(?:-\d+)?)\s+.*?\s+([A-Za-z0-9]+)\s+Pos\./gi;
+            const results = [];
+            let match;
+            while ((match = regex.exec(fullText)) !== null) {
+                const comprimento = parseInt(match[1], 10);
+                const mm = parseFloat(match[2].replace(',', '.'));
+                const qunti = parseInt(match[3], 10);
+                const peso = parseFloat(match[4].replace(',', '.'));
+                const os = match[5].includes('-') ? match[5] : parseInt(match[5], 10) || match[5];
+                const pos = match[6];
+                
+                if (qunti > 0 && mm > 0 && comprimento > 0) {
+                    results.push({
+                        os,
+                        pos,
+                        mm,
+                        qunti,
+                        comprimento,
+                        peso
+                    });
+                }
+            }
+
+            if (results.length > 0) {
+                setJsonContent(JSON.stringify(results, null, 2));
+                alert(`Sucesso! ${results.length} itens extraídos do PDF.`);
+            } else {
+                alert('Não foi possível encontrar itens válidos no PDF. Você ainda pode colar o JSON manualmente.');
+            }
+
+        } catch (error) {
+            console.error('Erro ao processar PDF:', error);
+            alert('Erro ao processar o arquivo PDF. Certifique-se de que é um arquivo válido.');
+        } finally {
+            // Limpa o input para permitir selecionar o mesmo arquivo novamente
+            e.target.value = '';
+        }
+    };
+
     const getRowClass = (status?: string) => {
         if (!status) return 'bg-emerald-50/70 border-b border-emerald-100 hover:bg-emerald-100/50 text-slate-800';
         const clean = status.toLowerCase();
@@ -661,10 +740,29 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                         <div className="p-6 border-b border-slate-200 bg-white">
                             <h2 className="text-xl font-black text-slate-900">Finalizar Leitura</h2>
                             <p className="text-sm font-bold text-slate-500 uppercase mt-1">
-                                Cole o conteúdo JSON do projeto abaixo
+                                Importe um PDF do projeto ou cole o conteúdo JSON abaixo
                             </p>
                         </div>
                         <div className="p-6 flex flex-col gap-5">
+                            <div className="bg-sky-50 border border-sky-200 rounded-xl p-4 flex flex-col items-center justify-center gap-3">
+                                <span className="text-sm font-black text-sky-800 uppercase text-center">Opção Inteligente: Extrair do PDF</span>
+                                <label className="cursor-pointer bg-white hover:bg-sky-100 text-sky-700 border border-sky-300 font-bold px-6 py-3 rounded-xl transition-all shadow-sm flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                    </svg>
+                                    Selecionar PDF do Projeto
+                                    <input type="file" accept=".pdf" className="hidden" onChange={handlePdfUpload} />
+                                </label>
+                                <p className="text-xs text-sky-600 font-medium text-center">Os dados (OS, Posição, MM, etc.) serão lidos e o JSON será gerado automaticamente abaixo.</p>
+                            </div>
+                            
+                            <div className="relative flex items-center justify-center">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-slate-200"></div>
+                                </div>
+                                <div className="relative bg-slate-50 px-4 text-xs font-black text-slate-400 uppercase">Ou Manualmente</div>
+                            </div>
+
                             <div>
                                 <label className="block text-xs font-black text-slate-700 uppercase mb-2">
                                     Dados do Projeto (JSON) <span className="text-red-500">*</span>
@@ -672,8 +770,8 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                                 <textarea 
                                     value={jsonContent}
                                     onChange={(e) => setJsonContent(e.target.value)}
-                                    className="w-full bg-slate-100 border border-slate-300 rounded-xl p-3 text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 h-64 resize-none"
-                                    placeholder='{"projeto": "..."}'
+                                    className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 h-64 resize-none shadow-sm"
+                                    placeholder='[\n  { "os": 36, "pos": "N3", "mm": 8.0, "qunti": 64, "comprimento": 150, "peso": 37.920 }\n]'
                                 />
                             </div>
                         </div>
