@@ -34,6 +34,37 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
     const [editingOrder, setEditingOrder] = useState<CommercialOrder | null>(null);
     const [printingOrder, setPrintingOrder] = useState<CommercialOrder | null>(null);
     const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+    const [programmedBitolas, setProgrammedBitolas] = useState<Record<string, string[]>>({});
+    const [programmedMachines, setProgrammedMachines] = useState<Record<string, string[]>>({});
+
+    useEffect(() => {
+        const fetchAllProgrammed = async () => {
+            const orderIds = commercialOrders.map(o => o.id);
+            if (orderIds.length === 0) return;
+            try {
+                const { data } = await supabase.from('production_orders')
+                    .select('related_commercial_order_id, target_bitola, machine')
+                    .in('related_commercial_order_id', orderIds);
+                if (data) {
+                    const mappedBitolas: Record<string, string[]> = {};
+                    const mappedMachines: Record<string, string[]> = {};
+                    data.forEach(d => {
+                        const id = d.related_commercial_order_id;
+                        if (!mappedBitolas[id]) mappedBitolas[id] = [];
+                        mappedBitolas[id].push(String(d.target_bitola));
+                        
+                        if (!mappedMachines[id]) mappedMachines[id] = [];
+                        if (d.machine && !mappedMachines[id].includes(d.machine)) {
+                            mappedMachines[id].push(d.machine);
+                        }
+                    });
+                    setProgrammedBitolas(mappedBitolas);
+                    setProgrammedMachines(mappedMachines);
+                }
+            } catch (e) {}
+        };
+        fetchAllProgrammed();
+    }, [commercialOrders]);
 
     // Gestor Delete Order
     const [deleteGestorModalOpen, setDeleteGestorModalOpen] = useState(false);
@@ -471,11 +502,17 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
 
 
                                 {(() => {
+                                        const isAllProgrammed = projectBitolas.length > 0 && projectBitolas.every(b => programmedBitolas[q.id || '']?.includes(String(b)));
                                         const st = q.status?.toLowerCase() || '';
                                         let activeStage = 'orcamento';
                                         if (st === 'orçamento') activeStage = 'orcamento';
                                         else if (st === 'em processo de leitura' || st === 'aguardando engenharia') activeStage = 'leitura';
-                                        else if (st.includes('aguardo setor de produção')) activeStage = 'pcp';
+                                        else if (st.includes('aguardo setor de produção')) {
+                                            activeStage = isAllProgrammed ? 'producao' : 'pcp';
+                                        }
+                                        else if (st.includes('liberar produção')) {
+                                            activeStage = 'producao';
+                                        }
                                         else if (st.includes('produção') || st.includes('pcp') || st === 'fechado') activeStage = 'pcp';
                                         else if (st.includes('entreg') && !st.includes('entregue') && !st.includes('finalizado')) activeStage = 'entrega';
                                         else if (st.includes('entregue') || st.includes('finalizado')) activeStage = 'completed';
@@ -597,25 +634,89 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 </div>
 
                                                 <div className="relative flex flex-col items-center gap-2 z-10 w-16 group">
-                                                    <div className={`w-5 h-5 flex items-center justify-center rounded-full transition-all duration-300 ${getDotClasses('pcp', !isOrcamento && st.includes('pcp'))}`}>
-                                                        {isCompleted('pcp', !isOrcamento && st.includes('pcp')) ? <Checkmark /> : (activeStage === 'pcp' ? <GearIcon /> : null)}
+                                                    <div className={`w-5 h-5 flex items-center justify-center rounded-full transition-all duration-300 ${getDotClasses('pcp', !isOrcamento && (activeStage === 'pcp' || activeStage === 'producao' || activeStage === 'entrega' || activeStage === 'completed'))}`}>
+                                                        {isCompleted('pcp', !isOrcamento && (activeStage === 'pcp' || activeStage === 'producao' || activeStage === 'entrega' || activeStage === 'completed')) ? <Checkmark /> : (activeStage === 'pcp' ? <GearIcon /> : null)}
                                                     </div>
-                                                    <span className={`text-[9px] font-black uppercase mt-1 transition-all ${getLabelClasses('pcp', !isOrcamento && st.includes('pcp'))}`}>PCP</span>
+                                                    <span className={`text-[9px] font-black uppercase mt-1 transition-all ${getLabelClasses('pcp', !isOrcamento && (activeStage === 'pcp' || activeStage === 'producao' || activeStage === 'entrega' || activeStage === 'completed'))}`}>PCP</span>
                                                     {!isOrcamento && expandedOrderId === q.id && (
                                                         <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-white rounded-xl p-3 shadow-xl border border-slate-100 flex flex-col min-w-[180px] z-30 cursor-default" onClick={(e) => e.stopPropagation()}>
                                                             <div className="bg-[#4b7f74] text-white text-[10px] font-black px-3 py-1.5 rounded-t-lg absolute top-0 left-0 right-0 text-center uppercase tracking-widest shadow-sm">
                                                                 PCP
                                                             </div>
                                                             <div className="pt-8 flex flex-col gap-2 text-[10px] text-slate-600 font-medium whitespace-nowrap">
-                                                                {st === 'leitura finalizada, aguardo setor de produção' ? (
+                                                                {(activeStage === 'pcp' || activeStage === 'producao' || activeStage === 'entrega' || activeStage === 'completed') ? (
                                                                     <>
-                                                                        <span className="text-orange-600 font-black uppercase animate-pulse">- AGUARDANDO PRODUÇÃO</span>
+                                                                        {isAllProgrammed ? (
+                                                                            <span className="text-emerald-600 font-black uppercase whitespace-normal text-center leading-tight border-b border-emerald-100 pb-2 mb-1">
+                                                                                - MÁQUINAS PROGRAMADAS
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="text-orange-600 font-black uppercase animate-pulse whitespace-normal text-center leading-tight border-b border-orange-100 pb-2 mb-1">
+                                                                                - AGUARDANDO PCP PROGRAMAR MÁQUINA E AS BITOLAS
+                                                                            </span>
+                                                                        )}
                                                                         {projectEstimatedHours > 0 && (
-                                                                            <span className="text-sky-600 font-bold uppercase">- TEMPO: {formatMachineTime(projectEstimatedHours)}</span>
+                                                                            <span className="text-sky-600 font-bold uppercase mt-1">- TEMPO TOTAL: {formatMachineTime(projectEstimatedHours)}</span>
+                                                                        )}
+                                                                        {projectBitolas.length > 0 && (
+                                                                            <div className="mt-2 flex flex-col gap-1 w-full">
+                                                                                {projectBitolas.map(b => {
+                                                                                    const isProgrammed = programmedBitolas[q.id || '']?.includes(String(b));
+                                                                                    return (
+                                                                                        <div key={b} className="flex justify-between items-center bg-slate-50 px-2 py-1.5 rounded border border-slate-100 w-full">
+                                                                                            <span className="font-bold text-slate-700">Bitola {b}mm</span>
+                                                                                            {isProgrammed ? (
+                                                                                                <span className="text-emerald-500 font-black text-[9px] flex items-center gap-1 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                                                                                    OK PROGRAMADO
+                                                                                                </span>
+                                                                                            ) : (
+                                                                                                <span className="text-orange-500 font-bold text-[9px] bg-orange-50 px-1.5 py-0.5 rounded">PENDENTE</span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
                                                                         )}
                                                                     </>
                                                                 ) : (
                                                                     <span className="text-slate-400 italic">Pendente...</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="relative flex flex-col items-center gap-2 z-10 w-16 group">
+                                                    <div className={`w-5 h-5 flex items-center justify-center rounded-full transition-all duration-300 ${getDotClasses('producao', !isOrcamento && (activeStage === 'producao' || activeStage === 'entrega' || activeStage === 'completed'))}`}>
+                                                        {isCompleted('producao', !isOrcamento && (activeStage === 'producao' || activeStage === 'entrega' || activeStage === 'completed')) ? <Checkmark /> : (activeStage === 'producao' ? <GearIcon /> : null)}
+                                                    </div>
+                                                    <span className={`text-[9px] font-black uppercase mt-1 transition-all ${getLabelClasses('producao', !isOrcamento && (activeStage === 'producao' || activeStage === 'entrega' || activeStage === 'completed'))}`}>Produção</span>
+                                                    {!isOrcamento && expandedOrderId === q.id && (
+                                                        <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-white rounded-xl p-3 shadow-xl border border-slate-100 flex flex-col min-w-[150px] z-30 cursor-default" onClick={(e) => e.stopPropagation()}>
+                                                            <div className="bg-[#5e7845] text-white text-[10px] font-black px-3 py-1.5 rounded-t-lg absolute top-0 left-0 right-0 text-center uppercase tracking-widest shadow-sm">
+                                                                Produção
+                                                            </div>
+                                                            <div className="pt-8 flex flex-col gap-2 text-[10px] text-slate-600 font-medium whitespace-nowrap">
+                                                                {activeStage === 'producao' ? (
+                                                                    <>
+                                                                        <span className="text-orange-600 font-black uppercase animate-pulse text-center leading-tight border-b border-orange-100 pb-2 mb-1">
+                                                                            - AGUARDANDO O RECEBIMENTO DE O.S
+                                                                        </span>
+                                                                        {programmedMachines[q.id || ''] && programmedMachines[q.id || ''].length > 0 && (
+                                                                            <div className="mt-1 flex flex-col gap-1.5 w-full">
+                                                                                <span className="text-[9px] font-bold text-slate-400 uppercase text-center">Máquinas Programadas:</span>
+                                                                                {programmedMachines[q.id || ''].map(m => (
+                                                                                    <div key={m} className="flex items-center gap-2 bg-slate-50 px-2 py-1.5 rounded border border-slate-100 w-full shadow-sm">
+                                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                                                                                        <span className="font-bold text-slate-700 uppercase">{m}</span>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="text-slate-400 italic text-center">Pendente...</span>
                                                                 )}
                                                             </div>
                                                         </div>

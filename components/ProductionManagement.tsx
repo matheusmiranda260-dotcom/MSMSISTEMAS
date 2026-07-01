@@ -131,17 +131,16 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
     }, [orderToView, isViewProjectModalOpen, isProgramModalOpen]);
 
     useEffect(() => {
-        if (!isProgramModalOpen) return;
         const fetchAll = async () => {
             try {
                 const { data } = await supabase.from('production_orders')
-                    .select('id, machine, creation_date, total_weight, total_meters, target_bitola, status, order_number, quantity_os')
+                    .select('id, machine, creation_date, total_weight, total_meters, target_bitola, status, order_number, quantity_os, related_commercial_order_id')
                     .in('status', ['pending', 'in_progress']);
                 if (data) setAllProgrammedOrders(data);
             } catch(e) {}
         };
         fetchAll();
-    }, [isProgramModalOpen]);
+    }, [isProgramModalOpen, isViewProjectModalOpen]);
 
     // Form fields for New Order
     const [clientSearchTerm, setClientSearchTerm] = useState('');
@@ -156,6 +155,8 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
     
     const [isAuthorizeModalOpen, setIsAuthorizeModalOpen] = useState(false);
     const [orderToAuthorize, setOrderToAuthorize] = useState<CommercialOrder | null>(null);
+    const [isMachinesModalOpen, setIsMachinesModalOpen] = useState(false);
+    const [selectedMachineTab, setSelectedMachineTab] = useState<string>('');
     const [authorizeDate, setAuthorizeDate] = useState('');
     const [authorizeTime, setAuthorizeTime] = useState('');
 
@@ -233,6 +234,35 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
         } catch (error: any) {
             console.error('Erro ao programar máquina:', error);
             alert(`Erro ao programar máquina: ${error?.message || JSON.stringify(error)}`);
+        }
+    };
+
+    const handleLiberarOS = async (commercialOrderId: string, machine: string) => {
+        try {
+            // Update production orders for this machine
+            await supabase
+                .from('production_orders')
+                .update({ status: 'in_progress' })
+                .eq('related_commercial_order_id', commercialOrderId)
+                .eq('machine', machine);
+                
+            // Refetch to see if we still have pending ones
+            const { data: remainingPending } = await supabase
+                .from('production_orders')
+                .select('id')
+                .eq('related_commercial_order_id', commercialOrderId)
+                .eq('status', 'pending')
+                .limit(1);
+                
+            if (!remainingPending || remainingPending.length === 0) {
+                // all released, update commercial order status to 'Em Produção'
+                await updateItem('commercial_orders', commercialOrderId, { status: 'Em Produção' });
+            }
+            
+            alert(`O.S. enviadas para a máquina ${machine} com sucesso!`);
+        } catch (e) {
+            console.error('Erro ao liberar O.S.:', e);
+            alert('Erro ao liberar O.S.');
         }
     };
 
@@ -491,6 +521,14 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                             <span className="text-2xl font-black text-emerald-600">{totalPedidos}</span>
                         </div>
                     </div>
+
+                    <button 
+                        onClick={() => setIsMachinesModalOpen(true)}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-sm transition-all text-sm uppercase tracking-wider"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="16" height="16" x="4" y="4" rx="2" ry="2"/><rect width="6" height="6" x="9" y="9" rx="1" ry="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
+                        Máquinas
+                    </button>
                 </div>
 
                 <div className="flex gap-3">
@@ -606,8 +644,13 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                     )}
                                                 </div>
                                             ) : q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? (
-                                                <div className="bg-orange-500 text-white text-[9px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm border border-orange-600">
-                                                    Aguardando Produção
+                                                <div className="bg-red-500 text-white text-[9px] font-black uppercase px-2 py-1 rounded-full animate-pulse whitespace-nowrap shadow-sm border border-red-600">
+                                                    Aguardando Programação de Máquinas
+                                                </div>
+                                            ) : q.status?.toLowerCase() === 'aguardando liberar produção' ? (
+                                                <div className="bg-red-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-full animate-pulse whitespace-nowrap shadow-md border border-red-700 flex items-center justify-center gap-1">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                                    !! LIBERAR O.S PARA MÁQUINA !!
                                                 </div>
                                             ) : (
                                                 <div className="text-[9px] font-bold text-slate-500 uppercase tracking-tight italic">
@@ -632,6 +675,9 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                     } else if (e.target.value === 'view_project') {
                                                         setOrderToView(q);
                                                         setIsViewProjectModalOpen(true);
+                                                    } else if (e.target.value.startsWith('liberar_')) {
+                                                        const machine = e.target.value.replace('liberar_', '');
+                                                        handleLiberarOS(q.id!, machine);
                                                     }
                                                     e.target.value = '';
                                                 }}
@@ -640,6 +686,20 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                 {q.projectData ? (
                                                     <option value="view_project">👁️ Visualizar Projeto JSON</option>
                                                 ) : null}
+                                                {q.status === 'Aguardando liberar produção' && (() => {
+                                                    const posForQ = allProgrammedOrders.filter(po => po.related_commercial_order_id === q.id);
+                                                    const machinesForQ = Array.from(new Set(posForQ.map(po => po.machine).filter(Boolean)));
+                                                    
+                                                    return machinesForQ.map(m => {
+                                                        const isReleased = !posForQ.some(po => po.machine === m && po.status === 'pending');
+                                                        
+                                                        if (isReleased) {
+                                                            return <option key={`liberar_${m}`} value="" disabled>✔️ Enviado para {m}</option>;
+                                                        }
+                                                        
+                                                        return <option key={`liberar_${m}`} value={`liberar_${m}`}>⚡ Liberar OS para {m}</option>;
+                                                    });
+                                                })()}
                                             </select>
                                         </td>
                                     </tr>
@@ -847,8 +907,10 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                             return { bitola: mm, aco: (['5,00', '5.00', '5', '6,00', '6.00', '6'].includes(mm)) ? 'CA60' : 'CA50', totalLength: totalMetros, totalWeight: totalPeso, quantity: totalQtd };
                                         });
 
+                                        const allProgrammed = orderItemsGrouped.length > 0 && orderItemsGrouped.every(item => programmedOrders.some(po => po.target_bitola === item.bitola));
+
                                         return (
-                                            <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+                                            <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm flex flex-col">
                                                 <div className="bg-slate-800 px-4 py-2 flex items-center justify-center">
                                                     <h3 className="text-white font-bold text-lg uppercase tracking-widest">Resumo Geral</h3>
                                                 </div>
@@ -978,6 +1040,39 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                         </tfoot>
                                                     </table>
                                                 </div>
+                                                
+                                                {allProgrammed && (
+                                                    <div className="bg-emerald-50 border-t-2 border-emerald-200 p-5 flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2">
+                                                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+                                                                <div>
+                                                                    <h4 className="text-emerald-800 font-black text-lg uppercase tracking-tight">Pedido Programado</h4>
+                                                                    <p className="text-emerald-600 font-bold text-[10px] uppercase">
+                                                                        {orderToView.status === 'Aguardando liberar produção' 
+                                                                            ? 'Máquinas aguardando liberação das O.S.'
+                                                                            : 'Todas as bitolas foram atribuídas às máquinas.'}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            {orderToView.status !== 'Aguardando liberar produção' && (
+                                                                <button 
+                                                                    onClick={async () => {
+                                                                        try {
+                                                                            await supabase.from('commercial_orders').update({ status: 'Aguardando liberar produção' }).eq('id', orderToView.id);
+                                                                            setOrderToView({...orderToView, status: 'Aguardando liberar produção'});
+                                                                        } catch (e) { alert('Erro ao atualizar status'); }
+                                                                    }}
+                                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-6 py-3 rounded-xl uppercase tracking-widest shadow-lg hover:shadow-emerald-500/50 transition-all flex items-center gap-2"
+                                                                >
+                                                                    Confirmar Programação
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     }
@@ -1192,12 +1287,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                             </span>
                                                         </div>
                                                     </div>
-                                                    {!isCompatible && (
-                                                        <div className="mt-2 text-[9px] font-bold text-amber-500 bg-amber-50 px-2 py-1 rounded border border-amber-100 self-start">
-                                                            Não Recomendada
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                    </div>
                                                 {getWorkingDays().map(day => {
                                                     const cellOrders = allProgrammedOrders.filter(po => po.machine === machine.name && po.creation_date?.startsWith(day.date));
                                                     const cellWeight = cellOrders.reduce((sum, po) => sum + (Number(po.total_weight) || 0), 0);
@@ -1218,16 +1308,16 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                     const c = getOrderColor(po.order_number);
 
                                                                     return (
-                                                                    <div key={po.id} className={`${c.bg} backdrop-blur border ${c.border} rounded px-1.5 py-1 text-[9px] ${c.text} shadow-sm flex flex-col gap-0.5 relative group/card`}>
-                                                                        <div className={`font-black text-[10px] ${c.titleText} border-b ${c.titleBorder} pb-0.5 mb-0.5`}>Nº {po.order_number}</div>
-                                                                        <div className="flex justify-between font-medium">
-                                                                            <span>Bitola: {po.target_bitola} mm</span>
-                                                                            <span>{po.quantity_os || 0} OS</span>
+                                                                    <div key={po.id} className={`${c.bg} backdrop-blur border ${c.border} rounded px-1.5 py-1 text-[8px] ${c.text} shadow-sm flex items-center justify-between gap-1 relative group/card overflow-hidden whitespace-nowrap`}>
+                                                                        <div className="flex items-center gap-1 min-w-0">
+                                                                            <span className={`font-black text-[9px] ${c.titleText} truncate`}>Nº {po.order_number}</span>
+                                                                            <span className="font-bold opacity-80 shrink-0">({po.target_bitola}mm)</span>
+                                                                            <span className="font-bold opacity-80 shrink-0">({po.quantity_os || 0} OS)</span>
                                                                         </div>
                                                                         {estimatedHours > 0 && (
-                                                                            <div className={`text-[8px] font-bold ${c.timeText} ${c.timeBg} rounded px-1 mt-0.5 self-start flex items-center gap-1 border ${c.border}`}>
-                                                                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                                                                {formatMachineTime(estimatedHours)}
+                                                                            <div className={`text-[8px] font-black ${c.timeText} ${c.timeBg} rounded px-1 py-0.5 flex items-center gap-1 border ${c.border} ml-auto shrink-0`}>
+                                                                                <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                                                <span className="truncate">{formatMachineTime(estimatedHours)}</span>
                                                                             </div>
                                                                         )}
                                                                         <button
@@ -1283,6 +1373,102 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                         );
                                     })}
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Máquinas */}
+            {isMachinesModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-[90vw] max-w-6xl h-[80vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-slate-200 bg-indigo-50 flex justify-between items-center shrink-0">
+                            <div>
+                                <h2 className="text-xl font-black text-indigo-900 uppercase tracking-tight flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-600"><rect width="16" height="16" x="4" y="4" rx="2" ry="2"/><rect width="6" height="6" x="9" y="9" rx="1" ry="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
+                                    Painel de Máquinas
+                                </h2>
+                                <p className="text-xs font-bold text-indigo-700 mt-1 uppercase">Fila de Produção e O.S. Liberadas</p>
+                            </div>
+                            <button onClick={() => setIsMachinesModalOpen(false)} className="text-slate-400 hover:text-red-500 transition-colors p-2 bg-white hover:bg-red-50 rounded-xl shadow-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="flex flex-1 overflow-hidden">
+                            {/* Sidebar de Máquinas */}
+                            <div className="w-64 bg-slate-50 border-r border-slate-200 p-4 flex flex-col gap-2 overflow-y-auto">
+                                {['Schnell-PRIMA', 'DHE 6P', 'JJW', 'Desbobinadeira', 'Bancada/Cortador'].map(m => {
+                                    const machineOsCount = allProgrammedOrders.filter(po => po.machine === m && po.status === 'in_progress').length;
+                                    return (
+                                        <button 
+                                            key={m}
+                                            onClick={() => setSelectedMachineTab(m)}
+                                            className={`p-4 rounded-xl text-left transition-all font-bold flex items-center justify-between border ${selectedMachineTab === m ? 'bg-indigo-600 text-white border-indigo-700 shadow-md' : 'bg-white text-slate-700 border-slate-200 hover:bg-indigo-50 hover:border-indigo-200'}`}
+                                        >
+                                            <span className="uppercase text-xs">{m}</span>
+                                            {machineOsCount > 0 && (
+                                                <span className={`text-[10px] px-2 py-0.5 rounded-full ${selectedMachineTab === m ? 'bg-indigo-500 text-white' : 'bg-indigo-100 text-indigo-700'}`}>
+                                                    {machineOsCount}
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            
+                            {/* Área Principal de O.S. da Máquina */}
+                            <div className="flex-1 bg-white p-6 overflow-y-auto">
+                                {!selectedMachineTab ? (
+                                    <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="mb-4 text-slate-200"><rect width="16" height="16" x="4" y="4" rx="2" ry="2"/><rect width="6" height="6" x="9" y="9" rx="1" ry="1"/></svg>
+                                        <p className="font-bold uppercase tracking-wider text-sm">Selecione uma máquina ao lado</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <h3 className="font-black text-slate-800 text-lg uppercase border-b border-slate-200 pb-2 mb-4">
+                                            Fila: {selectedMachineTab}
+                                        </h3>
+                                        {(() => {
+                                            const osList = allProgrammedOrders.filter(po => po.machine === selectedMachineTab && po.status === 'in_progress');
+                                            
+                                            if (osList.length === 0) {
+                                                return (
+                                                    <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                                                        <p className="text-slate-500 font-bold uppercase text-xs">Nenhuma O.S. pendente para esta máquina no momento.</p>
+                                                    </div>
+                                                );
+                                            }
+
+                                            return (
+                                                <div className="grid gap-4">
+                                                    {osList.map((po, idx) => {
+                                                        const commOrder = commercialOrders.find(co => co.id === po.related_commercial_order_id);
+                                                        return (
+                                                            <div key={po.id || idx} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
+                                                                <div>
+                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                        <span className="bg-indigo-100 text-indigo-800 font-black text-[10px] px-2 py-0.5 rounded uppercase">O.S. #{po.order_number}</span>
+                                                                        {commOrder?.orderNumber && (
+                                                                            <span className="bg-slate-100 text-slate-600 font-bold text-[10px] px-2 py-0.5 rounded uppercase">Pedido {commOrder.orderNumber}</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <p className="text-xs font-bold text-slate-700">Bitola {po.target_bitola}mm • {po.quantity_os} Un. • {parseFloat(po.total_weight?.toString() || '0').toFixed(2)} kg</p>
+                                                                    <p className="text-[10px] font-medium text-slate-500 mt-1">Cliente: {commOrder?.clientName || 'N/A'}</p>
+                                                                </div>
+                                                                <button className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded-lg text-xs uppercase shadow-sm transition-colors">
+                                                                    Iniciar Produção
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
