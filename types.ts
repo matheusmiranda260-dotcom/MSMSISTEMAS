@@ -148,6 +148,7 @@ export interface User {
     role: 'admin' | 'user' | 'gestor';
     permissions?: Partial<Record<Page, boolean>>;
     employeeId?: string;
+    assignedMachines?: string[];
     isOnline?: boolean;
     loginCount?: number;
     lastLoginAt?: string;

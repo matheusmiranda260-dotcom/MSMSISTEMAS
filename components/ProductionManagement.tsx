@@ -6,6 +6,33 @@ import { OrderPrintView } from './OrderPrintView';
 
 import { supabase } from '../supabaseClient';
 
+const ActiveTimer = ({ startTime }: { startTime: string }) => {
+    const [elapsed, setElapsed] = React.useState('');
+
+    React.useEffect(() => {
+        if (!startTime) return;
+        
+        const updateTimer = () => {
+            const start = new Date(startTime).getTime();
+            const now = new Date().getTime();
+            const diff = Math.max(0, now - start);
+            
+            const h = Math.floor(diff / 3600000);
+            const m = Math.floor((diff % 3600000) / 60000);
+            const s = Math.floor((diff % 60000) / 1000);
+            
+            setElapsed(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+        };
+        
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
+    }, [startTime]);
+
+    return <span className="font-mono text-sm font-black tracking-wider text-slate-700 tabular-nums">{elapsed || '00:00:00'}</span>;
+};
+
+
 const calculateTotalMachineHours = (machine: any) => {
     let totalMinutes = 0;
     const parseTime = (t: string) => {
@@ -134,8 +161,8 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
         const fetchAll = async () => {
             try {
                 const { data } = await supabase.from('production_orders')
-                    .select('id, machine, creation_date, total_weight, total_meters, target_bitola, status, order_number, quantity_os, related_commercial_order_id')
-                    .in('status', ['pending', 'in_progress']);
+                    .select('id, machine, creation_date, total_weight, total_meters, target_bitola, status, order_number, quantity_os, related_commercial_order_id, start_time, end_time')
+                    .in('status', ['pending', 'in_progress', 'producing', 'completed']);
                 if (data) setAllProgrammedOrders(data);
             } catch(e) {}
         };
@@ -157,6 +184,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
     const [orderToAuthorize, setOrderToAuthorize] = useState<CommercialOrder | null>(null);
     const [isMachinesModalOpen, setIsMachinesModalOpen] = useState(false);
     const [selectedMachineTab, setSelectedMachineTab] = useState<string>('');
+    const [machineSearchQuery, setMachineSearchQuery] = useState('');
     const [authorizeDate, setAuthorizeDate] = useState('');
     const [authorizeTime, setAuthorizeTime] = useState('');
 
@@ -270,6 +298,40 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
         } catch (e) {
             console.error('Erro ao liberar O.S.:', e);
             alert('Erro ao liberar O.S.');
+        }
+    };
+
+    const handleStartProduction = async (osId: string) => {
+        try {
+            const startTime = new Date().toISOString();
+            await supabase
+                .from('production_orders')
+                .update({ status: 'producing', start_time: startTime })
+                .eq('id', osId);
+                
+            setAllProgrammedOrders(prev => prev.map(po => 
+                po.id === osId ? { ...po, status: 'producing', start_time: startTime } : po
+            ));
+        } catch (e) {
+            console.error('Erro ao iniciar produção:', e);
+            alert('Erro ao iniciar produção.');
+        }
+    };
+
+    const handleFinishProduction = async (osId: string) => {
+        try {
+            const endTime = new Date().toISOString();
+            await supabase
+                .from('production_orders')
+                .update({ status: 'completed', end_time: endTime })
+                .eq('id', osId);
+                
+            setAllProgrammedOrders(prev => prev.map(po => 
+                po.id === osId ? { ...po, status: 'completed', end_time: endTime } : po
+            ));
+        } catch (e) {
+            console.error('Erro ao finalizar produção:', e);
+            alert('Erro ao finalizar produção.');
         }
     };
 
@@ -1508,11 +1570,14 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                             {/* Sidebar de Máquinas */}
                             <div className="w-64 bg-slate-50 border-r border-slate-200 p-4 flex flex-col gap-2 overflow-y-auto">
                                 {['Schnell-PRIMA', 'DHE 6P', 'JJW', 'Desbobinadeira', 'Bancada/Cortador'].map(m => {
-                                    const machineOsCount = allProgrammedOrders.filter(po => po.machine === m && po.status === 'in_progress').length;
+                                    const machineOsCount = allProgrammedOrders.filter(po => po.machine === m && (po.status === 'in_progress' || po.status === 'producing')).length;
                                     return (
                                         <button 
                                             key={m}
-                                            onClick={() => setSelectedMachineTab(m)}
+                                            onClick={() => {
+                                                setSelectedMachineTab(m);
+                                                setMachineSearchQuery('');
+                                            }}
                                             className={`p-4 rounded-xl text-left transition-all font-bold flex items-center justify-between border ${selectedMachineTab === m ? 'bg-indigo-600 text-white border-indigo-700 shadow-md' : 'bg-white text-slate-700 border-slate-200 hover:bg-indigo-50 hover:border-indigo-200'}`}
                                         >
                                             <span className="uppercase text-xs">{m}</span>
@@ -1535,16 +1600,36 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        <h3 className="font-black text-slate-800 text-lg uppercase border-b border-slate-200 pb-2 mb-4">
-                                            Fila: {selectedMachineTab}
-                                        </h3>
+                                        <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-4">
+                                            <h3 className="font-black text-slate-800 text-lg uppercase">
+                                                Fila: {selectedMachineTab}
+                                            </h3>
+                                            <div className="relative">
+                                                <input 
+                                                    type="text" 
+                                                    value={machineSearchQuery}
+                                                    onChange={e => setMachineSearchQuery(e.target.value)}
+                                                    placeholder="Buscar por Número da O.S..."
+                                                    className="w-64 pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all uppercase"
+                                                />
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                                                </svg>
+                                            </div>
+                                        </div>
+
                                         {(() => {
-                                            const osList = allProgrammedOrders.filter(po => po.machine === selectedMachineTab && po.status === 'in_progress');
+                                            const osList = allProgrammedOrders.filter(po => {
+                                                const matchMachine = po.machine === selectedMachineTab;
+                                                const matchStatus = po.status === 'in_progress' || po.status === 'producing';
+                                                const matchQuery = !machineSearchQuery || String(po.order_number).toLowerCase().includes(machineSearchQuery.toLowerCase());
+                                                return matchMachine && matchStatus && matchQuery;
+                                            });
                                             
                                             if (osList.length === 0) {
                                                 return (
                                                     <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-                                                        <p className="text-slate-500 font-bold uppercase text-xs">Nenhuma O.S. pendente para esta máquina no momento.</p>
+                                                        <p className="text-slate-500 font-bold uppercase text-xs">Nenhuma O.S. encontrada para esta máquina no momento.</p>
                                                     </div>
                                                 );
                                             }
@@ -1553,8 +1638,10 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                 <div className="grid gap-4">
                                                     {osList.map((po, idx) => {
                                                         const commOrder = commercialOrders.find(co => co.id === po.related_commercial_order_id);
+                                                        const isProducing = po.status === 'producing';
+                                                        
                                                         return (
-                                                            <div key={po.id || idx} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
+                                                            <div key={po.id || idx} className={`bg-white border ${isProducing ? 'border-orange-300 shadow-md ring-1 ring-orange-200' : 'border-slate-200 shadow-sm'} rounded-xl p-4 flex items-center justify-between hover:shadow-md transition-shadow`}>
                                                                 <div>
                                                                     <div className="flex items-center gap-2 mb-1">
                                                                         <span className="bg-indigo-100 text-indigo-800 font-black text-[10px] px-2 py-0.5 rounded uppercase">O.S. #{po.order_number}</span>
@@ -1565,9 +1652,30 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                     <p className="text-xs font-bold text-slate-700">Bitola {po.target_bitola}mm • {po.quantity_os} Un. • {parseFloat(po.total_weight?.toString() || '0').toFixed(2)} kg</p>
                                                                     <p className="text-[10px] font-medium text-slate-500 mt-1">Cliente: {commOrder?.clientName || 'N/A'}</p>
                                                                 </div>
-                                                                <button className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded-lg text-xs uppercase shadow-sm transition-colors">
-                                                                    Iniciar Produção
-                                                                </button>
+                                                                <div className="flex items-center gap-4">
+                                                                    {isProducing && po.start_time && (
+                                                                        <div className="flex flex-col items-end">
+                                                                            <span className="text-[9px] font-bold text-orange-500 uppercase tracking-widest mb-0.5 animate-pulse">Em Execução</span>
+                                                                            <ActiveTimer startTime={po.start_time} />
+                                                                        </div>
+                                                                    )}
+                                                                    
+                                                                    {!isProducing ? (
+                                                                        <button 
+                                                                            onClick={() => handleStartProduction(po.id)}
+                                                                            className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded-lg text-xs uppercase shadow-sm transition-colors"
+                                                                        >
+                                                                            Iniciar Produção
+                                                                        </button>
+                                                                    ) : (
+                                                                        <button 
+                                                                            onClick={() => handleFinishProduction(po.id)}
+                                                                            className="bg-red-500 hover:bg-red-600 text-white font-black px-5 py-2 rounded-lg text-xs uppercase shadow-md transition-all hover:scale-105 animate-pulse"
+                                                                        >
+                                                                            Finalizar
+                                                                        </button>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         );
                                                     })}

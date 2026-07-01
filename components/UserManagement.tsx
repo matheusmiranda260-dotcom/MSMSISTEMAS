@@ -6,12 +6,13 @@ import { ArrowLeftIcon, PencilIcon, TrashIcon, WarningIcon } from './icons';
 interface UserManagementProps {
     users: User[];
     employees: Employee[];
-    addUser: (data: { username: string; password: string; permissions: Partial<Record<Page, boolean>>; role: string; employeeId?: string }) => void;
+    addUser: (data: { username: string; password: string; permissions: Partial<Record<Page, boolean>>; role: string; employeeId?: string; assignedMachines?: string[] }) => void;
     updateUser: (userId: string, data: Partial<User>) => void;
     deleteUser: (userId: string) => void;
     setPage: (page: Page) => void;
     accessLogs: UserAccessLog[];
     currentUser?: User | null;
+    activeBrandingPartner?: any;
 }
 
 const permissionCategories = [
@@ -59,9 +60,10 @@ const manageablePages = permissionCategories.flatMap(c => c.permissions.map(p =>
 const UserModal: React.FC<{
     user?: User | null;
     employees: Employee[];
+    activeBrandingPartner?: any;
     onClose: () => void;
     onSubmit: (data: any) => void;
-}> = ({ user, employees, onClose, onSubmit }) => {
+}> = ({ user, employees, activeBrandingPartner, onClose, onSubmit }) => {
     const [username, setUsername] = useState(user?.username || '');
     const [password, setPassword] = useState('');
     const [permissions, setPermissions] = useState<Partial<Record<Page, boolean>>>(
@@ -69,10 +71,17 @@ const UserModal: React.FC<{
     );
     const [role, setRole] = useState(user?.role || 'user');
     const [employeeId, setEmployeeId] = useState(user?.employeeId || '');
+    const [assignedMachines, setAssignedMachines] = useState<string[]>(user?.assignedMachines || []);
     const isEditing = !!user;
 
     const handlePermissionChange = (page: Page, isChecked: boolean) => {
         setPermissions(prev => ({ ...prev, [page]: isChecked }));
+    };
+
+    const handleMachineToggle = (machineName: string) => {
+        setAssignedMachines(prev => 
+            prev.includes(machineName) ? prev.filter(m => m !== machineName) : [...prev, machineName]
+        );
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -82,13 +91,13 @@ const UserModal: React.FC<{
             return;
         }
         if (isEditing) {
-            const dataToSubmit: Partial<User> = { permissions, role, employeeId };
+            const dataToSubmit: Partial<User> = { permissions, role, employeeId, assignedMachines };
             if (password) {
                 dataToSubmit.password = password;
             }
             onSubmit(dataToSubmit);
         } else {
-            onSubmit({ username, password, permissions, role, employeeId });
+            onSubmit({ username, password, permissions, role, employeeId, assignedMachines });
         }
         onClose();
     };
@@ -124,6 +133,26 @@ const UserModal: React.FC<{
                         </select>
                         <p className="text-xs text-slate-500 mt-1">Ao vincular, o usuário verá seu próprio Painel de RH.</p>
                     </div>
+
+                    {activeBrandingPartner?.machines && activeBrandingPartner.machines.length > 0 && (
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Vincular a Máquina (Acesso Mobile Operador)</label>
+                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 max-h-40 overflow-y-auto space-y-2">
+                                {activeBrandingPartner.machines.map((m: any) => (
+                                    <label key={m.id || m.name || m} className="flex items-center space-x-3 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={assignedMachines.includes(m.name || m)}
+                                            onChange={() => handleMachineToggle(m.name || m)}
+                                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                        />
+                                        <span className="text-sm font-semibold text-slate-700">{m.name || m}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">Se vinculado, este usuário será direcionado ao Painel Mobile exclusivo para operadores.</p>
+                        </div>
+                    )}
 
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-slate-700">Função (Role)</label>
@@ -291,7 +320,7 @@ const AccessHistoryModal: React.FC<{
 };
 
 
-const UserManagement: React.FC<UserManagementProps> = ({ users, employees, addUser, updateUser, deleteUser, setPage, accessLogs, currentUser }) => {
+const UserManagement: React.FC<UserManagementProps> = ({ users, employees, addUser, updateUser, deleteUser, setPage, accessLogs, currentUser, activeBrandingPartner }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [deletingUser, setDeletingUser] = useState<User | null>(null);
@@ -300,7 +329,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, employees, addUs
     // Permite gerenciar todos os usuários, mas o admin principal (id: 'admin') pode ter proteção extra se quiser
     const manageableUsers = users.filter(u => u.username !== 'admin');
 
-    const handleAddUser = (data: { username: string; password: string; permissions: Partial<Record<Page, boolean>>; role: string; employeeId?: string }) => {
+    const handleAddUser = (data: { username: string; password: string; permissions: Partial<Record<Page, boolean>>; role: string; employeeId?: string; assignedMachines?: string[] }) => {
         addUser(data);
         setIsModalOpen(false);
     };
@@ -321,8 +350,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, employees, addUs
 
     return (
         <div className="p-4 sm:p-6 md:p-8">
-            {isModalOpen && <UserModal employees={employees} onClose={() => setIsModalOpen(false)} onSubmit={handleAddUser} />}
-            {editingUser && <UserModal user={editingUser} employees={employees} onClose={() => setEditingUser(null)} onSubmit={handleEditUser} />}
+            {isModalOpen && <UserModal employees={employees} activeBrandingPartner={activeBrandingPartner} onClose={() => setIsModalOpen(false)} onSubmit={handleAddUser} />}
+            {editingUser && <UserModal user={editingUser} employees={employees} activeBrandingPartner={activeBrandingPartner} onClose={() => setEditingUser(null)} onSubmit={handleEditUser} />}
             {viewingHistoryUser && <AccessHistoryModal user={viewingHistoryUser} accessLogs={accessLogs} onClose={() => setViewingHistoryUser(null)} />}
             {deletingUser && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

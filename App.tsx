@@ -34,6 +34,7 @@ import CustomersManagement from './components/CustomersManagement';
 import { CustomerOrders } from './components/CustomerOrders';
 import { OrderManagement } from './components/OrderManagement';
 import { ProductionManagement } from './components/ProductionManagement';
+import MobileOperatorPanel from './components/MobileOperatorPanel';
 import { ProductsCatalog } from './components/ProductsCatalog';
 import { supabase } from './supabaseClient';
 import type { StockGauge, StickyNote, GaugeComponent, CommercialOrder } from './types';
@@ -2844,7 +2845,7 @@ const App: React.FC = () => {
 
             case 'blank': return <div style={{ height: '100vh', background: '#f0f2f5' }} />;
             case 'productionDashboard': return <ProductionDashboard setPage={setPage} productionOrders={productionOrders} stock={stock} currentUser={currentUser} downtimeConfigs={downtimeConfigs} />;
-            case 'userManagement': return <UserManagement users={users} employees={employees} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} setPage={setPage} accessLogs={accessLogs} currentUser={currentUser} />;
+            case 'userManagement': return <UserManagement users={users} employees={employees} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} setPage={setPage} accessLogs={accessLogs} currentUser={currentUser} activeBrandingPartner={activeBrandingPartner} />;
             case 'finishedGoods': return <FinishedGoods finishedGoods={finishedGoods} pontasStock={pontasStock} setPage={setPage} finishedGoodsTransfers={finishedGoodsTransfers} createFinishedGoodsTransfer={createFinishedGoodsTransfer} onDelete={deleteFinishedGoods} onUpdateFinishedGood={updateFinishedGood} onUpdatePonta={updatePonta} currentUser={currentUser} users={users} />;
 
 
@@ -2939,6 +2940,10 @@ const App: React.FC = () => {
             default: return <Login onLogin={handleLogin} error={null} />;
         }
     };
+
+    if (currentUser && currentUser.assignedMachines && currentUser.assignedMachines.length > 0 && currentUser.role !== 'admin') {
+        return <MobileOperatorPanel currentUser={currentUser} onLogout={handleLogout} />;
+    }
 
     return (
         <div className="app-container">
