@@ -610,7 +610,7 @@ const App: React.FC = () => {
 
 
     // User Management
-    const addUser = async (data: { username: string; password: string; permissions: Partial<Record<Page, boolean>>; role: string; employeeId?: string }) => {
+    const addUser = async (data: { username: string; password: string; permissions: Partial<Record<Page, boolean>>; role: string; employeeId?: string; assignedMachines?: string[] }) => {
         const newUser: User = {
             id: generateId('user'),
             username: data.username,
@@ -618,6 +618,7 @@ const App: React.FC = () => {
             role: (data.role as any) || 'user',
             permissions: data.permissions,
             employeeId: data.employeeId || null,
+            assignedMachines: data.assignedMachines || [],
         };
 
         try {
