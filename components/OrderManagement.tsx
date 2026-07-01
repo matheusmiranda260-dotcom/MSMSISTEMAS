@@ -337,7 +337,9 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
         }
 
         // Filter by active tab
-        const isFinished = o.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção';
+        const status = o.status?.toLowerCase() || '';
+        const isFinished = status !== 'aguardando engenharia' && status !== 'em processo de leitura';
+        
         if (activeTab === 'ativos' && isFinished) return false;
         if (activeTab === 'finalizados' && !isFinished) return false;
 

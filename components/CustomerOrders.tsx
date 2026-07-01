@@ -35,7 +35,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
     const [printingOrder, setPrintingOrder] = useState<CommercialOrder | null>(null);
     const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
     const [programmedBitolas, setProgrammedBitolas] = useState<Record<string, string[]>>({});
-    const [programmedMachines, setProgrammedMachines] = useState<Record<string, string[]>>({});
+    const [programmedMachines, setProgrammedMachines] = useState<Record<string, {name: string, isReleased: boolean}[]>>({});
 
     useEffect(() => {
         const fetchAllProgrammed = async () => {
@@ -43,19 +43,25 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
             if (orderIds.length === 0) return;
             try {
                 const { data } = await supabase.from('production_orders')
-                    .select('related_commercial_order_id, target_bitola, machine')
+                    .select('related_commercial_order_id, target_bitola, machine, status')
                     .in('related_commercial_order_id', orderIds);
                 if (data) {
                     const mappedBitolas: Record<string, string[]> = {};
-                    const mappedMachines: Record<string, string[]> = {};
+                    const mappedMachines: Record<string, {name: string, isReleased: boolean}[]> = {};
                     data.forEach(d => {
                         const id = d.related_commercial_order_id;
                         if (!mappedBitolas[id]) mappedBitolas[id] = [];
                         mappedBitolas[id].push(String(d.target_bitola));
                         
                         if (!mappedMachines[id]) mappedMachines[id] = [];
-                        if (d.machine && !mappedMachines[id].includes(d.machine)) {
-                            mappedMachines[id].push(d.machine);
+                        if (d.machine) {
+                            const existing = mappedMachines[id].find(m => m.name === d.machine);
+                            const isReleased = d.status !== 'pending';
+                            if (!existing) {
+                                mappedMachines[id].push({ name: d.machine, isReleased });
+                            } else {
+                                if (!isReleased) existing.isReleased = false;
+                            }
                         }
                     });
                     setProgrammedBitolas(mappedBitolas);
@@ -513,6 +519,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         else if (st.includes('liberar produção')) {
                                             activeStage = 'producao';
                                         }
+                                        else if (st === 'em produção') activeStage = 'producao';
                                         else if (st.includes('produção') || st.includes('pcp') || st === 'fechado') activeStage = 'pcp';
                                         else if (st.includes('entreg') && !st.includes('entregue') && !st.includes('finalizado')) activeStage = 'entrega';
                                         else if (st.includes('entregue') || st.includes('finalizado')) activeStage = 'completed';
@@ -700,16 +707,36 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                             <div className="pt-8 flex flex-col gap-2 text-[10px] text-slate-600 font-medium whitespace-nowrap">
                                                                 {activeStage === 'producao' ? (
                                                                     <>
-                                                                        <span className="text-orange-600 font-black uppercase animate-pulse text-center leading-tight border-b border-orange-100 pb-2 mb-1">
-                                                                            - AGUARDANDO O RECEBIMENTO DE O.S
-                                                                        </span>
+                                                                        {(() => {
+                                                                            const machinesForOrder = programmedMachines[q.id || ''] || [];
+                                                                            const allOSReleased = machinesForOrder.length > 0 && machinesForOrder.every(m => m.isReleased);
+                                                                            return allOSReleased ? (
+                                                                                <span className="text-emerald-600 font-black uppercase text-center leading-tight border-b border-emerald-100 pb-2 mb-1">
+                                                                                    - O.S EM PRODUÇÃO
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="text-orange-600 font-black uppercase animate-pulse text-center leading-tight border-b border-orange-100 pb-2 mb-1">
+                                                                                    - AGUARDANDO O RECEBIMENTO DE O.S
+                                                                                </span>
+                                                                            );
+                                                                        })()}
                                                                         {programmedMachines[q.id || ''] && programmedMachines[q.id || ''].length > 0 && (
                                                                             <div className="mt-1 flex flex-col gap-1.5 w-full">
                                                                                 <span className="text-[9px] font-bold text-slate-400 uppercase text-center">Máquinas Programadas:</span>
                                                                                 {programmedMachines[q.id || ''].map(m => (
-                                                                                    <div key={m} className="flex items-center gap-2 bg-slate-50 px-2 py-1.5 rounded border border-slate-100 w-full shadow-sm">
-                                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-                                                                                        <span className="font-bold text-slate-700 uppercase">{m}</span>
+                                                                                    <div key={m.name} className="flex justify-between items-center bg-slate-50 px-2 py-1.5 rounded border border-slate-100 w-full shadow-sm">
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                                                                                            <span className="font-bold text-slate-700 uppercase">{m.name}</span>
+                                                                                        </div>
+                                                                                        {m.isReleased ? (
+                                                                                            <span className="text-emerald-500 font-black text-[9px] flex items-center gap-1 bg-emerald-50 px-1.5 py-0.5 rounded ml-2 whitespace-nowrap">
+                                                                                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                                                                                O.S ENVIADA
+                                                                                            </span>
+                                                                                        ) : (
+                                                                                            <span className="text-orange-500 font-bold text-[9px] bg-orange-50 px-1.5 py-0.5 rounded ml-2 whitespace-nowrap">AGUARDANDO O.S</span>
+                                                                                        )}
                                                                                     </div>
                                                                                 ))}
                                                                             </div>

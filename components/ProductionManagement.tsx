@@ -246,6 +246,13 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                 .eq('related_commercial_order_id', commercialOrderId)
                 .eq('machine', machine);
                 
+            // Update local state to reflect change immediately without page reload
+            setAllProgrammedOrders(prev => prev.map(po => 
+                (po.related_commercial_order_id === commercialOrderId && po.machine === machine)
+                ? { ...po, status: 'in_progress' }
+                : po
+            ));
+
             // Refetch to see if we still have pending ones
             const { data: remainingPending } = await supabase
                 .from('production_orders')
@@ -596,6 +603,10 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                 <th className="p-4 text-center font-bold text-xs uppercase w-24">Data</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-28">Vendedor</th>
                                 <th className="p-4 font-bold text-xs uppercase">Cliente</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-32">Máquinas</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-20">Qtd O.S</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-28">Bitolas</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-24">Tempo</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-32">Status</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-36">Preço</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-48">Ações</th>
@@ -613,6 +624,68 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                     ? String(q.date).split('-').reverse().join('/') 
                                     : (q.date || '');
 
+                                let projectOsCount = 0;
+                                let projectBitolas: string[] = [];
+                                let projectEstimatedHours = 0;
+                                
+                                try {
+                                    if (q.projectData && Array.isArray(q.projectData)) {
+                                        const normalizedData = q.projectData.map(item => {
+                                            const newItem: any = {};
+                                            for (const key in item) {
+                                                newItem[key.trim().toLowerCase()] = item[key];
+                                            }
+                                            return newItem;
+                                        });
+                                        
+                                        const groups: Record<string, any[]> = {};
+                                        normalizedData.forEach(item => {
+                                            const mm = item.mm || item.bitola || item.diametro || 'Indefinido';
+                                            if (!groups[mm]) groups[mm] = [];
+                                            groups[mm].push(item);
+                                        });
+                                        
+                                        Object.entries(groups).forEach(([mm, items]) => {
+                                            const totalLength = items.reduce((acc, curr) => acc + ((parseFloat(curr.qunti?.toString() || curr.quantidade?.toString() || curr.qtd?.toString()) || 0) * (parseFloat(curr.comprimento?.toString()) || 0)), 0) / 100;
+                                            const uniqueOs = new Set(items.map(item => item.os));
+                                            const totalQtd = uniqueOs.size;
+                                            
+                                            projectOsCount += totalQtd;
+                                            if (mm !== 'Indefinido' && !projectBitolas.includes(mm)) {
+                                                projectBitolas.push(mm);
+                                            }
+                                            
+                                            const normalizedTarget = parseFloat(mm.replace(',', '.').replace(/[^\d.]/g, ''));
+                                            if (activeBrandingPartner?.machines) {
+                                                const compatibleMachines = activeBrandingPartner.machines.filter(m => {
+                                                    if (!m.gaugeRange) return false;
+                                                    const ranges = m.gaugeRange.split(/[-;|\/]+/).map((s: string) => parseFloat(s.replace(',', '.').replace(/[^\d.]/g, '')));
+                                                    return ranges.includes(normalizedTarget);
+                                                });
+                                                if (compatibleMachines.length > 0) {
+                                                    const mph = compatibleMachines[0].capabilities?.estribo?.calculatedMetersPerHour || 0;
+                                                    if (mph > 0) {
+                                                        projectEstimatedHours += totalLength / mph;
+                                                    }
+                                                }
+                                            }
+                                        });
+                                    }
+                                } catch (e) {}
+                                
+                                const orderMachines = Array.from(new Set(
+                                    allProgrammedOrders
+                                        .filter(po => po.related_commercial_order_id === q.id)
+                                        .map(po => po.machine)
+                                        .filter(Boolean)
+                                ));
+                                
+                                const hours = Math.floor(projectEstimatedHours);
+                                const minutes = Math.round((projectEstimatedHours - hours) * 60);
+                                const formattedTime = projectEstimatedHours > 0 
+                                    ? `${hours}h ${minutes}m` 
+                                    : '-';
+
                                 return (
                                     <tr key={q.id} className={`${getRowClass(q.status)} transition-colors`}>
                                         <td className="p-4 text-center font-black text-slate-900 text-sm">{q.orderNumber}</td>
@@ -626,6 +699,36 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                 <span className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">{q.clientCity}</span>
                                                 {q.clientObs && <span className="text-[9px] font-semibold text-sky-600 mt-1 italic">{q.clientObs}</span>}
                                             </div>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            {orderMachines.length > 0 ? (
+                                                <div className="flex flex-col gap-1 items-center">
+                                                    {orderMachines.map((m, idx) => (
+                                                        <span key={idx} className="bg-slate-100 border border-slate-200 text-slate-700 text-[9px] font-bold px-2 py-0.5 rounded uppercase whitespace-nowrap">
+                                                            {m}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <span className="text-[9px] font-bold text-slate-400 italic uppercase">-</span>
+                                            )}
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <span className="text-xs font-black text-slate-700">{projectOsCount || '-'}</span>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <div className="flex flex-wrap items-center justify-center gap-1 max-w-[100px]">
+                                                {projectBitolas.length > 0 ? projectBitolas.map((b, idx) => (
+                                                    <span key={idx} className="bg-sky-50 border border-sky-100 text-sky-700 text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap">
+                                                        {b}
+                                                    </span>
+                                                )) : <span className="text-[9px] font-bold text-slate-400 italic uppercase">-</span>}
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <span className={`text-xs font-bold ${projectEstimatedHours > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>
+                                                {formattedTime}
+                                            </span>
                                         </td>
                                         <td className="p-4 text-center">
                                             {q.status?.toLowerCase() === 'aguardando engenharia' ? (
@@ -651,6 +754,10 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                 <div className="bg-red-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded-full animate-pulse whitespace-nowrap shadow-md border border-red-700 flex items-center justify-center gap-1">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                                                     !! LIBERAR O.S PARA MÁQUINA !!
+                                                </div>
+                                            ) : q.status?.toLowerCase() === 'em produção' ? (
+                                                <div className="bg-orange-500 text-white text-[9px] font-black uppercase px-2 py-1 rounded-full animate-pulse whitespace-nowrap shadow-md border border-orange-600 inline-flex items-center justify-center">
+                                                    EM PRODUÇÃO
                                                 </div>
                                             ) : (
                                                 <div className="text-[9px] font-bold text-slate-500 uppercase tracking-tight italic">
