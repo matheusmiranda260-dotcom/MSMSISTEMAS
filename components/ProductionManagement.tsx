@@ -116,16 +116,19 @@ interface OrderManagementProps {
     currentUser: User | null;
     activeBrandingPartner?: Partner | null;
     users?: User[];
+    productionOrders?: any[]; // Realtime orders from App.tsx
 }
 
-export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, customers, commercialOrders, currentUser, activeBrandingPartner, users }) => {
+export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, customers, commercialOrders, currentUser, activeBrandingPartner, users, productionOrders }) => {
     const [search, setSearch] = useState('');
     const [orderBy, setOrderBy] = useState<'id' | 'clientCode'>('id');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingOrder, setEditingOrder] = useState<CommercialOrder | null>(null);
     const [printingOrder, setPrintingOrder] = useState<CommercialOrder | null>(null);
     const [programmedOrders, setProgrammedOrders] = useState<any[]>([]);
-    const [allProgrammedOrders, setAllProgrammedOrders] = useState<any[]>([]);
+    // Use realtime orders from App.tsx if available, fall back to local polling
+    const [localProgrammedOrders, setLocalProgrammedOrders] = useState<any[]>([]);
+    const allProgrammedOrders = (productionOrders && productionOrders.length > 0) ? productionOrders : localProgrammedOrders;
     
     // View Project Modal
     const [isViewProjectModalOpen, setIsViewProjectModalOpen] = useState(false);
@@ -177,19 +180,21 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
     const [authorizeDate, setAuthorizeDate] = useState('');
     const [authorizeTime, setAuthorizeTime] = useState('');
 
+    // Only use local polling if App.tsx is not passing realtime orders
     useEffect(() => {
+        if (productionOrders && productionOrders.length > 0) return; // Use realtime from App.tsx
         const fetchAll = async () => {
             try {
                 const { data } = await supabase.from('production_orders')
                     .select('id, machine, creation_date, total_weight, total_meters, target_bitola, status, order_number, quantity_os, related_commercial_order_id, start_time, end_time, sub_items_progress')
                     .in('status', ['pending', 'in_progress', 'producing', 'completed']);
-                if (data) setAllProgrammedOrders(data);
+                if (data) setLocalProgrammedOrders(data);
             } catch(e) {}
         };
         fetchAll();
-        const interval = setInterval(fetchAll, 10000);
+        const interval = setInterval(fetchAll, 5000);
         return () => clearInterval(interval);
-    }, [isProgramModalOpen, isViewProjectModalOpen, isMachinesModalOpen]);
+    }, [isProgramModalOpen, isViewProjectModalOpen, isMachinesModalOpen, productionOrders]);
 
     const [isFinishReadingModalOpen, setIsFinishReadingModalOpen] = useState(false);
     const [orderToFinishReading, setOrderToFinishReading] = useState<CommercialOrder | null>(null);
@@ -278,7 +283,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                 .eq('machine', machine);
                 
             // Update local state to reflect change immediately without page reload
-            setAllProgrammedOrders(prev => prev.map(po => 
+            setLocalProgrammedOrders(prev => prev.map(po => 
                 (po.related_commercial_order_id === commercialOrderId && po.machine === machine)
                 ? { ...po, status: 'in_progress' }
                 : po
@@ -312,7 +317,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                 .update({ status: 'producing', start_time: startTime })
                 .eq('id', osId);
                 
-            setAllProgrammedOrders(prev => prev.map(po => 
+            setLocalProgrammedOrders(prev => prev.map(po => 
                 po.id === osId ? { ...po, status: 'producing', start_time: startTime } : po
             ));
         } catch (e) {
@@ -329,7 +334,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                 .update({ status: 'completed', end_time: endTime })
                 .eq('id', osId);
                 
-            setAllProgrammedOrders(prev => prev.map(po => 
+            setLocalProgrammedOrders(prev => prev.map(po => 
                 po.id === osId ? { ...po, status: 'completed', end_time: endTime } : po
             ));
         } catch (e) {
@@ -1622,126 +1627,208 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                         </div>
 
                                         {(() => {
+                                            // Normalize field access: works with both camelCase (Realtime) and snake_case (local fetch)
+                                            const getField = (po: any, snake: string, camel: string) => po[snake] ?? po[camel];
+
                                             const osList = allProgrammedOrders.filter(po => {
-                                                const matchMachine = po.machine === selectedMachineTab;
-                                                const matchStatus = po.status === 'in_progress' || po.status === 'producing';
-                                                const matchQuery = !machineSearchQuery || String(po.order_number).toLowerCase().includes(machineSearchQuery.toLowerCase());
+                                                const machine = getField(po, 'machine', 'machine');
+                                                const status = getField(po, 'status', 'status');
+                                                const matchMachine = String(machine).trim().toLowerCase() === String(selectedMachineTab).trim().toLowerCase();
+                                                const matchStatus = status === 'in_progress' || status === 'producing';
+                                                const orderNum = getField(po, 'order_number', 'orderNumber');
+                                                const matchQuery = !machineSearchQuery || String(orderNum).toLowerCase().includes(machineSearchQuery.toLowerCase());
                                                 return matchMachine && matchStatus && matchQuery;
                                             });
-                                            
+
+                                            // Machine online status (from Realtime users)
+                                            const operatorsAssigned = users?.filter(u => 
+                                                u.assignedMachines?.some(m => m.toLowerCase() === selectedMachineTab.toLowerCase())
+                                            ) || [];
+                                            const isOperatorOnline = operatorsAssigned.some(u => u.isOnline);
+                                            const hasAssignedOperator = operatorsAssigned.length > 0;
+
                                             if (osList.length === 0) {
                                                 return (
-                                                    <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-                                                        <p className="text-slate-500 font-bold uppercase text-xs">Nenhuma O.S. encontrada para esta máquina no momento.</p>
+                                                    <div className="space-y-3">
+                                                        {/* Status da máquina */}
+                                                        <div className={`flex items-center gap-3 p-4 rounded-xl border ${hasAssignedOperator && !isOperatorOnline ? 'bg-rose-50 border-rose-200' : isOperatorOnline ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+                                                            <div className={`w-3 h-3 rounded-full ${hasAssignedOperator && !isOperatorOnline ? 'bg-rose-500' : isOperatorOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></div>
+                                                            <div>
+                                                                <p className={`text-xs font-black uppercase tracking-wide ${hasAssignedOperator && !isOperatorOnline ? 'text-rose-600' : isOperatorOnline ? 'text-emerald-700' : 'text-slate-600'}`}>
+                                                                    {hasAssignedOperator && !isOperatorOnline ? '🔴 Máquina Desligada' : isOperatorOnline ? '🟢 Operador Online' : '⚪ Sem operador vinculado'}
+                                                                </p>
+                                                                <p className="text-[10px] text-slate-500 mt-0.5">
+                                                                    {hasAssignedOperator && !isOperatorOnline ? 'Turno não iniciado' : isOperatorOnline ? 'Aguardando O.S.' : 'Nenhuma O.S. na fila'}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                                                            <p className="text-slate-400 font-bold uppercase text-xs">Nenhuma O.S. liberada para esta máquina</p>
+                                                        </div>
                                                     </div>
                                                 );
                                             }
 
                                             return (
-                                                <div className="grid gap-4">
-                                                    {osList.map((po, idx) => {
-                                                        const commOrder = commercialOrders.find(co => co.id === po.related_commercial_order_id);
-                                                        const isProducing = po.status === 'producing';
-                                                        
-                                                        return (
-                                                            <div key={po.id || idx} className={`bg-white border ${isProducing ? 'border-orange-300 shadow-md ring-1 ring-orange-200' : 'border-slate-200 shadow-sm'} rounded-xl p-4 flex items-center justify-between hover:shadow-md transition-shadow`}>
-                                                                <div>
-                                                                    <div className="flex items-center gap-2 mb-1">
-                                                                        <span className="bg-indigo-100 text-indigo-800 font-black text-[10px] px-2 py-0.5 rounded uppercase">O.S. #{po.order_number}</span>
-                                                                        {commOrder?.orderNumber && (
-                                                                            <span className="bg-slate-100 text-slate-600 font-bold text-[10px] px-2 py-0.5 rounded uppercase">Pedido {commOrder.orderNumber}</span>
+                                                <div className="space-y-3">
+                                                    {/* Banner status do operador */}
+                                                    <div className={`flex items-center gap-3 p-3 rounded-xl border ${hasAssignedOperator && !isOperatorOnline ? 'bg-rose-50 border-rose-200' : isOperatorOnline ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                                                        <div className={`w-3 h-3 rounded-full shrink-0 ${hasAssignedOperator && !isOperatorOnline ? 'bg-rose-500' : isOperatorOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></div>
+                                                        <p className={`text-xs font-black uppercase tracking-wide ${hasAssignedOperator && !isOperatorOnline ? 'text-rose-600' : isOperatorOnline ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                                            {hasAssignedOperator && !isOperatorOnline ? '🔴 Operador Offline — Turno não iniciado' 
+                                                             : isOperatorOnline ? `🟢 ${operatorsAssigned.find(u=>u.isOnline)?.username || 'Operador'} está online` 
+                                                             : '⚪ Sem operador vinculado'}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Lista de O.S. */}
+                                                    <div className="grid gap-3">
+                                                        {osList.map((po, idx) => {
+                                                            const poId = getField(po, 'id', 'id');
+                                                            const orderNum = getField(po, 'order_number', 'orderNumber');
+                                                            const targetBitola = getField(po, 'target_bitola', 'targetBitola');
+                                                            const quantityOs = getField(po, 'quantity_os', 'quantityOs');
+                                                            const totalWeight = getField(po, 'total_weight', 'totalWeight');
+                                                            const relatedId = getField(po, 'related_commercial_order_id', 'relatedCommercialOrderId');
+                                                            const startTime = getField(po, 'start_time', 'startTime');
+                                                            const poStatus = getField(po, 'status', 'status');
+                                                            
+                                                            const commOrder = commercialOrders.find(co => co.id === relatedId);
+                                                            const isProducing = poStatus === 'producing';
+
+                                                            // Parse sub_items_progress
+                                                            let progressObj = getField(po, 'sub_items_progress', 'subItemsProgress');
+                                                            if (typeof progressObj === 'string') {
+                                                                try { progressObj = JSON.parse(progressObj); } catch(e) { progressObj = {}; }
+                                                            }
+                                                            progressObj = progressObj || {};
+
+                                                            const entries = Object.entries(progressObj);
+                                                            const producingEntry = entries.find(([_, val]: any) => val && typeof val === 'object' && val.status === 'producing');
+                                                            const isActuallyProducing = isProducing || !!producingEntry;
+
+                                                            const completedPieces = Object.values(progressObj).filter((v: any) => v && typeof v === 'object' && v.status === 'completed').length;
+                                                            const totalPieces = Number(quantityOs) || 1;
+                                                            const progressPercent = Math.min(100, Math.round((completedPieces / totalPieces) * 100));
+
+                                                            // Determine card color
+                                                            let cardBorder = 'border-slate-200';
+                                                            let cardBg = 'bg-white';
+                                                            if (isActuallyProducing && producingEntry) {
+                                                                cardBorder = 'border-orange-400 ring-2 ring-orange-100';
+                                                                cardBg = 'bg-orange-50/30';
+                                                            } else if (isActuallyProducing) {
+                                                                cardBorder = 'border-amber-300 ring-1 ring-amber-100';
+                                                                cardBg = 'bg-amber-50/30';
+                                                            } else if (hasAssignedOperator && !isOperatorOnline) {
+                                                                cardBorder = 'border-rose-200';
+                                                            } else if (isOperatorOnline) {
+                                                                cardBorder = 'border-emerald-200';
+                                                            }
+
+                                                            return (
+                                                                <div key={poId || idx} className={`${cardBg} border-2 ${cardBorder} rounded-xl p-4 shadow-sm transition-all hover:shadow-md`}>
+                                                                    {/* Header */}
+                                                                    <div className="flex items-start justify-between mb-3">
+                                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                                            <span className="bg-indigo-100 text-indigo-800 font-black text-[10px] px-2 py-0.5 rounded uppercase">O.S. #{orderNum}</span>
+                                                                            {commOrder?.orderNumber && (
+                                                                                <span className="bg-slate-100 text-slate-600 font-bold text-[10px] px-2 py-0.5 rounded uppercase">Pedido {commOrder.orderNumber}</span>
+                                                                            )}
+                                                                            {isActuallyProducing && (
+                                                                                <span className={`font-black text-[9px] px-2 py-0.5 rounded uppercase animate-pulse ${producingEntry ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                                                    {producingEntry ? '✂️ Cortando' : '▶ Em Produção'}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        
+                                                                        {/* Action buttons */}
+                                                                        {isActuallyProducing ? (
+                                                                            <button 
+                                                                                onClick={() => handleFinishProduction(poId)}
+                                                                                className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-lg text-[10px] uppercase shadow-sm transition-colors border border-red-200 shrink-0"
+                                                                            >
+                                                                                Forçar Fim
+                                                                            </button>
+                                                                        ) : (
+                                                                            <button 
+                                                                                onClick={() => handleStartProduction(poId)}
+                                                                                className="bg-slate-100 hover:bg-emerald-100 hover:text-emerald-700 text-slate-600 font-bold px-3 py-1.5 rounded-lg text-[10px] uppercase shadow-sm transition-colors border border-slate-200 shrink-0"
+                                                                            >
+                                                                                Forçar Início
+                                                                            </button>
                                                                         )}
                                                                     </div>
-                                                                    <p className="text-xs font-bold text-slate-700">Bitola {po.target_bitola}mm • {po.quantity_os} Un. • {parseFloat(po.total_weight?.toString() || '0').toFixed(2)} kg</p>
-                                                                    <p className="text-[10px] font-medium text-slate-500 mt-1">Cliente: {commOrder?.clientName || 'N/A'}</p>
-                                                                </div>
-                                                                <div className="flex items-center gap-6">
-                                                                    {(() => {
-                                                                        let progressObj = po.sub_items_progress;
-                                                                        if (typeof progressObj === 'string') {
-                                                                            try { progressObj = JSON.parse(progressObj); } catch(e) { progressObj = {}; }
-                                                                        }
-                                                                        progressObj = progressObj || {};
 
-                                                                        const entries = Object.entries(progressObj);
-                                                                        const producingEntry = entries.find(([_, val]: any) => val && typeof val === 'object' && val.status === 'producing');
-                                                                        const isActuallyProducing = po.status === 'producing' || !!producingEntry;
+                                                                    {/* Details */}
+                                                                    <p className="text-xs font-bold text-slate-700 mb-1">
+                                                                        Bitola {targetBitola}mm • {quantityOs} Un. • {parseFloat(String(totalWeight || '0')).toFixed(2)} kg
+                                                                    </p>
+                                                                    <p className="text-[10px] font-medium text-slate-500 mb-3">Cliente: {commOrder?.clientName || 'N/A'}</p>
 
-                                                                        const completedPieces = Object.values(progressObj).filter((v: any) => v && typeof v === 'object' && v.status === 'completed').length;
-                                                                        const totalPieces = po.quantity_os || 1;
-                                                                        const progressPercent = Math.min(100, Math.round((completedPieces / totalPieces) * 100));
+                                                                    {/* Progress bar */}
+                                                                    <div className="mb-3">
+                                                                        <div className="flex justify-between text-[9px] font-black uppercase mb-1">
+                                                                            <span className="text-slate-500">Progresso</span>
+                                                                            <span className="text-indigo-600">{progressPercent}% ({completedPieces}/{totalPieces} peças)</span>
+                                                                        </div>
+                                                                        <div className="w-full bg-slate-100 rounded-full h-2.5">
+                                                                            <div 
+                                                                                className={`h-2.5 rounded-full transition-all duration-500 ${completedPieces >= totalPieces ? 'bg-emerald-500' : 'bg-indigo-500'}`} 
+                                                                                style={{ width: `${progressPercent}%` }}
+                                                                            ></div>
+                                                                        </div>
+                                                                    </div>
 
-                                                                        let activeSubOs = null;
-                                                                        if (producingEntry) activeSubOs = producingEntry;
-
-                                                                        // Check if machine is offline
-                                                                        const operatorsAssigned = users?.filter(u => 
-                                                                            u.assignedMachines?.some(m => m.toLowerCase() === selectedMachineTab.toLowerCase())
-                                                                        ) || [];
-                                                                        const isOperatorOnline = operatorsAssigned.some(u => u.isOnline);
-                                                                        const isMachineOffline = operatorsAssigned.length > 0 && !isOperatorOnline;
-
-                                                                        return (
-                                                                            <div className="flex items-center gap-6">
-                                                                                <div className="flex flex-col w-32 hidden sm:flex">
-                                                                                    <div className="flex justify-between text-[9px] font-black uppercase mb-1">
-                                                                                        <span className="text-slate-500">Progresso</span>
-                                                                                        <span className="text-indigo-600">{progressPercent}%</span>
+                                                                    {/* Status & Timer */}
+                                                                    <div className={`flex items-center justify-between p-2.5 rounded-lg ${isActuallyProducing ? (producingEntry ? 'bg-orange-50 border border-orange-200' : 'bg-amber-50 border border-amber-200') : (hasAssignedOperator && !isOperatorOnline ? 'bg-rose-50 border border-rose-200' : 'bg-slate-50 border border-slate-200')}`}>
+                                                                        <div>
+                                                                            {isActuallyProducing ? (
+                                                                                producingEntry ? (
+                                                                                    <div>
+                                                                                        <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest">✂️ Cortando peça #{(producingEntry[0] as string).replace('sub_', '')}</p>
+                                                                                        <p className="text-[9px] text-orange-500 font-bold">Tempo de corte ativo</p>
                                                                                     </div>
-                                                                                    <div className="w-full bg-slate-100 rounded-full h-2">
-                                                                                        <div className="bg-indigo-500 h-2 rounded-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
-                                                                                    </div>
-                                                                                    <span className="text-[9px] font-bold text-slate-400 mt-1">{completedPieces} de {totalPieces} OS concluídas</span>
-                                                                                </div>
-                                                                                
-                                                                                <div className="flex flex-col items-end min-w-[120px]">
-                                                                                    {isActuallyProducing ? (
-                                                                                        activeSubOs ? (
-                                                                                            <>
-                                                                                                <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest mb-0.5 animate-pulse">Cortando: OS {activeSubOs[0]}</span>
-                                                                                                <ActiveTimer startTime={(activeSubOs[1] as any).start_time || (activeSubOs[1] as any).startTime} />
-                                                                                            </>
-                                                                                        ) : (
-                                                                                            <>
-                                                                                                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-0.5 animate-pulse">Máquina Em Fila</span>
-                                                                                                {(po.start_time || po.startTime) && <ActiveTimer startTime={(po.start_time || po.startTime) as string} />}
-                                                                                            </>
-                                                                                        )
-                                                                                    ) : isMachineOffline ? (
-                                                                                        <>
-                                                                                            <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Máquina Desligada</span>
-                                                                                            <span className="text-xs font-bold text-rose-400 mt-0.5">Turno não iniciado</span>
-                                                                                        </>
-                                                                                    ) : (
-                                                                                        <>
-                                                                                            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Máquina Ligada</span>
-                                                                                            <span className="text-xs font-bold text-emerald-600 mt-0.5">Aguardando Início</span>
-                                                                                        </>
-                                                                                    )}
-                                                                                </div>
-
-                                                                                {isActuallyProducing ? (
-                                                                                    <button 
-                                                                                        onClick={() => handleFinishProduction(po.id)}
-                                                                                        className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-lg text-[10px] uppercase shadow-sm transition-colors border border-red-200"
-                                                                                    >
-                                                                                        Forçar Fim
-                                                                                    </button>
                                                                                 ) : (
-                                                                                    <button 
-                                                                                        onClick={() => handleStartProduction(po.id)}
-                                                                                        className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-3 py-1.5 rounded-lg text-[10px] uppercase shadow-sm transition-colors"
-                                                                                    >
-                                                                                        Forçar Início
-                                                                                    </button>
-                                                                                )}
+                                                                                    <div>
+                                                                                        <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest">▶ Produção Iniciada</p>
+                                                                                        <p className="text-[9px] text-amber-500 font-bold">Tempo desde início</p>
+                                                                                    </div>
+                                                                                )
+                                                                            ) : (hasAssignedOperator && !isOperatorOnline) ? (
+                                                                                <div>
+                                                                                    <p className="text-[9px] font-black text-rose-600 uppercase tracking-widest">🔴 Máquina Desligada</p>
+                                                                                    <p className="text-[9px] text-rose-500 font-bold">Turno não iniciado</p>
+                                                                                </div>
+                                                                            ) : isOperatorOnline ? (
+                                                                                <div>
+                                                                                    <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">🟢 Máquina Ligada</p>
+                                                                                    <p className="text-[9px] text-emerald-500 font-bold">Aguardando início da O.S.</p>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div>
+                                                                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">⚪ Aguardando</p>
+                                                                                    <p className="text-[9px] text-slate-400 font-bold">Sem operador vinculado</p>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                        {/* Live Timer */}
+                                                                        {isActuallyProducing && (
+                                                                            <div className="text-right">
+                                                                                <ActiveTimer 
+                                                                                    startTime={
+                                                                                        producingEntry 
+                                                                                            ? ((producingEntry[1] as any).start_time || (producingEntry[1] as any).startTime)
+                                                                                            : (startTime as string)
+                                                                                    } 
+                                                                                />
                                                                             </div>
-                                                                        );
-                                                                    })()}
+                                                                        )}
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        );
-                                                    })}
+                                                            );
+                                                        })}
+                                                    </div>
                                                 </div>
                                             );
                                         })()}
