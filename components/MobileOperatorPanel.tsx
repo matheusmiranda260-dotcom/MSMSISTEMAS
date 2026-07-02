@@ -278,11 +278,11 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                 <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
                                     <div>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase">Quantidade / Tam.</p>
-                                        <p className="font-bold text-slate-800 text-sm">{(po as any).quantity_os} un. {lengthCm > 0 && <span className="text-indigo-600">({lengthCm} cm)</span>}</p>
+                                        <p className="font-bold text-slate-800 text-sm">{((po as any).quantity_os || (po as any).quantityOs || 0)} un. {lengthCm > 0 && <span className="text-indigo-600">({lengthCm} cm)</span>}</p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase">Peso Total</p>
-                                        <p className="font-bold text-slate-800 text-sm">{parseFloat((po as any).total_weight?.toString() || '0').toFixed(2)} kg</p>
+                                        <p className="font-bold text-slate-800 text-sm">{parseFloat(((po as any).total_weight || (po as any).totalWeight || '0').toString()).toFixed(2)} kg</p>
                                     </div>
                                 </div>
                                 
