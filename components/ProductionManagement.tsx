@@ -128,7 +128,10 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
     const [programmedOrders, setProgrammedOrders] = useState<any[]>([]);
     // Use realtime orders from App.tsx if available, fall back to local polling
     const [localProgrammedOrders, setLocalProgrammedOrders] = useState<any[]>([]);
-    const allProgrammedOrders = (productionOrders && productionOrders.length > 0) ? productionOrders : localProgrammedOrders;
+    // localProgrammedOrders is always fresh (polled every 3s), use it as primary
+    const allProgrammedOrders = localProgrammedOrders.length > 0 
+        ? localProgrammedOrders 
+        : (productionOrders || []);
     
     // View Project Modal
     const [isViewProjectModalOpen, setIsViewProjectModalOpen] = useState(false);
@@ -180,9 +183,38 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
     const [authorizeDate, setAuthorizeDate] = useState('');
     const [authorizeTime, setAuthorizeTime] = useState('');
 
-    // Only use local polling if App.tsx is not passing realtime orders
+    // Live users state - polls DB directly every 3s when modal open (bypasses Realtime issues)
+    const [liveUsers, setLiveUsers] = useState<User[]>(users || []);
     useEffect(() => {
-        if (productionOrders && productionOrders.length > 0) return; // Use realtime from App.tsx
+        // Sync from parent Realtime users when they update
+        if (users && users.length > 0) setLiveUsers(users);
+    }, [users]);
+    useEffect(() => {
+        if (!isMachinesModalOpen) return;
+        const fetchUsers = async () => {
+            try {
+                const { data } = await supabase
+                    .from('app_users')
+                    .select('id, username, role, assigned_machines, is_online');
+                if (data) {
+                    const mapped = data.map((u: any) => ({
+                        id: u.id,
+                        username: u.username,
+                        role: u.role,
+                        assignedMachines: u.assigned_machines || [],
+                        isOnline: u.is_online || false,
+                    })) as User[];
+                    setLiveUsers(mapped);
+                }
+            } catch(e) {}
+        };
+        fetchUsers();
+        const interval = setInterval(fetchUsers, 3000);
+        return () => clearInterval(interval);
+    }, [isMachinesModalOpen]);
+
+    // Always poll production orders when machines modal is open (guarantees fresh data)
+    useEffect(() => {
         const fetchAll = async () => {
             try {
                 const { data } = await supabase.from('production_orders')
@@ -192,9 +224,9 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
             } catch(e) {}
         };
         fetchAll();
-        const interval = setInterval(fetchAll, 5000);
+        const interval = setInterval(fetchAll, 3000);
         return () => clearInterval(interval);
-    }, [isProgramModalOpen, isViewProjectModalOpen, isMachinesModalOpen, productionOrders]);
+    }, [isProgramModalOpen, isViewProjectModalOpen, isMachinesModalOpen]);
 
     const [isFinishReadingModalOpen, setIsFinishReadingModalOpen] = useState(false);
     const [orderToFinishReading, setOrderToFinishReading] = useState<CommercialOrder | null>(null);
@@ -1640,10 +1672,10 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                 return matchMachine && matchStatus && matchQuery;
                                             });
 
-                                            // Machine online status (from Realtime users)
-                                            const operatorsAssigned = users?.filter(u => 
+                                            // Machine online status - uses liveUsers (polled directly from DB every 3s)
+                                            const operatorsAssigned = liveUsers.filter(u => 
                                                 u.assignedMachines?.some(m => m.toLowerCase() === selectedMachineTab.toLowerCase())
-                                            ) || [];
+                                            );
                                             const isOperatorOnline = operatorsAssigned.some(u => u.isOnline);
                                             const hasAssignedOperator = operatorsAssigned.length > 0;
 
