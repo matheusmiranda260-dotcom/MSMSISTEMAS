@@ -89,8 +89,12 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     const toggleShift = async () => {
         const newValue = !isOnline;
         setIsOnline(newValue);
+        const shiftStart = newValue ? new Date().toISOString() : null;
         try {
-            const { error } = await supabase.from('app_users').update({ is_online: newValue }).eq('id', currentUser.id);
+            const { error } = await supabase.from('app_users').update({ 
+                is_online: newValue,
+                ...(newValue ? { current_shift_start: shiftStart } : {}) 
+            }).eq('id', currentUser.id);
             if (error) {
                 console.error('Error toggling shift:', error);
                 alert('Erro ao alterar status do turno: ' + error.message);
@@ -98,7 +102,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
             }
         } catch (e) {
             console.error('Error toggling shift:', e);
-            alert('Erro de conexão ao alterar turno.');
+            alert('Erro inesperado.');
             setIsOnline(!newValue);
         }
     };

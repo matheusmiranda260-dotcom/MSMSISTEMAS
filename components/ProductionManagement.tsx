@@ -178,6 +178,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
     const [isAuthorizeModalOpen, setIsAuthorizeModalOpen] = useState(false);
     const [orderToAuthorize, setOrderToAuthorize] = useState<CommercialOrder | null>(null);
     const [isMachinesModalOpen, setIsMachinesModalOpen] = useState(false);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [selectedMachineTab, setSelectedMachineTab] = useState<string>('');
     const [machineSearchQuery, setMachineSearchQuery] = useState('');
     const [authorizeDate, setAuthorizeDate] = useState('');
@@ -1652,17 +1653,26 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                             <h3 className="font-black text-slate-800 text-lg uppercase">
                                                 Fila: {selectedMachineTab}
                                             </h3>
-                                            <div className="relative">
-                                                <input 
-                                                    type="text" 
-                                                    value={machineSearchQuery}
-                                                    onChange={e => setMachineSearchQuery(e.target.value)}
-                                                    placeholder="Buscar por Número da O.S..."
-                                                    className="w-64 pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all uppercase"
-                                                />
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                                                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
-                                                </svg>
+                                            <div className="flex items-center gap-3">
+                                                <button 
+                                                    onClick={() => setIsReportModalOpen(true)}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold uppercase text-xs rounded-lg transition-colors border border-indigo-200"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
+                                                    Ver Relatório Diário
+                                                </button>
+                                                <div className="relative">
+                                                    <input 
+                                                        type="text" 
+                                                        value={machineSearchQuery}
+                                                        onChange={e => setMachineSearchQuery(e.target.value)}
+                                                        placeholder="Buscar O.S..."
+                                                        className="w-56 pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all uppercase"
+                                                    />
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                                        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                                                    </svg>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -1875,6 +1885,144 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                     </div>
                                 )}
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Modal de Relatório Diário */}
+            {isReportModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-[90vw] max-w-4xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-slate-200 bg-indigo-50 flex justify-between items-center shrink-0">
+                            <div>
+                                <h2 className="text-xl font-black text-indigo-900 uppercase tracking-tight flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-600"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
+                                    Relatório de Produção: {selectedMachineTab}
+                                </h2>
+                                <p className="text-xs font-bold text-indigo-700 mt-1 uppercase">Acompanhamento Diário da Máquina</p>
+                            </div>
+                            <button onClick={() => setIsReportModalOpen(false)} className="text-slate-400 hover:text-red-500 transition-colors p-2 bg-white hover:bg-red-50 rounded-xl shadow-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto bg-slate-50 flex-1">
+                            {(() => {
+                                const getField = (po: any, snake: string, camel: string) => po[snake] ?? po[camel];
+                                const getParsedProgress = (po: any) => typeof po.sub_items_progress === 'string' ? JSON.parse(po.sub_items_progress) : (po.sub_items_progress || {});
+
+                                // 1. Operador atual e horário
+                                const operatorsAssigned = liveUsers.filter(u => u.assignedMachines?.some(m => m.toLowerCase() === selectedMachineTab?.toLowerCase()));
+                                const isOperatorOnline = operatorsAssigned.some(u => u.isOnline);
+                                const currentOp = operatorsAssigned.find(u => u.isOnline);
+                                const shiftStartStr = currentOp && (currentOp as any).current_shift_start ? new Date((currentOp as any).current_shift_start).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : '--:--';
+
+                                // 2. Coletar e formatar todas as sub-O.S trabalhadas
+                                const reportItems: any[] = [];
+                                allProgrammedOrders.forEach(po => {
+                                    if (String(getField(po, 'machine', 'machine')).trim().toLowerCase() !== String(selectedMachineTab).trim().toLowerCase()) return;
+                                    
+                                    const progress = getParsedProgress(po);
+                                    Object.entries(progress).forEach(([subKey, val]: [string, any]) => {
+                                        if (val && typeof val === 'object' && val.start_time) {
+                                            const subNum = subKey.replace('sub_', '');
+                                            const osNum = getField(po, 'order_number', 'orderNumber');
+                                            
+                                            // Calcula a duração
+                                            let durationStr = 'Em andamento';
+                                            if (val.end_time) {
+                                                const dStart = new Date(val.start_time);
+                                                const dEnd = new Date(val.end_time);
+                                                const diffS = Math.floor((dEnd.getTime() - dStart.getTime()) / 1000);
+                                                const m = Math.floor(diffS / 60);
+                                                const s = diffS % 60;
+                                                durationStr = `${m}m ${s}s`;
+                                            }
+
+                                            reportItems.push({
+                                                osNum,
+                                                subNum,
+                                                startTimeRaw: val.start_time,
+                                                startTimeStr: new Date(val.start_time).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'}),
+                                                endTimeStr: val.end_time ? new Date(val.end_time).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'}) : '--:--:--',
+                                                durationStr,
+                                                status: val.status
+                                            });
+                                        }
+                                    });
+                                });
+
+                                // Ordenar do mais recente para o mais antigo (pelo start_time)
+                                reportItems.sort((a, b) => new Date(b.startTimeRaw).getTime() - new Date(a.startTimeRaw).getTime());
+
+                                return (
+                                    <div className="space-y-6">
+                                        {/* Shift Info */}
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className={`p-4 rounded-xl border flex items-center justify-between ${isOperatorOnline ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-100 border-slate-200'}`}>
+                                                <div>
+                                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Operador Logado</p>
+                                                    <p className={`text-sm font-bold mt-0.5 ${isOperatorOnline ? 'text-emerald-800' : 'text-slate-700'}`}>
+                                                        {currentOp ? currentOp.username : 'Nenhum operador online'}
+                                                    </p>
+                                                </div>
+                                                <div className={`w-3 h-3 rounded-full ${isOperatorOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
+                                            </div>
+                                            <div className="p-4 rounded-xl border bg-white border-slate-200 flex items-center justify-between">
+                                                <div>
+                                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Início do Turno</p>
+                                                    <p className="text-sm font-bold mt-0.5 text-indigo-900">{shiftStartStr}</p>
+                                                </div>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                            </div>
+                                        </div>
+
+                                        {/* Table */}
+                                        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                                            <div className="p-4 border-b border-slate-200 bg-slate-50">
+                                                <h4 className="font-black text-slate-800 uppercase text-xs">Histórico de Cortes (Item a Item)</h4>
+                                            </div>
+                                            {reportItems.length === 0 ? (
+                                                <div className="p-8 text-center text-slate-500 text-sm font-bold">Nenhum corte registrado hoje para esta máquina.</div>
+                                            ) : (
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-left border-collapse">
+                                                        <thead>
+                                                            <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wider text-slate-500 font-black">
+                                                                <th className="p-3 pl-4">O.S.</th>
+                                                                <th className="p-3">Posição</th>
+                                                                <th className="p-3">Início</th>
+                                                                <th className="p-3">Fim</th>
+                                                                <th className="p-3">Duração</th>
+                                                                <th className="p-3 pr-4 text-right">Status</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="text-xs font-bold text-slate-700">
+                                                            {reportItems.map((item, idx) => (
+                                                                <tr key={idx} className="border-b border-slate-100 hover:bg-indigo-50/30 transition-colors">
+                                                                    <td className="p-3 pl-4">{item.osNum}</td>
+                                                                    <td className="p-3">POS {item.subNum}</td>
+                                                                    <td className="p-3">{item.startTimeStr}</td>
+                                                                    <td className="p-3">{item.endTimeStr}</td>
+                                                                    <td className="p-3">{item.durationStr}</td>
+                                                                    <td className="p-3 pr-4 text-right">
+                                                                        {item.status === 'completed' ? (
+                                                                            <span className="inline-block px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[9px] uppercase tracking-wider">Finalizado</span>
+                                                                        ) : (
+                                                                            <span className="inline-block px-2 py-1 bg-orange-100 text-orange-700 rounded text-[9px] uppercase tracking-wider animate-pulse">Em Andamento</span>
+                                                                        )}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>
