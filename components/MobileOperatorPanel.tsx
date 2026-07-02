@@ -134,8 +134,8 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     return { 
                         ...p, 
                         sub_items_progress: updatedProgress,
-                        status: p.status !== 'producing' ? 'producing' : p.status,
-                        startTime: p.status !== 'producing' ? startTime : p.startTime
+                        status: (p.status !== 'producing' && p.status !== 'in_progress') ? 'in_progress' : p.status,
+                        startTime: (p.status !== 'producing' && p.status !== 'in_progress') ? startTime : p.startTime
                     };
                 }
                 return p;
@@ -145,7 +145,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 .from('production_orders')
                 .update({ 
                     sub_items_progress: updatedProgress, 
-                    ...(po.status !== 'producing' ? { status: 'producing', start_time: startTime } : {})
+                    ...((po.status !== 'producing' && po.status !== 'in_progress') ? { status: 'in_progress', start_time: startTime } : {})
                 })
                 .eq('id', osId);
                 
@@ -325,7 +325,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     {osList.map(po => {
                         const commOrderId = (po as any).related_commercial_order_id || (po as any).relatedCommercialOrderId;
                         const commOrder = commercialOrders.find(co => co.id === commOrderId);
-                        const isProducing = po.status === 'producing';
+                        const isProducing = po.status === 'producing' || po.status === 'in_progress';
                         
                         // Determinar o comprimento (tamanho) da peça
                         const lengthCm = (po as any).tamanho || ((po as any).total_meters && (po as any).quantity_os ? Math.round(((po as any).total_meters / (po as any).quantity_os) * 100) : 0);
