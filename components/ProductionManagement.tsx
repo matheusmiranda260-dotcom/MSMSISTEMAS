@@ -1676,7 +1676,6 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
 
                                                                         // Check if machine is offline
                                                                         const operatorsAssigned = users?.filter(u => 
-                                                                            u.role === 'user' && 
                                                                             u.assignedMachines?.some(m => m.toLowerCase() === selectedMachineTab.toLowerCase())
                                                                         ) || [];
                                                                         const isOperatorOnline = operatorsAssigned.some(u => u.isOnline);

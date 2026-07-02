@@ -2943,7 +2943,13 @@ const App: React.FC = () => {
     };
 
     if (currentUser && currentUser.assignedMachines && currentUser.assignedMachines.length > 0 && currentUser.role !== 'admin') {
-        return <MobileOperatorPanel currentUser={currentUser} onLogout={handleLogout} />;
+        return <MobileOperatorPanel 
+                   currentUser={currentUser} 
+                   onLogout={handleLogout} 
+                   allProgrammedOrders={productionOrders}
+                   commercialOrders={commercialOrders}
+                   customers={customers}
+               />;
     }
 
     return (

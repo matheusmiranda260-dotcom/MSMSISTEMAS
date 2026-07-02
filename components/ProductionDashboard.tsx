@@ -190,7 +190,7 @@ const MachineStatusView: React.FC<MachineStatusViewProps> = ({ machineType, acti
             .find(e => !e.resumeTime);
 
         // Check if operator is online via app_users
-        const operatorsAssigned = users?.filter(u => u.role === 'user' && u.assignedMachines?.includes(machineType)) || [];
+        const operatorsAssigned = users?.filter(u => u.assignedMachines?.includes(machineType)) || [];
         const isOperatorOnline = operatorsAssigned.some(u => u.isOnline);
         
         // If there's NO active operator online for this machine, it's Desligada

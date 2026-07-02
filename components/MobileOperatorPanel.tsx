@@ -5,6 +5,9 @@ import type { User, CommercialOrder, ProductionOrderData } from '../types';
 interface MobileOperatorPanelProps {
     currentUser: User;
     onLogout: () => void;
+    allProgrammedOrders: ProductionOrderData[];
+    commercialOrders: CommercialOrder[];
+    customers: any[];
 }
 
 const ActiveTimer = ({ startTime }: { startTime: string }) => {
@@ -33,13 +36,10 @@ const ActiveTimer = ({ startTime }: { startTime: string }) => {
     return <span className="font-mono text-3xl font-black tracking-wider text-slate-800 tabular-nums">{elapsed || '00:00:00'}</span>;
 };
 
-const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, onLogout }) => {
+const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, onLogout, allProgrammedOrders, commercialOrders, customers }) => {
     const assignedMachines = currentUser.assignedMachines || [];
     const [selectedMachine, setSelectedMachine] = useState<string>(assignedMachines[0] || '');
     const [searchQuery, setSearchQuery] = useState('');
-    const [allProgrammedOrders, setAllProgrammedOrders] = useState<ProductionOrderData[]>([]);
-    const [commercialOrders, setCommercialOrders] = useState<CommercialOrder[]>([]);
-    const [customers, setCustomers] = useState<any[]>([]);
     
     // Shift State
     const [isOnline, setIsOnline] = useState(currentUser.isOnline || false);
@@ -48,22 +48,6 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     const [activeModalPoId, setActiveModalPoId] = useState<string | null>(null);
     const [subOsSearch, setSubOsSearch] = useState('');
     const [activeSubOs, setActiveSubOs] = useState<any>(null);
-
-    useEffect(() => {
-        const fetchInitialData = async () => {
-            try {
-                const { data: custData } = await supabase.from('customers').select('id, name, fantasy_name');
-                if (custData) setCustomers(custData);
-
-                const { data: coData } = await supabase.from('commercial_orders').select('*');
-                if (coData) setCommercialOrders(coData);
-            } catch (e) {
-                console.error(e);
-            }
-        };
-
-        fetchInitialData();
-    }, []);
 
     const toggleShift = async () => {
         const newValue = !isOnline;
@@ -109,13 +93,6 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 })
                 .eq('id', osId);
                 
-            setAllProgrammedOrders(prev => prev.map(p => 
-                p.id === osId ? { 
-                    ...p, 
-                    sub_items_progress: updatedProgress,
-                    ...(p.status !== 'producing' ? { status: 'producing', start_time: startTime } : {})
-                } : p
-            ));
         } catch (e) {
             console.error('Erro ao iniciar mini OS:', e);
             alert('Erro ao iniciar corte da peça.');
@@ -145,10 +122,6 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 .update({ sub_items_progress: updatedProgress })
                 .eq('id', osId);
                 
-            setAllProgrammedOrders(prev => prev.map(p => 
-                p.id === osId ? { ...p, sub_items_progress: updatedProgress } : p
-            ));
-            
             setSubOsSearch('');
             setActiveSubOs(null);
         } catch (e) {
