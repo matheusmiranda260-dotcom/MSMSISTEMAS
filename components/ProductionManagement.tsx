@@ -157,18 +157,6 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
         fetchProgrammed();
     }, [orderToView, isViewProjectModalOpen, isProgramModalOpen]);
 
-    useEffect(() => {
-        const fetchAll = async () => {
-            try {
-                const { data } = await supabase.from('production_orders')
-                    .select('id, machine, creation_date, total_weight, total_meters, target_bitola, status, order_number, quantity_os, related_commercial_order_id, start_time, end_time')
-                    .in('status', ['pending', 'in_progress', 'producing', 'completed']);
-                if (data) setAllProgrammedOrders(data);
-            } catch(e) {}
-        };
-        fetchAll();
-    }, [isProgramModalOpen, isViewProjectModalOpen]);
-
     // Form fields for New Order
     const [clientSearchTerm, setClientSearchTerm] = useState('');
     const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
@@ -187,6 +175,20 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
     const [machineSearchQuery, setMachineSearchQuery] = useState('');
     const [authorizeDate, setAuthorizeDate] = useState('');
     const [authorizeTime, setAuthorizeTime] = useState('');
+
+    useEffect(() => {
+        const fetchAll = async () => {
+            try {
+                const { data } = await supabase.from('production_orders')
+                    .select('id, machine, creation_date, total_weight, total_meters, target_bitola, status, order_number, quantity_os, related_commercial_order_id, start_time, end_time, sub_items_progress')
+                    .in('status', ['pending', 'in_progress', 'producing', 'completed']);
+                if (data) setAllProgrammedOrders(data);
+            } catch(e) {}
+        };
+        fetchAll();
+        const interval = setInterval(fetchAll, 10000);
+        return () => clearInterval(interval);
+    }, [isProgramModalOpen, isViewProjectModalOpen, isMachinesModalOpen]);
 
     const [isFinishReadingModalOpen, setIsFinishReadingModalOpen] = useState(false);
     const [orderToFinishReading, setOrderToFinishReading] = useState<CommercialOrder | null>(null);
@@ -1652,29 +1654,77 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                     <p className="text-xs font-bold text-slate-700">Bitola {po.target_bitola}mm • {po.quantity_os} Un. • {parseFloat(po.total_weight?.toString() || '0').toFixed(2)} kg</p>
                                                                     <p className="text-[10px] font-medium text-slate-500 mt-1">Cliente: {commOrder?.clientName || 'N/A'}</p>
                                                                 </div>
-                                                                <div className="flex items-center gap-4">
-                                                                    {isProducing && po.start_time && (
-                                                                        <div className="flex flex-col items-end">
-                                                                            <span className="text-[9px] font-bold text-orange-500 uppercase tracking-widest mb-0.5 animate-pulse">Em Execução</span>
-                                                                            <ActiveTimer startTime={po.start_time} />
-                                                                        </div>
-                                                                    )}
-                                                                    
-                                                                    {!isProducing ? (
-                                                                        <button 
-                                                                            onClick={() => handleStartProduction(po.id)}
-                                                                            className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded-lg text-xs uppercase shadow-sm transition-colors"
-                                                                        >
-                                                                            Iniciar Produção
-                                                                        </button>
-                                                                    ) : (
-                                                                        <button 
-                                                                            onClick={() => handleFinishProduction(po.id)}
-                                                                            className="bg-red-500 hover:bg-red-600 text-white font-black px-5 py-2 rounded-lg text-xs uppercase shadow-md transition-all hover:scale-105 animate-pulse"
-                                                                        >
-                                                                            Finalizar
-                                                                        </button>
-                                                                    )}
+                                                                <div className="flex items-center gap-6">
+                                                                    {(() => {
+                                                                        let progressObj = po.sub_items_progress;
+                                                                        if (typeof progressObj === 'string') {
+                                                                            try { progressObj = JSON.parse(progressObj); } catch(e) { progressObj = {}; }
+                                                                        }
+                                                                        progressObj = progressObj || {};
+
+                                                                        const entries = Object.entries(progressObj);
+                                                                        const producingEntry = entries.find(([_, val]: any) => val && typeof val === 'object' && val.status === 'producing');
+                                                                        const isActuallyProducing = po.status === 'producing' || !!producingEntry;
+
+                                                                        const completedPieces = Object.values(progressObj).filter((v: any) => v && typeof v === 'object' && v.status === 'completed').length;
+                                                                        const totalPieces = po.quantity_os || 1;
+                                                                        const progressPercent = Math.min(100, Math.round((completedPieces / totalPieces) * 100));
+
+                                                                        let activeSubOs = null;
+                                                                        if (producingEntry) activeSubOs = producingEntry;
+
+                                                                        return (
+                                                                            <div className="flex items-center gap-6">
+                                                                                <div className="flex flex-col w-32 hidden sm:flex">
+                                                                                    <div className="flex justify-between text-[9px] font-black uppercase mb-1">
+                                                                                        <span className="text-slate-500">Progresso</span>
+                                                                                        <span className="text-indigo-600">{progressPercent}%</span>
+                                                                                    </div>
+                                                                                    <div className="w-full bg-slate-100 rounded-full h-2">
+                                                                                        <div className="bg-indigo-500 h-2 rounded-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
+                                                                                    </div>
+                                                                                    <span className="text-[9px] font-bold text-slate-400 mt-1">{completedPieces} de {totalPieces} OS concluídas</span>
+                                                                                </div>
+                                                                                
+                                                                                <div className="flex flex-col items-end min-w-[120px]">
+                                                                                    {isActuallyProducing ? (
+                                                                                        activeSubOs ? (
+                                                                                            <>
+                                                                                                <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest mb-0.5 animate-pulse">Cortando: OS {activeSubOs[0]}</span>
+                                                                                                <ActiveTimer startTime={(activeSubOs[1] as any).start_time} />
+                                                                                            </>
+                                                                                        ) : (
+                                                                                            <>
+                                                                                                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-0.5 animate-pulse">Máquina Ociosa</span>
+                                                                                                {po.start_time && <ActiveTimer startTime={po.start_time} />}
+                                                                                            </>
+                                                                                        )
+                                                                                    ) : (
+                                                                                        <>
+                                                                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Máquina Parada</span>
+                                                                                            <span className="text-xs font-bold text-slate-500 mt-0.5">Aguardando Início</span>
+                                                                                        </>
+                                                                                    )}
+                                                                                </div>
+
+                                                                                {isActuallyProducing ? (
+                                                                                    <button 
+                                                                                        onClick={() => handleFinishProduction(po.id)}
+                                                                                        className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-lg text-[10px] uppercase shadow-sm transition-colors border border-red-200"
+                                                                                    >
+                                                                                        Forçar Fim
+                                                                                    </button>
+                                                                                ) : (
+                                                                                    <button 
+                                                                                        onClick={() => handleStartProduction(po.id)}
+                                                                                        className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-3 py-1.5 rounded-lg text-[10px] uppercase shadow-sm transition-colors"
+                                                                                    >
+                                                                                        Forçar Início
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })()}
                                                                 </div>
                                                             </div>
                                                         );
