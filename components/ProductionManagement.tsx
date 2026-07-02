@@ -115,9 +115,10 @@ interface OrderManagementProps {
     commercialOrders: CommercialOrder[];
     currentUser: User | null;
     activeBrandingPartner?: Partner | null;
+    users?: User[];
 }
 
-export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, customers, commercialOrders, currentUser, activeBrandingPartner }) => {
+export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, customers, commercialOrders, currentUser, activeBrandingPartner, users }) => {
     const [search, setSearch] = useState('');
     const [orderBy, setOrderBy] = useState<'id' | 'clientCode'>('id');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -1673,6 +1674,14 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                         let activeSubOs = null;
                                                                         if (producingEntry) activeSubOs = producingEntry;
 
+                                                                        // Check if machine is offline
+                                                                        const operatorsAssigned = users?.filter(u => 
+                                                                            u.role === 'user' && 
+                                                                            u.assignedMachines?.some(m => m.toLowerCase() === selectedMachineTab.toLowerCase())
+                                                                        ) || [];
+                                                                        const isOperatorOnline = operatorsAssigned.some(u => u.isOnline);
+                                                                        const isMachineOffline = operatorsAssigned.length > 0 && !isOperatorOnline;
+
                                                                         return (
                                                                             <div className="flex items-center gap-6">
                                                                                 <div className="flex flex-col w-32 hidden sm:flex">
@@ -1691,18 +1700,23 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                                         activeSubOs ? (
                                                                                             <>
                                                                                                 <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest mb-0.5 animate-pulse">Cortando: OS {activeSubOs[0]}</span>
-                                                                                                <ActiveTimer startTime={(activeSubOs[1] as any).start_time} />
+                                                                                                <ActiveTimer startTime={(activeSubOs[1] as any).start_time || (activeSubOs[1] as any).startTime} />
                                                                                             </>
                                                                                         ) : (
                                                                                             <>
-                                                                                                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-0.5 animate-pulse">Máquina Ociosa</span>
-                                                                                                {po.start_time && <ActiveTimer startTime={po.start_time} />}
+                                                                                                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-0.5 animate-pulse">Máquina Em Fila</span>
+                                                                                                {(po.start_time || po.startTime) && <ActiveTimer startTime={(po.start_time || po.startTime) as string} />}
                                                                                             </>
                                                                                         )
+                                                                                    ) : isMachineOffline ? (
+                                                                                        <>
+                                                                                            <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Máquina Desligada</span>
+                                                                                            <span className="text-xs font-bold text-rose-400 mt-0.5">Turno não iniciado</span>
+                                                                                        </>
                                                                                     ) : (
                                                                                         <>
-                                                                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Máquina Parada</span>
-                                                                                            <span className="text-xs font-bold text-slate-500 mt-0.5">Aguardando Início</span>
+                                                                                            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Máquina Ligada</span>
+                                                                                            <span className="text-xs font-bold text-emerald-600 mt-0.5">Aguardando Início</span>
                                                                                         </>
                                                                                     )}
                                                                                 </div>

@@ -48,6 +48,17 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
         }
     }, [currentUser, isGestor]);
 
+    React.useEffect(() => {
+        const handleCollapse = () => setIsCollapsed(true);
+        const handleExpand = () => setIsCollapsed(false);
+        window.addEventListener('collapse_sidebar', handleCollapse);
+        window.addEventListener('expand_sidebar', handleExpand);
+        return () => {
+            window.removeEventListener('collapse_sidebar', handleCollapse);
+            window.removeEventListener('expand_sidebar', handleExpand);
+        };
+    }, []);
+
     const toggleMenu = (menu: string) => {
         setExpandedMenus(prev => prev.includes(menu) ? prev.filter(m => m !== menu) : [...prev, menu]);
     };

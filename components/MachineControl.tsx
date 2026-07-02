@@ -1292,6 +1292,15 @@ const MachineControl: React.FC<MachineControlProps> = ({
         // CRITICAL: Always pick the LATEST open event
         const openEvent = [...events].reverse().find(e => !e.resumeTime);
 
+        // Check if operator is online via app_users
+        const operatorsAssigned = users?.filter(u => u.role === 'user' && u.assignedMachines?.includes(activeMachine)) || [];
+        const isOperatorOnline = operatorsAssigned.some(u => u.isOnline);
+        
+        // If there's NO active operator online for this machine, it's Desligada
+        if (operatorsAssigned.length > 0 && !isOperatorOnline) {
+            return 'Desligada';
+        }
+
         if (!openEvent) {
             return isAnyActiveShift ? 'Produzindo' : 'Ocioso';
         }
@@ -1308,7 +1317,7 @@ const MachineControl: React.FC<MachineControlProps> = ({
         }
 
         return 'Parada';
-    }, [activeOrder, isAnyActiveShift]);
+    }, [activeOrder, isAnyActiveShift, users, activeMachine]);
 
     // Derived state for pulsing effects (must come AFTER currentMachineStatus declaration)
     const isActiveProcess = currentMachineStatus === 'Produzindo' && ((activeMachine.startsWith('Trefila') || activeMachine.startsWith('Desbobinadeira')) ? !!activeLotProcessingData : true);

@@ -399,7 +399,9 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
             {/* Main Content Area - Cards */}
             <div className="space-y-6 no-print">
 
-                {[...baseOrders].sort((a, b) => {
+                {[...baseOrders]
+                .filter(q => expandedOrderId ? q.id === expandedOrderId : true)
+                .sort((a, b) => {
                     if (orderBy === 'id') {
                         return String(b.orderNumber || '').localeCompare(String(a.orderNumber || ''));
                     }
@@ -478,7 +480,15 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                             {/* Main Row */}
                             <div 
                                 className="p-5 flex flex-col xl:flex-row items-center gap-4 relative cursor-pointer hover:bg-black/5 rounded-[1.5rem] transition-colors"
-                                onClick={() => setExpandedOrderId(expandedOrderId === q.id ? null : q.id)}
+                                onDoubleClick={() => {
+                                    if (expandedOrderId === q.id) {
+                                        setExpandedOrderId(null);
+                                        window.dispatchEvent(new Event('expand_sidebar'));
+                                    } else {
+                                        setExpandedOrderId(q.id);
+                                        window.dispatchEvent(new Event('collapse_sidebar'));
+                                    }
+                                }}
                             >
                                 {/* Left Section: ID & Client */}
                                 <div className="flex flex-wrap md:flex-nowrap items-center gap-4 w-full xl:w-[350px] border-b xl:border-b-0 xl:border-r border-black/10 pb-4 xl:pb-0 pr-4">

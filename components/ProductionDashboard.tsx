@@ -112,9 +112,10 @@ interface MachineStatusViewProps {
     onResetShift?: () => void;
     isGestor?: boolean;
     downtimeConfigs: DowntimeConfig[];
+    users?: User[];
 }
 
-const MachineStatusView: React.FC<MachineStatusViewProps> = ({ machineType, activeOrder, allOrders, stock, dailyProducedValue, dailyGoal, goalUnit, onResetShift, isGestor, downtimeConfigs }) => {
+const MachineStatusView: React.FC<MachineStatusViewProps> = ({ machineType, activeOrder, allOrders, stock, dailyProducedValue, dailyGoal, goalUnit, onResetShift, isGestor, downtimeConfigs, users }) => {
     const [drift, setDrift] = useState(0);
     const [now, setNow] = useState(new Date());
     const [activeTab, setActiveTab] = useState<'stops' | 'production'>('stops');
@@ -187,6 +188,15 @@ const MachineStatusView: React.FC<MachineStatusViewProps> = ({ machineType, acti
         const openEvent = [...events]
             .sort((a, b) => parseDate(b.stopTime) - parseDate(a.stopTime))
             .find(e => !e.resumeTime);
+
+        // Check if operator is online via app_users
+        const operatorsAssigned = users?.filter(u => u.role === 'user' && u.assignedMachines?.includes(machineType)) || [];
+        const isOperatorOnline = operatorsAssigned.some(u => u.isOnline);
+        
+        // If there's NO active operator online for this machine, it's Desligada
+        if (operatorsAssigned.length > 0 && !isOperatorOnline) {
+            return { status: 'Desligada', reason: 'Aguardando Operador (Turno não iniciado)', durationMs: 0 };
+        }
 
         if (openEvent) {
             const reason = openEvent.reason || 'Parada';
@@ -921,9 +931,10 @@ interface ProductionDashboardProps {
     stock: StockItem[];
     currentUser: User | null;
     downtimeConfigs: DowntimeConfig[];
+    users?: User[];
 }
 
-const ProductionDashboard: React.FC<ProductionDashboardProps> = ({ setPage, productionOrders, stock, currentUser, downtimeConfigs }) => {
+const ProductionDashboard: React.FC<ProductionDashboardProps> = ({ setPage, productionOrders, stock, currentUser, downtimeConfigs, users }) => {
     const isGestor = currentUser?.role === 'gestor' || currentUser?.role === 'admin';
     const [shiftResets, setShiftResets] = useState(() => JSON.parse(localStorage.getItem('shiftResets') || '{}'));
     const [visibleMachines, setVisibleMachines] = useState<MachineType[]>(() => {
@@ -1107,6 +1118,7 @@ const ProductionDashboard: React.FC<ProductionDashboardProps> = ({ setPage, prod
                             isGestor={isGestor} 
                             onResetShift={() => handleReset(m)} 
                             downtimeConfigs={downtimeConfigs}
+                            users={users}
                         />
                     );
                 })}

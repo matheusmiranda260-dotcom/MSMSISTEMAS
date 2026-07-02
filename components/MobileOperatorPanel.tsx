@@ -40,6 +40,9 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     const [allProgrammedOrders, setAllProgrammedOrders] = useState<ProductionOrderData[]>([]);
     const [commercialOrders, setCommercialOrders] = useState<CommercialOrder[]>([]);
     const [customers, setCustomers] = useState<any[]>([]);
+    
+    // Shift State
+    const [isOnline, setIsOnline] = useState(currentUser.isOnline || false);
 
     // Modal state
     const [activeModalPoId, setActiveModalPoId] = useState<string | null>(null);
@@ -47,29 +50,32 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     const [activeSubOs, setActiveSubOs] = useState<any>(null);
 
     useEffect(() => {
-        const fetchOrders = async () => {
+        const fetchInitialData = async () => {
             try {
                 const { data: custData } = await supabase.from('customers').select('id, name, fantasy_name');
                 if (custData) setCustomers(custData);
 
                 const { data: coData } = await supabase.from('commercial_orders').select('*');
                 if (coData) setCommercialOrders(coData);
-
-                const { data: poData } = await supabase.from('production_orders')
-                    .select('*')
-                    .in('status', ['in_progress', 'producing']);
-                
-                if (poData) setAllProgrammedOrders(poData as any);
             } catch (e) {
                 console.error(e);
             }
         };
 
-        fetchOrders();
-        
-        const interval = setInterval(fetchOrders, 30000);
-        return () => clearInterval(interval);
+        fetchInitialData();
     }, []);
+
+    const toggleShift = async () => {
+        const newValue = !isOnline;
+        setIsOnline(newValue);
+        try {
+            await supabase.from('app_users').update({ is_online: newValue }).eq('id', currentUser.id);
+        } catch (e) {
+            console.error('Error toggling shift:', e);
+            alert('Erro ao alterar status do turno.');
+            setIsOnline(!newValue);
+        }
+    };
 
     const handleOpenModal = (osId: string) => {
         setActiveModalPoId(osId);
@@ -82,7 +88,12 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
             const po = allProgrammedOrders.find(p => p.id === osId);
             if (!po) return;
             
-            const currentProgress = po.sub_items_progress || {};
+            let currentProgress = po.sub_items_progress;
+            if (typeof currentProgress === 'string') {
+                try { currentProgress = JSON.parse(currentProgress); } catch(e) { currentProgress = {}; }
+            }
+            currentProgress = currentProgress || {};
+            
             const startTime = new Date().toISOString();
             
             const updatedProgress = {
@@ -116,9 +127,13 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
             const po = allProgrammedOrders.find(p => p.id === osId);
             if (!po) return;
             
-            const currentProgress = po.sub_items_progress || {};
+            let currentProgress = po.sub_items_progress;
+            if (typeof currentProgress === 'string') {
+                try { currentProgress = JSON.parse(currentProgress); } catch(e) { currentProgress = {}; }
+            }
+            currentProgress = currentProgress || {};
             const endTime = new Date().toISOString();
-            const existingStart = currentProgress[subOsKey]?.start_time;
+            const existingStart = currentProgress[subOsKey]?.start_time || currentProgress[subOsKey]?.startTime;
             
             const updatedProgress = {
                 ...currentProgress,
@@ -207,6 +222,22 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                         ))}
                     </div>
                 )}
+                
+                <div className="mt-2">
+                    <button 
+                        onClick={toggleShift}
+                        className={`w-full py-3 rounded-xl font-black text-sm uppercase shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 ${
+                            isOnline 
+                                ? 'bg-rose-500 hover:bg-rose-600 text-white border-2 border-rose-400' 
+                                : 'bg-emerald-500 hover:bg-emerald-600 text-white border-2 border-emerald-400'
+                        }`}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
+                        </svg>
+                        {isOnline ? 'Encerrar Turno (Máquina Ligada)' : 'Iniciar Turno (Máquina Desligada)'}
+                    </button>
+                </div>
             </header>
 
             <main className="flex-1 p-4 flex flex-col gap-4 max-w-lg w-full mx-auto">
@@ -408,7 +439,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 };
 
                 const currentItemStatus = activeSubOs ? po.sub_items_progress?.[activeSubOs.os]?.status : null;
-                const currentItemStart = activeSubOs ? po.sub_items_progress?.[activeSubOs.os]?.start_time : null;
+                const currentItemStart = activeSubOs ? (po.sub_items_progress?.[activeSubOs.os]?.start_time || po.sub_items_progress?.[activeSubOs.os]?.startTime) : null;
 
                 return (
                     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
@@ -468,8 +499,16 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                                 </div>
                                             ) : currentItemStatus === 'producing' ? (
                                                 <div className="flex flex-col gap-3">
-                                                    <div className="bg-orange-50 rounded-xl p-3 flex flex-col items-center justify-center border border-orange-200">
-                                                        <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest animate-pulse mb-1">Em Andamento</span>
+                                                    <div className="flex justify-between items-center text-xs text-slate-500 font-bold px-1">
+                                                        <span>QUANTIDADE</span>
+                                                        <span>COMPRIMENTO</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
+                                                        <span className="font-black text-xl text-slate-800">{activeSubOs.quantidade || activeSubOs.qtd} un.</span>
+                                                        <span className="font-black text-xl text-slate-800">{activeSubOs.comprimento || activeSubOs.comp} cm</span>
+                                                    </div>
+                                                    <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-inner">
+                                                        <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Em Andamento</span>
                                                         <ActiveTimer startTime={currentItemStart!} />
                                                     </div>
                                                     <button onClick={() => handleFinishSubOs(po.id, activeSubOs.os)} className="w-full bg-red-500 hover:bg-red-600 text-white font-black py-4 rounded-xl text-lg uppercase shadow-md active:scale-95 transition-all">
