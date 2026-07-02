@@ -201,7 +201,15 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                         id: u.id,
                         username: u.username,
                         role: u.role,
-                        assignedMachines: u.assigned_machines || [],
+                        assignedMachines: (() => {
+                            try {
+                                if (typeof u.assigned_machines === 'string') return JSON.parse(u.assigned_machines);
+                                if (Array.isArray(u.assigned_machines)) return u.assigned_machines;
+                                return [u.assigned_machines].filter(Boolean);
+                            } catch (e) {
+                                return [u.assigned_machines].filter(Boolean);
+                            }
+                        })(),
                         isOnline: u.is_online || false,
                     })) as User[];
                     setLiveUsers(mapped);

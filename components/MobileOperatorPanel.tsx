@@ -199,16 +199,16 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 <div className="mt-2">
                     <button 
                         onClick={toggleShift}
-                        className={`w-full py-3 rounded-xl font-black text-sm uppercase shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 ${
+                        className={`w-full py-4 rounded-xl font-black text-[15px] uppercase shadow-sm transition-all active:scale-95 flex items-center justify-center gap-3 ${
                             isOnline 
-                                ? 'bg-rose-500 hover:bg-rose-600 text-white border-2 border-rose-400' 
+                                ? 'bg-rose-50 hover:bg-rose-100 text-rose-600 border-2 border-rose-200' 
                                 : 'bg-emerald-500 hover:bg-emerald-600 text-white border-2 border-emerald-400'
                         }`}
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-6 h-6">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
                         </svg>
-                        {isOnline ? 'Encerrar Turno (Máquina Ligada)' : 'Iniciar Turno (Máquina Desligada)'}
+                        {isOnline ? '🔴 DESLIGAR MÁQUINA (ENCERRAR TURNO)' : '🟢 LIGAR MÁQUINA (INICIAR TURNO)'}
                     </button>
                 </div>
             </header>
