@@ -41,6 +41,38 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     const [selectedMachine, setSelectedMachine] = useState<string>(assignedMachines[0] || '');
     const [searchQuery, setSearchQuery] = useState('');
     
+    // Polled orders fallback and visual feedback state
+    const [localOrders, setLocalOrders] = useState<ProductionOrderData[]>(allProgrammedOrders);
+    const [loadingAction, setLoadingAction] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (allProgrammedOrders.length > 0) {
+            setLocalOrders(allProgrammedOrders);
+        }
+    }, [allProgrammedOrders]);
+
+    useEffect(() => {
+        const fetchOrders = async () => {
+            const { data } = await supabase.from('production_orders')
+                .select('*')
+                .in('status', ['pending', 'in_progress', 'producing', 'completed']);
+            if (data) {
+                const mapped = data.map((po: any) => {
+                    const newPo: any = { ...po };
+                    newPo.targetBitola = po.target_bitola;
+                    newPo.orderNumber = po.order_number;
+                    newPo.startTime = po.start_time;
+                    newPo.endTime = po.end_time;
+                    return newPo;
+                });
+                setLocalOrders(mapped);
+            }
+        };
+        fetchOrders();
+        const interval = setInterval(fetchOrders, 3000);
+        return () => clearInterval(interval);
+    }, []);
+    
     // Shift State
     const [isOnline, setIsOnline] = useState(currentUser.isOnline || false);
 
@@ -73,9 +105,10 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     };
 
     const handleStartSubOs = async (osId: string, subOsKey: string) => {
+        setLoadingAction(`start-${osId}-${subOsKey}`);
         try {
-            const po = allProgrammedOrders.find(p => p.id === osId);
-            if (!po) return;
+            const po = localOrders.find(p => p.id === osId);
+            if (!po) { setLoadingAction(null); return; }
             
             let currentProgress = po.sub_items_progress;
             if (typeof currentProgress === 'string') {
@@ -101,13 +134,16 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         } catch (e) {
             console.error('Erro ao iniciar mini OS:', e);
             alert('Erro ao iniciar corte da peça.');
+        } finally {
+            setLoadingAction(null);
         }
     };
 
     const handleFinishSubOs = async (osId: string, subOsKey: string) => {
+        setLoadingAction(`finish-${osId}-${subOsKey}`);
         try {
-            const po = allProgrammedOrders.find(p => p.id === osId);
-            if (!po) return;
+            const po = localOrders.find(p => p.id === osId);
+            if (!po) { setLoadingAction(null); return; }
             
             let currentProgress = po.sub_items_progress;
             if (typeof currentProgress === 'string') {
@@ -132,10 +168,13 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         } catch (e) {
             console.error('Erro ao finalizar mini OS:', e);
             alert('Erro ao finalizar corte da peça.');
+        } finally {
+            setLoadingAction(null);
         }
     };
 
     const handleFinishProductionBatch = async (osId: string) => {
+        setLoadingAction(`finish-batch-${osId}`);
         try {
             const endTime = new Date().toISOString();
             await supabase
@@ -143,11 +182,13 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 .update({ status: 'completed', end_time: endTime })
                 .eq('id', osId);
                 
-            setAllProgrammedOrders(prev => prev.filter(po => po.id !== osId));
+            setLocalOrders(prev => prev.filter(po => po.id !== osId));
             setActiveModalPoId(null);
         } catch (e) {
             console.error('Erro ao finalizar produção:', e);
             alert('Erro ao finalizar produção.');
+        } finally {
+            setLoadingAction(null);
         }
     };
 
@@ -166,9 +207,9 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         );
     }
 
-    const osList = allProgrammedOrders.filter(po => {
+    const osList = localOrders.filter(po => {
         const matchMachine = String(po.machine).trim().toLowerCase() === String(selectedMachine).trim().toLowerCase();
-        const matchQuery = !searchQuery || String(po.orderNumber).toLowerCase().includes(searchQuery.toLowerCase());
+        const matchQuery = !searchQuery || String(po.orderNumber || (po as any).order_number).toLowerCase().includes(searchQuery.toLowerCase());
         return matchMachine && matchQuery;
     });
 
@@ -370,10 +411,11 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                             CONTINUAR CORTE
                                         </button>
                                         <button 
+                                            disabled={loadingAction === `finish-batch-${po.id}`}
                                             onClick={() => handleFinishProductionBatch(po.id)}
-                                            className="flex-none px-4 bg-red-500 hover:bg-red-600 text-white font-black py-5 rounded-xl text-sm uppercase shadow-md active:scale-95 transition-all"
+                                            className="flex-none px-4 bg-red-500 hover:bg-red-600 text-white font-black py-5 rounded-xl text-sm uppercase shadow-md active:scale-95 transition-all disabled:opacity-50"
                                         >
-                                            FINALIZAR
+                                            {loadingAction === `finish-batch-${po.id}` ? 'AGUARDE...' : 'FINALIZAR'}
                                         </button>
                                     </div>
                                 )}
@@ -385,7 +427,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
 
             {/* MODAL DE EXECUÇÃO INDIVIDUAL */}
             {activeModalPoId && (() => {
-                const po = allProgrammedOrders.find(p => p.id === activeModalPoId);
+                const po = localOrders.find(p => p.id === activeModalPoId);
                 if (!po) return null;
                 const commOrderId = (po as any).related_commercial_order_id || (po as any).relatedCommercialOrderId;
                 const commOrder = commercialOrders.find(co => co.id === commOrderId);
@@ -491,13 +533,19 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                                         <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Em Andamento</span>
                                                         <ActiveTimer startTime={currentItemStart!} />
                                                     </div>
-                                                    <button onClick={() => handleFinishSubOs(po.id, activeSubOs.os)} className="w-full bg-red-500 hover:bg-red-600 text-white font-black py-4 rounded-xl text-lg uppercase shadow-md active:scale-95 transition-all">
-                                                        Finalizar Corte
+                                                    <button 
+                                                        disabled={loadingAction === `finish-${po.id}-${activeSubOs.os}`}
+                                                        onClick={() => handleFinishSubOs(po.id, activeSubOs.os)} 
+                                                        className="w-full bg-red-500 hover:bg-red-600 text-white font-black py-4 rounded-xl text-lg uppercase shadow-md active:scale-95 transition-all disabled:opacity-50">
+                                                        {loadingAction === `finish-${po.id}-${activeSubOs.os}` ? 'FINALIZANDO...' : 'FINALIZAR CORTE'}
                                                     </button>
                                                 </div>
                                             ) : (
-                                                <button onClick={() => handleStartSubOs(po.id, activeSubOs.os)} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 rounded-xl text-lg uppercase shadow-sm active:scale-95 transition-all">
-                                                    Iniciar Corte
+                                                <button 
+                                                    disabled={loadingAction === `start-${po.id}-${activeSubOs.os}`}
+                                                    onClick={() => handleStartSubOs(po.id, activeSubOs.os)} 
+                                                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 rounded-xl text-lg uppercase shadow-sm active:scale-95 transition-all disabled:opacity-50">
+                                                    {loadingAction === `start-${po.id}-${activeSubOs.os}` ? 'INICIANDO...' : 'INICIAR CORTE'}
                                                 </button>
                                             )}
                                         </div>
