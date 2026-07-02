@@ -53,10 +53,15 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         const newValue = !isOnline;
         setIsOnline(newValue);
         try {
-            await supabase.from('app_users').update({ is_online: newValue }).eq('id', currentUser.id);
+            const { error } = await supabase.from('app_users').update({ is_online: newValue }).eq('id', currentUser.id);
+            if (error) {
+                console.error('Error toggling shift:', error);
+                alert('Erro ao alterar status do turno: ' + error.message);
+                setIsOnline(!newValue);
+            }
         } catch (e) {
             console.error('Error toggling shift:', e);
-            alert('Erro ao alterar status do turno.');
+            alert('Erro de conexão ao alterar turno.');
             setIsOnline(!newValue);
         }
     };
