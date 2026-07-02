@@ -246,7 +246,8 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     )}
                     
                     {osList.map(po => {
-                        const commOrder = commercialOrders.find(co => co.id === (po as any).related_commercial_order_id);
+                        const commOrderId = (po as any).related_commercial_order_id || (po as any).relatedCommercialOrderId;
+                        const commOrder = commercialOrders.find(co => co.id === commOrderId);
                         const isProducing = po.status === 'producing';
                         
                         // Determinar o comprimento (tamanho) da peça
@@ -386,7 +387,8 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
             {activeModalPoId && (() => {
                 const po = allProgrammedOrders.find(p => p.id === activeModalPoId);
                 if (!po) return null;
-                const commOrder = commercialOrders.find(co => co.id === (po as any).related_commercial_order_id);
+                const commOrderId = (po as any).related_commercial_order_id || (po as any).relatedCommercialOrderId;
+                const commOrder = commercialOrders.find(co => co.id === commOrderId);
                 
                 let subItems: any[] = [];
                 const rawProjectData = (commOrder as any)?.project_data || commOrder?.projectData;
