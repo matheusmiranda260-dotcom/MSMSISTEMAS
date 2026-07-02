@@ -63,6 +63,11 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     newPo.orderNumber = po.order_number;
                     newPo.startTime = po.start_time;
                     newPo.endTime = po.end_time;
+                    try {
+                        newPo.sub_items_progress = typeof po.sub_items_progress === 'string' ? JSON.parse(po.sub_items_progress) : (po.sub_items_progress || {});
+                    } catch(e) {
+                        newPo.sub_items_progress = {};
+                    }
                     return newPo;
                 });
                 setLocalOrders(mapped);
@@ -123,13 +128,31 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 [subOsKey]: { status: 'producing', start_time: startTime }
             };
 
-            await supabase
+            // OPTIMISTIC UPDATE: Immediate UI Feedback
+            setLocalOrders(prev => prev.map(p => {
+                if (p.id === osId) {
+                    return { 
+                        ...p, 
+                        sub_items_progress: updatedProgress,
+                        status: p.status !== 'producing' ? 'producing' : p.status,
+                        startTime: p.status !== 'producing' ? startTime : p.startTime
+                    };
+                }
+                return p;
+            }));
+
+            const { error } = await supabase
                 .from('production_orders')
                 .update({ 
                     sub_items_progress: updatedProgress, 
                     ...(po.status !== 'producing' ? { status: 'producing', start_time: startTime } : {})
                 })
                 .eq('id', osId);
+                
+            if (error) {
+                console.error('Supabase error:', error);
+                alert('Erro do sistema ao iniciar o corte. As mudanças não foram salvas.');
+            }
                 
         } catch (e) {
             console.error('Erro ao iniciar mini OS:', e);
@@ -158,10 +181,23 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 [subOsKey]: { status: 'completed', start_time: existingStart, end_time: endTime }
             };
 
-            await supabase
+            // OPTIMISTIC UPDATE: Immediate UI Feedback
+            setLocalOrders(prev => prev.map(p => {
+                if (p.id === osId) {
+                    return { ...p, sub_items_progress: updatedProgress };
+                }
+                return p;
+            }));
+
+            const { error } = await supabase
                 .from('production_orders')
                 .update({ sub_items_progress: updatedProgress })
                 .eq('id', osId);
+                
+            if (error) {
+                console.error('Supabase error:', error);
+                alert('Erro do sistema ao finalizar o corte.');
+            }
                 
             setSubOsSearch('');
             setActiveSubOs(null);
@@ -460,8 +496,9 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     }
                 };
 
-                const currentItemStatus = activeSubOs ? po.sub_items_progress?.[activeSubOs.os]?.status : null;
-                const currentItemStart = activeSubOs ? (po.sub_items_progress?.[activeSubOs.os]?.start_time || po.sub_items_progress?.[activeSubOs.os]?.startTime) : null;
+                const currentProgressObj = typeof po.sub_items_progress === 'string' ? JSON.parse(po.sub_items_progress) : (po.sub_items_progress || {});
+                const currentItemStatus = activeSubOs ? currentProgressObj?.[activeSubOs.os]?.status : null;
+                const currentItemStart = activeSubOs ? (currentProgressObj?.[activeSubOs.os]?.start_time || currentProgressObj?.[activeSubOs.os]?.startTime) : null;
 
                 return (
                     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
