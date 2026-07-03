@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import html2canvas from 'html2canvas';
-import type { CommercialOrder, CommercialOrderItem, StockGauge, Customer, Partner } from '../types';
-import { fetchItems, fetchTable } from '../services/supabaseService';
+import type { CommercialOrder, CommercialOrderItem, StockGauge, Customer, Partner, User } from '../types';
+import { fetchItems, fetchTable, fetchByColumn } from '../services/supabaseService';
 
 interface OrderPrintViewProps {
     order: CommercialOrder;
@@ -13,6 +13,7 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
     const [items, setItems] = useState<CommercialOrderItem[]>([]);
     const [gauges, setGauges] = useState<StockGauge[]>([]);
     const [customer, setCustomer] = useState<Customer | null>(null);
+    const [seller, setSeller] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isCopying, setIsCopying] = useState(false);
     const [copySuccess, setCopySuccess] = useState(false);
@@ -105,6 +106,18 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
                     const customerData = await fetchItems('customers', '*', { column: 'code', value: order.clientCode });
                     if (customerData && customerData.length > 0) {
                         setCustomer(customerData[0] as unknown as Customer);
+                    }
+                }
+                
+                // Fetch seller details to get phone and email
+                if (order.salesperson) {
+                    try {
+                        const sellerData = await fetchByColumn<User>('app_users', 'username', order.salesperson);
+                        if (sellerData && sellerData.length > 0) {
+                            setSeller(sellerData[0]);
+                        }
+                    } catch (e) {
+                        console.error('Error fetching seller', e);
                     }
                 }
             } catch (error) {
@@ -235,8 +248,8 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
                                 <div>CNPJ: 58.894.273/0001-07</div>
                                 <div>Rua JC-28, Quadra 31 - Lotes 01-02</div>
                                 <div>Residencial Jardim Canedo II, Senador Canedo/GO - CEP: 75.250-307</div>
-                                <div>Telefone: (62) 99267-9060</div>
-                                <div>E-mail: leonardo@armacoferragens.com.br</div>
+                                <div>Telefone: {seller?.phone || 'INSERIR NO CADASTRO ESSA INFORMAÇÃO'}</div>
+                                <div>E-mail: {seller?.email || 'INSERIR NO CADASTRO ESSA INFORMAÇÃO'}</div>
                                 <div className="text-blue-600 underline">www.armacoferragens.com.br</div>
                             </div>
                         </div>
