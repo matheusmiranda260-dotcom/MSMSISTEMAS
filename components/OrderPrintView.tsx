@@ -400,6 +400,17 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
                                             </td>
                                         </tr>
                                     )}
+                                    {order.freight && (
+                                        <tr>
+                                            <td colSpan={4} className="border-none"></td>
+                                            <td className="bg-gray-200 text-black font-bold text-center p-2 border-l border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', lineHeight: '1.1'}}>
+                                                FRETE
+                                            </td>
+                                            <td className="bg-gray-200 text-black font-black text-center p-2 border-r border-b border-black text-[10px] uppercase" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                                {order.freight}
+                                            </td>
+                                        </tr>
+                                    )}
                                 </tfoot>
                             </table>
                         </div>

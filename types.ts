@@ -460,6 +460,7 @@ export interface CommercialOrder {
     readingStartedAt?: string;
     readingFinishedAt?: string;
     projectData?: any;
+    freight?: string;
     history?: OrderHistoryEntry[];
 }
 

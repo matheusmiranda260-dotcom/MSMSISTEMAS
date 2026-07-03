@@ -14,6 +14,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     const [projectIdent, setProjectIdent] = useState(order.projectIdent || '');
     const [deliveryTime, setDeliveryTime] = useState(order.deliveryTime || '');
     const [paymentCondition, setPaymentCondition] = useState(order.paymentCondition || '');
+    const [freight, setFreight] = useState(order.freight || '');
     const [isSaving, setIsSaving] = useState(false);
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
@@ -211,6 +212,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                 projectIdent: projectIdent,
                 delivery_time: deliveryTime,
                 paymentCondition: paymentCondition,
+                freight: freight,
                 totalWeight: totalWeight,
                 price: totalValue, // Update main price
                 status: statusToSave,
@@ -554,6 +556,16 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
 
                     {/* Totals Finais */}
                     <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 mb-6 flex flex-col items-end gap-3">
+                        <div className="flex items-center gap-6 text-sm w-full justify-end">
+                            <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Frete:</span>
+                            <input 
+                                type="text" 
+                                className="border border-slate-200 rounded px-3 py-1.5 text-sm font-bold w-96 text-right uppercase bg-slate-50 focus:bg-white transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                value={freight}
+                                onChange={e => setFreight(e.target.value)}
+                                placeholder="OBSERVAÇÕES DE FRETE..."
+                            />
+                        </div>
                         <div className="flex items-center gap-6 text-sm">
                             <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Peso Total:</span>
                             <span className="font-black text-slate-800 w-32 text-right">{totalWeight.toLocaleString('pt-BR', {minimumFractionDigits: 2})} kg</span>
