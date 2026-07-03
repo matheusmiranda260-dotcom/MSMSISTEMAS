@@ -558,7 +558,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                     <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col overflow-hidden border-2 border-indigo-500">
                         <div className="bg-indigo-600 p-4 flex justify-between items-center shrink-0">
                             <h3 className="text-lg font-black text-white flex items-center gap-2">
-                                <span>⚖️</span> Inserir Bitolas e Quantidades
+                                <span>⚖️</span> Inserir Bitolas e Quantidades (POR KG)
                             </h3>
                             <button onClick={() => setIsBitolasModalOpen(false)} className="text-indigo-200 hover:text-white transition-colors">
                                 ✕ Fechar
