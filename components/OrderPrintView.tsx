@@ -350,29 +350,29 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
                                     </tr>
                                     <tr>
                                         <td colSpan={4} className="border-none"></td>
-                                        <td className="bg-gray-200 text-black font-bold text-center p-1.5 border-l border-t border-black" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                        <td className="bg-gray-200 text-black font-bold text-center p-2 border-l border-t border-b border-black text-[12px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                             VALOR TOTAL
                                         </td>
-                                        <td className="bg-gray-200 text-black font-bold text-center p-1.5 border-r border-t border-black" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                        <td className="bg-gray-200 text-black font-black text-center p-2 border-r border-t border-b border-black text-[12px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                             R$ {totalSummaryRs > 0 ? totalSummaryRs.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : ''}
                                         </td>
                                     </tr>
                                     <tr>
                                         <td colSpan={4} className="border-none"></td>
-                                        <td className="bg-gray-200 text-black font-bold text-center p-1.5 border-l border-b border-black" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                        <td className="bg-gray-200 text-black font-bold text-center p-2 border-l border-b border-black text-[12px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                             PESO TOTAL
                                         </td>
-                                        <td className="bg-gray-200 text-black font-bold text-center p-1.5 border-r border-b border-black" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                        <td className="bg-gray-200 text-black font-black text-center p-2 border-r border-b border-black text-[12px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                             {totalSummaryKg > 0 ? totalSummaryKg.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : ''} KG
                                         </td>
                                     </tr>
                                     {order.paymentCondition && (
                                         <tr>
                                             <td colSpan={4} className="border-none"></td>
-                                            <td className="text-black font-bold text-center p-1.5 border-l border-b border-black bg-white" style={{fontSize: '9px', backgroundColor: 'white'}}>
-                                                PAGAMENTO
+                                            <td className="bg-gray-200 text-black font-bold text-center p-2 border-l border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', lineHeight: '1.1'}}>
+                                                CONDIÇÃO DE PAGAMENTO
                                             </td>
-                                            <td className="text-black font-bold text-center p-1.5 border-r border-b border-black bg-white uppercase">
+                                            <td className="bg-gray-200 text-black font-black text-center p-2 border-r border-b border-black text-[12px] uppercase" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                                 {order.paymentCondition}
                                             </td>
                                         </tr>
