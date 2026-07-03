@@ -275,7 +275,7 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
                             <div className="flex border-b border-black">
                                 <div className="w-1/3 border-r border-black p-1.5 flex">
                                     <span className="font-bold w-20">Vendedor:</span> 
-                                    <span className="uppercase">{order.salesperson}</span>
+                                    <span className="uppercase">{seller?.fullName || order.salesperson}</span>
                                 </div>
                                 <div className="w-1/3 border-r border-black p-1.5 flex">
                                     <span className="font-bold w-[110px]">Data de emissão:</span> 
