@@ -145,6 +145,9 @@ export interface User {
     id: string;
     username: string;
     password?: string;
+    fullName?: string;
+    phone?: string;
+    email?: string;
     role: 'admin' | 'user' | 'gestor';
     permissions?: Partial<Record<Page, boolean>>;
     employeeId?: string;

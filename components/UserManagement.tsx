@@ -6,7 +6,7 @@ import { ArrowLeftIcon, PencilIcon, TrashIcon, WarningIcon } from './icons';
 interface UserManagementProps {
     users: User[];
     employees: Employee[];
-    addUser: (data: { username: string; password: string; permissions: Partial<Record<Page, boolean>>; role: string; employeeId?: string; assignedMachines?: string[] }) => void;
+    addUser: (data: { username: string; password: string; fullName?: string; phone?: string; email?: string; permissions: Partial<Record<Page, boolean>>; role: string; employeeId?: string; assignedMachines?: string[] }) => void;
     updateUser: (userId: string, data: Partial<User>) => void;
     deleteUser: (userId: string) => void;
     setPage: (page: Page) => void;
@@ -78,6 +78,9 @@ const UserModal: React.FC<{
 }> = ({ user, employees, activeBrandingPartner, onClose, onSubmit }) => {
     const [username, setUsername] = useState(user?.username || '');
     const [password, setPassword] = useState('');
+    const [fullName, setFullName] = useState(user?.fullName || '');
+    const [phone, setPhone] = useState(user?.phone || '');
+    const [email, setEmail] = useState(user?.email || '');
     const [permissions, setPermissions] = useState<Partial<Record<Page, boolean>>>(
         user?.permissions || {}
     );
@@ -103,13 +106,13 @@ const UserModal: React.FC<{
             return;
         }
         if (isEditing) {
-            const dataToSubmit: Partial<User> = { permissions, role, employeeId, assignedMachines };
+            const dataToSubmit: Partial<User> = { permissions, role, employeeId, assignedMachines, fullName, phone, email };
             if (password) {
                 dataToSubmit.password = password;
             }
             onSubmit(dataToSubmit);
         } else {
-            onSubmit({ username, password, permissions, role, employeeId, assignedMachines });
+            onSubmit({ username, password, fullName, phone, email, permissions, role, employeeId, assignedMachines });
         }
         onClose();
     };
@@ -121,7 +124,7 @@ const UserModal: React.FC<{
                 <div className="space-y-4 flex-grow overflow-y-auto pr-2">
                     {!isEditing && (
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-slate-700">Nome de Usuário</label>
+                            <label className="block text-sm font-medium text-slate-700">Nome de Usuário (Login)</label>
                             <input
                                 type="text"
                                 value={username}
@@ -131,6 +134,40 @@ const UserModal: React.FC<{
                             />
                         </div>
                     )}
+                    
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium text-slate-700">Nome Completo</label>
+                        <input
+                            type="text"
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            className="mt-1 p-2 w-full border border-slate-300 rounded-md"
+                            placeholder="Ex: João da Silva"
+                        />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700">Celular / WhatsApp</label>
+                            <input
+                                type="text"
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                className="mt-1 p-2 w-full border border-slate-300 rounded-md"
+                                placeholder="(00) 00000-0000"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700">E-mail</label>
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="mt-1 p-2 w-full border border-slate-300 rounded-md"
+                                placeholder="usuario@email.com"
+                            />
+                        </div>
+                    </div>
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-slate-700">Vincular Funcionário (Opcional)</label>
                         <select

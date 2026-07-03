@@ -610,11 +610,14 @@ const App: React.FC = () => {
 
 
     // User Management
-    const addUser = async (data: { username: string; password: string; permissions: Partial<Record<Page, boolean>>; role: string; employeeId?: string; assignedMachines?: string[] }) => {
+    const addUser = async (data: { username: string; password: string; fullName?: string; phone?: string; email?: string; permissions: Partial<Record<Page, boolean>>; role: string; employeeId?: string; assignedMachines?: string[] }) => {
         const newUser: User = {
             id: generateId('user'),
             username: data.username,
             password: data.password, // Storing simple password as requested
+            fullName: data.fullName,
+            phone: data.phone,
+            email: data.email,
             role: (data.role as any) || 'user',
             permissions: data.permissions,
             employeeId: data.employeeId || null,
