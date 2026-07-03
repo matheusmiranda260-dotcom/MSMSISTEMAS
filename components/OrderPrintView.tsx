@@ -112,9 +112,11 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
                 // Fetch seller details to get phone and email
                 if (order.salesperson) {
                     try {
-                        const sellerData = await fetchByColumn<User>('app_users', 'username', order.salesperson);
-                        if (sellerData && sellerData.length > 0) {
-                            setSeller(sellerData[0]);
+                        // Traz todos os usuários e procura ignorando maiúsculas/minúsculas
+                        const allUsers = await fetchTable<User>('app_users');
+                        const matchedUser = allUsers.find(u => u.username?.toLowerCase() === order.salesperson?.toLowerCase());
+                        if (matchedUser) {
+                            setSeller(matchedUser);
                         }
                     } catch (e) {
                         console.error('Error fetching seller', e);
