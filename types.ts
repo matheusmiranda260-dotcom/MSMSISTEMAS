@@ -461,6 +461,7 @@ export interface CommercialOrder {
     readingFinishedAt?: string;
     projectData?: any;
     freight?: string;
+    freightValue?: number;
     history?: OrderHistoryEntry[];
 }
 

@@ -184,7 +184,7 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
     }).sort((a, b) => b.kg - a.kg); // Example sorting
 
     const totalSummaryKg = summaryRows.reduce((acc, r) => acc + r.kg, 0);
-    const totalSummaryRs = summaryRows.reduce((acc, r) => acc + r.total, 0);
+    const totalSummaryRs = summaryRows.reduce((acc, r) => acc + r.total, 0) + (order.freightValue || 0);
 
     const formattedDate = (order.date && String(order.date).includes('-')) 
         ? String(order.date).split('-').reverse().join('/') 

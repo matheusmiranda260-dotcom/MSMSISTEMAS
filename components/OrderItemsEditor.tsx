@@ -15,6 +15,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     const [deliveryTime, setDeliveryTime] = useState(order.deliveryTime || '');
     const [paymentCondition, setPaymentCondition] = useState(order.paymentCondition || '');
     const [freight, setFreight] = useState(order.freight || '');
+    const [freightValue, setFreightValue] = useState<number>(order.freightValue || 0);
     const [isSaving, setIsSaving] = useState(false);
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
@@ -144,7 +145,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     };
 
     const totalWeight = items.reduce((acc, item) => acc + (item.peso || 0), 0);
-    const totalValue = items.reduce((acc, item) => acc + (item.valor || 0), 0);
+    const totalValue = items.reduce((acc, item) => acc + (item.valor || 0), 0) + freightValue;
 
     // Compute bitolas summary
     const bitolasSummary: Record<string, { kg: number }> = {};
@@ -213,6 +214,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                 delivery_time: deliveryTime,
                 paymentCondition: paymentCondition,
                 freight: freight,
+                freight_value: freightValue,
                 totalWeight: totalWeight,
                 price: totalValue, // Update main price
                 status: statusToSave,
@@ -556,15 +558,31 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
 
                     {/* Totals Finais */}
                     <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 mb-6 flex flex-col items-end gap-3">
-                        <div className="flex items-center gap-6 text-sm w-full justify-end">
+                        <div className="flex items-center gap-4 text-sm w-full justify-end">
                             <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Frete:</span>
-                            <input 
-                                type="text" 
-                                className="border border-slate-200 rounded px-3 py-1.5 text-sm font-bold w-96 text-right uppercase bg-slate-50 focus:bg-white transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                value={freight}
-                                onChange={e => setFreight(e.target.value)}
-                                placeholder="OBSERVAÇÕES DE FRETE..."
-                            />
+                            <div className="flex gap-2">
+                                <input 
+                                    type="text" 
+                                    className="border border-slate-200 rounded px-3 py-1.5 text-sm font-bold w-96 text-right uppercase bg-slate-50 focus:bg-white transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                    value={freight}
+                                    onChange={e => setFreight(e.target.value)}
+                                    placeholder="OBSERVAÇÕES DE FRETE..."
+                                />
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
+                                    <input 
+                                        type="number"
+                                        step="0.01"
+                                        className="border border-slate-200 rounded py-1.5 pr-3 pl-8 text-sm font-bold w-32 text-right bg-slate-50 focus:bg-white transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                        value={freightValue || ''}
+                                        onChange={e => {
+                                            const val = parseFloat(e.target.value);
+                                            setFreightValue(isNaN(val) ? 0 : val);
+                                        }}
+                                        placeholder="0,00"
+                                    />
+                                </div>
+                            </div>
                         </div>
                         <div className="flex items-center gap-6 text-sm">
                             <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Peso Total:</span>
