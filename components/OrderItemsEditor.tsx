@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { CommercialOrder, CommercialOrderItem, StockGauge } from '../types';
+import type { CommercialOrder, CommercialOrderItem, StockGauge, User } from '../types';
 import { insertItem, updateItem, deleteItem, fetchItems, fetchTable } from '../services/supabaseService';
 
 interface OrderItemsEditorProps {
@@ -23,6 +23,13 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     const [bitolasQuantities, setBitolasQuantities] = useState<Record<string, number>>({});
     const [bitolasMode, setBitolasMode] = useState<'KG' | 'METRO'>('KG');
     const [bitolasMeters, setBitolasMeters] = useState<Record<string, number>>({});
+    const [customPrices, setCustomPrices] = useState<Record<string, number>>({});
+    
+    // Auth Modal para Gestor
+    const [authModal, setAuthModal] = useState<{ isOpen: boolean; gaugeId: string | null }>({ isOpen: false, gaugeId: null });
+    const [authPassword, setAuthPassword] = useState('');
+    const [authError, setAuthError] = useState('');
+    const [tempPrice, setTempPrice] = useState('');
 
     // Form state for new item
     const [newItem, setNewItem] = useState<Partial<CommercialOrderItem>>({
@@ -68,7 +75,8 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                 tipo: newItem.tipo!,
                 peso: newItem.peso!,
                 valor: newItem.valor!,
-                bitolas_details: Object.keys(bitolasQuantities).length > 0 ? bitolasQuantities : undefined
+                bitolas_details: Object.keys(bitolasQuantities).length > 0 ? bitolasQuantities : undefined,
+                custom_prices: Object.keys(customPrices).length > 0 ? customPrices : undefined
             };
             
             if (editingItemId) {
@@ -88,6 +96,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                 valor: 0
             });
             setBitolasQuantities({});
+            setCustomPrices({});
             await loadItems();
         } catch (error) {
             console.error('Error adding item:', error);
@@ -111,6 +120,12 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
             setBitolasQuantities(item.bitolas_details);
         } else {
             setBitolasQuantities({});
+        }
+
+        if (item.custom_prices) {
+            setCustomPrices(item.custom_prices);
+        } else {
+            setCustomPrices({});
         }
         
         // Scroll to top where the form is
@@ -154,9 +169,11 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         const pesoUnitario = gauge?.rawWeightValue || 1;
         const barras = kg / pesoUnitario;
         
-        const pricePerKg = (gauge?.rawWeightValue && gauge.rawWeightValue > 0) 
+        const basePricePerKg = (gauge?.rawWeightValue && gauge.rawWeightValue > 0) 
             ? (gauge.purchasePrice || 0) / gauge.rawWeightValue 
             : (gauge?.purchasePrice || 0);
+            
+        const pricePerKg = customPrices[bitolaId] !== undefined ? customPrices[bitolaId] : basePricePerKg;
 
         const pricePerBarra = gauge?.purchasePrice || 0;
         const total = kg * pricePerKg;
@@ -629,13 +646,27 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                     <td className="p-3 text-sm font-bold text-slate-500 text-center">
                                                         {String(g.rawWeightValue || 0).replace('.', ',')} kg
                                                     </td>
-                                                    <td className="p-3 text-sm font-black text-emerald-600 text-right">
-                                                        {(() => {
-                                                            const pricePerKg = (g.rawWeightValue && g.rawWeightValue > 0) 
-                                                                ? (g.purchasePrice || 0) / g.rawWeightValue 
-                                                                : (g.purchasePrice || 0);
-                                                            return `R$ ${pricePerKg.toFixed(2)}`;
-                                                        })()}
+                                                    <td className="p-3 text-sm font-black text-emerald-600 text-right group">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            {(() => {
+                                                                const defaultPricePerKg = (g.rawWeightValue && g.rawWeightValue > 0) 
+                                                                    ? (g.purchasePrice || 0) / g.rawWeightValue 
+                                                                    : (g.purchasePrice || 0);
+                                                                const currentPrice = customPrices[g.id] !== undefined ? customPrices[g.id] : defaultPricePerKg;
+                                                                return `R$ ${currentPrice.toFixed(2)}`;
+                                                            })()}
+                                                            <button 
+                                                                onClick={() => {
+                                                                    const currentPrice = customPrices[g.id] !== undefined ? customPrices[g.id] : ((g.rawWeightValue && g.rawWeightValue > 0) ? (g.purchasePrice || 0) / g.rawWeightValue : (g.purchasePrice || 0));
+                                                                    setTempPrice(currentPrice.toFixed(2));
+                                                                    setAuthModal({ isOpen: true, gaugeId: g.id });
+                                                                }}
+                                                                className="text-slate-400 hover:text-indigo-600 transition-colors"
+                                                                title="Editar Preço (Requer Senha de Gestor)"
+                                                            >
+                                                                ✏️
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                     {bitolasMode === 'METRO' && (
                                                         <td className="p-3 text-sm font-bold text-slate-500 text-right">
@@ -704,6 +735,96 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                     Confirmar e Calcular
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Auth Modal para Editar Preço */}
+            {authModal.isOpen && (
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[300] p-4 animate-in fade-in">
+                    <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl flex flex-col overflow-hidden border-2 border-slate-300">
+                        <div className="bg-slate-800 p-4 shrink-0">
+                            <h3 className="text-lg font-black text-white flex items-center gap-2">
+                                🔒 Autorização de Gestor
+                            </h3>
+                        </div>
+                        <div className="p-5 flex flex-col gap-4">
+                            <p className="text-sm text-slate-600">Insira a senha de um Administrador ou Gestor para alterar o preço deste material neste orçamento.</p>
+                            
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider">Senha do Gestor</label>
+                                <input 
+                                    type="password"
+                                    className="w-full border border-slate-300 rounded p-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                    value={authPassword}
+                                    onChange={e => setAuthPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider">Novo Preço R$ / KG</label>
+                                <input 
+                                    type="number"
+                                    step="0.01"
+                                    className="w-full border border-slate-300 rounded p-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-bold text-emerald-700"
+                                    value={tempPrice}
+                                    onChange={e => setTempPrice(e.target.value)}
+                                />
+                            </div>
+                            
+                            {authError && (
+                                <p className="text-xs text-red-600 font-bold bg-red-50 p-2 rounded border border-red-200">{authError}</p>
+                            )}
+                        </div>
+                        <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-end gap-3">
+                            <button 
+                                onClick={() => {
+                                    setAuthModal({ isOpen: false, gaugeId: null });
+                                    setAuthPassword('');
+                                    setAuthError('');
+                                }} 
+                                className="px-4 py-2 rounded-lg font-bold text-slate-600 hover:bg-slate-200 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={async () => {
+                                    setAuthError('');
+                                    if (!authPassword) {
+                                        setAuthError('Digite a senha.');
+                                        return;
+                                    }
+                                    try {
+                                        const users = await fetchTable<User>('app_users');
+                                        const manager = users.find(u => u.password === authPassword && (u.role === 'admin' || u.role === 'gestor'));
+                                        if (!manager) {
+                                            setAuthError('Senha inválida ou usuário sem permissão.');
+                                            return;
+                                        }
+                                        
+                                        // Authorized!
+                                        const newPrice = parseFloat(tempPrice);
+                                        if (isNaN(newPrice)) {
+                                            setAuthError('Preço inválido.');
+                                            return;
+                                        }
+                                        
+                                        if (authModal.gaugeId) {
+                                            setCustomPrices(prev => ({ ...prev, [authModal.gaugeId as string]: newPrice }));
+                                        }
+                                        
+                                        setAuthModal({ isOpen: false, gaugeId: null });
+                                        setAuthPassword('');
+                                    } catch (err) {
+                                        setAuthError('Erro ao validar senha.');
+                                    }
+                                }} 
+                                className="px-6 py-2 rounded-lg font-black text-white bg-slate-800 hover:bg-slate-900 shadow-md transition-all"
+                            >
+                                Autorizar e Salvar
+                            </button>
                         </div>
                     </div>
                 </div>

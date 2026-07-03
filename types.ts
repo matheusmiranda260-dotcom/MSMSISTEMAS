@@ -473,6 +473,7 @@ export interface CommercialOrderItem {
     peso: number;
     valor: number;
     bitolas_details?: Record<string, number>;
+    custom_prices?: Record<string, number>;
 }
 
 export interface MeetingItem {

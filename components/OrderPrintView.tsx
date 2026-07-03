@@ -159,9 +159,17 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
         }
         
         const cod = gauge?.productCode || '';
-        const pricePerKg = (gauge?.rawWeightValue && gauge.rawWeightValue > 0) 
+        const basePricePerKg = (gauge?.rawWeightValue && gauge.rawWeightValue > 0) 
             ? (gauge.purchasePrice || 0) / gauge.rawWeightValue 
             : (gauge?.purchasePrice || 0);
+
+        let pricePerKg = basePricePerKg;
+        for (const item of items) {
+            if (item.custom_prices && item.custom_prices[bitolaId] !== undefined) {
+                pricePerKg = item.custom_prices[bitolaId];
+                break;
+            }
+        }
 
         const total = kg * pricePerKg;
 
