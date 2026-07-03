@@ -189,67 +189,77 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
 
             <div className="sidebar-content">
                 {/* PEDIDOS E ORÇAMENTO */}
-                <div className="sidebar-category">
-                    <div className="sidebar-category-title">{isCollapsed ? '📝' : '📝 Pedidos e Orçamento'}</div>
+                {(hasPermission('customerRegistration') || hasPermission('customersManagement') || hasPermission('customerOrders') || hasPermission('productsCatalog')) && (
+                    <div className="sidebar-category">
+                        <div className="sidebar-category-title">{isCollapsed ? '📝' : '📝 Pedidos e Orçamento'}</div>
 
-                    <button
-                        onClick={() => toggleMenu('customers')}
-                        className={`sidebar-item ${['customersManagement', 'customerRegistration', 'customerOrders', 'productsCatalog'].includes(page) ? 'active' : ''} justify-between group`}
-                        title={isCollapsed ? 'Clientes' : ''}
-                    >
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <div className="sidebar-item-icon shrink-0">
-                                <UserGroupIcon className="w-full h-full" />
+                        <button
+                            onClick={() => toggleMenu('customers')}
+                            className={`sidebar-item ${['customersManagement', 'customerRegistration', 'customerOrders', 'productsCatalog'].includes(page) ? 'active' : ''} justify-between group`}
+                            title={isCollapsed ? 'Clientes' : ''}
+                        >
+                            <div className="flex items-center gap-3 overflow-hidden">
+                                <div className="sidebar-item-icon shrink-0">
+                                    <UserGroupIcon className="w-full h-full" />
+                                </div>
+                                {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap">Clientes</span>}
                             </div>
-                            {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap">Clientes</span>}
-                        </div>
-                        {!isCollapsed && (
-                            <ChevronRightIcon className={`w-3 h-3 text-slate-500 transition-transform duration-200 ${expandedMenus.includes('customers') ? 'rotate-90' : ''}`} />
+                            {!isCollapsed && (
+                                <ChevronRightIcon className={`w-3 h-3 text-slate-500 transition-transform duration-200 ${expandedMenus.includes('customers') ? 'rotate-90' : ''}`} />
+                            )}
+                        </button>
+
+                        {!isCollapsed && expandedMenus.includes('customers') && (
+                            <div className="ml-4 pl-4 border-l border-slate-700/50 flex flex-col gap-0.5 mt-1 mb-2 animate-in slide-in-from-left-2 duration-200">
+                                {hasPermission('customerOrders') && (
+                                    <button onClick={() => setPage('customerOrders')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'customerOrders' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                        📝 Gestão de Vendas
+                                    </button>
+                                )}
+                            </div>
                         )}
-                    </button>
-
-                    {!isCollapsed && expandedMenus.includes('customers') && (
-                        <div className="ml-4 pl-4 border-l border-slate-700/50 flex flex-col gap-0.5 mt-1 mb-2 animate-in slide-in-from-left-2 duration-200">
-
-                            <button onClick={() => setPage('customerOrders')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'customerOrders' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
-                                📝 Gestão de Vendas
-                            </button>
-                        </div>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {/* PRODUÇÃO */}
-                <div className="sidebar-category">
-                    <div className="sidebar-category-title">{isCollapsed ? '⚙️' : '⚙️ Produção'}</div>
-                    <button
-                        onClick={() => setPage('orderManagement')}
-                        className={`sidebar-item ${page === 'orderManagement' ? 'active' : ''} justify-between group`}
-                        title={isCollapsed ? 'Gestão de Pedidos - Engenharia' : ''}
-                    >
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <div className="sidebar-item-icon shrink-0">
-                                <CogIcon className="w-full h-full" />
-                            </div>
-                            {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap">Gestão de Pedidos - Eng</span>}
-                        </div>
-                    </button>
-                    <button
-                        onClick={() => setPage('productionManagement')}
-                        className={`sidebar-item ${page === 'productionManagement' ? 'active' : ''} justify-between group mt-1`}
-                        title={isCollapsed ? 'Gestão de Produção' : ''}
-                    >
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <div className="sidebar-item-icon shrink-0">
-                                <span className="w-full h-full flex items-center justify-center text-lg">🏭</span>
-                            </div>
-                            {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap">Gestão de Produção</span>}
-                        </div>
-                    </button>
-                </div>
+                {(hasPermission('orderManagement') || hasPermission('productionManagement')) && (
+                    <div className="sidebar-category">
+                        <div className="sidebar-category-title">{isCollapsed ? '⚙️' : '⚙️ Produção'}</div>
+                        {hasPermission('orderManagement') && (
+                            <button
+                                onClick={() => setPage('orderManagement')}
+                                className={`sidebar-item ${page === 'orderManagement' ? 'active' : ''} justify-between group`}
+                                title={isCollapsed ? 'Gestão de Pedidos - Engenharia' : ''}
+                            >
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    <div className="sidebar-item-icon shrink-0">
+                                        <CogIcon className="w-full h-full" />
+                                    </div>
+                                    {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap">Gestão de Pedidos - Eng</span>}
+                                </div>
+                            </button>
+                        )}
+                        {hasPermission('productionManagement') && (
+                            <button
+                                onClick={() => setPage('productionManagement')}
+                                className={`sidebar-item ${page === 'productionManagement' ? 'active' : ''} justify-between group mt-1`}
+                                title={isCollapsed ? 'Gestão de Produção' : ''}
+                            >
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    <div className="sidebar-item-icon shrink-0">
+                                        <span className="w-full h-full flex items-center justify-center text-lg">🏭</span>
+                                    </div>
+                                    {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap">Gestão de Produção</span>}
+                                </div>
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 {/* ESTOQUE */}
-                <div className="sidebar-category">
-                    <div className="sidebar-category-title">{isCollapsed ? '📦' : '📦 Estoque'}</div>
+                {(hasPermission('stock') || hasPermission('stockAdd') || hasPermission('stockTransfer')) && (
+                    <div className="sidebar-category">
+                        <div className="sidebar-category-title">{isCollapsed ? '📦' : '📦 Estoque'}</div>
 
 
 
@@ -295,51 +305,56 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                         </>
                     )}
                 </div>
+            )}
 
                 {/* PESSOAS */}
-                <div className="sidebar-category">
-                    <div className="sidebar-category-title">{isCollapsed ? '👥' : '👥 Pessoas'}</div>
+                {(hasPermission('peopleManagement') || hasPermission('continuousImprovement')) && (
+                    <div className="sidebar-category">
+                        <div className="sidebar-category-title">{isCollapsed ? '👥' : '👥 Pessoas'}</div>
 
-                    <button
-                        onClick={() => toggleMenu('people')}
-                        className={`sidebar-item ${['peopleManagement', 'continuousImprovement'].includes(page) ? 'active' : ''} justify-between group`}
-                        title={isCollapsed ? 'Pessoas' : ''}
-                    >
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <div className="sidebar-item-icon shrink-0">
-                                <UserGroupIcon className="w-full h-full" />
+                        <button
+                            onClick={() => toggleMenu('people')}
+                            className={`sidebar-item ${['peopleManagement', 'continuousImprovement'].includes(page) ? 'active' : ''} justify-between group`}
+                            title={isCollapsed ? 'Pessoas' : ''}
+                        >
+                            <div className="flex items-center gap-3 overflow-hidden">
+                                <div className="sidebar-item-icon shrink-0">
+                                    <UserGroupIcon className="w-full h-full" />
+                                </div>
+                                {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap">Gestão</span>}
                             </div>
-                            {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap">Gestão</span>}
-                        </div>
-                        {!isCollapsed && (
-                            <ChevronRightIcon className={`w-3 h-3 text-slate-500 transition-transform duration-200 ${expandedMenus.includes('people') ? 'rotate-90' : ''}`} />
-                        )}
-                    </button>
+                            {!isCollapsed && (
+                                <ChevronRightIcon className={`w-3 h-3 text-slate-500 transition-transform duration-200 ${expandedMenus.includes('people') ? 'rotate-90' : ''}`} />
+                            )}
+                        </button>
 
-                    {!isCollapsed && expandedMenus.includes('people') && (
-                        <div className="ml-4 pl-4 border-l border-slate-700/50 flex flex-col gap-0.5 mt-1 mb-2 animate-in slide-in-from-left-2 duration-200">
-                            {hasPermission('peopleManagement') && (
-                                <button onClick={() => setPage('peopleManagement')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'peopleManagement' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
-                                    👥 Gestão de Pessoas
-                                </button>
-                            )}
-                            {hasPermission('continuousImprovement') && (
-                                <button onClick={() => setPage('continuousImprovement')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'continuousImprovement' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
-                                    ✨ Melhoria Contínua
-                                </button>
-                            )}
-                        </div>
-                    )}
-                </div>
+                        {!isCollapsed && expandedMenus.includes('people') && (
+                            <div className="ml-4 pl-4 border-l border-slate-700/50 flex flex-col gap-0.5 mt-1 mb-2 animate-in slide-in-from-left-2 duration-200">
+                                {hasPermission('peopleManagement') && (
+                                    <button onClick={() => setPage('peopleManagement')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'peopleManagement' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                        👥 Gestão de Pessoas
+                                    </button>
+                                )}
+                                {hasPermission('continuousImprovement') && (
+                                    <button onClick={() => setPage('continuousImprovement')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'continuousImprovement' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                        ✨ Melhoria Contínua
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* GESTÃO */}
-                <div className="sidebar-category">
-                    <div className="sidebar-category-title">{isCollapsed ? '🧰' : '🧰 Gestão'}</div>
-                    <MenuItem target="reports" label="Relatórios" icon={ChartBarIcon} />
-                    <MenuItem target="documents" label="Documentos" icon={DocumentTextIcon} />
-                    <MenuItem target="workInstructions" label="Instruções" icon={DocumentTextIcon} />
-                    <MenuItem target="partsManager" label="Peças" icon={WrenchScrewdriverIcon} />
-                </div>
+                {(hasPermission('reports') || hasPermission('documents') || hasPermission('workInstructions') || hasPermission('partsManager')) && (
+                    <div className="sidebar-category">
+                        <div className="sidebar-category-title">{isCollapsed ? '🧰' : '🧰 Gestão'}</div>
+                        <MenuItem target="reports" label="Relatórios" icon={ChartBarIcon} />
+                        <MenuItem target="documents" label="Documentos" icon={DocumentTextIcon} />
+                        <MenuItem target="workInstructions" label="Instruções" icon={DocumentTextIcon} />
+                        <MenuItem target="partsManager" label="Peças" icon={WrenchScrewdriverIcon} />
+                    </div>
+                )}
 
                 {/* SISTEMA */}
                 {(hasPermission('userManagement') || hasPermission('partnerConfig') || hasPermission('downtimeConfigs') || hasPermission('gaugesManager') || hasPermission('labelConfig')) && (
