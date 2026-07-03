@@ -647,7 +647,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                             })()}
                                                         </td>
                                                     )}
-                                                    <td className="p-3">
+                                                    <td className="p-3 flex flex-col items-end">
                                                         <input 
                                                             type="number" 
                                                             step="0.01" 
@@ -669,6 +669,17 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                 }
                                                             }}
                                                         />
+                                                        {bitolasMode === 'METRO' && (bitolasMeters[g.id] || 0) > 0 && (
+                                                            <span className="text-[10px] text-slate-500 font-bold mt-1">
+                                                                {(() => {
+                                                                    const bitolaVal = parseFloat(g.gauge.replace(/[^\d.,]/g, '').replace(',', '.'));
+                                                                    if (isNaN(bitolaVal)) return '0 kg';
+                                                                    const massaMetro = Math.ceil(bitolaVal * bitolaVal * 0.006162 * 1000) / 1000;
+                                                                    const kg = (bitolasMeters[g.id] * massaMetro);
+                                                                    return `≈ ${kg.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} kg`;
+                                                                })()}
+                                                            </span>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))}
