@@ -366,6 +366,17 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
                                             {totalSummaryKg > 0 ? totalSummaryKg.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : ''} KG
                                         </td>
                                     </tr>
+                                    {order.paymentCondition && (
+                                        <tr>
+                                            <td colSpan={4} className="border-none"></td>
+                                            <td className="text-black font-bold text-center p-1.5 border-l border-b border-black bg-white" style={{fontSize: '9px', backgroundColor: 'white'}}>
+                                                PAGAMENTO
+                                            </td>
+                                            <td className="text-black font-bold text-center p-1.5 border-r border-b border-black bg-white uppercase">
+                                                {order.paymentCondition}
+                                            </td>
+                                        </tr>
+                                    )}
                                 </tfoot>
                             </table>
                         </div>
