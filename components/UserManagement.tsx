@@ -17,40 +17,52 @@ interface UserManagementProps {
 
 const permissionCategories = [
     {
-        title: '📝 Clientes',
+        title: '📝 Pedidos e Orçamento',
         permissions: [
             { page: 'customerRegistration', label: '✨ Novo Cadastro' },
             { page: 'customersManagement', label: '👥 Gestão de Clientes' },
-            { page: 'customerOrders', label: '📝 Lançar Pedidos' },
+            { page: 'customerOrders', label: '📝 Gestão de Vendas' },
             { page: 'productsCatalog', label: '📦 Produtos Cadastrados' },
+        ]
+    },
+    {
+        title: '⚙️ Produção',
+        permissions: [
+            { page: 'orderManagement', label: '⚙️ Gestão de Pedidos - Eng' },
+            { page: 'productionManagement', label: '🏭 Gestão de Produção' },
         ]
     },
     {
         title: '📦 Estoque',
         permissions: [
-            { page: 'stock', label: 'Gestão de Lotes (Relatórios e Filtros)' },
-            { page: 'stockAdd', label: 'Conferência: Adicionar Material' },
-            { page: 'stockTransfer', label: 'Transferência entre Setores' },
+            { page: 'stockAdd', label: '+ Conferência' },
+            { page: 'stockTransfer', label: '➡️ Transferência' },
+            { page: 'stock', label: '⚙️ Gestão de Lotes' },
         ]
     },
     {
-        title: '🧪 Qualidade e Suporte',
+        title: '👥 Pessoas',
         permissions: [
-            { page: 'reports', label: '📈 Relatórios e KPIs Estratégicos' },
-            { page: 'continuousImprovement', label: '💡 Melhoria Contínua (Kaizen)' },
-            { page: 'workInstructions', label: '📖 Instruções de Trabalho (POP)' },
+            { page: 'peopleManagement', label: '👥 Gestão de Pessoas' },
+            { page: 'continuousImprovement', label: '✨ Melhoria Contínua' },
         ]
     },
     {
-        title: '👥 Gestão & RH',
+        title: '🧰 Gestão',
         permissions: [
-            { page: 'peopleManagement', label: 'Gestão de Pessoas' },
-            { page: 'meetingsTasks', label: 'Reuniões e Tarefas (Atas)' },
-            { page: 'userManagement', label: 'Controle de Usuários e Acessos' },
-            { page: 'partnerConfig', label: 'Configuração de Parceiros' },
-            { page: 'partsManager', label: 'Catálogo de Peças (Global)' },
-            { page: 'gaugesManager', label: 'Configurações de Bitolas' },
-            { page: 'labelConfig', label: 'Configuração de Etiqueta' },
+            { page: 'reports', label: '📈 Relatórios' },
+            { page: 'documents', label: '📄 Documentos' },
+            { page: 'workInstructions', label: '📖 Instruções' },
+            { page: 'partsManager', label: '🔧 Peças' },
+        ]
+    },
+    {
+        title: '⚙️ Sistema',
+        permissions: [
+            { page: 'userManagement', label: '👥 Usuários' },
+            { page: 'partnerConfig', label: '🤝 Configuração de Parceiros' },
+            { page: 'gaugesManager', label: '⚙️ Configuração de Materiais' },
+            { page: 'labelConfig', label: '🏷️ Configuração de Etiqueta' },
         ]
     }
 ];
