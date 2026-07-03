@@ -21,6 +21,8 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     const [gauges, setGauges] = useState<StockGauge[]>([]);
     const [isBitolasModalOpen, setIsBitolasModalOpen] = useState(false);
     const [bitolasQuantities, setBitolasQuantities] = useState<Record<string, number>>({});
+    const [bitolasMode, setBitolasMode] = useState<'KG' | 'METRO'>('KG');
+    const [bitolasMeters, setBitolasMeters] = useState<Record<string, number>>({});
 
     // Form state for new item
     const [newItem, setNewItem] = useState<Partial<CommercialOrderItem>>({
@@ -210,8 +212,28 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     const handleConfirmBitolas = () => {
         let totalKg = 0;
         let totalRs = 0;
+        let finalQuantities = { ...bitolasQuantities };
+
+        if (bitolasMode === 'METRO') {
+            finalQuantities = {};
+            Object.entries(bitolasMeters).forEach(([bitolaId, mValue]) => {
+                const meters = mValue as number;
+                if (meters > 0) {
+                    const gauge = gauges.find(g => g.id === bitolaId);
+                    if (gauge && gauge.gauge) {
+                        const bitolaVal = parseFloat(gauge.gauge.replace(/[^\d.,]/g, '').replace(',', '.'));
+                        if (!isNaN(bitolaVal)) {
+                            // Arredondando para cima 3 casas decimais
+                            const massaMetro = Math.ceil(bitolaVal * bitolaVal * 0.006162 * 1000) / 1000;
+                            finalQuantities[bitolaId] = meters * massaMetro;
+                        }
+                    }
+                }
+            });
+            setBitolasQuantities(finalQuantities);
+        }
         
-        Object.entries(bitolasQuantities).forEach(([bitolaId, kgValue]) => {
+        Object.entries(finalQuantities).forEach(([bitolaId, kgValue]) => {
             const kg = kgValue as number;
             if (kg > 0) {
                 const gauge = gauges.find(g => g.id === bitolaId);
@@ -555,11 +577,27 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
             {/* Bitolas Calculator Modal */}
             {isBitolasModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[200] p-4 animate-in fade-in">
-                    <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col overflow-hidden border-2 border-indigo-500">
+                    <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col overflow-hidden border-2 border-indigo-500">
                         <div className="bg-indigo-600 p-4 flex justify-between items-center shrink-0">
-                            <h3 className="text-lg font-black text-white flex items-center gap-2">
-                                <span>⚖️</span> Inserir Bitolas e Quantidades (POR KG)
-                            </h3>
+                            <div className="flex items-center gap-6">
+                                <h3 className="text-lg font-black text-white flex items-center gap-2">
+                                    <span>⚖️</span> Inserir Bitolas e Quantidades
+                                </h3>
+                                <div className="flex bg-indigo-800/50 rounded-lg p-1 text-sm font-bold shadow-inner">
+                                    <button 
+                                        onClick={() => setBitolasMode('KG')}
+                                        className={`px-4 py-1.5 rounded-md transition-all ${bitolasMode === 'KG' ? 'bg-white text-indigo-700 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
+                                    >
+                                        POR KG
+                                    </button>
+                                    <button 
+                                        onClick={() => setBitolasMode('METRO')}
+                                        className={`px-4 py-1.5 rounded-md transition-all ${bitolasMode === 'METRO' ? 'bg-white text-indigo-700 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
+                                    >
+                                        POR METRO
+                                    </button>
+                                </div>
+                            </div>
                             <button onClick={() => setIsBitolasModalOpen(false)} className="text-indigo-200 hover:text-white transition-colors">
                                 ✕ Fechar
                             </button>
@@ -576,7 +614,10 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                 <th className="p-3 font-bold">Material / Dimensão</th>
                                                 <th className="p-3 font-bold text-center">Peso Unit.</th>
                                                 <th className="p-3 font-bold text-right">R$ / Kg</th>
-                                                <th className="p-3 font-bold text-right w-32">Quantidade (Kg)</th>
+                                                {bitolasMode === 'METRO' && (
+                                                    <th className="p-3 font-bold text-right w-24">Massa/m</th>
+                                                )}
+                                                <th className="p-3 font-bold text-right w-32">Quantidade ({bitolasMode === 'KG' ? 'Kg' : 'Metros'})</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -596,19 +637,36 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                             return `R$ ${pricePerKg.toFixed(2)}`;
                                                         })()}
                                                     </td>
+                                                    {bitolasMode === 'METRO' && (
+                                                        <td className="p-3 text-sm font-bold text-slate-500 text-right">
+                                                            {(() => {
+                                                                const bitolaVal = parseFloat(g.gauge.replace(/[^\d.,]/g, '').replace(',', '.'));
+                                                                if (isNaN(bitolaVal)) return '-';
+                                                                const massaMetro = Math.ceil(bitolaVal * bitolaVal * 0.006162 * 1000) / 1000;
+                                                                return `${massaMetro.toFixed(3).replace('.', ',')} kg/m`;
+                                                            })()}
+                                                        </td>
+                                                    )}
                                                     <td className="p-3">
                                                         <input 
                                                             type="number" 
                                                             step="0.01" 
                                                             className="w-full border border-slate-300 rounded p-1 text-right text-sm font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                                             placeholder="0.00"
-                                                            value={bitolasQuantities[g.id] || ''}
+                                                            value={bitolasMode === 'KG' ? (bitolasQuantities[g.id] || '') : (bitolasMeters[g.id] || '')}
                                                             onChange={e => {
                                                                 const val = parseFloat(e.target.value);
-                                                                setBitolasQuantities(prev => ({
-                                                                    ...prev,
-                                                                    [g.id]: isNaN(val) ? 0 : val
-                                                                }));
+                                                                if (bitolasMode === 'KG') {
+                                                                    setBitolasQuantities(prev => ({
+                                                                        ...prev,
+                                                                        [g.id]: isNaN(val) ? 0 : val
+                                                                    }));
+                                                                } else {
+                                                                    setBitolasMeters(prev => ({
+                                                                        ...prev,
+                                                                        [g.id]: isNaN(val) ? 0 : val
+                                                                    }));
+                                                                }
                                                             }}
                                                         />
                                                     </td>
@@ -622,7 +680,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
 
                         <div className="bg-white p-4 border-t border-slate-200 flex justify-between items-center shrink-0">
                             <div className="text-sm font-bold text-slate-500">
-                                Preencha os Kg de cada bitola que irá usar.
+                                {bitolasMode === 'KG' ? 'Preencha os Kg de cada bitola que irá usar.' : 'Preencha a metragem total (metros) de cada bitola.'}
                             </div>
                             <div className="flex gap-3">
                                 <button onClick={() => setIsBitolasModalOpen(false)} className="px-4 py-2 rounded-lg font-bold text-slate-600 hover:bg-slate-100 transition-colors">
