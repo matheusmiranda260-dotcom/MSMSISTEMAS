@@ -97,7 +97,7 @@ const LabelConfiguration: React.FC<LabelConfigurationProps> = ({ gauges = [], sh
             setMaterial(selected.materialType || '');
             setBitola(selected.bitolaNominal || selected.gauge || '');
             
-            const factor = selected.weightPerMeter ? `${selected.weightPerMeter.toString().replace('.', ',')} kg/m` : '';
+            const factor = selected.weightPerMeter ? `${selected.weightPerMeter.toLocaleString('pt-BR', { maximumFractionDigits: 4 })} kg/m` : '';
             setConversionFactor(factor);
             
             setSpecification(selected.technicalDescription || '');
@@ -572,7 +572,7 @@ const LabelConfiguration: React.FC<LabelConfigurationProps> = ({ gauges = [], sh
                                 </tr>
                                 <tr className="border-b border-slate-200">
                                     <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Fator Conversão</td>
-                                    <td className="py-1.5 text-xs font-black text-slate-900 font-mono">{conversionFactor || 'N/A'}</td>
+                                    <td className="py-1.5 text-xs font-black text-slate-900 font-mono truncate max-w-[150px] overflow-hidden" title={conversionFactor || 'N/A'}>{conversionFactor || 'N/A'}</td>
                                 </tr>
                                 <tr className="border-b border-slate-200">
                                     <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Especificação</td>
