@@ -430,16 +430,20 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                             </div>
                             <div className="col-span-12 md:col-span-4">
                                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tipo</label>
-                                <select 
+                                <input 
+                                    list="tipo-options"
                                     className="w-full border border-slate-200 rounded-lg p-2.5 text-xs font-bold uppercase focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                    value={newItem.tipo} onChange={e => setNewItem({...newItem, tipo: e.target.value})}
-                                >
-                                    <option value="CORTE / DOBRA">CORTE / DOBRA</option>
-                                    <option value="CA50">CA50</option>
-                                    <option value="CA60">CA60</option>
-                                    <option value="MALHA">MALHA</option>
-                                    <option value="ARMADO">ARMADO</option>
-                                </select>
+                                    value={newItem.tipo} 
+                                    onChange={e => setNewItem({...newItem, tipo: e.target.value})}
+                                    placeholder="SELECIONE OU DIGITE..."
+                                />
+                                <datalist id="tipo-options">
+                                    <option value="CORTE / DOBRA" />
+                                    <option value="CA50" />
+                                    <option value="CA60" />
+                                    <option value="MALHA" />
+                                    <option value="ARMADO" />
+                                </datalist>
                             </div>
                             <div className="col-span-12 md:col-span-6 flex gap-3">
                                 <div className="flex-1">
