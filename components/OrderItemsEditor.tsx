@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { CommercialOrder, CommercialOrderItem, StockGauge, User } from '../types';
+import type { CommercialOrder, CommercialOrderItem, StockGauge, User, Customer } from '../types';
 import { insertItem, updateItem, deleteItem, fetchItems, fetchTable } from '../services/supabaseService';
 
 interface OrderItemsEditorProps {
@@ -12,6 +12,13 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     const [items, setItems] = useState<CommercialOrderItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [projectIdent, setProjectIdent] = useState(order.projectIdent || '');
+    const [clientCode, setClientCode] = useState(order.clientCode || '1001');
+    const [clientName, setClientName] = useState(order.clientName || '');
+    const [clientCity, setClientCity] = useState(order.clientCity || '');
+    const [isSearchingClient, setIsSearchingClient] = useState(false);
+    const [clientSearchTerm, setClientSearchTerm] = useState('');
+    const [clientSearchResult, setClientSearchResult] = useState<Customer | null>(null);
+    const [searchClientError, setSearchClientError] = useState('');
     const [deliveryTime, setDeliveryTime] = useState(order.deliveryTime || '');
     const [paymentCondition, setPaymentCondition] = useState(order.paymentCondition || '');
     const [freight, setFreight] = useState(order.freight || '');
@@ -42,6 +49,65 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         peso: 0,
         valor: 0
     });
+
+    const handleSearchClient = async () => {
+        setSearchClientError('');
+        setClientSearchResult(null);
+        if (!clientSearchTerm.trim()) {
+            setSearchClientError('Digite algo para buscar.');
+            return;
+        }
+
+        const term = clientSearchTerm.toLowerCase().trim();
+        
+        if (term === '1001' || term === 'consumidor balcao' || term === 'consumidor balcão') {
+            setClientSearchResult({
+                id: '1001',
+                code: '1001',
+                name: 'CONSUMIDOR BALCAO',
+                customerType: 'Pessoa Física',
+                document1: '000.000.000-00',
+                document2: '',
+                phone: '',
+                email: '',
+                addressMain: '',
+                addressDelivery: '',
+                addressBilling: '',
+                createdAt: new Date().toISOString()
+            });
+            return;
+        }
+
+        try {
+            const customers = await fetchTable<Customer>('customers');
+            const found = customers.find(c => 
+                (c.code && c.code.toLowerCase() === term) ||
+                (c.name && c.name.toLowerCase().includes(term)) ||
+                (c.document1 && c.document1.replace(/\D/g, '') === term.replace(/\D/g, '')) ||
+                (c.document2 && c.document2.toLowerCase().includes(term))
+            );
+
+            if (found) {
+                setClientSearchResult(found);
+            } else {
+                setSearchClientError('Cliente não encontrado.');
+            }
+        } catch (error) {
+            console.error('Error fetching customers:', error);
+            setSearchClientError('Erro ao buscar cliente.');
+        }
+    };
+
+    const handleConfirmClientChange = () => {
+        if (clientSearchResult) {
+            setClientCode(clientSearchResult.code || '1001');
+            setClientName(clientSearchResult.name || '');
+            setClientCity(clientSearchResult.addressMain || '');
+            setIsSearchingClient(false);
+            setClientSearchResult(null);
+            setClientSearchTerm('');
+        }
+    };
 
     const loadItems = async () => {
         if (!order.id) return;
@@ -225,6 +291,9 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
 
             await updateItem('commercial_orders', order.id, {
                 projectIdent: projectIdent,
+                clientCode: clientCode,
+                clientName: clientName,
+                clientCity: clientCity,
                 delivery_time: deliveryTime,
                 paymentCondition: paymentCondition,
                 freight: freight,
@@ -328,12 +397,43 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                             <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center shrink-0">
                                 👤
                             </div>
-                            <div className="flex-1">
-                                <div className="font-bold text-slate-400 text-[10px] uppercase tracking-widest mb-1">Cliente</div>
-                                <div className="font-black text-slate-800 text-sm mb-3">({order.clientCode}) {order.clientName}</div>
-                                <div className="font-bold text-slate-400 text-[10px] uppercase tracking-widest mb-1">Endereço</div>
-                                <div className="font-bold text-slate-600 text-xs">{order.clientCity || 'N/A'}</div>
-                            </div>
+                            {isSearchingClient ? (
+                                <div className="flex-1 w-full relative z-10">
+                                    <div className="font-bold text-slate-400 text-[10px] uppercase tracking-widest mb-1">Buscar Cliente</div>
+                                    <div className="flex gap-2 mb-2">
+                                        <input 
+                                            type="text" 
+                                            className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold w-full uppercase bg-slate-50 focus:bg-white focus:border-blue-500 focus:outline-none"
+                                            value={clientSearchTerm}
+                                            onChange={e => setClientSearchTerm(e.target.value)}
+                                            onKeyDown={e => e.key === 'Enter' && handleSearchClient()}
+                                            placeholder="CÓDIGO, NOME, CPF/CNPJ..."
+                                        />
+                                        <button onClick={handleSearchClient} className="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Buscar</button>
+                                        <button onClick={() => { setIsSearchingClient(false); setClientSearchResult(null); setSearchClientError(''); }} className="text-slate-500 hover:text-red-500 px-2 py-1.5 text-xs font-bold">Cancelar</button>
+                                    </div>
+                                    {searchClientError && <div className="text-red-500 text-[10px] font-bold mb-2">{searchClientError}</div>}
+                                    {clientSearchResult && (
+                                        <div className="bg-emerald-50 border border-emerald-200 p-2.5 rounded-lg mb-2 shadow-sm animate-in fade-in">
+                                            <div className="text-xs font-bold text-emerald-800">({clientSearchResult.code}) {clientSearchResult.name}</div>
+                                            <div className="text-[10px] font-semibold text-emerald-600 mt-0.5">{clientSearchResult.addressMain || 'Sem endereço cadastrado'}</div>
+                                            <button onClick={handleConfirmClientChange} className="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-1.5 rounded transition-colors shadow-sm">Confirmar Troca</button>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <div className="font-bold text-slate-400 text-[10px] uppercase tracking-widest">Cliente</div>
+                                        <button onClick={() => setIsSearchingClient(true)} className="text-blue-500 hover:text-blue-700 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-colors bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded border border-blue-200">
+                                            <span>🔄</span> Trocar Cliente
+                                        </button>
+                                    </div>
+                                    <div className="font-black text-slate-800 text-sm mb-3">({clientCode}) {clientName}</div>
+                                    <div className="font-bold text-slate-400 text-[10px] uppercase tracking-widest mb-1">Endereço</div>
+                                    <div className="font-bold text-slate-600 text-xs">{clientCity || 'N/A'}</div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-start gap-4">
