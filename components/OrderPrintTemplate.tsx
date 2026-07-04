@@ -8,6 +8,7 @@ export interface OrderPrintTemplateProps {
     customer: Customer | null;
     seller: User | null;
     activeBrandingPartner?: Partner | null;
+    previewCodigo?: string;
 }
 
 export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateProps>(({
@@ -16,7 +17,8 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
     gauges,
     customer,
     seller,
-    activeBrandingPartner
+    activeBrandingPartner,
+    previewCodigo
 }, ref) => {
     // Calculate aggregated bitolas
     const bitolasSummary: Record<string, { kg: number }> = {};
@@ -158,8 +160,8 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
                         <thead>
                             <tr className="text-black font-bold text-[10px]">
                                 <th className="border border-black p-1 w-[8%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>ITEM</th>
-                                <th className="border border-black p-1 w-[12%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>FOLHA</th>
-                                <th className="border border-black p-1 text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>ETAPA / DESCRIÇÃO</th>
+                                <th className="border border-black p-1 w-[12%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>{(items.length > 0 ? items[0].codigo : previewCodigo) === 'DETALHADO' ? 'QTD PEÇAS' : 'FOLHA'}</th>
+                                <th className="border border-black p-1 text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>{(items.length > 0 ? items[0].codigo : previewCodigo) === 'DETALHADO' ? 'DESCRIÇÃO' : 'ETAPA / DESCRIÇÃO'}</th>
                                 <th className="border border-black p-1 w-[18%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>TIPO</th>
                                 <th className="border border-black p-1 w-[12%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>QTD (KG)</th>
                                 <th className="border border-black p-1 w-[18%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>PREÇO TOTAL</th>

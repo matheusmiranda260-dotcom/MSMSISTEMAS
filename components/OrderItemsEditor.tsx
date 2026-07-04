@@ -33,19 +33,118 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     const [gauges, setGauges] = useState<StockGauge[]>([]);
     const [isBitolasModalOpen, setIsBitolasModalOpen] = useState(false);
     const [bitolasQuantities, setBitolasQuantities] = useState<Record<string, number>>({});
-    const [bitolasMode, setBitolasMode] = useState<'KG' | 'METRO'>('KG');
     const [bitolasMeters, setBitolasMeters] = useState<Record<string, number>>({});
+    const [pieceQty, setPieceQty] = useState('');
+    const [pieceName, setPieceName] = useState('broca');
+    const [pieceStirrupFormat, setPieceStirrupFormat] = useState('');
+    const [stirrupA, setStirrupA] = useState('');
+    const [stirrupB, setStirrupB] = useState('');
+    const [stirrupSpacing, setStirrupSpacing] = useState('');
+    const [stirrupQty, setStirrupQty] = useState('');
+    const [stirrupGaugeId, setStirrupGaugeId] = useState('');
+    const [pieceDetails, setPieceDetails] = useState<Array<{ id: string, irons: string, position: string, format?: string, sideA?: string, sideB?: string, sideC?: string, size: string, gaugeId: string }>>([
+        { id: '1', irons: '', position: 'principal', format: 'reto', sideA: '', sideB: '', sideC: '', size: '', gaugeId: '' }
+    ]);
+    const [pieceGaugeId, setPieceGaugeId] = useState('');
+    const [piecesList, setPiecesList] = useState<Array<{
+        id: string, 
+        qty: number, 
+        name: string, 
+        stirrupFormat?: string,
+        stirrupA?: number,
+        stirrupB?: number,
+        stirrupQty?: number,
+        stirrupSpacing?: string,
+        stirrupGaugeId?: string,
+        stirrupSize?: number,
+        gaugeId?: string, 
+        kg?: number,
+        details?: Array<{irons: number, size: number, position: string, gaugeId: string, kg: number, format?: string, sideA?: number, sideB?: number, sideC?: number}>
+    }>>([]);
     const [customPrices, setCustomPrices] = useState<Record<string, number>>({});
-    
+    const [bitolasMode, setBitolasMode] = useState<'KG' | 'METRO' | 'PECA'>('KG');
     // Auth Modal para Gestor
     const [authModal, setAuthModal] = useState<{ isOpen: boolean; gaugeId: string | null }>({ isOpen: false, gaugeId: null });
     const [authPassword, setAuthPassword] = useState('');
     const [authError, setAuthError] = useState('');
     const [tempPrice, setTempPrice] = useState('');
 
+    const parsedQty = parseInt(pieceQty) || 0;
+    
+    let metrosUsados = 0;
+    let currentPieceKg = 0;
+    let currentPieceBreakdown: Array<{ gaugeId: string; gaugeName: string; type: string; metros: number; kg: number; price: number }> = [];
+
+    let calculatedStirrupSize = 0;
+    const sA = parseFloat(stirrupA) || 0;
+    const sB = parseFloat(stirrupB) || 0;
+    if (pieceStirrupFormat === 'quadrado') calculatedStirrupSize = sA * 4 + 10;
+    if (pieceStirrupFormat === 'retangular') calculatedStirrupSize = sA * 2 + sB * 2 + 10;
+    if (pieceStirrupFormat === 'triangular') calculatedStirrupSize = sA + sB * 2 + 10;
+    if (pieceStirrupFormat === 'redondo') calculatedStirrupSize = Math.round(sA * 3.14) + 10;
+    if (pieceStirrupFormat === 'sextavado') calculatedStirrupSize = sA * 6 + 10;
+
+    if (['broca', 'viga', 'pilares'].includes((pieceName || '').toLowerCase())) {
+        pieceDetails.forEach(detail => {
+            const parsedIrons = parseInt(detail.irons) || 0;
+            const parsedSize = parseInt(detail.size) || 0;
+            const metros = (parsedQty * parsedIrons * parsedSize) / 100;
+            metrosUsados += metros;
+            
+            if (detail.gaugeId && metros > 0) {
+                const gauge = gauges.find(g => g.id === detail.gaugeId);
+                if (gauge && gauge.gauge) {
+                    const bitolaVal = parseFloat(String(gauge.gauge || '').replace(/[^\d.,]/g, '').replace(',', '.'));
+                    if (!isNaN(bitolaVal)) {
+                        const massaMetro = Math.ceil(bitolaVal * bitolaVal * 0.006162 * 1000) / 1000;
+                        const kg = metros * massaMetro;
+                        currentPieceKg += kg;
+                        const finalPrice = customPrices[gauge.id] || gauge.basePrice || 0;
+                        currentPieceBreakdown.push({
+                            gaugeId: gauge.id,
+                            gaugeName: `${gauge.commercialName || gauge.materialType} ${gauge.gauge}`,
+                            type: `FERROS (${detail.position})`,
+                            metros: metros,
+                            kg: kg,
+                            price: kg * finalPrice
+                        });
+                    }
+                }
+            }
+        });
+
+        if (pieceStirrupFormat && stirrupGaugeId && stirrupQty && calculatedStirrupSize > 0) {
+            const parsedSQty = parseInt(stirrupQty) || 0;
+            const sMetros = (parsedQty * parsedSQty * calculatedStirrupSize) / 100;
+            metrosUsados += sMetros;
+            
+            const gauge = gauges.find(g => g.id === stirrupGaugeId);
+            if (gauge && gauge.gauge) {
+                const bitolaVal = parseFloat(String(gauge.gauge || '').replace(/[^\d.,]/g, '').replace(',', '.'));
+                if (!isNaN(bitolaVal)) {
+                    const massaMetro = Math.ceil(bitolaVal * bitolaVal * 0.006162 * 1000) / 1000;
+                    const kg = sMetros * massaMetro;
+                    currentPieceKg += kg;
+                    const finalPrice = customPrices[gauge.id] || gauge.basePrice || 0;
+                    currentPieceBreakdown.push({
+                        gaugeId: gauge.id,
+                        gaugeName: `${gauge.commercialName || gauge.materialType} ${gauge.gauge}`,
+                        type: `ESTRIBOS (${pieceStirrupFormat})`,
+                        metros: sMetros,
+                        kg: kg,
+                        price: kg * finalPrice
+                    });
+                }
+            }
+        }
+    } else if (pieceGaugeId) {
+        // Fallback for simple piece types like blocos
+        const gauge = gauges.find(g => g.id === pieceGaugeId);
+    }
+
     // Form state for new item
     const [newItem, setNewItem] = useState<Partial<CommercialOrderItem>>({
-        codigo: 'RESUMO',
+        codigo: '',
         folha: '',
         descricao: '',
         tipo: 'CORTE / DOBRA',
@@ -177,7 +276,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
             
             // Reset form
             setNewItem({
-                codigo: 'RESUMO',
+                codigo: '',
                 folha: '',
                 descricao: '',
                 tipo: 'CORTE / DOBRA',
@@ -185,6 +284,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                 valor: 0
             });
             setBitolasQuantities({});
+            setPiecesList([]);
             setCustomPrices({});
             await loadItems();
         } catch (error) {
@@ -207,8 +307,11 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         
         if (item.bitolas_details) {
             setBitolasQuantities(item.bitolas_details);
+            // Ignore loading PECA state since it is now converted to description text
+            setPiecesList([]);
         } else {
             setBitolasQuantities({});
+            setPiecesList([]);
         }
 
         if (item.custom_prices) {
@@ -239,6 +342,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     items.forEach(item => {
         if (item.bitolas_details) {
             Object.entries(item.bitolas_details).forEach(([bitolaId, kg]) => {
+                if (bitolaId.startsWith('PECA_')) return;
                 const kgNum = Number(kg) || 0;
                 if (kgNum > 0) {
                     if (!bitolasSummary[bitolaId]) {
@@ -339,6 +443,162 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         let totalRs = 0;
         let finalQuantities = { ...bitolasQuantities };
 
+        if (bitolasMode === 'PECA') {
+            let effectivePieces = [...piecesList];
+            
+            if (pieceQty && parseInt(pieceQty) > 0) {
+                const isComplex = ['broca', 'viga', 'pilares'].includes((pieceName || '').toLowerCase());
+                effectivePieces.push({
+                    id: Date.now().toString(),
+                    qty: parseInt(pieceQty),
+                    name: pieceName,
+                    stirrupFormat: isComplex && pieceStirrupFormat ? pieceStirrupFormat : undefined,
+                    stirrupA: sA > 0 ? sA : undefined,
+                    stirrupB: sB > 0 ? sB : undefined,
+                    stirrupQty: parseInt(stirrupQty) || undefined,
+                    stirrupSpacing: stirrupSpacing || undefined,
+                    stirrupGaugeId: stirrupGaugeId || undefined,
+                    stirrupSize: calculatedStirrupSize > 0 ? calculatedStirrupSize : undefined,
+                    gaugeId: !isComplex ? (pieceGaugeId || undefined) : undefined,
+                    kg: currentPieceKg > 0 ? currentPieceKg : undefined,
+                    details: isComplex ? pieceDetails.map(d => ({
+                        irons: parseInt(d.irons) || 0,
+                        size: parseInt(d.size) || 0,
+                        position: d.position,
+                        format: d.format || 'reto',
+                        sideA: parseFloat(d.sideA || '0') || undefined,
+                        sideB: parseFloat(d.sideB || '0') || undefined,
+                        sideC: parseFloat(d.sideC || '0') || undefined,
+                        gaugeId: d.gaugeId,
+                        kg: 0
+                    })).filter(d => d.irons > 0 && d.size > 0) : undefined
+                });
+                setPiecesList(effectivePieces);
+                setPieceQty('');
+                setPieceStirrupFormat('');
+                setStirrupSpacing('');
+                setStirrupA('');
+                setStirrupB('');
+                setStirrupQty('');
+                setStirrupGaugeId('');
+                setPieceGaugeId('');
+                setPieceDetails([{ id: Date.now().toString(), irons: '', position: 'principal', size: '', gaugeId: '' }]);
+            }
+
+            finalQuantities = {};
+            effectivePieces.forEach(p => {
+                if (['broca', 'viga', 'pilares'].includes((p.name || '').toLowerCase()) && p.details && p.details.length > 0) {
+                    p.details.forEach(d => {
+                        const gauge = gauges.find(g => g.id === d.gaugeId);
+                        if (gauge && gauge.gauge) {
+                            const dMetros = (p.qty * d.irons * d.size) / 100;
+                            const bitolaVal = parseFloat(String(gauge.gauge || '').replace(/[^\d.,]/g, '').replace(',', '.'));
+                            if (!isNaN(bitolaVal)) {
+                                const massaMetro = Math.ceil(bitolaVal * bitolaVal * 0.006162 * 1000) / 1000;
+                                const kg = dMetros * massaMetro;
+                                finalQuantities[gauge.id] = (finalQuantities[gauge.id] || 0) + kg;
+                            }
+                        }
+                    });
+                    
+                    if (p.stirrupFormat && p.stirrupGaugeId && p.stirrupQty && p.stirrupSize && p.stirrupSize > 0) {
+                        const gauge = gauges.find(g => g.id === p.stirrupGaugeId);
+                        if (gauge && gauge.gauge) {
+                            const sMetros = (p.qty * p.stirrupQty * p.stirrupSize) / 100;
+                            const bitolaVal = parseFloat(String(gauge.gauge || '').replace(/[^\d.,]/g, '').replace(',', '.'));
+                            if (!isNaN(bitolaVal)) {
+                                const massaMetro = Math.ceil(bitolaVal * bitolaVal * 0.006162 * 1000) / 1000;
+                                const kg = sMetros * massaMetro;
+                                finalQuantities[gauge.id] = (finalQuantities[gauge.id] || 0) + kg;
+                            }
+                        }
+                    }
+                } else if (p.gaugeId && p.kg) {
+                    finalQuantities[p.gaugeId] = (finalQuantities[p.gaugeId] || 0) + p.kg;
+                }
+            });
+            setBitolasQuantities(finalQuantities);
+
+            if (effectivePieces.length > 0) {
+                const piecesText = effectivePieces.map(p => {
+                    let parts = [];
+                    let nameAndFormat = p.name || '';
+                    if (p.stirrupFormat) {
+                        let format = p.stirrupFormat;
+                        if (nameAndFormat.toLowerCase() === 'broca' && format === 'quadrado') format = 'quadrada';
+                        if (nameAndFormat.toLowerCase() === 'broca' && format === 'retangular') format = 'retangular';
+                        if (nameAndFormat.toLowerCase() === 'broca' && format === 'redondo') format = 'redonda';
+                        if (nameAndFormat.toLowerCase() === 'broca' && format === 'sextavado') format = 'sextavada';
+                        nameAndFormat += ` ${format}`;
+                    }
+                    parts.push(nameAndFormat.toLowerCase());
+                    
+                    if (['broca', 'viga', 'pilares'].includes((p.name || '').toLowerCase()) && p.details && p.details.length > 0) {
+                        const ironsArr = p.details.map(d => {
+                            let gaugeName = '';
+                            if (d.gaugeId) {
+                                const gauge = gauges.find(g => g.id === d.gaugeId);
+                                if (gauge) {
+                                    const num = parseFloat((gauge.gauge || '').replace(',', '.').replace(/[^\d.]/g, ''));
+                                    if (!isNaN(num)) {
+                                        gaugeName = `${num}mm`;
+                                    }
+                                }
+                            }
+                            return `${d.irons}∅ ${gaugeName} ${d.size}`.trim();
+                        });
+                        parts.push(ironsArr.join(', '));
+                    }
+                    
+                    if (p.stirrupFormat && p.stirrupGaugeId) {
+                        let gaugeName = '';
+                        const gauge = gauges.find(g => g.id === p.stirrupGaugeId);
+                        if (gauge) {
+                            const num = parseFloat((gauge.gauge || '').replace(',', '.').replace(/[^\d.]/g, ''));
+                            if (!isNaN(num)) {
+                                gaugeName = num.toLocaleString('pt-BR');
+                            }
+                        }
+                        
+                        let spacingMeters = p.stirrupSpacing;
+                        if (p.stirrupSpacing) {
+                            const spacingNum = parseFloat(p.stirrupSpacing.replace(',', '.'));
+                            if (!isNaN(spacingNum)) {
+                                spacingMeters = (spacingNum / 100).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            }
+                        }
+                        
+                        let spacingText = p.stirrupSpacing ? `c/${spacingMeters}` : (p.stirrupQty ? `${p.stirrupQty}un` : '');
+                        parts.push(`est.∅ ${gaugeName} ${spacingText}`.trim());
+                    }
+                    
+                    return parts.join(', ');
+                }).join(' + ');
+
+                const totalQty = effectivePieces.reduce((acc, p) => acc + p.qty, 0);
+
+                setNewItem(prev => {
+                    if (prev.codigo === 'DETALHADO') {
+                        return {
+                            ...prev,
+                            folha: totalQty.toString(),
+                            descricao: piecesText
+                        };
+                    } else {
+                        let newDesc = prev.descricao || '';
+                        if (newDesc.includes(' --- PEÇAS: ')) {
+                            newDesc = newDesc.split(' --- PEÇAS: ')[0];
+                        }
+                        return {
+                            ...prev,
+                            descricao: `${newDesc} --- PEÇAS: ${piecesText}`
+                        };
+                    }
+                });
+            }
+            // Do NOT return here, let it fall through to calculate totalKg and totalRs from finalQuantities
+        }
+
         if (bitolasMode === 'METRO') {
             finalQuantities = {};
             Object.entries(bitolasMeters).forEach(([bitolaId, mValue]) => {
@@ -346,7 +606,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                 if (meters > 0) {
                     const gauge = gauges.find(g => g.id === bitolaId);
                     if (gauge && gauge.gauge) {
-                        const bitolaVal = parseFloat(gauge.gauge.replace(/[^\d.,]/g, '').replace(',', '.'));
+                        const bitolaVal = parseFloat(String(gauge.gauge || '').replace(/[^\d.,]/g, '').replace(',', '.'));
                         if (!isNaN(bitolaVal)) {
                             // Arredondando para cima 3 casas decimais
                             const massaMetro = Math.ceil(bitolaVal * bitolaVal * 0.006162 * 1000) / 1000;
@@ -373,11 +633,11 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
             }
         });
         
-        setNewItem({
-            ...newItem,
+        setNewItem(prev => ({
+            ...prev,
             peso: totalKg,
             valor: totalRs
-        });
+        }));
         setIsBitolasModalOpen(false);
         // Do NOT reset bitolasQuantities here, because they are bound to the current form item.
         // It will be reset when the item is saved or canceled.
@@ -526,7 +786,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                     type="button" 
                                     onClick={() => {
                                         setEditingItemId(null);
-                                        setNewItem({ codigo: 'RESUMO', folha: '', descricao: '', tipo: 'CORTE / DOBRA', peso: 0, valor: 0 });
+                                        setNewItem({ codigo: '', folha: '', descricao: '', tipo: 'CORTE / DOBRA', peso: 0, valor: 0 });
                                         setBitolasQuantities({});
                                     }}
                                     className="text-[10px] font-bold text-slate-500 hover:text-slate-800 uppercase"
@@ -541,18 +801,23 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                 <select 
                                     className="w-full border border-slate-200 rounded-lg p-2.5 text-xs font-bold uppercase focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                     value={newItem.codigo} onChange={e => setNewItem({...newItem, codigo: e.target.value})}
+                                    required
                                 >
-                                    <option value="RESUMO">RESUMO</option>
-                                    <option value="ETAPA">ETAPA</option>
-                                    <option value="EXTRA">EXTRA</option>
+                                    <option value="" disabled>SELECIONE...</option>
+                                    {(!items.length || items[0].codigo === 'RESUMO' || items[0].codigo !== 'DETALHADO') && (
+                                        <option value="RESUMO">RESUMO</option>
+                                    )}
+                                    {(!items.length || items[0].codigo === 'DETALHADO') && (
+                                        <option value="DETALHADO">DETALHADO</option>
+                                    )}
                                 </select>
                             </div>
                             <div className="col-span-12 md:col-span-2">
-                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Folha</label>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{newItem.codigo === 'DETALHADO' ? 'QTD DE PEÇAS' : 'Folha'}</label>
                                 <input 
                                     type="text" className="w-full border border-slate-200 rounded-lg p-2.5 text-xs font-bold uppercase focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
                                     value={newItem.folha} onChange={e => setNewItem({...newItem, folha: e.target.value})}
-                                    placeholder="Ex: 241" required
+                                    placeholder={newItem.codigo === 'DETALHADO' ? 'Ex: 50' : 'Ex: 241'} required
                                 />
                             </div>
                             <div className="col-span-12 md:col-span-4">
@@ -620,8 +885,12 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                             <div className="col-span-12 flex justify-end gap-3 mt-2">
                                 <button 
                                     type="button" 
-                                    onClick={() => setIsBitolasModalOpen(true)}
-                                    className="px-6 py-2 rounded-lg font-bold text-blue-600 bg-white border border-blue-200 hover:bg-blue-50 transition-colors text-sm flex items-center gap-2"
+                                    disabled={!newItem.codigo}
+                                    onClick={() => {
+                                        setIsBitolasModalOpen(true);
+                                        setBitolasMode(newItem.codigo === 'RESUMO' ? 'KG' : 'PECA');
+                                    }}
+                                    className={`px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors ${!newItem.codigo ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'text-blue-600 bg-white border border-blue-200 hover:bg-blue-50'}`}
                                 >
                                     + Inserir Bitolas
                                 </button>
@@ -641,8 +910,8 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                             <thead>
                                 <tr className="bg-white border-b border-slate-200 text-slate-400 text-[10px] uppercase tracking-wider">
                                     <th className="p-3 font-bold">Cód.</th>
-                                    <th className="p-3 font-bold text-center">Folha</th>
-                                    <th className="p-3 font-bold">Etapa - Descrição</th>
+                                    <th className="p-3 font-bold text-center">{(items.length > 0 ? items[0].codigo : newItem.codigo) === 'DETALHADO' ? 'Qtd de Peças' : 'Folha'}</th>
+                                    <th className="p-3 font-bold">{(items.length > 0 ? items[0].codigo : newItem.codigo) === 'DETALHADO' ? 'Descrição' : 'Etapa - Descrição'}</th>
                                     <th className="p-3 font-bold text-center">Tipo</th>
                                     <th className="p-3 font-bold text-right">Peso (kg)</th>
                                     <th className="p-3 font-bold text-right">Valor (R$)</th>
@@ -802,6 +1071,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                             customer={liveCustomer}
                             seller={seller}
                             activeBrandingPartner={activeBrandingPartner}
+                            previewCodigo={newItem.codigo}
                         />
                     </div>
                 </div>
@@ -811,25 +1081,36 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         {/* Bitolas Calculator Modal */}
             {isBitolasModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[200] p-4 animate-in fade-in">
-                    <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col overflow-hidden border-2 border-indigo-500">
+                    <div className="bg-white w-[95vw] max-w-7xl rounded-2xl shadow-2xl flex flex-col overflow-hidden border-2 border-indigo-500">
                         <div className="bg-indigo-600 p-4 flex justify-between items-center shrink-0">
                             <div className="flex items-center gap-6">
                                 <h3 className="text-lg font-black text-white flex items-center gap-2">
                                     <span>⚖️</span> Inserir Bitolas e Quantidades
                                 </h3>
                                 <div className="flex bg-indigo-800/50 rounded-lg p-1 text-sm font-bold shadow-inner">
-                                    <button 
-                                        onClick={() => setBitolasMode('KG')}
-                                        className={`px-4 py-1.5 rounded-md transition-all ${bitolasMode === 'KG' ? 'bg-white text-indigo-700 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
-                                    >
-                                        POR KG
-                                    </button>
-                                    <button 
-                                        onClick={() => setBitolasMode('METRO')}
-                                        className={`px-4 py-1.5 rounded-md transition-all ${bitolasMode === 'METRO' ? 'bg-white text-indigo-700 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
-                                    >
-                                        POR METRO
-                                    </button>
+                                    {newItem.codigo === 'RESUMO' ? (
+                                        <>
+                                            <button 
+                                                onClick={() => setBitolasMode('KG')}
+                                                className={`px-4 py-1.5 rounded-md transition-all ${bitolasMode === 'KG' ? 'bg-white text-indigo-700 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
+                                            >
+                                                POR KG
+                                            </button>
+                                            <button 
+                                                onClick={() => setBitolasMode('METRO')}
+                                                className={`px-4 py-1.5 rounded-md transition-all ${bitolasMode === 'METRO' ? 'bg-white text-indigo-700 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
+                                            >
+                                                POR METRO
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <button 
+                                            onClick={() => setBitolasMode('PECA')}
+                                            className={`px-4 py-1.5 rounded-md transition-all ${bitolasMode === 'PECA' ? 'bg-white text-indigo-700 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
+                                        >
+                                            POR PEÇA
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                             <button onClick={() => setIsBitolasModalOpen(false)} className="text-indigo-200 hover:text-white transition-colors">
@@ -839,7 +1120,464 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                         
                         <div className="p-4 flex-1 overflow-y-auto max-h-[60vh] bg-slate-50">
                             <div className="space-y-2">
-                                {gauges.length === 0 ? (
+                                {bitolasMode === 'PECA' ? (
+                                    <div className="bg-white rounded-lg p-4 border border-slate-200">
+                                        <div className="grid grid-cols-12 gap-3 mb-4 items-end">
+                                            <div className={`col-span-12 ${['broca', 'viga', 'pilares'].includes((pieceName || '').toLowerCase()) ? 'md:col-span-1' : 'md:col-span-3'}`}>
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Qtd</label>
+                                                <input 
+                                                    type="number" min="1"
+                                                    className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                    value={pieceQty} onChange={e => setPieceQty(e.target.value)}
+                                                    placeholder="Ex: 50"
+                                                />
+                                            </div>
+                                            <div className={`col-span-12 ${['broca', 'viga', 'pilares'].includes((pieceName || '').toLowerCase()) ? 'md:col-span-3' : 'md:col-span-4'}`}>
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Nome da Peça</label>
+                                                <select 
+                                                    className="w-full border border-slate-300 rounded p-2 text-sm font-bold uppercase focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                    value={pieceName} onChange={e => setPieceName(e.target.value)}
+                                                >
+                                                    <option value="broca">Broca</option>
+                                                    <option value="viga">Viga</option>
+                                                    <option value="pilares">Pilares</option>
+                                                    <option value="blocos">Blocos</option>
+                                                    <option value="corte e dobra">Corte e Dobra</option>
+                                                </select>
+                                            </div>
+                                            {['broca', 'viga', 'pilares'].includes((pieceName || '').toLowerCase()) && (
+                                                <div className="col-span-12 md:col-span-8">
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Formato de Estribo (Opcional)</label>
+                                                    <select 
+                                                        className="w-full border border-slate-300 rounded p-2 text-sm font-bold uppercase focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                        value={pieceStirrupFormat} onChange={e => setPieceStirrupFormat(e.target.value)}
+                                                    >
+                                                        <option value="">NENHUM / NÃO APLICÁVEL</option>
+                                                        <option value="quadrado">Quadrado</option>
+                                                        <option value="retangular">Retangular</option>
+                                                        <option value="triangular">Triangular</option>
+                                                        <option value="redondo">Redondo</option>
+                                                        <option value="sextavado">Sextavado</option>
+                                                    </select>
+                                                </div>
+                                            )}
+
+                                            {['broca', 'viga', 'pilares'].includes((pieceName || '').toLowerCase()) ? (
+                                                <div className="col-span-12 space-y-2 border border-slate-200 rounded p-3 bg-slate-50">
+                                                    <h4 className="text-[11px] font-bold text-slate-700 uppercase mb-2">Detalhes da Peça</h4>
+                                                    {pieceDetails.map((detail, index) => (
+                                                        <div key={detail.id} className="grid grid-cols-12 gap-3 items-end bg-white p-3 rounded shadow-sm border border-slate-200 relative">
+                                                            <div className="col-span-12 lg:col-span-1">
+                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight" title="Ferros Cada">Qtd</label>
+                                                                <input 
+                                                                    type="number" min="1"
+                                                                    className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                    value={detail.irons} onChange={e => {
+                                                                        const newDetails = [...pieceDetails];
+                                                                        newDetails[index].irons = e.target.value;
+                                                                        setPieceDetails(newDetails);
+                                                                    }}
+                                                                    placeholder="Ex: 4"
+                                                                />
+                                                            </div>
+                                                            <div className="col-span-12 lg:col-span-2">
+                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Posição</label>
+                                                                <select 
+                                                                    className="w-full border border-slate-300 rounded p-2 text-sm font-bold uppercase focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                    value={detail.position} onChange={e => {
+                                                                        const newDetails = [...pieceDetails];
+                                                                        newDetails[index].position = e.target.value;
+                                                                        setPieceDetails(newDetails);
+                                                                    }}
+                                                                >
+                                                                    <option value="principal">Principal</option>
+                                                                    <option value="costela">Costela</option>
+                                                                    <option value="2° camada">2° Camada</option>
+                                                                    <option value="cavalete">Cavalete</option>
+                                                                </select>
+                                                            </div>
+                                                            <div className="col-span-12 lg:col-span-2">
+                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight flex items-center gap-1">
+                                                                    Modelo
+                                                                    {detail.format === 'reto' || !detail.format ? <svg viewBox="0 0 40 20" className="w-5 h-2.5 stroke-slate-500" fill="none" strokeWidth="4"><path d="M5 10 H35"/></svg> :
+                                                                     detail.format === '1-dobra' ? <svg viewBox="0 0 40 40" className="w-3.5 h-3.5 stroke-slate-500" fill="none" strokeWidth="4"><path d="M10 30 H30 V10"/></svg> :
+                                                                     <svg viewBox="0 0 40 40" className="w-3.5 h-3.5 stroke-slate-500" fill="none" strokeWidth="4"><path d="M10 10 V30 H30 V10"/></svg>}
+                                                                </label>
+                                                                <select 
+                                                                    className="w-full border border-slate-300 rounded p-2 text-[11px] font-bold uppercase focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                    value={detail.format || 'reto'} onChange={e => {
+                                                                        const newDetails = [...pieceDetails];
+                                                                        newDetails[index].format = e.target.value;
+                                                                        newDetails[index].sideA = '';
+                                                                        newDetails[index].sideB = '';
+                                                                        newDetails[index].sideC = '';
+                                                                        newDetails[index].size = '';
+                                                                        setPieceDetails(newDetails);
+                                                                    }}
+                                                                >
+                                                                    <option value="reto">Reto</option>
+                                                                    <option value="1-dobra">Dobra 1 Lado</option>
+                                                                    <option value="2-dobras">Dobra 2 Lados</option>
+                                                                </select>
+                                                            </div>
+                                                            <div className="col-span-12 lg:col-span-3 flex gap-1">
+                                                                <div className="flex-1">
+                                                                    <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1 leading-tight whitespace-nowrap" title="Base">A (Base)</label>
+                                                                    <input 
+                                                                        type="number" min="1"
+                                                                        className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                        value={detail.sideA || ''} onChange={e => {
+                                                                            const newDetails = [...pieceDetails];
+                                                                            newDetails[index].sideA = e.target.value;
+                                                                            
+                                                                            const a = parseFloat(newDetails[index].sideA || '0');
+                                                                            const b = parseFloat(newDetails[index].sideB || '0');
+                                                                            const c = parseFloat(newDetails[index].sideC || '0');
+                                                                            newDetails[index].size = (a + b + c).toString();
+                                                                            setPieceDetails(newDetails);
+                                                                            
+                                                                            if (index === 0) {
+                                                                                const spacing = parseInt(stirrupSpacing);
+                                                                                if (spacing > 0 && a > 0) {
+                                                                                    setStirrupQty(Math.ceil(a / spacing).toString());
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                        placeholder="Ex: 200"
+                                                                    />
+                                                                </div>
+                                                                {['1-dobra', '2-dobras'].includes(detail.format || 'reto') && (
+                                                                    <div className="flex-1">
+                                                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1 leading-tight whitespace-nowrap" title="Lado Direito">B (Dir)</label>
+                                                                        <input 
+                                                                            type="number" min="1"
+                                                                            className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                            value={detail.sideB || ''} onChange={e => {
+                                                                                const newDetails = [...pieceDetails];
+                                                                                newDetails[index].sideB = e.target.value;
+                                                                                const a = parseFloat(newDetails[index].sideA || '0');
+                                                                                const b = parseFloat(newDetails[index].sideB || '0');
+                                                                                const c = parseFloat(newDetails[index].sideC || '0');
+                                                                                newDetails[index].size = (a + b + c).toString();
+                                                                                setPieceDetails(newDetails);
+                                                                                
+                                                                                if (index === 0) {
+                                                                                    const spacing = parseInt(stirrupSpacing);
+                                                                                    if (spacing > 0 && a > 0) {
+                                                                                        setStirrupQty(Math.ceil(a / spacing).toString());
+                                                                                    }
+                                                                                }
+                                                                            }}
+                                                                            placeholder="Ex: 50"
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                                {(detail.format === '2-dobras') && (
+                                                                    <div className="flex-1">
+                                                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1 leading-tight whitespace-nowrap" title="Lado Esquerdo">C (Esq)</label>
+                                                                        <input 
+                                                                            type="number" min="1"
+                                                                            className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                            value={detail.sideC || ''} onChange={e => {
+                                                                                const newDetails = [...pieceDetails];
+                                                                                newDetails[index].sideC = e.target.value;
+                                                                                const a = parseFloat(newDetails[index].sideA || '0');
+                                                                                const b = parseFloat(newDetails[index].sideB || '0');
+                                                                                const c = parseFloat(newDetails[index].sideC || '0');
+                                                                                newDetails[index].size = (a + b + c).toString();
+                                                                                setPieceDetails(newDetails);
+                                                                                
+                                                                                if (index === 0) {
+                                                                                    const spacing = parseInt(stirrupSpacing);
+                                                                                    if (spacing > 0 && a > 0) {
+                                                                                        setStirrupQty(Math.ceil(a / spacing).toString());
+                                                                                    }
+                                                                                }
+                                                                            }}
+                                                                            placeholder="Ex: 50"
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div className="col-span-12 lg:col-span-1">
+                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight" title="Tamanho Total">Total</label>
+                                                                <div className="w-full border border-slate-200 bg-slate-100 rounded p-2 text-sm font-bold text-slate-600 cursor-not-allowed flex items-center justify-center h-[38px]">
+                                                                    {detail.size || '0'}
+                                                                </div>
+                                                            </div>
+                                                            <div className="col-span-12 lg:col-span-2">
+                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Bitola (Ferro)</label>
+                                                                <select 
+                                                                    className="w-full border border-slate-300 rounded p-2 text-sm font-bold uppercase focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                    value={detail.gaugeId} onChange={e => {
+                                                                        const newDetails = [...pieceDetails];
+                                                                        newDetails[index].gaugeId = e.target.value;
+                                                                        setPieceDetails(newDetails);
+                                                                    }}
+                                                                >
+                                                                    <option value="">SELECIONE...</option>
+                                                                    {gauges.map(g => (
+                                                                        <option key={g.id} value={g.id}>
+                                                                            {g.commercialName || g.materialType} {g.gauge}
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                            <div className="col-span-12 lg:col-span-1 flex justify-center pb-2">
+                                                                {pieceDetails.length > 1 && (
+                                                                    <button 
+                                                                        onClick={() => setPieceDetails(pieceDetails.filter((_, i) => i !== index))} 
+                                                                        className="text-red-500 hover:text-red-700 font-black text-lg"
+                                                                        title="Remover Detalhe"
+                                                                    >
+                                                                        ✕
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    <button 
+                                                        onClick={() => setPieceDetails([...pieceDetails, { id: Date.now().toString(), irons: '', position: 'principal', format: 'reto', sideA: '', sideB: '', sideC: '', size: '', gaugeId: '' }])}
+                                                        className="mt-2 text-[11px] font-bold text-indigo-700 bg-indigo-100 px-4 py-2 rounded shadow-sm hover:bg-indigo-200 transition-colors"
+                                                    >
+                                                        ➕ Adicionar Nova Posição
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="col-span-12 md:col-span-5">
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Bitola (Ferro)</label>
+                                                    <select 
+                                                        className="w-full border border-slate-300 rounded p-2 text-sm font-bold uppercase focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                        value={pieceGaugeId} onChange={e => setPieceGaugeId(e.target.value)}
+                                                    >
+                                                        <option value="">SELECIONE...</option>
+                                                        {gauges.map(g => (
+                                                            <option key={g.id} value={g.id}>
+                                                                {g.commercialName || g.materialType} {g.gauge}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            )}
+                                            
+                                            {['broca', 'viga', 'pilares'].includes((pieceName || '').toLowerCase()) && pieceStirrupFormat && (
+                                                <div className="col-span-12 space-y-2 border border-orange-200 rounded p-3 bg-orange-50 mt-2 mb-2">
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <h4 className="text-[11px] font-bold text-orange-800 uppercase">Configuração de Estribos</h4>
+                                                        <span className="text-[10px] font-bold text-orange-700 bg-orange-200 px-2 py-0.5 rounded">
+                                                            Tamanho Automático: {calculatedStirrupSize > 0 ? calculatedStirrupSize + ' cm' : '--'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="grid grid-cols-12 gap-3 items-end bg-white p-3 rounded shadow-sm border border-orange-200">
+                                                        <div className="col-span-12 md:col-span-2">
+                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Espaçamento (CM)</label>
+                                                            <input 
+                                                                type="number" min="1"
+                                                                className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-orange-50/50"
+                                                                value={stirrupSpacing} onChange={e => {
+                                                                    setStirrupSpacing(e.target.value);
+                                                                    const spacing = parseInt(e.target.value);
+                                                                    const mainBase = parseFloat(pieceDetails[0]?.sideA || '0') || parseFloat(pieceDetails[0]?.size || '0') || 0;
+                                                                    if (spacing > 0 && mainBase > 0) {
+                                                                        setStirrupQty(Math.ceil(mainBase / spacing).toString());
+                                                                    }
+                                                                }}
+                                                                placeholder="Ex: 15"
+                                                            />
+                                                        </div>
+                                                        <div className="col-span-12 md:col-span-2">
+                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Qtd. por Peça</label>
+                                                            <input 
+                                                                type="number" min="1"
+                                                                className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                                                                value={stirrupQty} onChange={e => setStirrupQty(e.target.value)}
+                                                                placeholder="Ex: 15"
+                                                            />
+                                                        </div>
+                                                        <div className="col-span-12 md:col-span-2">
+                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Lado A</label>
+                                                            <input 
+                                                                type="number" min="1"
+                                                                className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                                                                value={stirrupA} onChange={e => setStirrupA(e.target.value)}
+                                                                placeholder="Ex: 15"
+                                                            />
+                                                        </div>
+                                                        {['retangular', 'triangular'].includes(pieceStirrupFormat) && (
+                                                            <div className="col-span-12 md:col-span-2">
+                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Lado B</label>
+                                                                <input 
+                                                                    type="number" min="1"
+                                                                    className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                                                                    value={stirrupB} onChange={e => setStirrupB(e.target.value)}
+                                                                    placeholder="Ex: 30"
+                                                                />
+                                                            </div>
+                                                        )}
+                                                        <div className={`col-span-12 ${['retangular', 'triangular'].includes(pieceStirrupFormat) ? 'md:col-span-4' : 'md:col-span-6'}`}>
+                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Bitola do Estribo</label>
+                                                            <select 
+                                                                className="w-full border border-slate-300 rounded p-2 text-sm font-bold uppercase focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                                                                value={stirrupGaugeId} onChange={e => setStirrupGaugeId(e.target.value)}
+                                                            >
+                                                                <option value="">SELECIONE...</option>
+                                                                {gauges.map(g => (
+                                                                    <option key={g.id} value={g.id}>
+                                                                        {g.commercialName || g.materialType} {g.gauge}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* LIVE CALCULATION SUMMARY */}
+                                            {['broca', 'viga', 'pilares'].includes((pieceName || '').toLowerCase()) && currentPieceBreakdown.length > 0 && (
+                                                <div className="col-span-12 mt-2 border border-slate-200 rounded-lg p-3 bg-slate-50 flex flex-col gap-3">
+                                                    <div className="overflow-x-auto rounded border border-slate-200">
+                                                            <table className="w-full text-left text-[10px] bg-white">
+                                                                <thead className="bg-slate-100 text-slate-600">
+                                                                    <tr>
+                                                                        <th className="p-1.5 font-bold uppercase">Aço / Tipo</th>
+                                                                        <th className="p-1.5 font-bold uppercase text-right">Metros</th>
+                                                                        <th className="p-1.5 font-bold uppercase text-right">Peso</th>
+                                                                        <th className="p-1.5 font-bold uppercase text-right">Preço</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {currentPieceBreakdown.map((b, idx) => (
+                                                                        <tr key={idx} className="border-t border-slate-100">
+                                                                            <td className="p-1.5 text-slate-700 font-bold uppercase">{b.type} - <span className="text-indigo-700">{b.gaugeName}</span></td>
+                                                                            <td className="p-1.5 text-slate-600 text-right font-semibold">{b.metros.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} M</td>
+                                                                            <td className="p-1.5 text-slate-600 text-right font-semibold">{b.kg.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} KG</td>
+                                                                            <td className="p-1.5 text-emerald-700 font-black text-right">R$ {b.price.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                </div>
+                                            )}
+
+                                            <div className="col-span-12 flex items-end">
+                                                <button 
+                                                    onClick={() => {
+                                                        if (!pieceQty || parseInt(pieceQty) <= 0) return;
+                                                        const isComplex = ['broca', 'viga', 'pilares'].includes((pieceName || '').toLowerCase());
+                                                        
+                                                        setPiecesList(prev => [...prev, {
+                                                            id: Date.now().toString(),
+                                                            qty: parseInt(pieceQty),
+                                                            name: pieceName,
+                                                            stirrupFormat: isComplex && pieceStirrupFormat ? pieceStirrupFormat : undefined,
+                                                            stirrupA: sA > 0 ? sA : undefined,
+                                                            stirrupB: sB > 0 ? sB : undefined,
+                                                            stirrupQty: parseInt(stirrupQty) || undefined,
+                                                            stirrupSpacing: stirrupSpacing || undefined,
+                                                            stirrupGaugeId: stirrupGaugeId || undefined,
+                                                            stirrupSize: calculatedStirrupSize > 0 ? calculatedStirrupSize : undefined,
+                                                            gaugeId: !isComplex ? (pieceGaugeId || undefined) : undefined,
+                                                            kg: currentPieceKg > 0 ? currentPieceKg : undefined,
+                                                            details: isComplex ? pieceDetails.map(d => ({
+                                                                irons: parseInt(d.irons) || 0,
+                                                                size: parseInt(d.size) || 0,
+                                                                position: d.position,
+                                                                format: d.format || 'reto',
+                                                                sideA: parseFloat(d.sideA || '0') || undefined,
+                                                                sideB: parseFloat(d.sideB || '0') || undefined,
+                                                                sideC: parseFloat(d.sideC || '0') || undefined,
+                                                                gaugeId: d.gaugeId,
+                                                                kg: 0
+                                                            })).filter(d => d.irons > 0 && d.size > 0) : undefined
+                                                        }]);
+                                                        setPieceQty('');
+                                                        setPieceStirrupFormat('');
+                                                        setStirrupSpacing('');
+                                                        setStirrupA('');
+                                                        setStirrupB('');
+                                                        setStirrupQty('');
+                                                        setStirrupGaugeId('');
+                                                        setPieceGaugeId('');
+                                                        setPieceDetails([{ id: Date.now().toString(), irons: '', position: 'principal', size: '', gaugeId: '' }]);
+                                                    }}
+                                                    className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-4 py-2 text-sm font-bold rounded-lg w-full transition-colors"
+                                                >
+                                                    ➕ Adicionar à Lista
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {piecesList.length > 0 && (
+                                            <div className="mt-4 border border-slate-200 rounded-lg overflow-hidden">
+                                                <table className="w-full text-left bg-white">
+                                                    <thead className="bg-slate-50">
+                                                        <tr>
+                                                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Qtd</th>
+                                                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Peça</th>
+                                                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Detalhes</th>
+                                                            <th className="px-3 py-2 w-10"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100">
+                                                        {piecesList.map(p => (
+                                                            <tr key={p.id}>
+                                                                <td className="px-3 py-2 text-sm font-bold">{p.qty}</td>
+                                                                <td className="px-3 py-2 text-sm font-bold uppercase">
+                                                                    {p.name}
+                                                                    {p.stirrupFormat && (
+                                                                        <div className="mt-1 bg-orange-50 p-1.5 rounded border border-orange-200 text-[10px] text-orange-900 font-semibold space-y-1">
+                                                                            <div className="flex gap-2 border-b border-orange-200 pb-1">
+                                                                                <span className="uppercase text-orange-700">Estribos: {p.stirrupFormat}</span>
+                                                                                <span>|</span>
+                                                                                <span>{p.stirrupQty} Un</span>
+                                                                            </div>
+                                                                            <div className="flex flex-wrap gap-x-3 gap-y-1">
+                                                                                <span>A: {p.stirrupA}</span>
+                                                                                {['retangular', 'triangular'].includes(p.stirrupFormat) && <span>B: {p.stirrupB}</span>}
+                                                                                <span>Tam: {p.stirrupSize}</span>
+                                                                                {p.stirrupGaugeId && <span className="font-bold text-orange-700">({gauges.find(g => g.id === p.stirrupGaugeId)?.gauge})</span>}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-3 py-2 text-xs font-semibold text-slate-600">
+                                                                    {['broca', 'viga', 'pilares'].includes((p.name || '').toLowerCase()) && p.details ? (
+                                                                        <div className="space-y-1">
+                                                                            {p.details.map((d, idx) => (
+                                                                                <div key={idx} className="bg-slate-50 p-1 rounded border border-slate-100 flex items-center gap-2">
+                                                                                    <span className="font-bold">{d.irons} Ferros</span>
+                                                                                    <span className="text-slate-400">|</span>
+                                                                                    <span className="uppercase">Pos: {d.position ? d.position.charAt(0).toUpperCase() + d.position.slice(1) : 'Principal'}</span>
+                                                                                    <span className="text-slate-400">|</span>
+                                                                                    <span>Tam: {d.size}</span>
+                                                                                    {d.gaugeId && (
+                                                                                        <span className="text-[10px] text-indigo-600 font-bold ml-1">
+                                                                                            ({gauges.find(g => g.id === d.gaugeId)?.gauge || ''})
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    ) : '-'}
+                                                                    {!['broca', 'viga', 'pilares'].includes((p.name || '').toLowerCase()) && p.gaugeId && (
+                                                                        <div className="text-[10px] text-indigo-600 mt-1 font-bold">
+                                                                            Bitola: {gauges.find(g => g.id === p.gaugeId)?.gauge || 'Desconhecida'} 
+                                                                            {p.kg ? ` (${p.kg.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} kg)` : ''}
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-3 py-2">
+                                                                    <button onClick={() => setPiecesList(prev => prev.filter(x => x.id !== p.id))} className="text-red-500 hover:text-red-700 font-bold">✕</button>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : gauges.length === 0 ? (
                                     <p className="text-center text-slate-500 p-4">Nenhum material cadastrado em Configuração de Materiais.</p>
                                 ) : (
                                     <table className="w-full text-left border-collapse bg-white rounded-lg overflow-hidden shadow-sm border border-slate-200">
@@ -888,7 +1626,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                     {bitolasMode === 'METRO' && (
                                                         <td className="p-3 text-sm font-bold text-slate-500 text-right">
                                                             {(() => {
-                                                                const bitolaVal = parseFloat(g.gauge.replace(/[^\d.,]/g, '').replace(',', '.'));
+                                                                const bitolaVal = parseFloat(String(g.gauge || '').replace(/[^\d.,]/g, '').replace(',', '.'));
                                                                 if (isNaN(bitolaVal)) return '-';
                                                                 const massaMetro = Math.ceil(bitolaVal * bitolaVal * 0.006162 * 1000) / 1000;
                                                                 return `${massaMetro.toFixed(3).replace('.', ',')} kg/m`;
@@ -939,7 +1677,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
 
                         <div className="bg-white p-4 border-t border-slate-200 flex justify-between items-center shrink-0">
                             <div className="text-sm font-bold text-slate-500">
-                                {bitolasMode === 'KG' ? 'Preencha os Kg de cada bitola que irá usar.' : 'Preencha a metragem total (metros) de cada bitola.'}
+                                {bitolasMode === 'KG' ? 'Preencha os Kg de cada bitola que irá usar.' : (bitolasMode === 'METRO' ? 'Preencha a metragem total (metros) de cada bitola.' : 'Preencha a quantidade para cada tipo de peça estrutural.')}
                             </div>
                             <div className="flex gap-3">
                                 <button onClick={() => setIsBitolasModalOpen(false)} className="px-4 py-2 rounded-lg font-bold text-slate-600 hover:bg-slate-100 transition-colors">
