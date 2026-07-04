@@ -69,6 +69,32 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     const [authError, setAuthError] = useState('');
     const [tempPrice, setTempPrice] = useState('');
 
+    // Form state for new item
+    const [newItem, setNewItem] = useState<Partial<CommercialOrderItem>>({
+        codigo: '',
+        folha: '',
+        descricao: '',
+        tipo: 'CORTE / DOBRA',
+        peso: 0,
+        valor: 0
+    });
+
+    const vergalhaoGauges = gauges.filter(g => {
+        const name = (g.commercialName || g.materialType || '').toUpperCase();
+        if (newItem.tipo === 'CORTE / DOBRA') return name.includes('CD VERGALH');
+        if (newItem.tipo === 'ARMADO') return name.includes('AR VERGALH');
+        return name.includes('VERGALH');
+    });
+
+    const [arameActive, setArameActive] = useState(false);
+    const [arameGaugeId, setArameGaugeId] = useState('');
+    const [aramePercentage, setAramePercentage] = useState(2);
+
+    const arameGauges = gauges.filter(g => {
+        const name = (g.commercialName || g.materialType || '').toUpperCase();
+        return name.includes('ARAME');
+    });
+
     const parsedQty = parseInt(pieceQty) || 0;
     
     let metrosUsados = 0;
@@ -142,15 +168,21 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         const gauge = gauges.find(g => g.id === pieceGaugeId);
     }
 
-    // Form state for new item
-    const [newItem, setNewItem] = useState<Partial<CommercialOrderItem>>({
-        codigo: '',
-        folha: '',
-        descricao: '',
-        tipo: 'CORTE / DOBRA',
-        peso: 0,
-        valor: 0
-    });
+    if (newItem.tipo === 'ARMADO' && arameGaugeId && aramePercentage > 0 && currentPieceKg > 0) {
+        const arameKgForPiece = currentPieceKg * (aramePercentage / 100);
+        const gauge = gauges.find(g => g.id === arameGaugeId);
+        if (gauge) {
+            const finalPrice = customPrices[gauge.id] || gauge.basePrice || 0;
+            currentPieceBreakdown.push({
+                gaugeId: gauge.id,
+                gaugeName: `${gauge.commercialName || gauge.materialType} ${gauge.gauge}`,
+                type: `ARAME (${aramePercentage}%)`,
+                metros: 0,
+                kg: arameKgForPiece,
+                price: arameKgForPiece * finalPrice
+            });
+        }
+    }
 
     const handleSearchClient = async () => {
         setSearchClientError('');
@@ -368,7 +400,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         const pesoUnitario = gauge?.rawWeightValue || 1;
         const barras = kg / pesoUnitario;
         
-        const basePricePerKg = (gauge?.rawWeightValue && gauge.rawWeightValue > 0) 
+        const basePricePerKg = (gauge?.rawWeightValue && gauge.rawWeightValue > 0 && gauge?.weightType === 'unid') 
             ? (gauge.purchasePrice || 0) / gauge.rawWeightValue 
             : (gauge?.purchasePrice || 0);
             
@@ -526,7 +558,6 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
             if (effectivePieces.length > 0) {
                 finalQuantities['pecas'] = effectivePieces as any;
             }
-            setBitolasQuantities(finalQuantities);
 
             if (effectivePieces.length > 0) {
                 const piecesText = effectivePieces.map(p => {
@@ -636,16 +667,33 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                     }
                 }
             });
-            setBitolasQuantities(finalQuantities);
+        }
+        
+        const isArmado = newItem.tipo === 'ARMADO';
+        
+        if (isArmado && (!arameGaugeId || aramePercentage <= 0)) {
+            alert('Para itens do tipo ARMADO, é obrigatório selecionar o Arame e a Porcentagem.');
+            return;
+        }
+
+        if (isArmado && arameGaugeId && aramePercentage > 0) {
+            let tempTotal = 0;
+            Object.entries(finalQuantities).forEach(([bId, kgVal]) => {
+                if (bId !== 'pecas') tempTotal += (kgVal as number) || 0;
+            });
+            if (tempTotal > 0) {
+                const aKg = tempTotal * (aramePercentage / 100);
+                finalQuantities[arameGaugeId] = (finalQuantities[arameGaugeId] || 0) + aKg;
+            }
         }
         
         Object.entries(finalQuantities).forEach(([bitolaId, kgValue]) => {
-            if (bitolaId === 'PECA_LIST') return;
+            if (bitolaId === 'pecas') return;
             const kg = kgValue as number;
             if (kg > 0) {
                 const gauge = gauges.find(g => g.id === bitolaId);
                 if (gauge) {
-                    const pricePerKg = (gauge.rawWeightValue && gauge.rawWeightValue > 0) 
+                    const pricePerKg = (gauge.rawWeightValue && gauge.rawWeightValue > 0 && gauge.weightType === 'unid') 
                         ? (gauge.purchasePrice || 0) / gauge.rawWeightValue 
                         : (gauge.purchasePrice || 0);
                         
@@ -654,6 +702,8 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                 }
             }
         });
+        
+        setBitolasQuantities({...finalQuantities});
         
         setNewItem(prev => ({
             ...prev,
@@ -834,6 +884,17 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                     )}
                                 </select>
                             </div>
+                            <div className="col-span-12 md:col-span-4">
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tipo</label>
+                                <select 
+                                    className="w-full border border-slate-200 rounded-lg p-2.5 text-xs font-bold uppercase focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                    value={['CORTE / DOBRA', 'ARMADO'].includes(newItem.tipo || '') ? newItem.tipo : 'CORTE / DOBRA'}
+                                    onChange={e => setNewItem({...newItem, tipo: e.target.value})}
+                                >
+                                    <option value="CORTE / DOBRA">CORTE / DOBRA</option>
+                                    <option value="ARMADO">ARMADO</option>
+                                </select>
+                            </div>
                             {newItem.codigo !== 'DETALHADO' && (
                                 <>
                                     <div className="col-span-12 md:col-span-2">
@@ -851,37 +912,6 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                             value={newItem.descricao} onChange={e => setNewItem({...newItem, descricao: e.target.value})}
                                             placeholder="Ex: PILARES" required
                                         />
-                                    </div>
-                                    <div className="col-span-12 md:col-span-4">
-                                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tipo</label>
-                                        <select 
-                                            className="w-full border border-slate-200 rounded-lg p-2.5 text-xs font-bold uppercase focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                            value={['CORTE / DOBRA', 'CA50', 'CA60', 'MALHA', 'ARMADO'].includes(newItem.tipo || '') ? newItem.tipo : 'OUTROS'}
-                                            onChange={e => {
-                                                if (e.target.value === 'OUTROS') {
-                                                    setNewItem({...newItem, tipo: ''});
-                                                } else {
-                                                    setNewItem({...newItem, tipo: e.target.value});
-                                                }
-                                            }}
-                                        >
-                                            <option value="CORTE / DOBRA">CORTE / DOBRA</option>
-                                            <option value="CA50">CA50</option>
-                                            <option value="CA60">CA60</option>
-                                            <option value="MALHA">MALHA</option>
-                                            <option value="ARMADO">ARMADO</option>
-                                            <option value="OUTROS">OUTROS...</option>
-                                        </select>
-                                        {!['CORTE / DOBRA', 'CA50', 'CA60', 'MALHA', 'ARMADO'].includes(newItem.tipo || '') && (
-                                            <input 
-                                                type="text"
-                                                className="w-full border border-slate-200 rounded-lg p-2.5 text-xs font-bold uppercase focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mt-2"
-                                                value={newItem.tipo}
-                                                onChange={e => setNewItem({...newItem, tipo: e.target.value})}
-                                                placeholder="DIGITE O TIPO..."
-                                                autoFocus
-                                            />
-                                        )}
                                     </div>
                                     <div className="col-span-12 md:col-span-6 flex gap-3">
                                         <div className="flex-1">
@@ -1138,6 +1168,33 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                         </button>
                                     )}
                                 </div>
+                                {newItem.tipo === 'ARMADO' && (
+                                    <div className="ml-6 flex items-center gap-3 bg-indigo-700/50 p-1.5 rounded-lg border border-indigo-400/30">
+                                        <label className="flex items-center gap-2 text-white text-xs font-bold">
+                                            <span className="text-amber-300">⚠️</span>
+                                            Obrigatório: Arame
+                                        </label>
+                                        <select 
+                                            className="bg-indigo-900 border border-indigo-500 text-white rounded px-2 py-1 text-xs outline-none max-w-[150px]"
+                                            value={arameGaugeId}
+                                            onChange={e => setArameGaugeId(e.target.value)}
+                                        >
+                                            <option value="">SELECIONE O ARAME...</option>
+                                            {arameGauges.map(g => (
+                                                <option key={g.id} value={g.id}>{g.commercialName || g.materialType} {g.gauge}</option>
+                                            ))}
+                                        </select>
+                                        <div className="flex items-center gap-1">
+                                            <input 
+                                                type="number" step="0.1" min="0"
+                                                className="bg-indigo-900 border border-indigo-500 text-white rounded px-2 py-1 text-xs outline-none w-14 text-right"
+                                                value={aramePercentage}
+                                                onChange={e => setAramePercentage(parseFloat(e.target.value) || 0)}
+                                            />
+                                            <span className="text-white text-xs font-bold">%</span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             <button onClick={() => setIsBitolasModalOpen(false)} className="text-indigo-200 hover:text-white transition-colors">
                                 ✕ Fechar
@@ -1342,7 +1399,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                     }}
                                                                 >
                                                                     <option value="">SELECIONE...</option>
-                                                                    {gauges.map(g => (
+                                                                    {vergalhaoGauges.map(g => (
                                                                         <option key={g.id} value={g.id}>
                                                                             {g.commercialName || g.materialType} {g.gauge}
                                                                         </option>
@@ -1377,7 +1434,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                         value={pieceGaugeId} onChange={e => setPieceGaugeId(e.target.value)}
                                                     >
                                                         <option value="">SELECIONE...</option>
-                                                        {gauges.map(g => (
+                                                        {vergalhaoGauges.map(g => (
                                                             <option key={g.id} value={g.id}>
                                                                 {g.commercialName || g.materialType} {g.gauge}
                                                             </option>
@@ -1447,7 +1504,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                 value={stirrupGaugeId} onChange={e => setStirrupGaugeId(e.target.value)}
                                                             >
                                                                 <option value="">SELECIONE...</option>
-                                                                {gauges.map(g => (
+                                                                {vergalhaoGauges.map(g => (
                                                                     <option key={g.id} value={g.id}>
                                                                         {g.commercialName || g.materialType} {g.gauge}
                                                                     </option>
@@ -1634,7 +1691,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                             </div>
                                         )}
                                     </div>
-                                ) : gauges.length === 0 ? (
+                                ) : vergalhaoGauges.length === 0 ? (
                                     <p className="text-center text-slate-500 p-4">Nenhum material cadastrado em Configuração de Materiais.</p>
                                 ) : (
                                     <table className="w-full text-left border-collapse bg-white rounded-lg overflow-hidden shadow-sm border border-slate-200">
@@ -1650,7 +1707,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {gauges.map(g => (
+                                            {vergalhaoGauges.map(g => (
                                                 <tr key={g.id} className="border-b border-slate-100 hover:bg-slate-50">
                                                     <td className="p-3 text-sm font-bold text-slate-700 uppercase">
                                                         {g.commercialName || g.materialType} {g.gauge}
