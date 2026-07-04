@@ -187,11 +187,25 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
             pricePerBarra,
             kg,
             pricePerKg,
-            total
+            total,
+            isFreight: false
         };
     }).sort((a, b) => b.kg - a.kg); // Sort by weight for example
 
-    const totalSummaryKg = summaryRows.reduce((acc, r) => acc + r.kg, 0);
+    if (freight || freightValue) {
+        summaryRows.push({
+            id: '0100',
+            desc: `FRETE${freight ? ` - ${freight}` : ''}`,
+            barras: 0,
+            pricePerBarra: 0,
+            kg: 1,
+            pricePerKg: 0,
+            total: freightValue || 0,
+            isFreight: true
+        });
+    }
+
+    const totalSummaryKg = summaryRows.filter(r => !r.isFreight).reduce((acc, r) => acc + r.kg, 0);
     const totalSummaryRs = summaryRows.reduce((acc, r) => acc + r.total, 0);
 
     const handleSaveOrder = async () => {
@@ -534,8 +548,8 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                             <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50 text-xs font-bold text-slate-700 transition-colors">
                                                 <td className="p-3 text-slate-500">{row.id}</td>
                                                 <td className="p-3 uppercase">{row.desc}</td>
-                                                <td className="p-3 text-right bg-slate-50/50">{row.kg.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                                                <td className="p-3 text-right">R$ {row.pricePerKg.toLocaleString('pt-BR', {minimumFractionDigits: 3, maximumFractionDigits: 3})}</td>
+                                                <td className="p-3 text-right bg-slate-50/50">{row.isFreight ? '1' : row.kg.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                                <td className="p-3 text-right">{row.isFreight ? '' : `R$ ${row.pricePerKg.toLocaleString('pt-BR', {minimumFractionDigits: 3, maximumFractionDigits: 3})}`}</td>
                                                 <td className="p-3 text-right text-slate-800">R$ {row.total.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                                             </tr>
                                         ))}

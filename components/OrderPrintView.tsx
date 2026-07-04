@@ -179,12 +179,25 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
             desc,
             kg,
             pricePerKg,
-            total
+            total,
+            isFreight: false
         };
     }).sort((a, b) => b.kg - a.kg); // Example sorting
 
-    const totalSummaryKg = summaryRows.reduce((acc, r) => acc + r.kg, 0);
-    const totalSummaryRs = summaryRows.reduce((acc, r) => acc + r.total, 0) + (order.freightValue || 0);
+    if (order.freight || order.freightValue) {
+        summaryRows.push({
+            id: 'FRETE',
+            cod: '0100',
+            desc: `FRETE${order.freight ? ` - ${order.freight}` : ''}`,
+            kg: 1,
+            pricePerKg: 0,
+            total: order.freightValue || 0,
+            isFreight: true
+        });
+    }
+
+    const totalSummaryKg = summaryRows.filter(r => !r.isFreight).reduce((acc, r) => acc + r.kg, 0);
+    const totalSummaryRs = summaryRows.reduce((acc, r) => acc + r.total, 0);
 
     const formattedDate = (order.date && String(order.date).includes('-')) 
         ? String(order.date).split('-').reverse().join('/') 
@@ -356,10 +369,10 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
                                         <tr key={`sum-${idx}`}>
                                             <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[26px] leading-none px-1 pb-[3px]">{row.cod || idx + 1}</div></td>
                                             <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[26px] leading-none px-1 pb-[3px] uppercase">{row.desc || '\u00A0'}</div></td>
-                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[26px] leading-none px-1 pb-[3px]">{row.kg > 0 ? row.kg.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0,00'}</div></td>
-                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[26px] leading-none px-1 pb-[3px]">KG</div></td>
+                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[26px] leading-none px-1 pb-[3px]">{row.isFreight ? '1' : (row.kg > 0 ? row.kg.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0,00')}</div></td>
+                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[26px] leading-none px-1 pb-[3px]">{row.isFreight ? '\u00A0' : 'KG'}</div></td>
                                             <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[26px] leading-none px-1 pb-[3px]">
-                                                {row.pricePerKg > 0 ? `R$ ${row.pricePerKg.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '\u00A0'}
+                                                {row.isFreight ? '\u00A0' : (row.pricePerKg > 0 ? `R$ ${row.pricePerKg.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '\u00A0')}
                                             </div></td>
                                             <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[26px] leading-none px-1 pb-[3px]">
                                                 {row.total > 0 ? `R$ ${row.total.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : 'R$ -'}
@@ -397,17 +410,6 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
                                             </td>
                                             <td className="bg-gray-200 text-black font-black text-center p-2 border-r border-b border-black text-[12px] uppercase" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                                 {order.paymentCondition}
-                                            </td>
-                                        </tr>
-                                    )}
-                                    {order.freight && (
-                                        <tr>
-                                            <td colSpan={4} className="border-none"></td>
-                                            <td className="bg-gray-200 text-black font-bold text-center p-2 border-l border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', lineHeight: '1.1'}}>
-                                                FRETE
-                                            </td>
-                                            <td className="bg-gray-200 text-black font-black text-center p-2 border-r border-b border-black text-[10px] uppercase" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
-                                                {order.freight}
                                             </td>
                                         </tr>
                                     )}
