@@ -419,38 +419,11 @@ const LabelConfiguration: React.FC<LabelConfigurationProps> = ({ gauges = [], sh
                         <label className="flex items-center gap-3 cursor-pointer select-none">
                             <input
                                 type="checkbox"
-                                checked={showImage}
-                                onChange={(e) => setShowImage(e.target.checked)}
-                                className="w-4 h-4 rounded accent-[#00E5FF] cursor-pointer"
-                            />
-                            <span className="text-xs text-slate-300">Exibir Imagem do Produto</span>
-                        </label>
-                        <label className="flex items-center gap-3 cursor-pointer select-none">
-                            <input
-                                type="checkbox"
                                 checked={showBarcode}
                                 onChange={(e) => setShowBarcode(e.target.checked)}
                                 className="w-4 h-4 rounded accent-[#00E5FF] cursor-pointer"
                             />
                             <span className="text-xs text-slate-300">Exibir Código de Barras (Lote)</span>
-                        </label>
-                        <label className="flex items-center gap-3 cursor-pointer select-none">
-                            <input
-                                type="checkbox"
-                                checked={showQrCode}
-                                onChange={(e) => setShowQrCode(e.target.checked)}
-                                className="w-4 h-4 rounded accent-[#00E5FF] cursor-pointer"
-                            />
-                            <span className="text-xs text-slate-300">Exibir QR Code (Rastreabilidade)</span>
-                        </label>
-                        <label className="flex items-center gap-3 cursor-pointer select-none">
-                            <input
-                                type="checkbox"
-                                checked={showComposition}
-                                onChange={(e) => setShowComposition(e.target.checked)}
-                                className="w-4 h-4 rounded accent-[#00E5FF] cursor-pointer"
-                            />
-                            <span className="text-xs text-slate-300">Exibir Composição do Aço</span>
                         </label>
                         <label className="flex items-center gap-3 cursor-pointer select-none">
                             <input
@@ -512,25 +485,8 @@ const LabelConfiguration: React.FC<LabelConfigurationProps> = ({ gauges = [], sh
                         transition: 'height 0.3s ease'
                     }}
                 >
-                    {/* Header: Product Logo + Basic details */}
-                    <div className="flex gap-4 items-center border-b-2 border-black pb-3">
-                        {showImage && (
-                            <div className="w-[56px] h-[56px] border border-slate-300 rounded overflow-hidden flex items-center justify-center shrink-0 bg-slate-50">
-                                {imageUrl ? (
-                                    <img 
-                                        src={imageUrl} 
-                                        alt="Produto" 
-                                        className="w-full h-full object-contain"
-                                        onError={(e) => {
-                                            // Handle broken local image preview
-                                            (e.currentTarget as HTMLImageElement).src = '/logo.png';
-                                        }}
-                                    />
-                                ) : (
-                                    <svg className="w-10 h-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                )}
-                            </div>
-                        )}
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-3 mb-2.5 border-b-2 border-black pb-3">
                         <div className="flex-grow flex flex-col min-w-0">
                             <div className="flex items-center gap-2">
                                 <span className="text-[10px] font-black tracking-wider text-slate-700 uppercase bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
@@ -570,24 +526,10 @@ const LabelConfiguration: React.FC<LabelConfigurationProps> = ({ gauges = [], sh
                                     <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase w-28">Bitola/Dimensão</td>
                                     <td className="py-1.5 text-xs font-black text-slate-900 uppercase">{bitola || 'N/A'}</td>
                                 </tr>
-                                <tr className="border-b border-slate-200">
-                                    <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Fator Conversão</td>
-                                    <td className="py-1.5 text-xs font-black text-slate-900 font-mono truncate max-w-[150px] overflow-hidden" title={conversionFactor || 'N/A'}>{conversionFactor || 'N/A'}</td>
-                                </tr>
-                                <tr className="border-b border-slate-200">
-                                    <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Especificação</td>
-                                    <td className="py-1.5 text-xs font-bold text-slate-800 uppercase">{specification || 'N/A'}</td>
-                                </tr>
                                 {showComposition && composition && (
                                     <tr className="border-b border-slate-200">
                                         <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Composição</td>
                                         <td className="py-1.5 text-xs font-bold text-slate-800 uppercase">{composition}</td>
-                                    </tr>
-                                )}
-                                {showOrigin && origin && (
-                                    <tr className="border-b border-slate-200">
-                                        <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Fabricado/Origem</td>
-                                        <td className="py-1.5 text-xs font-bold text-slate-800 uppercase">{origin}</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -612,22 +554,6 @@ const LabelConfiguration: React.FC<LabelConfigurationProps> = ({ gauges = [], sh
                             />
                         </div>
                     )}
-
-                    {/* QR Code and Instructions Section */}
-                    <div className="flex items-center justify-between gap-4 mt-3">
-                        <div className="flex-grow flex flex-col justify-center border-l-4 border-black pl-3 py-1">
-                            <span className="text-[10px] font-black tracking-widest text-slate-950 uppercase">ETIQUETA DE REGISTRO</span>
-                            <p className="text-[8px] text-slate-600 font-bold leading-normal mt-0.5 max-w-[200px]">
-                                Escaneie o código ao lado para rastrear as movimentações de estoque deste lote.
-                            </p>
-                        </div>
-                        {showQrCode && qrCodeHtml && (
-                            <div 
-                                className="w-[68px] h-[68px] flex items-center justify-center bg-white shrink-0 border border-slate-200 rounded p-1"
-                                dangerouslySetInnerHTML={{ __html: qrCodeHtml }}
-                            />
-                        )}
-                    </div>
 
                     {/* Footer text (Generated indicator) */}
                     <div className="border-t border-slate-200 pt-2.5 mt-2 flex justify-between items-center text-[7px] font-black text-slate-400 uppercase tracking-wider">
