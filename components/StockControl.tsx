@@ -41,21 +41,22 @@ const getStandardizedGaugeKey = (gaugeStr: string) => {
     return clean.toLowerCase();
 };
 
-const calculateTheoreticalWeight = (gauge: StockGauge | undefined, qtyPackages: number) => {
+const calculateTheoreticalWeight = (gauge: StockGauge | undefined, qtyPackages: number | undefined) => {
     if (!gauge) return 0;
     const type = gauge.packagingType || 'granel';
     const qtyPerPack = gauge.qtyPerPackaging || 1;
     const size = gauge.pieceSize || 0;
     const wpm = gauge.weightPerMeter || 0;
+    const safeQty = qtyPackages || 1;
     
     if (type === 'rolo') {
-        return Number((qtyPackages * (gauge.rawWeightValue || 2000)).toFixed(2));
+        return Number((safeQty * (gauge.rawWeightValue || 2000)).toFixed(2));
     }
     if (type === 'pacote') {
-        return Number((qtyPackages * qtyPerPack * size * wpm).toFixed(2));
+        return Number((safeQty * qtyPerPack * size * wpm).toFixed(2));
     }
     if (type === 'barra') {
-        return Number((qtyPackages * size * wpm).toFixed(2));
+        return Number((safeQty * size * wpm).toFixed(2));
     }
     return 0;
 };
@@ -838,7 +839,11 @@ const AddConferencePage: React.FC<{
                                             </tr>
                                             <tr className="border-b border-slate-200">
                                                 <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Peso Registrado</td>
-                                                <td className="py-1.5 text-xs font-black text-indigo-700 font-mono">{lot.labelWeight ? `${lot.labelWeight.toFixed(2).replace('.', ',')} kg` : '0 kg'}</td>
+                                                <td className="py-1.5 text-xs font-black text-indigo-700 font-mono">
+                                                    {lot.labelWeight 
+                                                        ? `${lot.labelWeight.toFixed(2).replace('.', ',')} kg` 
+                                                        : (lot.labelWeightInput ? `${lot.labelWeightInput} kg` : '0 kg')}
+                                                </td>
                                             </tr>
                                         </tbody>
                                     </table>
