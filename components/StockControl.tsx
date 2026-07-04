@@ -803,17 +803,7 @@ const AddConferencePage: React.FC<{
                         return (
                             <div key={idx} className="print-label-card bg-white text-black border-2 border-black p-5 flex flex-col justify-between">
                                 {/* Header */}
-                                <div className="flex gap-4 items-center border-b-2 border-black pb-3">
-                                    <div className="w-[56px] h-[56px] border border-slate-300 rounded overflow-hidden flex items-center justify-center shrink-0 bg-slate-50">
-                                        <img 
-                                            src={imageToUse} 
-                                            alt="Produto" 
-                                            className="w-full h-full object-contain"
-                                            onError={(e) => {
-                                                (e.currentTarget as HTMLImageElement).src = '/logo.png';
-                                            }}
-                                        />
-                                    </div>
+                                <div className="flex gap-4 items-start border-b-2 border-black pb-3">
                                     <div className="flex-grow flex flex-col min-w-0">
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] font-black tracking-wider text-slate-700 uppercase bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
@@ -847,24 +837,6 @@ const AddConferencePage: React.FC<{
                                                 <td className="py-1.5 text-xs font-black text-slate-900 uppercase">{lot.bitola || 'N/A'}</td>
                                             </tr>
                                             <tr className="border-b border-slate-200">
-                                                <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Fator Conversão</td>
-                                                <td className="py-1.5 text-xs font-black text-slate-900 font-mono">{factorStr}</td>
-                                            </tr>
-                                            <tr className="border-b border-slate-200">
-                                                <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Especificação</td>
-                                                <td className="py-1.5 text-xs font-bold text-slate-800 uppercase">{gauge?.technicalDescription || 'Norma ABNT NBR 7480'}</td>
-                                            </tr>
-                                            {lot.steelType && (
-                                                <tr className="border-b border-slate-200">
-                                                    <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Composição</td>
-                                                    <td className="py-1.5 text-xs font-bold text-slate-800 uppercase">{lot.steelType}</td>
-                                                </tr>
-                                            )}
-                                            <tr className="border-b border-slate-200">
-                                                <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Fabricado/Origem</td>
-                                                <td className="py-1.5 text-xs font-bold text-slate-800 uppercase">Fabricado (Interno)</td>
-                                            </tr>
-                                            <tr className="border-b border-slate-200">
                                                 <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Peso Registrado</td>
                                                 <td className="py-1.5 text-xs font-black text-indigo-700 font-mono">{lot.labelWeight ? `${lot.labelWeight.toFixed(2).replace('.', ',')} kg` : '0 kg'}</td>
                                             </tr>
@@ -888,18 +860,6 @@ const AddConferencePage: React.FC<{
                                     />
                                 </div>
 
-                                {/* QR Code Section */}
-                                <div className="flex items-center justify-between gap-4 mt-3">
-                                    <div className="flex-grow flex flex-col justify-center border-l-4 border-black pl-3 py-1">
-                                        <span className="text-[10px] font-black tracking-widest text-slate-950 uppercase">ETIQUETA DE REGISTRO</span>
-                                        <p className="text-[8px] text-slate-600 font-bold leading-normal mt-0.5 max-w-[200px]">
-                                            Escaneie o código ao lado para rastrear as movimentações de estoque deste lote.
-                                        </p>
-                                    </div>
-                                    <div 
-                                        className="w-[64px] h-[64px] flex items-center justify-center bg-white shrink-0 border border-slate-200 rounded p-1"
-                                        dangerouslySetInnerHTML={{ __html: generateQrCodeSvg(lot.internalLot, gauge?.productCode || '', lot.materialType) }}
-                                    />
                                 </div>
 
                                 {/* Footer */}
@@ -1497,17 +1457,7 @@ const StockControl: React.FC<{
                         return (
                             <div className="print-label-card bg-white text-black border-2 border-black p-5 flex flex-col justify-between">
                                 {/* Header */}
-                                <div className="flex gap-4 items-center border-b-2 border-black pb-3">
-                                    <div className="w-[56px] h-[56px] border border-slate-300 rounded overflow-hidden flex items-center justify-center shrink-0 bg-slate-50">
-                                        <img 
-                                            src={imageToUse} 
-                                            alt="Produto" 
-                                            className="w-full h-full object-contain"
-                                            onError={(e) => {
-                                                (e.currentTarget as HTMLImageElement).src = '/logo.png';
-                                            }}
-                                        />
-                                    </div>
+                                <div className="flex gap-4 items-start border-b-2 border-black pb-3">
                                     <div className="flex-grow flex flex-col min-w-0">
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] font-black tracking-wider text-slate-700 uppercase bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
@@ -1541,24 +1491,6 @@ const StockControl: React.FC<{
                                                 <td className="py-1.5 text-xs font-black text-slate-900 uppercase">{reprintLot.bitola || 'N/A'}</td>
                                             </tr>
                                             <tr className="border-b border-slate-200">
-                                                <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Fator Conversão</td>
-                                                <td className="py-1.5 text-xs font-black text-slate-900 font-mono">{factorStr}</td>
-                                            </tr>
-                                            <tr className="border-b border-slate-200">
-                                                <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Especificação</td>
-                                                <td className="py-1.5 text-xs font-bold text-slate-800 uppercase">{gauge?.technicalDescription || 'Norma ABNT NBR 7480'}</td>
-                                            </tr>
-                                            {reprintLot.steelType && (
-                                                <tr className="border-b border-slate-200">
-                                                    <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Composição</td>
-                                                    <td className="py-1.5 text-xs font-bold text-slate-800 uppercase">{reprintLot.steelType}</td>
-                                                </tr>
-                                            )}
-                                            <tr className="border-b border-slate-200">
-                                                <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Fabricado/Origem</td>
-                                                <td className="py-1.5 text-xs font-bold text-slate-800 uppercase">Fabricado (Interno)</td>
-                                            </tr>
-                                            <tr className="border-b border-slate-200">
                                                 <td className="py-1.5 text-[9px] font-extrabold text-slate-400 uppercase">Peso Registrado</td>
                                                 <td className="py-1.5 text-xs font-black text-indigo-700 font-mono">{reprintLot.weight ? `${reprintLot.weight.toFixed(2).replace('.', ',')} kg` : '0 kg'}</td>
                                             </tr>
@@ -1582,18 +1514,6 @@ const StockControl: React.FC<{
                                     />
                                 </div>
 
-                                {/* QR Code Section */}
-                                <div className="flex items-center justify-between gap-4 mt-3">
-                                    <div className="flex-grow flex flex-col justify-center border-l-4 border-black pl-3 py-1">
-                                        <span className="text-[10px] font-black tracking-widest text-slate-950 uppercase">ETIQUETA DE REGISTRO</span>
-                                        <p className="text-[8px] text-slate-600 font-bold leading-normal mt-0.5 max-w-[200px]">
-                                            Escaneie o código ao lado para rastrear as movimentações de estoque deste lote.
-                                        </p>
-                                    </div>
-                                    <div 
-                                        className="w-[64px] h-[64px] flex items-center justify-center bg-white shrink-0 border border-slate-200 rounded p-1"
-                                        dangerouslySetInnerHTML={{ __html: generateQrCodeSvg(reprintLot.internalLot, gauge?.productCode || '', reprintLot.materialType) }}
-                                    />
                                 </div>
 
                                 {/* Footer */}
