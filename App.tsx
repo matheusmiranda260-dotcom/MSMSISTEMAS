@@ -117,7 +117,7 @@ const App: React.FC = () => {
     const [commercialOrders, setCommercialOrders] = useState<CommercialOrder[]>([]);
 
     const activeBrandingPartner = useMemo(() => {
-        return partners.find(p => p.isActiveBranding) || null;
+        return partners.find(p => p.isActiveBranding) || (partners.length > 0 ? partners[0] : null);
     }, [partners]);
 
     const [pendingKaizenCount, setPendingKaizenCount] = useState(0);

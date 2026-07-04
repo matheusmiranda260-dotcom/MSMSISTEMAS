@@ -814,9 +814,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         {q.status?.toLowerCase() === 'orçamento' && !isIncomplete && (
                                             <option value="export">➡️ Exportar</option>
                                         )}
-                                        {q.status?.toLowerCase() === 'orçamento' && (
-                                            <option value="delete">🗑️ Excluir</option>
-                                        )}
+                                        {/* Regular delete removed - only gestor can delete */}
                                         {isGestor && (
                                             <option value="delete_gestor" className="text-red-600 font-bold">🗑️ Excluir (Gestor)</option>
                                         )}

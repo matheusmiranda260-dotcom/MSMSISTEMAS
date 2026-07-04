@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import type { CommercialOrder, CommercialOrderItem, StockGauge, User, Customer } from '../types';
+import type { CommercialOrder, CommercialOrderItem, StockGauge, User, Customer, Partner } from '../types';
 import { insertItem, updateItem, deleteItem, fetchItems, fetchTable } from '../services/supabaseService';
+import { OrderPrintTemplate } from './OrderPrintTemplate';
 
 interface OrderItemsEditorProps {
     order: CommercialOrder;
@@ -25,6 +26,8 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     const [freightValue, setFreightValue] = useState<number>(order.freightValue || 0);
     const [isSaving, setIsSaving] = useState(false);
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
+    const [seller, setSeller] = useState<User | null>(null);
+    const [activeBrandingPartner, setActiveBrandingPartner] = useState<Partner | null>(null);
 
     // Bitolas Calculator State
     const [gauges, setGauges] = useState<StockGauge[]>([]);
@@ -119,6 +122,24 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
             const gaugesData = await fetchTable<StockGauge>('stock_gauges');
             // Filter only active gauges if you want, or just show all
             setGauges(gaugesData.filter(g => g.status !== 'Inativo'));
+            
+            if (order.salesperson) {
+                try {
+                    const allUsers = await fetchTable<User>('app_users');
+                    const matchedUser = allUsers.find(u => u.username?.toLowerCase() === order.salesperson?.toLowerCase());
+                    if (matchedUser) setSeller(matchedUser);
+                } catch (e) {
+                    console.error('Error fetching seller', e);
+                }
+            }
+            
+            try {
+                const partners = await fetchTable<Partner>('partners');
+                const active = partners.find(p => p.isActiveBranding) || (partners.length > 0 ? partners[0] : null);
+                if (active) setActiveBrandingPartner(active);
+            } catch (e) {
+                console.error('Error fetching partner', e);
+            }
         } catch (error) {
             console.error('Error loading items:', error);
         } finally {
@@ -362,9 +383,30 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         // It will be reset when the item is saved or canceled.
     };
 
+    const liveOrder: CommercialOrder = {
+        ...order,
+        projectIdent,
+        clientName,
+        clientCode,
+        clientCity,
+        deliveryTime,
+        paymentCondition,
+        freight,
+        freightValue
+    };
+    
+    const liveCustomer = clientSearchResult || {
+        id: clientCode,
+        code: clientCode,
+        name: clientName,
+        document1: '',
+        customerType: 'Pessoa Física' as const,
+        addressMain: clientCity
+    } as Customer;
+
     return (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4 md:p-8 animate-in fade-in">
-            <div className="bg-slate-50 w-full h-full max-w-[1400px] rounded-xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
+            <div className="bg-slate-50 w-[98vw] h-[95vh] rounded-xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
                 {/* Header */}
                 <div className="bg-white px-8 py-5 flex justify-between items-center shrink-0 border-b border-slate-200">
                     <div>
@@ -389,9 +431,11 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                     </div>
                 </div>
 
-                <div className="p-8 flex-1 overflow-y-auto space-y-6">
-                    
-                    {/* Header Info */}
+                <div className="flex-1 flex overflow-hidden">
+                    {/* Coluna Esquerda: Formulário */}
+                    <div className="w-1/2 p-8 overflow-y-auto space-y-6 border-r border-slate-200">
+                        
+                        {/* Header Info */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-start gap-4">
                             <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center shrink-0">
@@ -457,16 +501,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                         </div>
 
                         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
-                            <div>
-                                <div className="font-bold text-slate-400 text-[10px] uppercase tracking-widest mb-2">Identif. do Projeto</div>
-                                <input 
-                                    type="text" 
-                                    className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold w-full uppercase bg-slate-50 focus:bg-white transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                    value={projectIdent}
-                                    onChange={e => setProjectIdent(e.target.value)}
-                                    placeholder="Ex: Projeto Estrutural - 04 Folhas"
-                                />
-                            </div>
+                            {/* projectIdent input removed as per user request */}
                             <div>
                                 <div className="font-bold text-slate-400 text-[10px] uppercase tracking-widest mb-2">Prazo de Entrega</div>
                                 <input 
@@ -755,11 +790,25 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                             <li>Orçamento elaborado de acordo com a leitura e quantificação do projeto. Qualquer alteração, revisão ou inclusão é de total responsabilidade do cliente.</li>
                         </ul>
                     </div>
+                </div>
 
+                {/* Coluna Direita: Live Preview */}
+                <div className="w-1/2 bg-slate-200 p-8 overflow-y-auto flex justify-center items-start">
+                    <div className="origin-top scale-[0.65] xl:scale-75 shadow-2xl transition-transform" style={{ width: '210mm' }}>
+                        <OrderPrintTemplate
+                            order={liveOrder}
+                            items={items}
+                            gauges={gauges}
+                            customer={liveCustomer}
+                            seller={seller}
+                            activeBrandingPartner={activeBrandingPartner}
+                        />
+                    </div>
                 </div>
             </div>
+        </div>
 
-            {/* Bitolas Calculator Modal */}
+        {/* Bitolas Calculator Modal */}
             {isBitolasModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[200] p-4 animate-in fade-in">
                     <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col overflow-hidden border-2 border-indigo-500">
@@ -978,7 +1027,6 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                             setAuthError('Preço inválido.');
                                             return;
                                         }
-                                        
                                         if (authModal.gaugeId) {
                                             setCustomPrices(prev => ({ ...prev, [authModal.gaugeId as string]: newPrice }));
                                         }
@@ -989,9 +1037,9 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                         setAuthError('Erro ao validar senha.');
                                     }
                                 }} 
-                                className="px-6 py-2 rounded-lg font-black text-white bg-slate-800 hover:bg-slate-900 shadow-md transition-all"
+                                className="px-6 py-2 font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-lg shadow-md transition-colors"
                             >
-                                Autorizar e Salvar
+                                Liberar e Aplicar
                             </button>
                         </div>
                     </div>
