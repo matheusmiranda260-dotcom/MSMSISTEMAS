@@ -474,7 +474,7 @@ export interface CommercialOrderItem {
     tipo: string;
     peso: number;
     valor: number;
-    bitolas_details?: Record<string, number>;
+    bitolas_details?: Record<string, any>;
     custom_prices?: Record<string, number>;
 }
 

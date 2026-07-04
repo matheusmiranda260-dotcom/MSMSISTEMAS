@@ -305,17 +305,22 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
             valor: item.valor
         });
         
-        if (item.bitolas_details) {
-            setBitolasQuantities(item.bitolas_details);
-            // Ignore loading PECA state since it is now converted to description text
-            setPiecesList([]);
+        const bitolasDetails = (item as any).bitolasDetails || item.bitolas_details;
+        if (bitolasDetails) {
+            setBitolasQuantities(bitolasDetails);
+            if (bitolasDetails['pecas']) {
+                setPiecesList(bitolasDetails['pecas']);
+            } else {
+                setPiecesList([]);
+            }
         } else {
             setBitolasQuantities({});
             setPiecesList([]);
         }
 
-        if (item.custom_prices) {
-            setCustomPrices(item.custom_prices);
+        const customPricesData = (item as any).customPrices || item.custom_prices;
+        if (customPricesData) {
+            setCustomPrices(customPricesData);
         } else {
             setCustomPrices({});
         }
@@ -340,9 +345,10 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     // Compute bitolas summary
     const bitolasSummary: Record<string, { kg: number }> = {};
     items.forEach(item => {
-        if (item.bitolas_details) {
-            Object.entries(item.bitolas_details).forEach(([bitolaId, kg]) => {
-                if (bitolaId.startsWith('PECA_')) return;
+        const bitolasDetails = (item as any).bitolasDetails || item.bitolas_details;
+        if (bitolasDetails) {
+            Object.entries(bitolasDetails).forEach(([bitolaId, kg]) => {
+                if (bitolaId === 'pecas') return;
                 const kgNum = Number(kg) || 0;
                 if (kgNum > 0) {
                     if (!bitolasSummary[bitolaId]) {
@@ -517,6 +523,9 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                     finalQuantities[p.gaugeId] = (finalQuantities[p.gaugeId] || 0) + p.kg;
                 }
             });
+            if (effectivePieces.length > 0) {
+                finalQuantities['pecas'] = effectivePieces as any;
+            }
             setBitolasQuantities(finalQuantities);
 
             if (effectivePieces.length > 0) {
@@ -529,9 +538,21 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                         if (nameAndFormat.toLowerCase() === 'broca' && format === 'retangular') format = 'retangular';
                         if (nameAndFormat.toLowerCase() === 'broca' && format === 'redondo') format = 'redonda';
                         if (nameAndFormat.toLowerCase() === 'broca' && format === 'sextavado') format = 'sextavada';
-                        nameAndFormat += ` ${format}`;
+                        
+                        let dimText = '';
+                        if (format.includes('quadrad')) {
+                            dimText = `${p.stirrupA || 0}X${p.stirrupA || 0}`;
+                        } else if (format.includes('retangular') || format.includes('triangular')) {
+                            dimText = `${p.stirrupA || 0}X${p.stirrupB || 0}`;
+                        } else if (format.includes('redond')) {
+                            dimText = `∅ (${p.stirrupA || 0})`;
+                        } else if (format.includes('sextavad')) {
+                            dimText = `(${p.stirrupA || 0})`;
+                        }
+                        
+                        nameAndFormat = `${nameAndFormat} ${format} ${dimText}`.trim();
                     }
-                    parts.push(nameAndFormat.toLowerCase());
+                    parts.push(nameAndFormat.toUpperCase());
                     
                     if (['broca', 'viga', 'pilares'].includes((p.name || '').toLowerCase()) && p.details && p.details.length > 0) {
                         const ironsArr = p.details.map(d => {
@@ -545,7 +566,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                     }
                                 }
                             }
-                            return `${d.irons}∅ ${gaugeName} ${d.size}`.trim();
+                            return `${d.irons}∅ ${gaugeName} C/${d.size}cm`.trim();
                         });
                         parts.push(ironsArr.join(', '));
                     }
@@ -556,7 +577,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                         if (gauge) {
                             const num = parseFloat((gauge.gauge || '').replace(',', '.').replace(/[^\d.]/g, ''));
                             if (!isNaN(num)) {
-                                gaugeName = num.toLocaleString('pt-BR');
+                                gaugeName = `${num.toLocaleString('pt-BR')}mm`;
                             }
                         }
                         
@@ -568,8 +589,8 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                             }
                         }
                         
-                        let spacingText = p.stirrupSpacing ? `c/${spacingMeters}` : (p.stirrupQty ? `${p.stirrupQty}un` : '');
-                        parts.push(`est.∅ ${gaugeName} ${spacingText}`.trim());
+                        let spacingText = p.stirrupSpacing ? `C/${spacingMeters}m` : (p.stirrupQty ? `${p.stirrupQty}un` : '');
+                        parts.push(`EST. ∅${gaugeName} ${spacingText}`.trim());
                     }
                     
                     return parts.join(', ');
@@ -619,6 +640,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         }
         
         Object.entries(finalQuantities).forEach(([bitolaId, kgValue]) => {
+            if (bitolaId === 'PECA_LIST') return;
             const kg = kgValue as number;
             if (kg > 0) {
                 const gauge = gauges.find(g => g.id === bitolaId);
@@ -812,75 +834,79 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                     )}
                                 </select>
                             </div>
-                            <div className="col-span-12 md:col-span-2">
-                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{newItem.codigo === 'DETALHADO' ? 'QTD DE PEÇAS' : 'Folha'}</label>
-                                <input 
-                                    type="text" className="w-full border border-slate-200 rounded-lg p-2.5 text-xs font-bold uppercase focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
-                                    value={newItem.folha} onChange={e => setNewItem({...newItem, folha: e.target.value})}
-                                    placeholder={newItem.codigo === 'DETALHADO' ? 'Ex: 50' : 'Ex: 241'} required
-                                />
-                            </div>
-                            <div className="col-span-12 md:col-span-4">
-                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Descrição</label>
-                                <input 
-                                    type="text" className="w-full border border-slate-200 rounded-lg p-2.5 text-xs font-bold uppercase focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
-                                    value={newItem.descricao} onChange={e => setNewItem({...newItem, descricao: e.target.value})}
-                                    placeholder="Ex: PILARES" required
-                                />
-                            </div>
-                            <div className="col-span-12 md:col-span-4">
-                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tipo</label>
-                                <select 
-                                    className="w-full border border-slate-200 rounded-lg p-2.5 text-xs font-bold uppercase focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                    value={['CORTE / DOBRA', 'CA50', 'CA60', 'MALHA', 'ARMADO'].includes(newItem.tipo || '') ? newItem.tipo : 'OUTROS'}
-                                    onChange={e => {
-                                        if (e.target.value === 'OUTROS') {
-                                            setNewItem({...newItem, tipo: ''});
-                                        } else {
-                                            setNewItem({...newItem, tipo: e.target.value});
-                                        }
-                                    }}
-                                >
-                                    <option value="CORTE / DOBRA">CORTE / DOBRA</option>
-                                    <option value="CA50">CA50</option>
-                                    <option value="CA60">CA60</option>
-                                    <option value="MALHA">MALHA</option>
-                                    <option value="ARMADO">ARMADO</option>
-                                    <option value="OUTROS">OUTROS...</option>
-                                </select>
-                                {!['CORTE / DOBRA', 'CA50', 'CA60', 'MALHA', 'ARMADO'].includes(newItem.tipo || '') && (
-                                    <input 
-                                        type="text"
-                                        className="w-full border border-slate-200 rounded-lg p-2.5 text-xs font-bold uppercase focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mt-2"
-                                        value={newItem.tipo}
-                                        onChange={e => setNewItem({...newItem, tipo: e.target.value})}
-                                        placeholder="DIGITE O TIPO..."
-                                        autoFocus
-                                    />
-                                )}
-                            </div>
-                            <div className="col-span-12 md:col-span-6 flex gap-3">
-                                <div className="flex-1">
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Peso (kg)</label>
-                                    <input 
-                                        type="number" step="0.01" className="w-full border border-slate-200 bg-slate-100 cursor-not-allowed text-slate-500 rounded-lg p-2.5 text-xs font-bold focus:outline-none" 
-                                        value={newItem.peso || ''} 
-                                        readOnly
-                                        placeholder="Calculado pelas bitolas"
-                                        required
-                                    />
-                                </div>
-                                <div className="flex-1">
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Valor (R$)</label>
-                                    <input 
-                                        type="number" step="0.01" className="w-full border border-slate-200 bg-slate-100 cursor-not-allowed text-slate-500 rounded-lg p-2.5 text-xs font-bold focus:outline-none" 
-                                        value={newItem.valor || ''} 
-                                        readOnly
-                                        placeholder="Calculado pelas bitolas"
-                                        required
-                                    />
-                                </div>
-                            </div>
+                            {newItem.codigo !== 'DETALHADO' && (
+                                <>
+                                    <div className="col-span-12 md:col-span-2">
+                                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Folha</label>
+                                        <input 
+                                            type="text" className="w-full border border-slate-200 rounded-lg p-2.5 text-xs font-bold uppercase focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                                            value={newItem.folha} onChange={e => setNewItem({...newItem, folha: e.target.value})}
+                                            placeholder="Ex: 241" required
+                                        />
+                                    </div>
+                                    <div className="col-span-12 md:col-span-4">
+                                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Descrição</label>
+                                        <input 
+                                            type="text" className="w-full border border-slate-200 rounded-lg p-2.5 text-xs font-bold uppercase focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                                            value={newItem.descricao} onChange={e => setNewItem({...newItem, descricao: e.target.value})}
+                                            placeholder="Ex: PILARES" required
+                                        />
+                                    </div>
+                                    <div className="col-span-12 md:col-span-4">
+                                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tipo</label>
+                                        <select 
+                                            className="w-full border border-slate-200 rounded-lg p-2.5 text-xs font-bold uppercase focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                            value={['CORTE / DOBRA', 'CA50', 'CA60', 'MALHA', 'ARMADO'].includes(newItem.tipo || '') ? newItem.tipo : 'OUTROS'}
+                                            onChange={e => {
+                                                if (e.target.value === 'OUTROS') {
+                                                    setNewItem({...newItem, tipo: ''});
+                                                } else {
+                                                    setNewItem({...newItem, tipo: e.target.value});
+                                                }
+                                            }}
+                                        >
+                                            <option value="CORTE / DOBRA">CORTE / DOBRA</option>
+                                            <option value="CA50">CA50</option>
+                                            <option value="CA60">CA60</option>
+                                            <option value="MALHA">MALHA</option>
+                                            <option value="ARMADO">ARMADO</option>
+                                            <option value="OUTROS">OUTROS...</option>
+                                        </select>
+                                        {!['CORTE / DOBRA', 'CA50', 'CA60', 'MALHA', 'ARMADO'].includes(newItem.tipo || '') && (
+                                            <input 
+                                                type="text"
+                                                className="w-full border border-slate-200 rounded-lg p-2.5 text-xs font-bold uppercase focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mt-2"
+                                                value={newItem.tipo}
+                                                onChange={e => setNewItem({...newItem, tipo: e.target.value})}
+                                                placeholder="DIGITE O TIPO..."
+                                                autoFocus
+                                            />
+                                        )}
+                                    </div>
+                                    <div className="col-span-12 md:col-span-6 flex gap-3">
+                                        <div className="flex-1">
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Peso (kg)</label>
+                                            <input 
+                                                type="number" step="0.01" className="w-full border border-slate-200 bg-slate-100 cursor-not-allowed text-slate-500 rounded-lg p-2.5 text-xs font-bold focus:outline-none" 
+                                                value={newItem.peso || ''} 
+                                                readOnly
+                                                placeholder="Calculado pelas bitolas"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Valor (R$)</label>
+                                            <input 
+                                                type="number" step="0.01" className="w-full border border-slate-200 bg-slate-100 cursor-not-allowed text-slate-500 rounded-lg p-2.5 text-xs font-bold focus:outline-none" 
+                                                value={newItem.valor || ''} 
+                                                readOnly
+                                                placeholder="Calculado pelas bitolas"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                             
                             <div className="col-span-12 flex justify-end gap-3 mt-2">
                                 <button 
@@ -1567,8 +1593,39 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                         </div>
                                                                     )}
                                                                 </td>
-                                                                <td className="px-3 py-2">
-                                                                    <button onClick={() => setPiecesList(prev => prev.filter(x => x.id !== p.id))} className="text-red-500 hover:text-red-700 font-bold">✕</button>
+                                                                <td className="px-3 py-2 flex items-center justify-end gap-3">
+                                                                    <button onClick={() => {
+                                                                        setPieceQty(p.qty.toString());
+                                                                        setPieceName(p.name);
+                                                                        if (p.stirrupFormat) {
+                                                                            setPieceStirrupFormat(p.stirrupFormat);
+                                                                            setStirrupQty(p.stirrupQty?.toString() || '');
+                                                                            setStirrupA(p.stirrupA?.toString() || '');
+                                                                            setStirrupB(p.stirrupB?.toString() || '');
+                                                                            setStirrupGaugeId(p.stirrupGaugeId || '');
+                                                                            setStirrupSpacing('');
+                                                                        } else {
+                                                                            setPieceStirrupFormat('');
+                                                                        }
+                                                                        if (p.details && p.details.length > 0) {
+                                                                            setPieceDetails(p.details.map((d, i) => ({
+                                                                                id: Date.now().toString() + i,
+                                                                                irons: d.irons ? d.irons.toString() : '',
+                                                                                position: d.position || 'principal',
+                                                                                gaugeId: d.gaugeId || '',
+                                                                                size: d.size ? d.size.toString() : '',
+                                                                                format: d.format || 'reto',
+                                                                                sideA: d.sideA ? d.sideA.toString() : '',
+                                                                                sideB: d.sideB ? d.sideB.toString() : '',
+                                                                                sideC: d.sideC ? d.sideC.toString() : ''
+                                                                            })));
+                                                                        } else {
+                                                                            setPieceDetails([{ id: Date.now().toString(), irons: '', position: 'principal', format: 'reto', sideA: '', sideB: '', sideC: '', size: '', gaugeId: '' }]);
+                                                                            setPieceGaugeId(p.gaugeId || '');
+                                                                        }
+                                                                        setPiecesList(prev => prev.filter(x => x.id !== p.id));
+                                                                    }} className="text-indigo-500 hover:text-indigo-700 font-bold text-lg" title="Editar Peça">✏️</button>
+                                                                    <button onClick={() => setPiecesList(prev => prev.filter(x => x.id !== p.id))} className="text-red-500 hover:text-red-700 font-bold text-lg" title="Remover Peça">✕</button>
                                                                 </td>
                                                             </tr>
                                                         ))}

@@ -23,8 +23,10 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
     // Calculate aggregated bitolas
     const bitolasSummary: Record<string, { kg: number }> = {};
     items.forEach(item => {
-        if (item.bitolas_details) {
-            Object.entries(item.bitolas_details).forEach(([bitolaId, kg]) => {
+        const bitolasDetails = (item as any).bitolasDetails || item.bitolas_details;
+        if (bitolasDetails) {
+            Object.entries(bitolasDetails).forEach(([bitolaId, kg]) => {
+                if (bitolaId === 'pecas') return;
                 const kgNum = Number(kg) || 0;
                 if (kgNum > 0) {
                     if (!bitolasSummary[bitolaId]) {
@@ -107,12 +109,13 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
                     
                     {/* Company Details Box */}
                     <div className="w-2/3 p-2 text-center flex flex-col justify-center gap-0.5" style={{ fontSize: '10px' }}>
-                        <div className="font-bold uppercase">{activeBrandingPartner?.razaoSocial || activeBrandingPartner?.companyName || 'ARMAÇO FERRAGEM ARMADA, MATERIAIS PARA CONSTRUCAO E TRANSPORTE LTDA'}</div>
-                        <div>CNPJ: {activeBrandingPartner?.cnpj || '58.894.273/0001-07'}</div>
-                        <div>{activeBrandingPartner?.endereco || 'Rua JC-28, Quadra 31 - Lotes 01-02, Residencial Jardim Canedo II, Senador Canedo/GO - CEP: 75.250-307'}</div>
-                        <div>Telefone: {activeBrandingPartner?.telefone || seller?.phone || 'INSERIR NO CADASTRO ESSA INFORMAÇÃO'}</div>
-                        <div>E-mail: {activeBrandingPartner?.email || seller?.email || 'INSERIR NO CADASTRO ESSA INFORMAÇÃO'}</div>
-                        {!activeBrandingPartner && <div className="text-blue-600 underline">www.armacoferragens.com.br</div>}
+                        <div className="font-bold uppercase">ARMAÇO FERRAGEM ARMADA, MATERIAIS PARA CONSTRUCAO E TRANSPORTE LTDA</div>
+                        <div>CNPJ: 58.894.273/0001-07</div>
+                        <div>Rua JC-28, Quadra 31 - Lotes 01-02</div>
+                        <div>Residencial Jardim Canedo II, Senador Canedo/GO - CEP: 75.250-307</div>
+                        <div>Telefone: {seller?.phone || 'INSERIR NO CADASTRO ESSA INFORMAÇÃO'}</div>
+                        <div>E-mail: {seller?.email || 'INSERIR NO CADASTRO ESSA INFORMAÇÃO'}</div>
+                        <div className="text-blue-600 underline">www.armacoferragens.com.br</div>
                     </div>
                 </div>
 
@@ -159,12 +162,12 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
                     <table className="w-full text-center border-collapse border-b border-black table-fixed print:min-w-0">
                         <thead>
                             <tr className="text-black font-bold text-[10px]">
-                                <th className="border border-black p-1 w-[8%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>ITEM</th>
-                                <th className="border border-black p-1 w-[12%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>{(items.length > 0 ? items[0].codigo : previewCodigo) === 'DETALHADO' ? 'QTD PEÇAS' : 'FOLHA'}</th>
+                                <th className="border border-black p-1 w-[7%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>ITEM</th>
+                                <th className="border border-black p-1 w-[9%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>{(items.length > 0 ? items[0].codigo : previewCodigo) === 'DETALHADO' ? 'QTD PEÇAS' : 'FOLHA'}</th>
                                 <th className="border border-black p-1 text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>{(items.length > 0 ? items[0].codigo : previewCodigo) === 'DETALHADO' ? 'DESCRIÇÃO' : 'ETAPA / DESCRIÇÃO'}</th>
-                                <th className="border border-black p-1 w-[18%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>TIPO</th>
-                                <th className="border border-black p-1 w-[12%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>QTD (KG)</th>
-                                <th className="border border-black p-1 w-[18%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>PREÇO TOTAL</th>
+                                <th className="border border-black p-1 w-[12%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>TIPO</th>
+                                <th className="border border-black p-1 w-[10%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>QTD (KG)</th>
+                                <th className="border border-black p-1 w-[12%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>PREÇO TOTAL</th>
                             </tr>
                         </thead>
                         <tbody className="text-[10px]">
@@ -183,12 +186,12 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
                                     
                                     return (
                                         <tr key={`item-${idx}`}>
-                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-0.5">{idx + 1}</div></td>
-                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-0.5">{item.folha || '\u00A0'}</div></td>
-                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-0.5 uppercase truncate max-w-full overflow-hidden block mx-auto text-center">{item.descricao || '\u00A0'}</div></td>
-                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-0.5 uppercase truncate max-w-full overflow-hidden block mx-auto text-center">{item.tipo || '\u00A0'}</div></td>
-                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-0.5">{item.peso > 0 ? item.peso.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0,00'}</div></td>
-                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-0.5">
+                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-1">{idx + 1}</div></td>
+                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-1">{item.folha || '\u00A0'}</div></td>
+                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-tight px-1 py-1 uppercase text-center break-words">{item.descricao || '\u00A0'}</div></td>
+                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-1 uppercase text-center">{item.tipo || '\u00A0'}</div></td>
+                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-1">{item.peso > 0 ? item.peso.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0,00'}</div></td>
+                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-1">
                                                 {finalValor > 0 ? `R$ ${finalValor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : 'R$ -'}
                                             </div></td>
                                         </tr>

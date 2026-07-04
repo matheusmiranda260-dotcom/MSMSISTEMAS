@@ -146,8 +146,10 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
 
     const bitolasSummary: Record<string, { kg: number }> = {};
     items.forEach(item => {
-        if (item.bitolas_details) {
-            Object.entries(item.bitolas_details).forEach(([bitolaId, kg]) => {
+        const bitolasDetails = (item as any).bitolasDetails || item.bitolas_details;
+        if (bitolasDetails) {
+            Object.entries(bitolasDetails).forEach(([bitolaId, kg]) => {
+                if (bitolaId === 'pecas') return;
                 const kgNum = Number(kg) || 0;
                 if (kgNum > 0) {
                     if (!bitolasSummary[bitolaId]) {
