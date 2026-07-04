@@ -132,6 +132,17 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
         loadData();
     }, [order]);
 
+    // Define o título da página temporariamente para usar como nome padrão do arquivo ao "Salvar como PDF"
+    useEffect(() => {
+        const originalTitle = document.title;
+        const number = order.orderNumber || '000000';
+        document.title = `Orcamento_${number}`;
+        
+        return () => {
+            document.title = originalTitle;
+        };
+    }, [order.orderNumber]);
+
     // Calculate aggregated bitolas (just like in OrderItemsEditor)
     const bitolasSummary: Record<string, { kg: number }> = {};
     items.forEach(item => {
