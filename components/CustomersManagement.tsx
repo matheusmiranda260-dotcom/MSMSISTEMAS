@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { updateItem, deleteItem, fetchByColumn, fetchTable } from '../services/supabaseService';
-import type { Page, Customer, CommercialOrder, CommercialOrderItem, StockGauge } from '../types';
+import type { Page, Customer, CommercialOrder, CommercialOrderItem, StockGauge, User } from '../types';
 import { SearchIcon, UserGroupIcon, PlusIcon, DocumentTextIcon, LocationIcon, UserIcon, XIcon } from './icons';
 import { maskCPF, maskCNPJ, maskRG, maskPhone } from '../utils/masks';
 
 interface CustomersManagementProps {
     setPage: (page: Page) => void;
     customers: Customer[];
+    currentUser?: User | null;
 }
 
-const CustomersManagement: React.FC<CustomersManagementProps> = ({ setPage, customers }) => {
+const CustomersManagement: React.FC<CustomersManagementProps> = ({ setPage, customers, currentUser }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [isEditing, setIsEditing] = useState(false);
@@ -25,6 +26,10 @@ const CustomersManagement: React.FC<CustomersManagementProps> = ({ setPage, cust
     const [isLoadingExpanded, setIsLoadingExpanded] = useState(false);
 
     const [gauges, setGauges] = useState<StockGauge[]>([]);
+
+    const [deleteGestorModalOpen, setDeleteGestorModalOpen] = useState(false);
+    const [deleteGestorPassword, setDeleteGestorPassword] = useState('');
+    const [deleteGestorError, setDeleteGestorError] = useState('');
 
     const bitolasSummaryMemo = useMemo(() => {
         const summary: Record<string, { kg: number }> = {};
@@ -56,6 +61,53 @@ const CustomersManagement: React.FC<CustomersManagementProps> = ({ setPage, cust
         };
         loadGauges();
     }, []);
+
+    const handleConfirmDeleteGestor = async () => {
+        setDeleteGestorError('');
+        if (!deleteGestorPassword) {
+            setDeleteGestorError('A senha é obrigatória.');
+            return;
+        }
+
+        const isGestor = currentUser?.role === 'gestor' || currentUser?.role === 'admin';
+        
+        if (deleteGestorPassword !== currentUser?.password || !isGestor) {
+            setDeleteGestorError('Senha incorreta ou usuário sem permissão.');
+            return;
+        }
+
+        if (selectedCustomer?.id) {
+            setIsDeleting(true);
+            try {
+                const { supabase } = await import('../services/supabaseService');
+                
+                const { data: orders } = await supabase.from('commercial_orders').select('id, order_number').eq('client_code', selectedCustomer.code);
+                
+                if (orders && orders.length > 0) {
+                    for (const order of orders) {
+                        await supabase.from('commercial_order_items').delete().eq('order_id', order.id);
+                        if (order.order_number) {
+                            await supabase.from('romaneios').delete().ilike('order_number', `${order.order_number}-%`);
+                        }
+                        await deleteItem('commercial_orders', order.id);
+                    }
+                }
+                
+                await deleteItem('customers', selectedCustomer.id);
+                
+                setDeleteGestorModalOpen(false);
+                setSelectedCustomer(null);
+                setDeleteGestorPassword('');
+                alert('Cliente e todos os seus dados foram apagados permanentemente.');
+                window.location.reload();
+            } catch (err) {
+                console.error("Error deleting customer:", err);
+                setDeleteGestorError('Erro ao excluir. Pode haver vínculos bloqueando.');
+            } finally {
+                setIsDeleting(false);
+            }
+        }
+    };
 
     const handleToggleOrder = async (orderId: string) => {
         if (expandedOrderId === orderId) {
@@ -303,7 +355,10 @@ const CustomersManagement: React.FC<CustomersManagementProps> = ({ setPage, cust
                                 <div className="p-6">
                                     <div className="flex items-center justify-between mb-6">
                                         <h3 className="text-lg font-bold text-[#00E5FF]">Dados Cadastrais</h3>
-                                        <button onClick={handleEditClick} className="text-xs font-bold bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors text-white">Editar</button>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setDeleteGestorModalOpen(true)} className="text-xs font-bold bg-red-500/20 hover:bg-red-500/40 text-red-300 px-3 py-1.5 rounded-lg transition-colors">Excluir</button>
+                                            <button onClick={handleEditClick} className="text-xs font-bold bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors text-white">Editar</button>
+                                        </div>
                                     </div>
                                     
                                     <div className="space-y-5">
@@ -570,6 +625,51 @@ const CustomersManagement: React.FC<CustomersManagementProps> = ({ setPage, cust
                                 </div>
                             </div>
                             
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* User Delete Modal */}
+            {deleteGestorModalOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-[#1A1C23] border border-red-500/30 rounded-xl w-full max-w-md shadow-2xl overflow-hidden animate-slideUp">
+                        <div className="bg-red-500/10 p-4 border-b border-red-500/20 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center text-red-500">
+                                ⚠️
+                            </div>
+                            <div>
+                                <h3 className="text-red-500 font-bold text-lg leading-tight">Exclusão de Cadastro</h3>
+                                <p className="text-red-400/70 text-xs">Ação irreversível restrita a gestores</p>
+                            </div>
+                        </div>
+                        <div className="p-6">
+                            <p className="text-slate-300 text-sm mb-4">
+                                Para apagar o cliente <strong className="text-white">{selectedCustomer?.name}</strong> e todos os seus orçamentos de todo o banco de dados, digite sua senha de gestor:
+                            </p>
+                            <input
+                                type="password"
+                                autoFocus
+                                className="w-full bg-black/40 border border-slate-700 rounded-lg p-3 text-white focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                                placeholder="Senha do Gestor"
+                                value={deleteGestorPassword}
+                                onChange={e => setDeleteGestorPassword(e.target.value)}
+                            />
+                            {deleteGestorError && <p className="text-red-400 text-xs mt-2 font-bold">{deleteGestorError}</p>}
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    onClick={() => { setDeleteGestorModalOpen(false); setDeleteGestorPassword(''); setDeleteGestorError(''); }}
+                                    className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleConfirmDeleteGestor}
+                                    className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg transition-colors shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
+                                    disabled={isDeleting}
+                                >
+                                    {isDeleting ? 'Excluindo...' : 'Confirmar Exclusão'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

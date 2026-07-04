@@ -2858,7 +2858,7 @@ const App: React.FC = () => {
             case 'workInstructions': return <WorkInstructions setPage={setPage} />;
             case 'peopleManagement': return <PeopleManagement setPage={setPage} currentUser={currentUser} activeBrandingPartner={activeBrandingPartner} />;
             case 'customerRegistration': return <CustomerRegistration setPage={setPage} customers={customers} />;
-            case 'customersManagement': return <CustomersManagement setPage={setPage} customers={customers} />;
+            case 'customersManagement': return <CustomersManagement setPage={setPage} customers={customers} currentUser={currentUser} />;
             case 'customerOrders': return <CustomerOrders setPage={setPage} customers={customers} commercialOrders={commercialOrders} currentUser={currentUser} activeBrandingPartner={activeBrandingPartner} />;
             case 'productsCatalog': return <ProductsCatalog gauges={gauges} stock={stock} setPage={setPage} />;
             case 'documents': return <DocumentManager setPage={setPage} currentUser={currentUser} />;
