@@ -502,7 +502,13 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                 ) : items.length === 0 ? (
                                     <tr><td colSpan={7} className="p-8 text-center text-slate-400 font-bold">Nenhum item adicionado ainda.</td></tr>
                                 ) : (
-                                    items.map((item, idx) => (
+                                    items.map((item, idx) => {
+                                        const totalPeso = items.reduce((acc, i) => acc + (i.peso || 0), 0);
+                                        const prop = totalPeso > 0 ? (item.peso || 0) / totalPeso : (1 / items.length);
+                                        const itemFreight = (freightValue || 0) * prop;
+                                        const finalValor = (item.valor || 0) + itemFreight;
+
+                                        return (
                                         <tr key={item.id || idx} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                                             <td className="p-3 text-xs font-bold text-slate-600 uppercase">{item.codigo}</td>
                                             <td className="p-3 text-xs font-black text-slate-800 text-center uppercase">{item.folha}</td>
@@ -512,14 +518,14 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                 {item.peso.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                                             </td>
                                             <td className="p-3 text-sm font-black text-emerald-600 text-right">
-                                                R$ {item.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                                                R$ {finalValor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                                             </td>
                                             <td className="p-3 text-center flex justify-center gap-3">
                                                 <button onClick={() => handleEditItem(item)} className="text-slate-400 hover:text-slate-800 font-bold transition-colors" title="Editar">✏️</button>
                                                 <button onClick={() => item.id && handleDeleteItem(item.id)} className="text-red-400 hover:text-red-600 font-black transition-colors" title="Excluir">🗑️</button>
                                             </td>
                                         </tr>
-                                    ))
+                                    )})
                                 )}
                             </tbody>
                         </table>

@@ -330,6 +330,11 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
                                 </thead>
                                 <tbody>
                                     {items.map((item, idx) => {
+                                        const totalPeso = items.reduce((acc, i) => acc + (i.peso || 0), 0);
+                                        const prop = totalPeso > 0 ? (item.peso || 0) / totalPeso : (1 / items.length);
+                                        const itemFreight = (order.freightValue || 0) * prop;
+                                        const finalValor = (item.valor || 0) + itemFreight;
+                                        
                                         return (
                                             <tr key={`item-${idx}`}>
                                                 <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[26px] leading-none px-1 pb-[3px]">{idx + 1}</div></td>
@@ -338,7 +343,7 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
                                                 <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[26px] leading-none px-1 pb-[3px] uppercase">{item.tipo || '\u00A0'}</div></td>
                                                 <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[26px] leading-none px-1 pb-[3px]">{item.peso > 0 ? item.peso.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0,00'}</div></td>
                                                 <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[26px] leading-none px-1 pb-[3px]">
-                                                    {item.valor > 0 ? `R$ ${item.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : 'R$ -'}
+                                                    {finalValor > 0 ? `R$ ${finalValor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : 'R$ -'}
                                                 </div></td>
                                             </tr>
                                         )
