@@ -860,8 +860,6 @@ const AddConferencePage: React.FC<{
                                     />
                                 </div>
 
-                                </div>
-
                                 {/* Footer */}
                                 <div className="border-t border-slate-200 pt-2 mt-2 flex justify-between items-center text-[7px] font-black text-slate-400 uppercase tracking-wider">
                                     <span>Gerado Automaticamente</span>
@@ -1512,8 +1510,6 @@ const StockControl: React.FC<{
                                         id={`reprint-barcode-${reprintLot.internalLot}`} 
                                         className="max-w-full"
                                     />
-                                </div>
-
                                 </div>
 
                                 {/* Footer */}
