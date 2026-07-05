@@ -312,12 +312,12 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
         return 'bg-emerald-50/70 border-b border-emerald-100 hover:bg-emerald-100/50 text-slate-800';
     };
 
-    const isGestor = currentUser?.role === 'gestor' || currentUser?.role === 'admin';
+    const isVendedor = currentUser?.role?.toLowerCase() === 'vendedor';
     const baseOrders = (commercialOrders || []).filter(o => {
         // Apenas mostra os pedidos (onde status não é 'orçamento')
         if (o.status?.toLowerCase().includes('orçamento')) return false;
 
-        if (!isGestor) {
+        if (isVendedor) {
             const userName = (currentUser?.name || currentUser?.username || '').toUpperCase();
             const orderSalesperson = (o.salesperson || '').toUpperCase();
             if (orderSalesperson !== userName) {
