@@ -465,6 +465,20 @@ export interface CommercialOrder {
     history?: OrderHistoryEntry[];
 }
 
+export interface DrawingPiece {
+    id: string;
+    type: 'barra' | 'ferro_l' | 'ferro_u' | 'espiral' | 'estribo' | 'caranguejo' | 'bandeja' | 'circular' | 'custom';
+    qty: number;
+    a?: number;
+    b?: number;
+    c?: number;
+    dimensions?: Record<string, number>;
+    customData?: DrawingData;
+    gaugeId: string;
+    totalSize: number;
+    kg: number;
+}
+
 export interface CommercialOrderItem {
     id?: string;
     order_id?: string; // Note: using snake_case as it matches Supabase schema, but can map to camelCase if needed

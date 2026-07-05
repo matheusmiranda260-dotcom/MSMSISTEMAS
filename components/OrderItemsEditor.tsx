@@ -2,6 +2,85 @@ import React, { useState, useEffect } from 'react';
 import type { CommercialOrder, CommercialOrderItem, StockGauge, User, Customer, Partner } from '../types';
 import { insertItem, updateItem, deleteItem, fetchItems, fetchTable } from '../services/supabaseService';
 import { OrderPrintTemplate } from './OrderPrintTemplate';
+import EstriboDrawingBoard from './EstriboDrawingBoard';
+
+const renderTableDrawingSvg = (d: any) => {
+    const stroke = "currentColor";
+    const sw = "4";
+    const valA = d.a || 'A';
+    const valB = d.b || 'B';
+    const valC = d.c || 'C';
+    
+    switch (d.type) {
+        case 'barra': 
+            return <svg viewBox="0 0 100 30" className="w-16 h-10 text-slate-800 drop-shadow-sm">
+                <line x1="10" y1="20" x2="90" y2="20" stroke={stroke} strokeWidth={sw} strokeLinecap="round"/>
+                <text x="50" y="10" fill="red" fontSize="14" fontWeight="bold" textAnchor="middle">{valA}</text>
+            </svg>;
+        case 'ferro_l': 
+            return <svg viewBox="0 0 100 100" className="w-16 h-16 text-slate-800 drop-shadow-sm">
+                <polyline points="25,20 25,75 80,75" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round"/>
+                <text x="10" y="50" fill="red" fontSize="14" fontWeight="bold">{valA}</text>
+                <text x="50" y="95" fill="red" fontSize="14" fontWeight="bold" textAnchor="middle">{valB}</text>
+            </svg>;
+        case 'ferro_u': 
+            return <svg viewBox="0 0 100 100" className="w-16 h-16 text-slate-800 drop-shadow-sm">
+                <polyline points="25,20 25,75 75,75 75,20" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round"/>
+                <text x="5" y="50" fill="red" fontSize="14" fontWeight="bold">{valA}</text>
+                <text x="50" y="95" fill="red" fontSize="14" fontWeight="bold" textAnchor="middle">{valB}</text>
+                <text x="85" y="50" fill="red" fontSize="14" fontWeight="bold">{valC}</text>
+            </svg>;
+        case 'estribo': 
+            return <svg viewBox="0 0 100 100" className="w-16 h-16 text-slate-800 drop-shadow-sm">
+                <rect x="25" y="25" width="50" height="50" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round"/>
+                <polyline points="25,45 45,25" fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round"/>
+                <polyline points="45,25 25,25 25,45" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round"/>
+                <text x="10" y="55" fill="red" fontSize="14" fontWeight="bold">{valA}</text>
+                <text x="50" y="90" fill="red" fontSize="14" fontWeight="bold" textAnchor="middle">{valB}</text>
+            </svg>;
+        case 'caranguejo': 
+            return <svg viewBox="0 0 100 100" className="w-16 h-16 text-slate-800 drop-shadow-sm">
+                <polyline points="15,80 30,65 30,35 70,35 70,65 85,50" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round"/>
+                <text x="15" y="55" fill="red" fontSize="14" fontWeight="bold">{valA}</text>
+                <text x="50" y="25" fill="red" fontSize="14" fontWeight="bold" textAnchor="middle">{valB}</text>
+                <text x="85" y="70" fill="red" fontSize="14" fontWeight="bold">{valC}</text>
+            </svg>;
+        case 'bandeja': 
+            return <svg viewBox="0 0 100 100" className="w-16 h-16 text-slate-800 drop-shadow-sm">
+                <polyline points="40,60 25,75 25,35 75,35 75,75 90,60" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round"/>
+                <text x="50" y="25" fill="red" fontSize="14" fontWeight="bold" textAnchor="middle">{valA}</text>
+                <text x="15" y="55" fill="red" fontSize="14" fontWeight="bold">{valB}</text>
+                <text x="90" y="70" fill="red" fontSize="14" fontWeight="bold">{valC}</text>
+            </svg>;
+        case 'circular': 
+            return <svg viewBox="0 0 100 100" className="w-16 h-16 text-slate-800 drop-shadow-sm">
+                <circle cx="50" cy="50" r="35" fill="none" stroke={stroke} strokeWidth={sw}/>
+                <text x="50" y="55" fill="red" fontSize="16" fontWeight="bold" textAnchor="middle">{valA}</text>
+            </svg>;
+        case 'espiral': 
+            return <svg viewBox="0 0 100 100" className="w-16 h-16 text-slate-800 drop-shadow-sm">
+                <path d="M 20 50 Q 35 10 50 50 T 80 50" fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round"/>
+                <path d="M 20 60 Q 35 20 50 60 T 80 60" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" opacity="0.4"/>
+                <text x="50" y="90" fill="red" fontSize="12" fontWeight="bold" textAnchor="middle">{valA},{valB},{valC}</text>
+            </svg>;
+        case 'custom':
+            if (d.customData) {
+                const { points, labels } = d.customData;
+                if (!points || points.length === 0) return null;
+                const pointsStr = points.map((pt: any) => `${pt.x},${pt.y}`).join(' ');
+                return (
+                    <svg viewBox="0 0 400 400" className="w-16 h-16 text-slate-800 drop-shadow-sm">
+                        <polyline points={pointsStr} fill="none" stroke={stroke} strokeWidth="12" strokeLinejoin="round" strokeLinecap="round"/>
+                        {labels && labels.map((l: any, idx: number) => (
+                            <text key={idx} x={l.x} y={l.y + 8} fill="red" fontSize="32" fontWeight="bold" textAnchor="middle">{d.dimensions?.[l.text] || l.text}</text>
+                        ))}
+                    </svg>
+                );
+            }
+            return null;
+        default: return null;
+    }
+};
 
 interface OrderItemsEditorProps {
     order: CommercialOrder;
@@ -83,7 +162,19 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         details?: Array<{irons: number, size: number, position: string, gaugeId: string, kg: number, format?: string, sideA?: number, sideB?: number, sideC?: number, spacing?: number}>
     }>>([]);
     const [customPrices, setCustomPrices] = useState<Record<string, number>>({});
-    const [bitolasMode, setBitolasMode] = useState<'KG' | 'METRO' | 'PECA'>('KG');
+    const [bitolasMode, setBitolasMode] = useState<'KG' | 'METRO' | 'PECA' | 'DESENHO'>('KG');
+    const [drawingType, setDrawingType] = useState<'barra' | 'ferro_l' | 'ferro_u' | 'espiral' | 'estribo' | 'caranguejo' | 'bandeja' | 'circular' | 'custom'>('barra');
+    const [drawingQty, setDrawingQty] = useState('');
+    const [drawingA, setDrawingA] = useState('');
+    const [drawingB, setDrawingB] = useState('');
+    const [drawingC, setDrawingC] = useState('');
+    const [drawingGaugeId, setDrawingGaugeId] = useState('');
+    const [drawingPieces, setDrawingPieces] = useState<import('../types').DrawingPiece[]>([]);
+    
+    // Custom drawing state
+    const [isDrawingBoardOpen, setIsDrawingBoardOpen] = useState(false);
+    const [customDrawingData, setCustomDrawingData] = useState<import('../types').DrawingData | null>(null);
+    const [customDimensions, setCustomDimensions] = useState<Record<string, string>>({});
     // Auth Modal para Gestor
     const [authModal, setAuthModal] = useState<{ isOpen: boolean; gaugeId: string | null }>({ isOpen: false, gaugeId: null });
     const [authPassword, setAuthPassword] = useState('');
@@ -374,7 +465,6 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                 await insertItem<CommercialOrderItem>('commercial_order_items', itemToSave);
             }
             
-            // Reset form
             setNewItem({
                 codigo: '',
                 folha: '',
@@ -385,6 +475,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
             });
             setBitolasQuantities({});
             setPiecesList([]);
+            setDrawingPieces([]);
             setCustomPrices({});
             await loadItems();
         } catch (error) {
@@ -413,9 +504,15 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
             } else {
                 setPiecesList([]);
             }
+            if (bitolasDetails['drawings']) {
+                setDrawingPieces(bitolasDetails['drawings']);
+            } else {
+                setDrawingPieces([]);
+            }
         } else {
             setBitolasQuantities({});
             setPiecesList([]);
+            setDrawingPieces([]);
         }
 
         const customPricesData = (item as any).customPrices || item.custom_prices;
@@ -820,6 +917,47 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
             });
         }
         
+        if (bitolasMode === 'DESENHO') {
+            finalQuantities = {};
+            if (drawingPieces.length > 0) {
+                finalQuantities['drawings'] = drawingPieces as any;
+                drawingPieces.forEach(p => {
+                    finalQuantities[p.gaugeId] = (finalQuantities[p.gaugeId] || 0) + p.kg;
+                });
+                
+                const drawingsText = drawingPieces.map(p => {
+                    const gauge = gauges.find(g => g.id === p.gaugeId);
+                    let gaugeStr = '';
+                    if (gauge) {
+                        const num = parseFloat((gauge.gauge || '').replace(',', '.').replace(/[^\d.]/g, ''));
+                        if (!isNaN(num)) {
+                            gaugeStr = `∅ ${num}mm`;
+                        } else {
+                            gaugeStr = gauge.commercialName || gauge.materialType || '';
+                        }
+                    }
+                    
+                    const shapeName = p.type === 'custom' ? 'PERSONALIZADO' : p.type.replace('_', ' ').toUpperCase();
+                    const desc = p.type === 'custom' 
+                            ? Object.entries(p.dimensions || {}).map(([key, val]) => `${key}:${val}`).join(' ') 
+                            : (p.a ? `A:${p.a} ` : '') + (p.b ? `B:${p.b} ` : '') + (p.c ? `C:${p.c}` : '');
+                    
+                    return `${p.qty} PEÇAS (${shapeName} ${desc.trim()}), ${gaugeStr}`;
+                }).join(' + ');
+                
+                setNewItem(prev => {
+                    let newDesc = prev.descricao || '';
+                    if (newDesc.includes(' --- DESENHOS: ')) {
+                        newDesc = newDesc.split(' --- DESENHOS: ')[0];
+                    }
+                    return {
+                        ...prev,
+                        descricao: `${newDesc} --- DESENHOS: ${drawingsText}`
+                    };
+                });
+            }
+        }
+
         const isArmado = newItem.tipo === 'ARMADO';
         
         if (isArmado && (!arameGaugeId || aramePercentage <= 0)) {
@@ -830,7 +968,12 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         if (isArmado && arameGaugeId && aramePercentage > 0) {
             let tempTotal = 0;
             Object.entries(finalQuantities).forEach(([bId, kgVal]) => {
-                if (bId !== 'pecas') tempTotal += (kgVal as number) || 0;
+                if (bId !== 'pecas' && bId !== 'drawings') {
+                    const isArame = arameGauges.some(a => a.id === bId);
+                    if (!isArame) {
+                        tempTotal += (kgVal as number) || 0;
+                    }
+                }
             });
             if (tempTotal > 0) {
                 const aKg = tempTotal * (aramePercentage / 100);
@@ -839,7 +982,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         }
         
         Object.entries(finalQuantities).forEach(([bitolaId, kgValue]) => {
-            if (bitolaId === 'pecas') return;
+            if (bitolaId === 'pecas' || bitolaId === 'drawings') return;
             const kg = kgValue as number;
             if (kg > 0) {
                 const gauge = gauges.find(g => g.id === bitolaId);
@@ -1011,6 +1154,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                         setEditingItemId(null);
                                         setNewItem({ codigo: '', folha: '', descricao: '', tipo: 'CORTE / DOBRA', peso: 0, valor: 0 });
                                         setBitolasQuantities({});
+                                        setDrawingPieces([]);
                                     }}
                                     className="text-[10px] font-bold text-slate-500 hover:text-slate-800 uppercase"
                                 >
@@ -1141,7 +1285,37 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                         <tr key={item.id || idx} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                                             <td className="p-3 text-xs font-bold text-slate-600 uppercase">{item.codigo}</td>
                                             <td className="p-3 text-xs font-black text-slate-800 text-center uppercase">{item.folha}</td>
-                                            <td className="p-3 text-xs font-bold text-slate-700 uppercase">{item.descricao}</td>
+                                            <td className="p-3 text-xs font-bold text-slate-700 uppercase">
+                                                {(() => {
+                                                    const bitolasDetails = (item as any).bitolasDetails || (item as any).bitolas_details;
+                                                    if (bitolasDetails && bitolasDetails['drawings'] && bitolasDetails['drawings'].length > 0) {
+                                                        return (
+                                                            <div className="flex flex-col gap-1 w-full items-start justify-center">
+                                                                {bitolasDetails['drawings'].map((drawing: any, dIdx: number) => (
+                                                                    <div key={dIdx} className="flex items-center gap-1 w-fit">
+                                                                        <span className="text-[10px] font-bold text-slate-700">{drawing.qty} peças:</span>
+                                                                        <div className="h-8 w-14 flex items-center justify-center">
+                                                                            {renderTableDrawingSvg(drawing)}
+                                                                        </div>
+                                                                        <span className="text-[10px] font-bold text-slate-700">
+                                                                            , ∅{(() => {
+                                                                                const gId = drawing.gaugeId || drawing.gauge_id;
+                                                                                if (!gId) return 'N/A';
+                                                                                const g = gauges.find(gg => String(gg.id) === String(gId));
+                                                                                if (!g) return `ID:${String(gId).substring(0,4)}`;
+                                                                                const num = parseFloat((g.gauge || '').replace(',', '.').replace(/[^\d.]/g, ''));
+                                                                                if (!isNaN(num) && num > 0) return `${num}MM`;
+                                                                                return (g.commercialName || g.materialType || g.gauge || '??').toUpperCase();
+                                                                            })()}
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return <div>{item.descricao?.split(' --- DESENHOS: ')[0] || '\u00A0'}</div>;
+                                                })()}
+                                            </td>
                                             <td className="p-3 text-xs font-bold text-slate-600 text-center uppercase">{item.tipo}</td>
                                             <td className="p-3 text-sm font-bold text-slate-800 text-right">
                                                 {item.peso.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
@@ -1309,17 +1483,31 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                             >
                                                 POR METRO
                                             </button>
+                                            <button 
+                                                onClick={() => setBitolasMode('DESENHO')}
+                                                className={`px-4 py-1.5 rounded-md transition-all ${bitolasMode === 'DESENHO' ? 'bg-white text-indigo-700 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
+                                            >
+                                                POR DESENHO
+                                            </button>
                                         </>
                                     ) : (
-                                        <button 
-                                            onClick={() => setBitolasMode('PECA')}
-                                            className={`px-4 py-1.5 rounded-md transition-all ${bitolasMode === 'PECA' ? 'bg-white text-indigo-700 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
-                                        >
-                                            POR PEÇA
-                                        </button>
+                                        <>
+                                            <button 
+                                                onClick={() => setBitolasMode('PECA')}
+                                                className={`px-4 py-1.5 rounded-md transition-all ${bitolasMode === 'PECA' ? 'bg-white text-indigo-700 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
+                                            >
+                                                POR PEÇA
+                                            </button>
+                                            <button 
+                                                onClick={() => setBitolasMode('DESENHO')}
+                                                className={`px-4 py-1.5 rounded-md transition-all ${bitolasMode === 'DESENHO' ? 'bg-white text-indigo-700 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
+                                            >
+                                                POR DESENHO
+                                            </button>
+                                        </>
                                     )}
                                 </div>
-                                {newItem.tipo === 'ARMADO' && (
+                                {newItem.tipo === 'ARMADO' && bitolasMode === 'PECA' && (
                                     <div className="ml-6 flex items-center gap-3 bg-indigo-700/50 p-1.5 rounded-lg border border-indigo-400/30">
                                         <label className="flex items-center gap-2 text-white text-xs font-bold">
                                             <span className="text-amber-300">⚠️</span>
@@ -2156,7 +2344,319 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                             </div>
                                         )}
                                     </div>
-                                ) : vergalhaoGauges.length === 0 ? (
+                                ) : bitolasMode === 'DESENHO' ? (
+                                    <div className="bg-white rounded-lg p-4 border border-slate-200">
+                                        <div className="grid grid-cols-12 gap-3 mb-4 items-end">
+                                            <div className="col-span-12 md:col-span-3 flex gap-2 items-end">
+                                                <div className="flex-1">
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Tipo de Desenho</label>
+                                                    <select 
+                                                        className="w-full border border-slate-300 rounded p-2 text-sm font-bold uppercase focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                        value={drawingType} onChange={e => setDrawingType(e.target.value as any)}
+                                                    >
+                                                        <option value="barra">Barra</option>
+                                                        <option value="ferro_l">Ferro L</option>
+                                                        <option value="ferro_u">Ferro U</option>
+                                                        <option value="espiral">Espiral</option>
+                                                        <option value="estribo">Estribo</option>
+                                                        <option value="caranguejo">Caranguejo</option>
+                                                        <option value="bandeja">Bandeja</option>
+                                                        <option value="circular">Circular</option>
+                                                        <option value="custom">Personalizado</option>
+                                                    </select>
+                                                </div>
+                                                <div className="w-20 h-20 border border-slate-300 rounded bg-slate-50 flex items-center justify-center p-1.5 shrink-0" title="Preview do Formato">
+                                                    {(() => {
+                                                        const stroke = "currentColor";
+                                                        const sw = "6";
+                                                        switch (drawingType) {
+                                                            case 'barra': return <svg viewBox="0 0 100 30" className="w-full h-full text-slate-600">
+                                                                <line x1="10" y1="20" x2="90" y2="20" stroke={stroke} strokeWidth={sw} strokeLinecap="round"/>
+                                                                <text x="50" y="10" fill="red" fontSize="14" fontWeight="bold" textAnchor="middle">A</text>
+                                                            </svg>;
+                                                            case 'ferro_l': return <svg viewBox="0 0 100 100" className="w-full h-full text-slate-600">
+                                                                <polyline points="30,20 30,75 80,75" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round"/>
+                                                                <text x="22" y="55" fill="red" fontSize="14" fontWeight="bold" textAnchor="end">A</text>
+                                                                <text x="55" y="95" fill="red" fontSize="14" fontWeight="bold" textAnchor="middle">B</text>
+                                                            </svg>;
+                                                            case 'ferro_u': return <svg viewBox="0 0 100 100" className="w-full h-full text-slate-600">
+                                                                <polyline points="25,30 25,75 75,75 75,30" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round"/>
+                                                                <text x="18" y="60" fill="red" fontSize="14" fontWeight="bold" textAnchor="end">A</text>
+                                                                <text x="50" y="95" fill="red" fontSize="14" fontWeight="bold" textAnchor="middle">B</text>
+                                                                <text x="82" y="60" fill="red" fontSize="14" fontWeight="bold">C</text>
+                                                            </svg>;
+                                                            case 'estribo': return <svg viewBox="0 0 100 100" className="w-full h-full text-slate-600">
+                                                                <rect x="25" y="25" width="50" height="50" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round"/>
+                                                                <polyline points="25,45 45,25" fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round"/>
+                                                                <polyline points="45,25 25,25 25,45" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round"/>
+                                                                <text x="18" y="55" fill="red" fontSize="14" fontWeight="bold" textAnchor="end">A</text>
+                                                                <text x="50" y="90" fill="red" fontSize="14" fontWeight="bold" textAnchor="middle">B</text>
+                                                            </svg>;
+                                                            case 'caranguejo': return <svg viewBox="0 0 100 100" className="w-full h-full text-slate-600">
+                                                                <polyline points="15,75 30,60 30,40 70,40 70,60 85,45" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round"/>
+                                                                <text x="22" y="55" fill="red" fontSize="14" fontWeight="bold" textAnchor="end">A</text>
+                                                                <text x="50" y="30" fill="red" fontSize="14" fontWeight="bold" textAnchor="middle">B</text>
+                                                                <text x="82" y="70" fill="red" fontSize="14" fontWeight="bold">C</text>
+                                                            </svg>;
+                                                            case 'bandeja': return <svg viewBox="0 0 100 100" className="w-full h-full text-slate-600">
+                                                                <polyline points="40,55 25,70 25,35 75,35 75,70 90,55" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round"/>
+                                                                <text x="50" y="25" fill="red" fontSize="14" fontWeight="bold" textAnchor="middle">A</text>
+                                                                <text x="18" y="55" fill="red" fontSize="14" fontWeight="bold" textAnchor="end">B</text>
+                                                                <text x="82" y="70" fill="red" fontSize="14" fontWeight="bold">C</text>
+                                                            </svg>;
+                                                            case 'circular': return <svg viewBox="0 0 100 100" className="w-full h-full text-slate-600">
+                                                                <circle cx="50" cy="50" r="30" fill="none" stroke={stroke} strokeWidth={sw}/>
+                                                                <text x="50" y="55" fill="red" fontSize="16" fontWeight="bold" textAnchor="middle">A</text>
+                                                            </svg>;
+                                                            case 'espiral': return <svg viewBox="0 0 100 100" className="w-full h-full text-slate-600">
+                                                                <path d="M 20 45 Q 35 15 50 45 T 80 45" fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round"/>
+                                                                <path d="M 20 65 Q 35 25 50 65 T 80 65" fill="none" stroke={stroke} strokeWidth="3" strokeLinecap="round" opacity="0.4"/>
+                                                                <text x="50" y="95" fill="red" fontSize="12" fontWeight="bold" textAnchor="middle">A(D), B(P), C(H)</text>
+                                                            </svg>;
+                                                            case 'custom': return (
+                                                                <button
+                                                                    onClick={() => setIsDrawingBoardOpen(true)}
+                                                                    className="w-full h-full flex flex-col items-center justify-center gap-1 text-indigo-600 hover:text-indigo-800 transition-colors bg-indigo-50 rounded"
+                                                                >
+                                                                    <span className="text-2xl leading-none">🖌️</span>
+                                                                    <span className="text-[9px] font-bold text-center leading-tight">ABRIR<br/>PRANCHETA</span>
+                                                                </button>
+                                                            );
+                                                            default: return null;
+                                                        }
+                                                    })()}
+                                                </div>
+                                            </div>
+                                            <div className="col-span-12 md:col-span-1">
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Qtd</label>
+                                                <input 
+                                                    type="number" min="1"
+                                                    className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                    value={drawingQty} onChange={e => setDrawingQty(e.target.value)}
+                                                    placeholder="Ex: 10"
+                                                />
+                                            </div>
+                                            
+                                            {drawingType === 'custom' ? (
+                                                customDrawingData && customDrawingData.labels && customDrawingData.labels.length > 0 ? (
+                                                    <div className="col-span-12 md:col-span-4 grid grid-cols-2 gap-2">
+                                                        {customDrawingData.labels.map(l => (
+                                                            <div key={l.text}>
+                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">
+                                                                    {l.text} (cm)
+                                                                </label>
+                                                                <input 
+                                                                    type="number" min="0" step="0.1"
+                                                                    className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                    value={customDimensions[l.text] || ''} 
+                                                                    onChange={e => setCustomDimensions(prev => ({...prev, [l.text]: e.target.value}))}
+                                                                    placeholder="Ex: 50"
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="col-span-12 md:col-span-4 text-[10px] text-red-500 font-bold flex items-center bg-red-50 p-2 rounded border border-red-200">
+                                                        ⚠️ Clique em ABRIR PRANCHETA para desenhar as linhas e colar as marcações A, B, C, etc.
+                                                    </div>
+                                                )
+                                            ) : (
+                                                <>
+                                                    <div className="col-span-12 md:col-span-2">
+                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight flex justify-between">
+                                                            <span>{drawingType === 'espiral' ? 'A (Diâmetro)' : 'A (cm)'}</span>
+                                                        </label>
+                                                        <input 
+                                                            type="number" min="0" step="0.1"
+                                                            className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                            value={drawingA} onChange={e => setDrawingA(e.target.value)}
+                                                            placeholder="Ex: 50"
+                                                        />
+                                                    </div>
+                                                    {['ferro_l', 'ferro_u', 'espiral', 'estribo', 'caranguejo', 'bandeja'].includes(drawingType) && (
+                                                        <div className="col-span-12 md:col-span-2">
+                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">
+                                                                {drawingType === 'espiral' ? 'B (Passo cm)' : 'B (cm)'}
+                                                            </label>
+                                                            <input 
+                                                                type="number" min="0" step="0.1"
+                                                                className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                value={drawingB} onChange={e => setDrawingB(e.target.value)}
+                                                                placeholder="Ex: 50"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    {['ferro_u', 'espiral', 'caranguejo', 'bandeja'].includes(drawingType) && (
+                                                        <div className="col-span-12 md:col-span-2">
+                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">
+                                                                {drawingType === 'espiral' ? 'C (Altura cm)' : 'C (cm)'}
+                                                            </label>
+                                                            <input 
+                                                                type="number" min="0" step="0.1"
+                                                                className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                value={drawingC} onChange={e => setDrawingC(e.target.value)}
+                                                                placeholder="Ex: 50"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
+                                            
+                                            <div className="col-span-12 md:col-span-2">
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Bitola</label>
+                                                <select 
+                                                    className="w-full border border-slate-300 rounded p-2 text-sm font-bold uppercase focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                    value={drawingGaugeId} onChange={e => setDrawingGaugeId(e.target.value)}
+                                                >
+                                                    <option value="">SELECIONE...</option>
+                                                    {vergalhaoGauges.map(g => (
+                                                        <option key={g.id} value={g.id}>
+                                                            {g.commercialName || g.materialType} {g.gauge}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            
+                                            <div className="col-span-12 flex items-end">
+                                                <button 
+                                                    onClick={() => {
+                                                        const qty = parseInt(drawingQty) || 0;
+                                                        if (qty <= 0 || !drawingGaugeId) return;
+                                                        
+                                                        const a = parseFloat(drawingA) || 0;
+                                                        const b = parseFloat(drawingB) || 0;
+                                                        const c = parseFloat(drawingC) || 0;
+                                                        
+                                                        let totalSize = 0;
+                                                        let dimensionsMap: Record<string, number> = {};
+                                                        
+                                                        if (drawingType === 'custom') {
+                                                            if (!customDrawingData || !customDrawingData.labels || customDrawingData.labels.length === 0) {
+                                                                alert("Desenhe e adicione rótulos na prancheta antes de adicionar o desenho.");
+                                                                return;
+                                                            }
+                                                            customDrawingData.labels.forEach(l => {
+                                                                const val = parseFloat(customDimensions[l.text]) || 0;
+                                                                totalSize += val;
+                                                                dimensionsMap[l.text] = val;
+                                                            });
+                                                        } else {
+                                                            if (drawingType === 'barra' || drawingType === 'circular') {
+                                                                totalSize = drawingType === 'circular' ? (a * 3.14) + 10 : a;
+                                                            } else if (drawingType === 'ferro_l' || drawingType === 'estribo') {
+                                                                totalSize = drawingType === 'estribo' ? (a * 2 + b * 2) + 10 : (a + b);
+                                                            } else if (drawingType === 'ferro_u') {
+                                                                totalSize = a + b + c;
+                                                            } else if (drawingType === 'caranguejo') {
+                                                                totalSize = (a * 2) + b + (c * 2);
+                                                            } else if (drawingType === 'bandeja') {
+                                                                totalSize = a + (b * 2) + (c * 2);
+                                                            } else if (drawingType === 'espiral') {
+                                                                const numEspiras = b > 0 ? c / b : 0;
+                                                                const compEspira = Math.sqrt(Math.pow(Math.PI * a, 2) + Math.pow(b, 2));
+                                                                totalSize = numEspiras * compEspira;
+                                                            }
+                                                        }
+                                                        
+                                                        const gauge = gauges.find(g => g.id === drawingGaugeId);
+                                                        let kg = 0;
+                                                        if (gauge && gauge.gauge && totalSize > 0) {
+                                                            const bitolaVal = parseFloat(String(gauge.gauge || '').replace(/[^\d.,]/g, '').replace(',', '.'));
+                                                            if (!isNaN(bitolaVal)) {
+                                                                const massaMetro = Math.ceil(bitolaVal * bitolaVal * 0.006162 * 1000) / 1000;
+                                                                kg = (qty * totalSize / 100) * massaMetro;
+                                                            }
+                                                        }
+
+                                                        const newPiece = {
+                                                            id: Date.now().toString(),
+                                                            type: drawingType,
+                                                            qty,
+                                                            gaugeId: drawingGaugeId,
+                                                            a: drawingType !== 'custom' ? a : undefined,
+                                                            b: drawingType !== 'custom' ? b : undefined,
+                                                            c: drawingType !== 'custom' ? c : undefined,
+                                                            dimensions: drawingType === 'custom' ? dimensionsMap : undefined,
+                                                            customData: drawingType === 'custom' ? customDrawingData : undefined,
+                                                            totalSize,
+                                                            kg,
+                                                        };
+                                                        
+                                                        setDrawingPieces(prev => [...prev, newPiece]);
+                                                        
+                                                        setDrawingQty('');
+                                                        setDrawingA('');
+                                                        setDrawingB('');
+                                                        setDrawingC('');
+                                                        setDrawingGaugeId('');
+                                                        setCustomDimensions({});
+                                                    }}
+                                                    className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-4 py-2 text-sm font-bold rounded-lg w-full transition-colors mt-2"
+                                                >
+                                                    ➕ Adicionar Desenho
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {drawingPieces.length > 0 && (
+                                            <div className="mt-4 border border-slate-200 rounded-lg overflow-hidden">
+                                                <table className="w-full text-left bg-white">
+                                                    <thead className="bg-slate-50">
+                                                        <tr>
+                                                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Qtd</th>
+                                                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Desenho</th>
+                                                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Medidas</th>
+                                                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Bitola</th>
+                                                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase text-right">Peso (kg)</th>
+                                                            <th className="px-3 py-2 w-10"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100">
+                                                        {drawingPieces.map(p => {
+                                                            const gauge = gauges.find(g => g.id === p.gaugeId);
+                                                            const desc = p.type === 'custom' 
+                                                                    ? Object.entries(p.dimensions || {}).map(([key, val]) => `${key}: ${val}cm`).join(' ') 
+                                                                    : (p.a ? `A: ${p.a}cm ` : '') + (p.b ? `B: ${p.b}cm ` : '') + (p.c ? `C: ${p.c}cm` : '');
+                                                            return (
+                                                                <tr key={p.id}>
+                                                                    <td className="px-3 py-2 text-sm font-bold">{p.qty}</td>
+                                                                    <td className="px-3 py-2 text-sm font-bold uppercase">
+                                                                        <div className="flex flex-col items-center">
+                                                                            <span className="mb-1 text-[10px] text-slate-500">{p.type === 'custom' ? 'PERSONALIZADO' : p.type.replace('_', ' ')}</span>
+                                                                            {renderTableDrawingSvg(p)}
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-xs font-semibold text-slate-600">
+                                                                        <div className="text-xs font-bold text-slate-600">{desc}</div>
+                                                                        <div className="text-[10px] text-slate-400 font-bold">Tam: {p.totalSize.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1})}cm/un</div>
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-xs font-bold text-indigo-700 uppercase">
+                                                                        {gauge ? `${gauge.commercialName || gauge.materialType} ${gauge.gauge}` : ''}
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-sm font-black text-emerald-700 text-right">
+                                                                        {p.kg.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-center">
+                                                                        <button 
+                                                                            onClick={() => setDrawingPieces(prev => prev.filter(dp => dp.id !== p.id))}
+                                                                            className="text-red-400 hover:text-red-600 font-bold"
+                                                                        >
+                                                                            ✕
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                                <div className="bg-slate-100/50 px-3 py-2 text-right">
+                                                    <span className="text-xs font-black text-slate-800 uppercase">Total: </span>
+                                                    <span className="text-sm font-black text-indigo-700">{drawingPieces.reduce((acc, p) => acc + p.kg, 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} kg</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : [...vergalhaoGauges, ...arameGauges].length === 0 ? (
                                     <p className="text-center text-slate-500 p-4">Nenhum material cadastrado em Configuração de Materiais.</p>
                                 ) : (
                                     <table className="w-full text-left border-collapse bg-white rounded-lg overflow-hidden shadow-sm border border-slate-200">
@@ -2172,7 +2672,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {vergalhaoGauges.map(g => (
+                                            {[...vergalhaoGauges, ...arameGauges].map(g => (
                                                 <tr key={g.id} className="border-b border-slate-100 hover:bg-slate-50">
                                                     <td className="p-3 text-sm font-bold text-slate-700 uppercase">
                                                         {g.commercialName || g.materialType} {g.gauge}
@@ -2272,6 +2772,18 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                         </div>
                     </div>
                 </div>
+            )}
+
+            {isDrawingBoardOpen && (
+                <EstriboDrawingBoard 
+                    initialData={customDrawingData}
+                    requiredSides={['A','B','C','D','E','F','G','H','I','J']}
+                    onSave={(data) => {
+                        setCustomDrawingData(data);
+                        setIsDrawingBoardOpen(false);
+                    }}
+                    onClose={() => setIsDrawingBoardOpen(false)}
+                />
             )}
 
             {/* Auth Modal para Editar Preço */}

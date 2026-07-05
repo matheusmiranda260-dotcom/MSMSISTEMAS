@@ -24,13 +24,13 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
     showItems = true,
     showSummary = true
 }, ref) => {
-    // Calculate aggregated bitolas
     const bitolasSummary: Record<string, { kg: number }> = {};
+    
     items.forEach(item => {
-        const bitolasDetails = (item as any).bitolasDetails || item.bitolas_details;
+        const bitolasDetails = (item as any).bitolasDetails || (item as any).bitolas_details;
         if (bitolasDetails) {
             Object.entries(bitolasDetails).forEach(([bitolaId, kg]) => {
-                if (bitolaId === 'pecas') return;
+                if (bitolaId === 'pecas' || bitolaId === 'drawings') return;
                 const kgNum = Number(kg) || 0;
                 if (kgNum > 0) {
                     if (!bitolasSummary[bitolaId]) {
@@ -41,6 +41,84 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
             });
         }
     });
+
+    const renderDrawingSvg = (d: any) => {
+        const stroke = "black";
+        const sw = "6"; // Thicker stroke for printing visibility
+        const valA = d.a || 'A';
+        const valB = d.b || 'B';
+        const valC = d.c || 'C';
+        
+        switch (d.type) {
+            case 'barra': 
+                return <svg viewBox="0 0 100 30" className="w-full h-full text-black drop-shadow-sm">
+                    <line x1="10" y1="20" x2="90" y2="20" stroke={stroke} strokeWidth={sw} strokeLinecap="round"/>
+                    <text x="50" y="10" fill="red" fontSize="16" fontWeight="bold" textAnchor="middle">{valA}</text>
+                </svg>;
+            case 'ferro_l': 
+                return <svg viewBox="0 0 100 100" className="w-full h-full text-black drop-shadow-sm">
+                    <polyline points="30,20 30,75 80,75" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round"/>
+                    <text x="22" y="55" fill="red" fontSize="16" fontWeight="bold" textAnchor="end">{valA}</text>
+                    <text x="55" y="95" fill="red" fontSize="16" fontWeight="bold" textAnchor="middle">{valB}</text>
+                </svg>;
+            case 'ferro_u': 
+                return <svg viewBox="0 0 100 100" className="w-full h-full text-black drop-shadow-sm">
+                    <polyline points="25,30 25,75 75,75 75,30" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round"/>
+                    <text x="18" y="60" fill="red" fontSize="16" fontWeight="bold" textAnchor="end">{valA}</text>
+                    <text x="50" y="95" fill="red" fontSize="16" fontWeight="bold" textAnchor="middle">{valB}</text>
+                    <text x="82" y="60" fill="red" fontSize="16" fontWeight="bold">{valC}</text>
+                </svg>;
+            case 'estribo': 
+                return <svg viewBox="0 0 100 100" className="w-full h-full text-black drop-shadow-sm">
+                    <rect x="25" y="25" width="50" height="50" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round"/>
+                    <polyline points="25,45 45,25" fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round"/>
+                    <polyline points="45,25 25,25 25,45" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round"/>
+                    <text x="18" y="55" fill="red" fontSize="16" fontWeight="bold" textAnchor="end">{valA}</text>
+                    <text x="50" y="90" fill="red" fontSize="16" fontWeight="bold" textAnchor="middle">{valB}</text>
+                </svg>;
+            case 'caranguejo': 
+                return <svg viewBox="0 0 100 100" className="w-full h-full text-black drop-shadow-sm">
+                    <polyline points="15,75 30,60 30,40 70,40 70,60 85,45" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round"/>
+                    <text x="22" y="55" fill="red" fontSize="16" fontWeight="bold" textAnchor="end">{valA}</text>
+                    <text x="50" y="30" fill="red" fontSize="16" fontWeight="bold" textAnchor="middle">{valB}</text>
+                    <text x="82" y="70" fill="red" fontSize="16" fontWeight="bold">{valC}</text>
+                </svg>;
+            case 'bandeja': 
+                return <svg viewBox="0 0 100 100" className="w-full h-full text-black drop-shadow-sm">
+                    <polyline points="40,55 25,70 25,35 75,35 75,70 90,55" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round"/>
+                    <text x="50" y="25" fill="red" fontSize="16" fontWeight="bold" textAnchor="middle">{valA}</text>
+                    <text x="18" y="55" fill="red" fontSize="16" fontWeight="bold" textAnchor="end">{valB}</text>
+                    <text x="82" y="70" fill="red" fontSize="16" fontWeight="bold">{valC}</text>
+                </svg>;
+            case 'circular': 
+                return <svg viewBox="0 0 100 100" className="w-full h-full text-black drop-shadow-sm">
+                    <circle cx="50" cy="50" r="30" fill="none" stroke={stroke} strokeWidth={sw}/>
+                    <text x="50" y="55" fill="red" fontSize="16" fontWeight="bold" textAnchor="middle">{valA}</text>
+                </svg>;
+            case 'espiral': 
+                return <svg viewBox="0 0 100 100" className="w-full h-full text-black drop-shadow-sm">
+                    <path d="M 20 45 Q 35 15 50 45 T 80 45" fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round"/>
+                    <path d="M 20 65 Q 35 25 50 65 T 80 65" fill="none" stroke={stroke} strokeWidth="3" strokeLinecap="round" opacity="0.4"/>
+                    <text x="50" y="95" fill="red" fontSize="12" fontWeight="bold" textAnchor="middle">{valA}(D), {valB}(P), {valC}(H)</text>
+                </svg>;
+            case 'custom':
+            if (d.customData) {
+                const { points, labels } = d.customData;
+                if (!points || points.length === 0) return null;
+                const pointsStr = points.map((p: any) => `${p.x},${p.y}`).join(' ');
+                return (
+                    <svg viewBox="0 0 400 400" className="w-full h-full text-black drop-shadow-sm">
+                        <polyline points={pointsStr} fill="none" stroke={stroke} strokeWidth="12" strokeLinejoin="round" strokeLinecap="round"/>
+                        {labels && labels.map((l: any, idx: number) => (
+                            <text key={idx} x={l.x} y={l.y + 8} fill="red" fontSize="32" fontWeight="bold" textAnchor="middle">{d.dimensions?.[l.text] || l.text}</text>
+                        ))}
+                    </svg>
+                );
+            }
+            return null;
+        default: return null;
+        }
+    };
 
     const summaryRows = Object.keys(bitolasSummary).map(bitolaId => {
         const gauge = gauges.find(g => g.id === bitolaId);
@@ -195,7 +273,39 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
                                         <tr key={`item-${idx}`}>
                                             <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-1">{idx + 1}</div></td>
                                             <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-1">{item.folha || '\u00A0'}</div></td>
-                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-tight px-1 py-1 uppercase text-center break-words">{item.descricao || '\u00A0'}</div></td>
+                                            <td className="border-x border-b border-black p-0">
+                                                <div className="flex flex-col items-center justify-center min-h-[22px] leading-tight px-1 py-1 uppercase text-center break-words">
+                                                    {(() => {
+                                                        const bitolasDetails = (item as any).bitolasDetails || (item as any).bitolas_details;
+                                                        if (bitolasDetails && bitolasDetails['drawings'] && bitolasDetails['drawings'].length > 0) {
+                                                            return (
+                                                                <div className="flex flex-col items-center justify-center gap-1 w-full">
+                                                                    {bitolasDetails['drawings'].map((drawing: any, dIdx: number) => (
+                                                                        <div key={dIdx} className="flex items-center justify-center gap-1">
+                                                                            <span className="text-[10px] font-bold text-black">{drawing.qty} peças:</span>
+                                                                            <div className="h-10 w-16 flex items-center justify-center">
+                                                                                {renderDrawingSvg(drawing)}
+                                                                            </div>
+                                                                            <span className="text-[10px] font-bold text-black">
+                                                                                , ∅{(() => {
+                                                                                    const gId = drawing.gaugeId || drawing.gauge_id;
+                                                                                    if (!gId) return 'N/A';
+                                                                                    const g = gauges.find(gg => String(gg.id) === String(gId));
+                                                                                    if (!g) return `ID:${String(gId).substring(0,4)}`;
+                                                                                    const num = parseFloat((g.gauge || '').replace(',', '.').replace(/[^\d.]/g, ''));
+                                                                                    if (!isNaN(num) && num > 0) return `${num}MM`;
+                                                                                    return (g.commercialName || g.materialType || g.gauge || '??').toUpperCase();
+                                                                                })()}
+                                                                            </span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return <div>{item.descricao?.split(' --- DESENHOS: ')[0] || '\u00A0'}</div>;
+                                                    })()}
+                                                </div>
+                                            </td>
                                             <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-1 uppercase text-center">{item.tipo || '\u00A0'}</div></td>
                                             <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-1">{item.peso > 0 ? item.peso.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0,00'}</div></td>
                                             <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-1">
@@ -306,6 +416,7 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
                 </div>
 
             </div>
+
         </div>
     );
 });
