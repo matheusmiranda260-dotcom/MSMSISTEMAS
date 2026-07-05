@@ -42,6 +42,8 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
         }
     });
 
+    const multiplier = 1 + ((order.adjustmentPercentage || 0) / 100);
+
     const renderDrawingSvg = (d: any) => {
         const stroke = "black";
         const sw = "6"; // Thicker stroke for printing visibility
@@ -136,14 +138,15 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
             ? (gauge.purchasePrice || 0) / gauge.rawWeightValue 
             : (gauge?.purchasePrice || 0);
 
-        let pricePerKg = basePricePerKg;
+        let rawPricePerKg = basePricePerKg;
         for (const item of items) {
             if (item.custom_prices && item.custom_prices[bitolaId] !== undefined) {
-                pricePerKg = item.custom_prices[bitolaId];
+                rawPricePerKg = item.custom_prices[bitolaId];
                 break;
             }
         }
 
+        const pricePerKg = rawPricePerKg * multiplier;
         const total = kg * pricePerKg;
 
         return {
@@ -267,7 +270,7 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
                                     const totalPeso = items.reduce((acc, i) => acc + (i.peso || 0), 0);
                                     const prop = totalPeso > 0 ? (item.peso || 0) / totalPeso : (1 / items.length);
                                     const itemFreight = (order.freightValue || 0) * prop;
-                                    const finalValor = (item.valor || 0) + itemFreight;
+                                    const finalValor = ((item.valor || 0) * multiplier) + itemFreight;
                                     
                                     return (
                                         <tr key={`item-${idx}`}>

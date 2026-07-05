@@ -103,6 +103,8 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     const [paymentCondition, setPaymentCondition] = useState(order.paymentCondition || '');
     const [freight, setFreight] = useState(order.freight || '');
     const [freightValue, setFreightValue] = useState<number>(order.freightValue || 0);
+    const [adjustmentPercentage, setAdjustmentPercentage] = useState<number>(order.adjustmentPercentage || 0);
+    const [adjustmentValue, setAdjustmentValue] = useState<number>(order.adjustmentValue || 0);
     const [isSaving, setIsSaving] = useState(false);
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [seller, setSeller] = useState<User | null>(null);
@@ -537,7 +539,37 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     };
 
     const totalWeight = items.reduce((acc, item) => acc + (item.peso || 0), 0);
-    const totalValue = items.reduce((acc, item) => acc + (item.valor || 0), 0) + freightValue;
+    const baseItemsValue = items.reduce((acc, item) => acc + (item.valor || 0), 0);
+    const multiplier = 1 + ((adjustmentPercentage || 0) / 100);
+    const totalValue = (baseItemsValue * multiplier) + freightValue;
+
+    const handleAdjustmentPercentageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const valStr = e.target.value.replace(',', '.');
+        const pct = parseFloat(valStr);
+        if (isNaN(pct)) {
+            setAdjustmentPercentage(0);
+            setAdjustmentValue(0);
+            return;
+        }
+        setAdjustmentPercentage(pct);
+        setAdjustmentValue(baseItemsValue * (pct / 100));
+    };
+
+    const handleAdjustmentValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const valStr = e.target.value.replace(',', '.');
+        const val = parseFloat(valStr);
+        if (isNaN(val)) {
+            setAdjustmentValue(0);
+            setAdjustmentPercentage(0);
+            return;
+        }
+        setAdjustmentValue(val);
+        if (baseItemsValue > 0) {
+            setAdjustmentPercentage((val / baseItemsValue) * 100);
+        } else {
+            setAdjustmentPercentage(0);
+        }
+    };
 
     // Compute bitolas summary
     const bitolasSummary: Record<string, { kg: number }> = {};
@@ -569,7 +601,8 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
             ? (gauge.purchasePrice || 0) / gauge.rawWeightValue 
             : (gauge?.purchasePrice || 0);
             
-        const pricePerKg = customPrices[bitolaId] !== undefined ? customPrices[bitolaId] : basePricePerKg;
+        const rawPricePerKg = customPrices[bitolaId] !== undefined ? customPrices[bitolaId] : basePricePerKg;
+        const pricePerKg = rawPricePerKg * multiplier;
 
         const pricePerBarra = gauge?.purchasePrice || 0;
         const total = kg * pricePerKg;
@@ -626,6 +659,8 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                 paymentCondition: paymentCondition,
                 freight: freight,
                 freight_value: freightValue,
+                adjustment_percentage: adjustmentPercentage,
+                adjustment_value: adjustmentValue,
                 totalWeight: totalWeight,
                 price: totalValue, // Update main price
                 status: statusToSave,
@@ -1018,7 +1053,9 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         deliveryTime,
         paymentCondition,
         freight,
-        freightValue
+        freightValue,
+        adjustmentPercentage,
+        adjustmentValue
     };
     
     const liveCustomer = clientSearchResult || {
@@ -1279,7 +1316,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                         const totalPeso = items.reduce((acc, i) => acc + (i.peso || 0), 0);
                                         const prop = totalPeso > 0 ? (item.peso || 0) / totalPeso : (1 / items.length);
                                         const itemFreight = (freightValue || 0) * prop;
-                                        const finalValor = (item.valor || 0) + itemFreight;
+                                        const finalValor = ((item.valor || 0) * multiplier) + itemFreight;
 
                                         return (
                                         <tr key={item.id || idx} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
@@ -1402,6 +1439,33 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                             const val = parseFloat(e.target.value);
                                             setFreightValue(isNaN(val) ? 0 : val);
                                         }}
+                                        placeholder="0,00"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm w-full justify-end mt-2">
+                            <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Reajuste (+ ou -):</span>
+                            <div className="flex gap-2">
+                                <div className="relative">
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">%</span>
+                                    <input 
+                                        type="number"
+                                        step="0.01"
+                                        className="border border-slate-200 rounded py-1.5 pl-3 pr-8 text-sm font-bold w-24 text-right bg-slate-50 focus:bg-white transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                        value={adjustmentPercentage || ''}
+                                        onChange={handleAdjustmentPercentageChange}
+                                        placeholder="0,00"
+                                    />
+                                </div>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
+                                    <input 
+                                        type="number"
+                                        step="0.01"
+                                        className="border border-slate-200 rounded py-1.5 pr-3 pl-8 text-sm font-bold w-32 text-right bg-slate-50 focus:bg-white transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                        value={adjustmentValue || ''}
+                                        onChange={handleAdjustmentValueChange}
                                         placeholder="0,00"
                                     />
                                 </div>
