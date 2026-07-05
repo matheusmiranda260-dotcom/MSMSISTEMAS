@@ -18,6 +18,8 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
     const [isLoading, setIsLoading] = useState(true);
     const [isCopying, setIsCopying] = useState(false);
     const [copySuccess, setCopySuccess] = useState(false);
+    const [showItems, setShowItems] = useState(true);
+    const [showSummary, setShowSummary] = useState(true);
     const printRef = useRef<HTMLDivElement>(null);
 
     const handleCopyToWhatsApp = async () => {
@@ -221,9 +223,31 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
             
             {/* Action Bar (No Print) */}
             {!isCopying && (
-                <div className="sticky top-0 bg-slate-800 w-full p-4 flex justify-between items-center no-print shadow-xl z-[201]">
-                <div className="text-white font-bold flex items-center gap-2">
-                    <span>🖨️</span> Visualização de Impressão
+                <div className="sticky top-0 bg-slate-800 w-full p-4 flex flex-col md:flex-row justify-between items-center gap-4 no-print shadow-xl z-[201]">
+                <div className="text-white font-bold flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <span>🖨️</span> Visualização de Impressão
+                    </div>
+                    <div className="flex flex-wrap items-center gap-4 md:ml-6 md:border-l border-slate-600 md:pl-6 text-sm font-normal">
+                        <label className="flex items-center gap-2 cursor-pointer hover:text-sky-300 transition-colors">
+                            <input 
+                                type="checkbox" 
+                                checked={showItems}
+                                onChange={(e) => setShowItems(e.target.checked)}
+                                className="w-4 h-4 rounded text-sky-500 bg-slate-700 border-slate-500 focus:ring-sky-500 focus:ring-offset-slate-800"
+                            />
+                            Itens do Orçamento
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer hover:text-sky-300 transition-colors">
+                            <input 
+                                type="checkbox" 
+                                checked={showSummary}
+                                onChange={(e) => setShowSummary(e.target.checked)}
+                                className="w-4 h-4 rounded text-sky-500 bg-slate-700 border-slate-500 focus:ring-sky-500 focus:ring-offset-slate-800"
+                            />
+                            Resumo do Aço
+                        </label>
+                    </div>
                 </div>
                 <div className="flex gap-3">
                     <button onClick={onClose} className="px-5 py-2 rounded font-bold text-slate-300 hover:bg-slate-700 transition-colors">
@@ -261,6 +285,8 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
                         customer={customer}
                         seller={seller}
                         activeBrandingPartner={activeBrandingPartner}
+                        showItems={showItems}
+                        showSummary={showSummary}
                     />
                 )}
             </div>

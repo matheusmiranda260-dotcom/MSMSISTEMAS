@@ -9,6 +9,8 @@ export interface OrderPrintTemplateProps {
     seller: User | null;
     activeBrandingPartner?: Partner | null;
     previewCodigo?: string;
+    showItems?: boolean;
+    showSummary?: boolean;
 }
 
 export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateProps>(({
@@ -18,7 +20,9 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
     customer,
     seller,
     activeBrandingPartner,
-    previewCodigo
+    previewCodigo,
+    showItems = true,
+    showSummary = true
 }, ref) => {
     // Calculate aggregated bitolas
     const bitolasSummary: Record<string, { kg: number }> = {};
@@ -155,11 +159,13 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
                 </div>
 
                 {/* FIRST TABLE: ITENS DO ORÇAMENTO */}
-                <div className="bg-[#3b3e41] text-white text-center py-1 font-bold text-[11px] uppercase" style={{backgroundColor: '#3b3e41', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
-                    (ITENS DO ORÇAMENTO)
-                </div>
-                <div className="flex flex-col flex-none min-h-[50px]">
-                    <table className="w-full text-center border-collapse border-b border-black table-fixed print:min-w-0">
+                {showItems && (
+                    <>
+                        <div className="bg-[#3b3e41] text-white text-center py-1 font-bold text-[11px] uppercase" style={{backgroundColor: '#3b3e41', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                            (ITENS DO ORÇAMENTO)
+                        </div>
+                        <div className="flex flex-col flex-none min-h-[50px]">
+                            <table className="w-full text-center border-collapse border-b border-black table-fixed print:min-w-0">
                         <thead>
                             <tr className="text-black font-bold text-[10px]">
                                 <th className="border border-black p-1 w-[7%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>ITEM</th>
@@ -199,18 +205,24 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
                                 })
                             )}
                         </tbody>
-                    </table>
-                </div>
+                            </table>
+                        </div>
+                    </>
+                )}
 
                 {/* SECOND TABLE: RESUMO DE AÇO */}
-                <div className="bg-[#3b3e41] text-white text-center py-1 font-bold text-[11px] uppercase border-t border-black mt-4" style={{backgroundColor: '#3b3e41', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
-                    (RESUMO DO AÇO)
-                </div>
+                {showSummary && (
+                    <div className="bg-[#3b3e41] text-white text-center py-1 font-bold text-[11px] uppercase border-t border-black mt-4" style={{backgroundColor: '#3b3e41', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                        (RESUMO DO AÇO)
+                    </div>
+                )}
 
                 <div className="flex flex-col flex-1 pb-[120px] relative">
                     <table className="w-full text-center border-collapse table-fixed print:min-w-0">
-                        <thead>
-                            <tr className="text-black font-bold text-[10px]">
+                        {showSummary && (
+                            <>
+                                <thead>
+                                    <tr className="text-black font-bold text-[10px]">
                                 <th className="border border-black p-1 w-[10%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>CÓD.</th>
                                 <th className="border border-black p-1 text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>DESCRIÇÃO</th>
                                 <th className="border border-black p-1 w-[12%] text-center bg-[#ffe0b2]" style={{backgroundColor: '#ffe0b2', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>QTD</th>
@@ -232,9 +244,11 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
                                     <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-0.5">
                                         {row.total > 0 ? `R$ ${row.total.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : 'R$ -'}
                                     </div></td>
-                                </tr>
-                            ))}
-                        </tbody>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </>
+                        )}
                         <tfoot>
                             <tr className="h-4">
                                 <td colSpan={6} className="border-none"></td>

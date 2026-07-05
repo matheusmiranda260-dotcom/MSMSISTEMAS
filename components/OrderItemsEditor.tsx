@@ -39,12 +39,24 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     const [pieceStirrupFormat, setPieceStirrupFormat] = useState('');
     const [stirrupA, setStirrupA] = useState('');
     const [stirrupB, setStirrupB] = useState('');
+    const [stirrupC, setStirrupC] = useState('');
     const [stirrupSpacing, setStirrupSpacing] = useState('');
     const [stirrupQty, setStirrupQty] = useState('');
     const [stirrupGaugeId, setStirrupGaugeId] = useState('');
-    const [pieceDetails, setPieceDetails] = useState<Array<{ id: string, irons: string, position: string, format?: string, sideA?: string, sideB?: string, sideC?: string, size: string, gaugeId: string }>>([
-        { id: '1', irons: '', position: 'principal', format: 'reto', sideA: '', sideB: '', sideC: '', size: '', gaugeId: '' }
+    
+    // 2nd stirrup (for blocos with 3 dimensions)
+    const [useSecondStirrup, setUseSecondStirrup] = useState(false);
+    const [pieceStirrupFormat2, setPieceStirrupFormat2] = useState('');
+    const [stirrupA2, setStirrupA2] = useState('');
+    const [stirrupB2, setStirrupB2] = useState('');
+    const [stirrupC2, setStirrupC2] = useState('');
+    const [stirrupSpacing2, setStirrupSpacing2] = useState('');
+    const [stirrupQty2, setStirrupQty2] = useState('');
+    const [stirrupGaugeId2, setStirrupGaugeId2] = useState('');
+    const [pieceDetails, setPieceDetails] = useState<Array<{ id: string, irons: string, position: string, format?: string, sideA?: string, sideB?: string, sideC?: string, spacing?: string, size: string, gaugeId: string }>>([
+        { id: '1', irons: '', position: 'principal', format: 'reto', sideA: '', sideB: '', sideC: '', spacing: '', size: '', gaugeId: '' }
     ]);
+    const [blocoDimensions, setBlocoDimensions] = useState('');
     const [pieceGaugeId, setPieceGaugeId] = useState('');
     const [piecesList, setPiecesList] = useState<Array<{
         id: string, 
@@ -53,13 +65,22 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         stirrupFormat?: string,
         stirrupA?: number,
         stirrupB?: number,
+        stirrupC?: number,
         stirrupQty?: number,
         stirrupSpacing?: string,
         stirrupGaugeId?: string,
         stirrupSize?: number,
+        stirrupFormat2?: string,
+        stirrupA2?: number,
+        stirrupB2?: number,
+        stirrupC2?: number,
+        stirrupQty2?: number,
+        stirrupSpacing2?: string,
+        stirrupGaugeId2?: string,
+        stirrupSize2?: number,
         gaugeId?: string, 
         kg?: number,
-        details?: Array<{irons: number, size: number, position: string, gaugeId: string, kg: number, format?: string, sideA?: number, sideB?: number, sideC?: number}>
+        details?: Array<{irons: number, size: number, position: string, gaugeId: string, kg: number, format?: string, sideA?: number, sideB?: number, sideC?: number, spacing?: number}>
     }>>([]);
     const [customPrices, setCustomPrices] = useState<Record<string, number>>({});
     const [bitolasMode, setBitolasMode] = useState<'KG' | 'METRO' | 'PECA'>('KG');
@@ -88,7 +109,16 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
 
     const [arameActive, setArameActive] = useState(false);
     const [arameGaugeId, setArameGaugeId] = useState('');
-    const [aramePercentage, setAramePercentage] = useState(2);
+    const [aramePercentage, setAramePercentage] = useState(5);
+
+    useEffect(() => {
+        if (!arameGaugeId && gauges && gauges.length > 0) {
+            const defaultArame = gauges.find(g => (g.commercialName || g.materialType || '').toUpperCase().includes('ARAME 18'));
+            if (defaultArame) {
+                setArameGaugeId(defaultArame.id);
+            }
+        }
+    }, [gauges, arameGaugeId]);
 
     const arameGauges = gauges.filter(g => {
         const name = (g.commercialName || g.materialType || '').toUpperCase();
@@ -104,13 +134,26 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     let calculatedStirrupSize = 0;
     const sA = parseFloat(stirrupA) || 0;
     const sB = parseFloat(stirrupB) || 0;
+    const sC = parseFloat(stirrupC) || 0;
     if (pieceStirrupFormat === 'quadrado') calculatedStirrupSize = sA * 4 + 10;
     if (pieceStirrupFormat === 'retangular') calculatedStirrupSize = sA * 2 + sB * 2 + 10;
     if (pieceStirrupFormat === 'triangular') calculatedStirrupSize = sA + sB * 2 + 10;
     if (pieceStirrupFormat === 'redondo') calculatedStirrupSize = Math.round(sA * 3.14) + 10;
     if (pieceStirrupFormat === 'sextavado') calculatedStirrupSize = sA * 6 + 10;
+    if (pieceStirrupFormat === 'aberto') calculatedStirrupSize = sA + sB + sC;
 
-    if (['broca', 'viga', 'pilares'].includes((pieceName || '').toLowerCase())) {
+    let calculatedStirrupSize2 = 0;
+    const sA2 = parseFloat(stirrupA2) || 0;
+    const sB2 = parseFloat(stirrupB2) || 0;
+    const sC2 = parseFloat(stirrupC2) || 0;
+    if (pieceStirrupFormat2 === 'quadrado') calculatedStirrupSize2 = sA2 * 4 + 10;
+    if (pieceStirrupFormat2 === 'retangular') calculatedStirrupSize2 = sA2 * 2 + sB2 * 2 + 10;
+    if (pieceStirrupFormat2 === 'triangular') calculatedStirrupSize2 = sA2 + sB2 * 2 + 10;
+    if (pieceStirrupFormat2 === 'redondo') calculatedStirrupSize2 = Math.round(sA2 * 3.14) + 10;
+    if (pieceStirrupFormat2 === 'sextavado') calculatedStirrupSize2 = sA2 * 6 + 10;
+    if (pieceStirrupFormat2 === 'aberto') calculatedStirrupSize2 = sA2 + sB2 + sC2;
+
+    if (['broca', 'viga', 'pilares', 'bloco', 'blocos'].includes((pieceName || '').toLowerCase())) {
         pieceDetails.forEach(detail => {
             const parsedIrons = parseInt(detail.irons) || 0;
             const parsedSize = parseInt(detail.size) || 0;
@@ -159,6 +202,31 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                         metros: sMetros,
                         kg: kg,
                         price: kg * finalPrice
+                    });
+                }
+            }
+        }
+        
+        if (useSecondStirrup && pieceStirrupFormat2 && stirrupGaugeId2 && stirrupQty2 && calculatedStirrupSize2 > 0) {
+            const parsedSQty2 = parseInt(stirrupQty2) || 0;
+            const sMetros2 = (parsedQty * parsedSQty2 * calculatedStirrupSize2) / 100;
+            metrosUsados += sMetros2;
+            
+            const gauge2 = gauges.find(g => g.id === stirrupGaugeId2);
+            if (gauge2 && gauge2.gauge) {
+                const bitolaVal2 = parseFloat(String(gauge2.gauge || '').replace(/[^\d.,]/g, '').replace(',', '.'));
+                if (!isNaN(bitolaVal2)) {
+                    const massaMetro2 = Math.ceil(bitolaVal2 * bitolaVal2 * 0.006162 * 1000) / 1000;
+                    const kg2 = sMetros2 * massaMetro2;
+                    currentPieceKg += kg2;
+                    const finalPrice2 = customPrices[gauge2.id] || gauge2.basePrice || 0;
+                    currentPieceBreakdown.push({
+                        gaugeId: gauge2.id,
+                        gaugeName: `${gauge2.commercialName || gauge2.materialType} ${gauge2.gauge}`,
+                        type: `ESTRIBOS (${pieceStirrupFormat2}) [2º]`,
+                        metros: sMetros2,
+                        kg: kg2,
+                        price: kg2 * finalPrice2
                     });
                 }
             }
@@ -485,11 +553,12 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
             let effectivePieces = [...piecesList];
             
             if (pieceQty && parseInt(pieceQty) > 0) {
-                const isComplex = ['broca', 'viga', 'pilares'].includes((pieceName || '').toLowerCase());
+                const isComplex = ['broca', 'viga', 'pilares', 'bloco', 'blocos'].includes((pieceName || '').toLowerCase());
+                const isBloco = ['bloco', 'blocos'].includes((pieceName || '').toLowerCase());
                 effectivePieces.push({
                     id: Date.now().toString(),
                     qty: parseInt(pieceQty),
-                    name: pieceName,
+                    name: isBloco && blocoDimensions ? `${pieceName} ${blocoDimensions}` : pieceName,
                     stirrupFormat: isComplex && pieceStirrupFormat ? pieceStirrupFormat : undefined,
                     stirrupA: sA > 0 ? sA : undefined,
                     stirrupB: sB > 0 ? sB : undefined,
@@ -497,6 +566,13 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                     stirrupSpacing: stirrupSpacing || undefined,
                     stirrupGaugeId: stirrupGaugeId || undefined,
                     stirrupSize: calculatedStirrupSize > 0 ? calculatedStirrupSize : undefined,
+                    stirrupFormat2: isComplex && useSecondStirrup && pieceStirrupFormat2 ? pieceStirrupFormat2 : undefined,
+                    stirrupA2: sA2 > 0 ? sA2 : undefined,
+                    stirrupB2: sB2 > 0 ? sB2 : undefined,
+                    stirrupQty2: parseInt(stirrupQty2) || undefined,
+                    stirrupSpacing2: stirrupSpacing2 || undefined,
+                    stirrupGaugeId2: stirrupGaugeId2 || undefined,
+                    stirrupSize2: calculatedStirrupSize2 > 0 ? calculatedStirrupSize2 : undefined,
                     gaugeId: !isComplex ? (pieceGaugeId || undefined) : undefined,
                     kg: currentPieceKg > 0 ? currentPieceKg : undefined,
                     details: isComplex ? pieceDetails.map(d => ({
@@ -520,29 +596,49 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                 setStirrupQty('');
                 setStirrupGaugeId('');
                 setPieceGaugeId('');
+                setUseSecondStirrup(false);
+                setPieceStirrupFormat2('');
+                setStirrupA2('');
+                setStirrupB2('');
+                setStirrupSpacing2('');
+                setStirrupQty2('');
+                setStirrupGaugeId2('');
                 setPieceDetails([{ id: Date.now().toString(), irons: '', position: 'principal', size: '', gaugeId: '' }]);
             }
 
             finalQuantities = {};
             effectivePieces.forEach(p => {
-                if (['broca', 'viga', 'pilares'].includes((p.name || '').toLowerCase()) && p.details && p.details.length > 0) {
-                    p.details.forEach(d => {
-                        const gauge = gauges.find(g => g.id === d.gaugeId);
-                        if (gauge && gauge.gauge) {
-                            const dMetros = (p.qty * d.irons * d.size) / 100;
-                            const bitolaVal = parseFloat(String(gauge.gauge || '').replace(/[^\d.,]/g, '').replace(',', '.'));
-                            if (!isNaN(bitolaVal)) {
-                                const massaMetro = Math.ceil(bitolaVal * bitolaVal * 0.006162 * 1000) / 1000;
-                                const kg = dMetros * massaMetro;
-                                finalQuantities[gauge.id] = (finalQuantities[gauge.id] || 0) + kg;
+                if (['broca', 'viga', 'pilares', 'bloco', 'blocos'].some(t => (p.name || '').toLowerCase().includes(t))) {
+                    if (p.details && p.details.length > 0) {
+                        p.details.forEach(d => {
+                            const gauge = gauges.find(g => g.id === d.gaugeId);
+                            if (gauge && gauge.gauge) {
+                                const dMetros = (p.qty * d.irons * d.size) / 100;
+                                const bitolaVal = parseFloat(String(gauge.gauge || '').replace(/[^\d.,]/g, '').replace(',', '.'));
+                                if (!isNaN(bitolaVal)) {
+                                    const massaMetro = Math.ceil(bitolaVal * bitolaVal * 0.006162 * 1000) / 1000;
+                                    const kg = dMetros * massaMetro;
+                                    finalQuantities[gauge.id] = (finalQuantities[gauge.id] || 0) + kg;
+                                }
                             }
-                        }
-                    });
-                    
+                        });
+                    }
                     if (p.stirrupFormat && p.stirrupGaugeId && p.stirrupQty && p.stirrupSize && p.stirrupSize > 0) {
                         const gauge = gauges.find(g => g.id === p.stirrupGaugeId);
                         if (gauge && gauge.gauge) {
                             const sMetros = (p.qty * p.stirrupQty * p.stirrupSize) / 100;
+                            const bitolaVal = parseFloat(String(gauge.gauge || '').replace(/[^\d.,]/g, '').replace(',', '.'));
+                            if (!isNaN(bitolaVal)) {
+                                const massaMetro = Math.ceil(bitolaVal * bitolaVal * 0.006162 * 1000) / 1000;
+                                const kg = sMetros * massaMetro;
+                                finalQuantities[gauge.id] = (finalQuantities[gauge.id] || 0) + kg;
+                            }
+                        }
+                    }
+                    if (p.stirrupFormat2 && p.stirrupGaugeId2 && p.stirrupQty2 && p.stirrupSize2 && p.stirrupSize2 > 0) {
+                        const gauge = gauges.find(g => g.id === p.stirrupGaugeId2);
+                        if (gauge && gauge.gauge) {
+                            const sMetros = (p.qty * p.stirrupQty2 * p.stirrupSize2) / 100;
                             const bitolaVal = parseFloat(String(gauge.gauge || '').replace(/[^\d.,]/g, '').replace(',', '.'));
                             if (!isNaN(bitolaVal)) {
                                 const massaMetro = Math.ceil(bitolaVal * bitolaVal * 0.006162 * 1000) / 1000;
@@ -575,17 +671,21 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                             dimText = `${p.stirrupA || 0}X${p.stirrupA || 0}`;
                         } else if (format.includes('retangular') || format.includes('triangular')) {
                             dimText = `${p.stirrupA || 0}X${p.stirrupB || 0}`;
+                        } else if (format.includes('aberto')) {
+                            dimText = `${p.stirrupA || 0}X${p.stirrupB || 0}X${p.stirrupC || 0}`;
                         } else if (format.includes('redond')) {
                             dimText = `∅ (${p.stirrupA || 0})`;
                         } else if (format.includes('sextavad')) {
                             dimText = `(${p.stirrupA || 0})`;
                         }
                         
-                        nameAndFormat = `${nameAndFormat} ${format} ${dimText}`.trim();
+                        if (!['bloco', 'blocos'].some(t => (p.name || '').toLowerCase().includes(t))) {
+                            nameAndFormat = `${nameAndFormat} ${format} ${dimText}`.trim();
+                        }
                     }
                     parts.push(nameAndFormat.toUpperCase());
                     
-                    if (['broca', 'viga', 'pilares'].includes((p.name || '').toLowerCase()) && p.details && p.details.length > 0) {
+                    if (['broca', 'viga', 'pilares', 'bloco', 'blocos'].some(t => (p.name || '').toLowerCase().includes(t)) && p.details && p.details.length > 0) {
                         const ironsArr = p.details.map(d => {
                             let gaugeName = '';
                             if (d.gaugeId) {
@@ -597,7 +697,20 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                     }
                                 }
                             }
-                            return `${d.irons}∅ ${gaugeName} C/${d.size}cm`.trim();
+                            if (d.format?.includes('estribo')) {
+                                const spaceText = d.spacing ? `C/${(d.spacing / 100).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}m` : `Tam ${d.size}cm`;
+                                return `${d.irons} EST ∅${gaugeName} ${spaceText}`.trim();
+                            } else {
+                                let sizeText = `${d.size}cm`;
+                                if (d.format === '1-dobra' && d.sideA && d.sideB) {
+                                    sizeText = `${d.sideA}cm+${d.sideB}cm`;
+                                } else if (d.format === '2-dobras' && d.sideC && d.sideA && d.sideB) {
+                                    sizeText = `${d.sideC}cm+${d.sideA}cm+${d.sideB}cm`;
+                                } else if (d.format === 'reto' && d.sideA) {
+                                    sizeText = `${d.sideA}cm`;
+                                }
+                                return `${d.irons}∅ ${gaugeName} C/${sizeText}`.trim();
+                            }
                         });
                         parts.push(ironsArr.join(', '));
                     }
@@ -620,8 +733,44 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                             }
                         }
                         
-                        let spacingText = p.stirrupSpacing ? `C/${spacingMeters}m` : (p.stirrupQty ? `${p.stirrupQty}un` : '');
-                        parts.push(`EST. ∅${gaugeName} ${spacingText}`.trim());
+                        let spacingText = p.stirrupSpacing ? `c/${spacingMeters}m` : (p.stirrupQty ? `${p.stirrupQty}un` : '');
+                        let prefix = p.stirrupQty && p.stirrupSpacing ? `${p.stirrupQty} ` : '';
+                        let isBloco = ['bloco', 'blocos'].some(t => (p.name || '').toLowerCase().includes(t));
+                        
+                        if (isBloco) {
+                            parts.push(`${prefix}EST. ∅${gaugeName.toLowerCase()} ${spacingText.toLowerCase()}`.trim());
+                        } else {
+                            parts.push(`EST. ∅${gaugeName} ${p.stirrupSpacing ? `C/${spacingMeters}m` : (p.stirrupQty ? `${p.stirrupQty}un` : '')}`.trim());
+                        }
+                    }
+                    
+                    if (p.stirrupFormat2 && p.stirrupGaugeId2) {
+                        let gaugeName2 = '';
+                        const gauge2 = gauges.find(g => g.id === p.stirrupGaugeId2);
+                        if (gauge2) {
+                            const num2 = parseFloat((gauge2.gauge || '').replace(',', '.').replace(/[^\d.]/g, ''));
+                            if (!isNaN(num2)) {
+                                gaugeName2 = `${num2.toLocaleString('pt-BR')}mm`;
+                            }
+                        }
+                        
+                        let spacingMeters2 = p.stirrupSpacing2;
+                        if (p.stirrupSpacing2) {
+                            const spacingNum2 = parseFloat(p.stirrupSpacing2.replace(',', '.'));
+                            if (!isNaN(spacingNum2)) {
+                                spacingMeters2 = (spacingNum2 / 100).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            }
+                        }
+                        
+                        let spacingText2 = p.stirrupSpacing2 ? `c/${spacingMeters2}m` : (p.stirrupQty2 ? `${p.stirrupQty2}un` : '');
+                        let prefix2 = p.stirrupQty2 && p.stirrupSpacing2 ? `${p.stirrupQty2} ` : '';
+                        let isBloco2 = ['bloco', 'blocos'].some(t => (p.name || '').toLowerCase().includes(t));
+                        
+                        if (isBloco2) {
+                            parts.push(`${prefix2}EST. ∅${gaugeName2.toLowerCase()} ${spacingText2.toLowerCase()}`.trim());
+                        } else {
+                            parts.push(`EST. ∅${gaugeName2} ${p.stirrupSpacing2 ? `C/${spacingMeters2}m` : (p.stirrupQty2 ? `${p.stirrupQty2}un` : '')}`.trim());
+                        }
                     }
                     
                     return parts.join(', ');
@@ -1228,7 +1377,18 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                     <option value="corte e dobra">Corte e Dobra</option>
                                                 </select>
                                             </div>
-                                            {['broca', 'viga', 'pilares'].includes((pieceName || '').toLowerCase()) && (
+                                            {['bloco', 'blocos'].includes((pieceName || '').toLowerCase()) && (
+                                                <div className="col-span-12 md:col-span-4">
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Dimensões (C x L x A)</label>
+                                                    <input 
+                                                        type="text" 
+                                                        className="w-full border border-slate-300 rounded p-2 text-sm font-bold uppercase focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                        value={blocoDimensions} onChange={e => setBlocoDimensions(e.target.value)}
+                                                        placeholder="Ex: 50x50x30"
+                                                    />
+                                                </div>
+                                            )}
+                                            {['broca', 'viga', 'pilares', 'bloco', 'blocos'].includes((pieceName || '').toLowerCase()) && (
                                                 <div className="col-span-12 md:col-span-8">
                                                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Formato de Estribo (Opcional)</label>
                                                     <select 
@@ -1236,11 +1396,20 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                         value={pieceStirrupFormat} onChange={e => setPieceStirrupFormat(e.target.value)}
                                                     >
                                                         <option value="">NENHUM / NÃO APLICÁVEL</option>
-                                                        <option value="quadrado">Quadrado</option>
-                                                        <option value="retangular">Retangular</option>
-                                                        <option value="triangular">Triangular</option>
-                                                        <option value="redondo">Redondo</option>
-                                                        <option value="sextavado">Sextavado</option>
+                                                        {['bloco', 'blocos'].includes((pieceName || '').toLowerCase()) ? (
+                                                            <>
+                                                                <option value="retangular">Retangular</option>
+                                                                <option value="aberto">Aberto</option>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <option value="quadrado">Quadrado</option>
+                                                                <option value="retangular">Retangular</option>
+                                                                <option value="triangular">Triangular</option>
+                                                                <option value="redondo">Redondo</option>
+                                                                <option value="sextavado">Sextavado</option>
+                                                            </>
+                                                        )}
                                                     </select>
                                                 </div>
                                             )}
@@ -1301,6 +1470,8 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                     <option value="reto">Reto</option>
                                                                     <option value="1-dobra">Dobra 1 Lado</option>
                                                                     <option value="2-dobras">Dobra 2 Lados</option>
+                                                                    <option value="estribo-quadrado">Estribo Quadrado</option>
+                                                                    <option value="estribo-retangular">Estribo Retangular</option>
                                                                 </select>
                                                             </div>
                                                             <div className="col-span-12 lg:col-span-3 flex gap-1">
@@ -1316,7 +1487,13 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                             const a = parseFloat(newDetails[index].sideA || '0');
                                                                             const b = parseFloat(newDetails[index].sideB || '0');
                                                                             const c = parseFloat(newDetails[index].sideC || '0');
-                                                                            newDetails[index].size = (a + b + c).toString();
+                                                                            if (newDetails[index].format === 'estribo-quadrado') {
+                                                                                newDetails[index].size = ((a * 4) + 10).toString();
+                                                                            } else if (newDetails[index].format === 'estribo-retangular') {
+                                                                                newDetails[index].size = ((a * 2) + (b * 2) + 10).toString();
+                                                                            } else {
+                                                                                newDetails[index].size = (a + b + c).toString();
+                                                                            }
                                                                             setPieceDetails(newDetails);
                                                                             
                                                                             if (index === 0) {
@@ -1329,7 +1506,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                         placeholder="Ex: 200"
                                                                     />
                                                                 </div>
-                                                                {['1-dobra', '2-dobras'].includes(detail.format || 'reto') && (
+                                                                {['1-dobra', '2-dobras', 'estribo-retangular'].includes(detail.format || 'reto') && (
                                                                     <div className="flex-1">
                                                                         <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1 leading-tight whitespace-nowrap" title="Lado Direito">B (Dir)</label>
                                                                         <input 
@@ -1341,7 +1518,13 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                                 const a = parseFloat(newDetails[index].sideA || '0');
                                                                                 const b = parseFloat(newDetails[index].sideB || '0');
                                                                                 const c = parseFloat(newDetails[index].sideC || '0');
-                                                                                newDetails[index].size = (a + b + c).toString();
+                                                                                if (newDetails[index].format === 'estribo-quadrado') {
+                                                                                    newDetails[index].size = ((a * 4) + 10).toString();
+                                                                                } else if (newDetails[index].format === 'estribo-retangular') {
+                                                                                    newDetails[index].size = ((a * 2) + (b * 2) + 10).toString();
+                                                                                } else {
+                                                                                    newDetails[index].size = (a + b + c).toString();
+                                                                                }
                                                                                 setPieceDetails(newDetails);
                                                                                 
                                                                                 if (index === 0) {
@@ -1367,7 +1550,13 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                                 const a = parseFloat(newDetails[index].sideA || '0');
                                                                                 const b = parseFloat(newDetails[index].sideB || '0');
                                                                                 const c = parseFloat(newDetails[index].sideC || '0');
-                                                                                newDetails[index].size = (a + b + c).toString();
+                                                                                if (newDetails[index].format === 'estribo-quadrado') {
+                                                                                    newDetails[index].size = ((a * 4) + 10).toString();
+                                                                                } else if (newDetails[index].format === 'estribo-retangular') {
+                                                                                    newDetails[index].size = ((a * 2) + (b * 2) + 10).toString();
+                                                                                } else {
+                                                                                    newDetails[index].size = (a + b + c).toString();
+                                                                                }
                                                                                 setPieceDetails(newDetails);
                                                                                 
                                                                                 if (index === 0) {
@@ -1378,6 +1567,21 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                                 }
                                                                             }}
                                                                             placeholder="Ex: 50"
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                                {['estribo-quadrado', 'estribo-retangular'].includes(detail.format || '') && (
+                                                                    <div className="flex-1">
+                                                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1 leading-tight whitespace-nowrap" title="Espaçamento">Espaç (cm)</label>
+                                                                        <input 
+                                                                            type="number" min="1"
+                                                                            className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                            value={detail.spacing || ''} onChange={e => {
+                                                                                const newDetails = [...pieceDetails];
+                                                                                newDetails[index].spacing = e.target.value;
+                                                                                setPieceDetails(newDetails);
+                                                                            }}
+                                                                            placeholder="Ex: 15"
                                                                         />
                                                                     </div>
                                                                 )}
@@ -1426,7 +1630,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                         ➕ Adicionar Nova Posição
                                                     </button>
                                                 </div>
-                                            ) : (
+                                            ) : !['bloco', 'blocos'].includes((pieceName || '').toLowerCase()) ? (
                                                 <div className="col-span-12 md:col-span-5">
                                                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Bitola (Ferro)</label>
                                                     <select 
@@ -1441,12 +1645,20 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                         ))}
                                                     </select>
                                                 </div>
-                                            )}
+                                            ) : null}
                                             
-                                            {['broca', 'viga', 'pilares'].includes((pieceName || '').toLowerCase()) && pieceStirrupFormat && (
+                                            {['broca', 'viga', 'pilares', 'bloco', 'blocos'].includes((pieceName || '').toLowerCase()) && pieceStirrupFormat && (
                                                 <div className="col-span-12 space-y-2 border border-orange-200 rounded p-3 bg-orange-50 mt-2 mb-2">
                                                     <div className="flex justify-between items-center mb-2">
-                                                        <h4 className="text-[11px] font-bold text-orange-800 uppercase">Configuração de Estribos</h4>
+                                                        <div className="flex items-center gap-2">
+                                                            <h4 className="text-[11px] font-bold text-orange-800 uppercase">Configuração de Estribos</h4>
+                                                            {pieceStirrupFormat === 'aberto' && (
+                                                                <svg viewBox="0 0 40 40" className="w-5 h-5 stroke-orange-600" fill="none" strokeWidth="4" title="Aberto (Base + Lado Dir + Lado Esq)"><path d="M10 10 V30 H30 V10" /></svg>
+                                                            )}
+                                                            {pieceStirrupFormat === 'retangular' && (
+                                                                <svg viewBox="0 0 40 40" className="w-5 h-5 stroke-orange-600" fill="none" strokeWidth="4" title="Retangular"><rect x="5" y="10" width="30" height="20" /></svg>
+                                                            )}
+                                                        </div>
                                                         <span className="text-[10px] font-bold text-orange-700 bg-orange-200 px-2 py-0.5 rounded">
                                                             Tamanho Automático: {calculatedStirrupSize > 0 ? calculatedStirrupSize + ' cm' : '--'}
                                                         </span>
@@ -1478,7 +1690,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                             />
                                                         </div>
                                                         <div className="col-span-12 md:col-span-2">
-                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Lado A</label>
+                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">{pieceStirrupFormat === 'aberto' ? 'Base (A)' : 'Lado A'}</label>
                                                             <input 
                                                                 type="number" min="1"
                                                                 className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
@@ -1486,18 +1698,29 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                 placeholder="Ex: 15"
                                                             />
                                                         </div>
-                                                        {['retangular', 'triangular'].includes(pieceStirrupFormat) && (
+                                                        {['retangular', 'triangular', 'aberto'].includes(pieceStirrupFormat) && (
                                                             <div className="col-span-12 md:col-span-2">
-                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Lado B</label>
+                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">{pieceStirrupFormat === 'aberto' ? 'Lat Dir (B)' : 'Lado B'}</label>
                                                                 <input 
                                                                     type="number" min="1"
                                                                     className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                                                                     value={stirrupB} onChange={e => setStirrupB(e.target.value)}
-                                                                    placeholder="Ex: 30"
+                                                                    placeholder="Ex: 15"
                                                                 />
                                                             </div>
                                                         )}
-                                                        <div className={`col-span-12 ${['retangular', 'triangular'].includes(pieceStirrupFormat) ? 'md:col-span-4' : 'md:col-span-6'}`}>
+                                                        {['aberto'].includes(pieceStirrupFormat) && (
+                                                            <div className="col-span-12 md:col-span-2">
+                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Lat Esq (C)</label>
+                                                                <input 
+                                                                    type="number" min="1"
+                                                                    className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                                                                    value={stirrupC} onChange={e => setStirrupC(e.target.value)}
+                                                                    placeholder="Ex: 15"
+                                                                />
+                                                            </div>
+                                                        )}
+                                                        <div className={`col-span-12 ${['aberto'].includes(pieceStirrupFormat) ? 'md:col-span-12' : ['retangular', 'triangular'].includes(pieceStirrupFormat) ? 'md:col-span-4' : 'md:col-span-6'}`}>
                                                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Bitola do Estribo</label>
                                                             <select 
                                                                 className="w-full border border-slate-300 rounded p-2 text-sm font-bold uppercase focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
@@ -1512,11 +1735,124 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                             </select>
                                                         </div>
                                                     </div>
+                                                    
+                                                    {['bloco', 'blocos'].includes((pieceName || '').toLowerCase()) && (
+                                                        <div className="flex justify-end mt-2">
+                                                            <button 
+                                                                onClick={() => setUseSecondStirrup(!useSecondStirrup)}
+                                                                className="text-[11px] font-bold text-orange-700 bg-orange-100 hover:bg-orange-200 px-3 py-1 rounded transition-colors"
+                                                            >
+                                                                {useSecondStirrup ? '✕ Remover 2º Estribo' : '➕ Adicionar 2º Estribo'}
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {['bloco', 'blocos'].includes((pieceName || '').toLowerCase()) && useSecondStirrup && (
+                                                <div className="col-span-12 space-y-2 border border-orange-200 rounded p-3 bg-orange-50 mt-2 mb-2">
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <h4 className="text-[11px] font-bold text-orange-800 uppercase">Configuração de 2º Estribo</h4>
+                                                            {pieceStirrupFormat2 === 'aberto' && (
+                                                                <svg viewBox="0 0 40 40" className="w-5 h-5 stroke-orange-600" fill="none" strokeWidth="4" title="Aberto (Base + Lado Dir + Lado Esq)"><path d="M10 10 V30 H30 V10" /></svg>
+                                                            )}
+                                                            {pieceStirrupFormat2 === 'retangular' && (
+                                                                <svg viewBox="0 0 40 40" className="w-5 h-5 stroke-orange-600" fill="none" strokeWidth="4" title="Retangular"><rect x="5" y="10" width="30" height="20" /></svg>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[10px] font-bold text-orange-700 bg-orange-200 px-2 py-0.5 rounded">
+                                                            Tamanho Automático: {calculatedStirrupSize2 > 0 ? calculatedStirrupSize2 + ' cm' : '--'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="grid grid-cols-12 gap-3 items-end bg-white p-3 rounded shadow-sm border border-orange-200">
+                                                        <div className="col-span-12 md:col-span-12">
+                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Formato do 2º Estribo</label>
+                                                            <select 
+                                                                className="w-full border border-slate-300 rounded p-2 text-sm font-bold uppercase focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-orange-50/50"
+                                                                value={pieceStirrupFormat2} onChange={e => setPieceStirrupFormat2(e.target.value)}
+                                                            >
+                                                                <option value="">SELECIONE...</option>
+                                                                <option value="retangular">Retangular</option>
+                                                                <option value="aberto">Aberto</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className="col-span-12 md:col-span-2">
+                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Espaçamento (CM)</label>
+                                                            <input 
+                                                                type="number" min="1"
+                                                                className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-orange-50/50"
+                                                                value={stirrupSpacing2} onChange={e => {
+                                                                    setStirrupSpacing2(e.target.value);
+                                                                    const spacing = parseInt(e.target.value);
+                                                                    const mainBase = parseFloat(pieceDetails[0]?.sideB || '0') || parseFloat(pieceDetails[0]?.size || '0') || 0;
+                                                                    if (spacing > 0 && mainBase > 0) {
+                                                                        setStirrupQty2(Math.ceil(mainBase / spacing).toString());
+                                                                    }
+                                                                }}
+                                                                placeholder="Ex: 15"
+                                                            />
+                                                        </div>
+                                                        <div className="col-span-12 md:col-span-2">
+                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Qtd. por Peça</label>
+                                                            <input 
+                                                                type="number" min="1"
+                                                                className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                                                                value={stirrupQty2} onChange={e => setStirrupQty2(e.target.value)}
+                                                                placeholder="Ex: 15"
+                                                            />
+                                                        </div>
+                                                        <div className="col-span-12 md:col-span-2">
+                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">{pieceStirrupFormat2 === 'aberto' ? 'Base (A)' : 'Lado A'}</label>
+                                                            <input 
+                                                                type="number" min="1"
+                                                                className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                                                                value={stirrupA2} onChange={e => setStirrupA2(e.target.value)}
+                                                                placeholder="Ex: 15"
+                                                            />
+                                                        </div>
+                                                        {['retangular', 'triangular', 'aberto'].includes(pieceStirrupFormat2) && (
+                                                            <div className="col-span-12 md:col-span-2">
+                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">{pieceStirrupFormat2 === 'aberto' ? 'Lat Dir (B)' : 'Lado B'}</label>
+                                                                <input 
+                                                                    type="number" min="1"
+                                                                    className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                                                                    value={stirrupB2} onChange={e => setStirrupB2(e.target.value)}
+                                                                    placeholder="Ex: 15"
+                                                                />
+                                                            </div>
+                                                        )}
+                                                        {['aberto'].includes(pieceStirrupFormat2) && (
+                                                            <div className="col-span-12 md:col-span-2">
+                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Lat Esq (C)</label>
+                                                                <input 
+                                                                    type="number" min="1"
+                                                                    className="w-full border border-slate-300 rounded p-2 text-sm font-bold focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                                                                    value={stirrupC2} onChange={e => setStirrupC2(e.target.value)}
+                                                                    placeholder="Ex: 15"
+                                                                />
+                                                            </div>
+                                                        )}
+                                                        <div className={`col-span-12 ${['aberto'].includes(pieceStirrupFormat2) ? 'md:col-span-12' : ['retangular', 'triangular'].includes(pieceStirrupFormat2) ? 'md:col-span-4' : 'md:col-span-6'}`}>
+                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Bitola do Estribo</label>
+                                                            <select 
+                                                                className="w-full border border-slate-300 rounded p-2 text-sm font-bold uppercase focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                                                                value={stirrupGaugeId2} onChange={e => setStirrupGaugeId2(e.target.value)}
+                                                            >
+                                                                <option value="">SELECIONE...</option>
+                                                                {vergalhaoGauges.map(g => (
+                                                                    <option key={g.id} value={g.id}>
+                                                                        {g.commercialName || g.materialType} {g.gauge}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             )}
 
                                             {/* LIVE CALCULATION SUMMARY */}
-                                            {['broca', 'viga', 'pilares'].includes((pieceName || '').toLowerCase()) && currentPieceBreakdown.length > 0 && (
+                                            {['broca', 'viga', 'pilares', 'bloco', 'blocos'].includes((pieceName || '').toLowerCase()) && currentPieceBreakdown.length > 0 && (
                                                 <div className="col-span-12 mt-2 border border-slate-200 rounded-lg p-3 bg-slate-50 flex flex-col gap-3">
                                                     <div className="overflow-x-auto rounded border border-slate-200">
                                                             <table className="w-full text-left text-[10px] bg-white">
@@ -1547,19 +1883,29 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                 <button 
                                                     onClick={() => {
                                                         if (!pieceQty || parseInt(pieceQty) <= 0) return;
-                                                        const isComplex = ['broca', 'viga', 'pilares'].includes((pieceName || '').toLowerCase());
+                                                        const isComplex = ['broca', 'viga', 'pilares', 'bloco', 'blocos'].includes((pieceName || '').toLowerCase());
+                                                        const isBloco = ['bloco', 'blocos'].includes((pieceName || '').toLowerCase());
                                                         
                                                         setPiecesList(prev => [...prev, {
                                                             id: Date.now().toString(),
                                                             qty: parseInt(pieceQty),
-                                                            name: pieceName,
+                                                            name: isBloco && blocoDimensions ? `${pieceName} ${blocoDimensions}` : pieceName,
                                                             stirrupFormat: isComplex && pieceStirrupFormat ? pieceStirrupFormat : undefined,
                                                             stirrupA: sA > 0 ? sA : undefined,
                                                             stirrupB: sB > 0 ? sB : undefined,
+                                                            stirrupC: sC > 0 ? sC : undefined,
                                                             stirrupQty: parseInt(stirrupQty) || undefined,
                                                             stirrupSpacing: stirrupSpacing || undefined,
                                                             stirrupGaugeId: stirrupGaugeId || undefined,
                                                             stirrupSize: calculatedStirrupSize > 0 ? calculatedStirrupSize : undefined,
+                                                            stirrupFormat2: isComplex && useSecondStirrup && pieceStirrupFormat2 ? pieceStirrupFormat2 : undefined,
+                                                            stirrupA2: sA2 > 0 ? sA2 : undefined,
+                                                            stirrupB2: sB2 > 0 ? sB2 : undefined,
+                                                            stirrupC2: sC2 > 0 ? sC2 : undefined,
+                                                            stirrupQty2: parseInt(stirrupQty2) || undefined,
+                                                            stirrupSpacing2: stirrupSpacing2 || undefined,
+                                                            stirrupGaugeId2: stirrupGaugeId2 || undefined,
+                                                            stirrupSize2: calculatedStirrupSize2 > 0 ? calculatedStirrupSize2 : undefined,
                                                             gaugeId: !isComplex ? (pieceGaugeId || undefined) : undefined,
                                                             kg: currentPieceKg > 0 ? currentPieceKg : undefined,
                                                             details: isComplex ? pieceDetails.map(d => ({
@@ -1570,6 +1916,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                 sideA: parseFloat(d.sideA || '0') || undefined,
                                                                 sideB: parseFloat(d.sideB || '0') || undefined,
                                                                 sideC: parseFloat(d.sideC || '0') || undefined,
+                                                                spacing: parseFloat(d.spacing || '0') || undefined,
                                                                 gaugeId: d.gaugeId,
                                                                 kg: 0
                                                             })).filter(d => d.irons > 0 && d.size > 0) : undefined
@@ -1579,9 +1926,19 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                         setStirrupSpacing('');
                                                         setStirrupA('');
                                                         setStirrupB('');
+                                                        setStirrupC('');
                                                         setStirrupQty('');
                                                         setStirrupGaugeId('');
                                                         setPieceGaugeId('');
+                                                        setBlocoDimensions('');
+                                                        setUseSecondStirrup(false);
+                                                        setPieceStirrupFormat2('');
+                                                        setStirrupA2('');
+                                                        setStirrupB2('');
+                                                        setStirrupC2('');
+                                                        setStirrupSpacing2('');
+                                                        setStirrupQty2('');
+                                                        setStirrupGaugeId2('');
                                                         setPieceDetails([{ id: Date.now().toString(), irons: '', position: 'principal', size: '', gaugeId: '' }]);
                                                     }}
                                                     className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-4 py-2 text-sm font-bold rounded-lg w-full transition-colors"
@@ -1617,7 +1974,8 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                             </div>
                                                                             <div className="flex flex-wrap gap-x-3 gap-y-1">
                                                                                 <span>A: {p.stirrupA}</span>
-                                                                                {['retangular', 'triangular'].includes(p.stirrupFormat) && <span>B: {p.stirrupB}</span>}
+                                                                                {['retangular', 'triangular', 'aberto'].includes(p.stirrupFormat) && <span>B: {p.stirrupB}</span>}
+                                                                                {['aberto'].includes(p.stirrupFormat) && <span>C: {p.stirrupC}</span>}
                                                                                 <span>Tam: {p.stirrupSize}</span>
                                                                                 {p.stirrupGaugeId && <span className="font-bold text-orange-700">({gauges.find(g => g.id === p.stirrupGaugeId)?.gauge})</span>}
                                                                             </div>
@@ -1625,7 +1983,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                     )}
                                                                 </td>
                                                                 <td className="px-3 py-2 text-xs font-semibold text-slate-600">
-                                                                    {['broca', 'viga', 'pilares'].includes((p.name || '').toLowerCase()) && p.details ? (
+                                                                    {['broca', 'viga', 'pilares', 'bloco', 'blocos'].some(t => (p.name || '').toLowerCase().includes(t)) && p.details ? (
                                                                         <div className="space-y-1">
                                                                             {p.details.map((d, idx) => (
                                                                                 <div key={idx} className="bg-slate-50 p-1 rounded border border-slate-100 flex items-center gap-2">
@@ -1643,7 +2001,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                             ))}
                                                                         </div>
                                                                     ) : '-'}
-                                                                    {!['broca', 'viga', 'pilares'].includes((p.name || '').toLowerCase()) && p.gaugeId && (
+                                                                    {!['broca', 'viga', 'pilares', 'bloco', 'blocos'].some(t => (p.name || '').toLowerCase().includes(t)) && p.gaugeId && (
                                                                         <div className="text-[10px] text-indigo-600 mt-1 font-bold">
                                                                             Bitola: {gauges.find(g => g.id === p.gaugeId)?.gauge || 'Desconhecida'} 
                                                                             {p.kg ? ` (${p.kg.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} kg)` : ''}
@@ -1659,6 +2017,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                             setStirrupQty(p.stirrupQty?.toString() || '');
                                                                             setStirrupA(p.stirrupA?.toString() || '');
                                                                             setStirrupB(p.stirrupB?.toString() || '');
+                                                                            setStirrupC(p.stirrupC?.toString() || '');
                                                                             setStirrupGaugeId(p.stirrupGaugeId || '');
                                                                             setStirrupSpacing('');
                                                                         } else {
@@ -1687,6 +2046,110 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                             </tr>
                                                         ))}
                                                     </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                        
+                                        {piecesList.length > 0 && (
+                                            <div className="mt-4 border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                                                <div className="bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 border-b border-slate-200 uppercase tracking-wider flex items-center gap-2">
+                                                    📊 Resumo do Aço
+                                                </div>
+                                                <table className="w-full text-left">
+                                                     <thead className="bg-slate-50">
+                                                         <tr>
+                                                             <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Bitola</th>
+                                                             <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase text-right">Peso (Kg)</th>
+                                                         </tr>
+                                                     </thead>
+                                                     <tbody className="divide-y divide-slate-100">
+                                                         {(() => {
+                                                             const summary: Record<string, { gauge: string, name: string, kg: number }> = {};
+                                                             piecesList.forEach(p => {
+                                                                 if (['broca', 'viga', 'pilares', 'bloco', 'blocos'].some(t => (p.name || '').toLowerCase().includes(t))) {
+                                                                     if (p.details && p.details.length > 0) {
+                                                                         p.details.forEach(d => {
+                                                                             const gauge = gauges.find(g => g.id === d.gaugeId);
+                                                                             if (gauge && gauge.gauge) {
+                                                                                 const dMetros = (p.qty * d.irons * d.size) / 100;
+                                                                                 const bitolaVal = parseFloat(String(gauge.gauge || '').replace(/[^\d.,]/g, '').replace(',', '.'));
+                                                                                 if (!isNaN(bitolaVal)) {
+                                                                                     const massaMetro = Math.ceil(bitolaVal * bitolaVal * 0.006162 * 1000) / 1000;
+                                                                                     const kg = dMetros * massaMetro;
+                                                                                     if (!summary[gauge.id]) summary[gauge.id] = { gauge: gauge.gauge, name: gauge.commercialName || gauge.materialType || '', kg: 0 };
+                                                                                     summary[gauge.id].kg += kg;
+                                                                                 }
+                                                                             }
+                                                                         });
+                                                                     }
+                                                                     if (p.stirrupFormat && p.stirrupGaugeId && p.stirrupQty && p.stirrupSize && p.stirrupSize > 0) {
+                                                                         const gauge = gauges.find(g => g.id === p.stirrupGaugeId);
+                                                                         if (gauge && gauge.gauge) {
+                                                                             const sMetros = (p.qty * p.stirrupQty * p.stirrupSize) / 100;
+                                                                             const bitolaVal = parseFloat(String(gauge.gauge || '').replace(/[^\d.,]/g, '').replace(',', '.'));
+                                                                             if (!isNaN(bitolaVal)) {
+                                                                                 const massaMetro = Math.ceil(bitolaVal * bitolaVal * 0.006162 * 1000) / 1000;
+                                                                                 const kg = sMetros * massaMetro;
+                                                                                 if (!summary[gauge.id]) summary[gauge.id] = { gauge: gauge.gauge, name: gauge.commercialName || gauge.materialType || '', kg: 0 };
+                                                                                 summary[gauge.id].kg += kg;
+                                                                             }
+                                                                         }
+                                                                     }
+                                                                     if (p.stirrupFormat2 && p.stirrupGaugeId2 && p.stirrupQty2 && p.stirrupSize2 && p.stirrupSize2 > 0) {
+                                                                         const gauge = gauges.find(g => g.id === p.stirrupGaugeId2);
+                                                                         if (gauge && gauge.gauge) {
+                                                                             const sMetros = (p.qty * p.stirrupQty2 * p.stirrupSize2) / 100;
+                                                                             const bitolaVal = parseFloat(String(gauge.gauge || '').replace(/[^\d.,]/g, '').replace(',', '.'));
+                                                                             if (!isNaN(bitolaVal)) {
+                                                                                 const massaMetro = Math.ceil(bitolaVal * bitolaVal * 0.006162 * 1000) / 1000;
+                                                                                 const kg = sMetros * massaMetro;
+                                                                                 if (!summary[gauge.id]) summary[gauge.id] = { gauge: gauge.gauge, name: gauge.commercialName || gauge.materialType || '', kg: 0 };
+                                                                                 summary[gauge.id].kg += kg;
+                                                                             }
+                                                                         }
+                                                                     }
+                                                                 } else if (p.gaugeId && p.kg) {
+                                                                     const gauge = gauges.find(g => g.id === p.gaugeId);
+                                                                     if (gauge) {
+                                                                         if (!summary[gauge.id]) summary[gauge.id] = { gauge: gauge.gauge, name: gauge.commercialName || gauge.materialType || '', kg: 0 };
+                                                                         summary[gauge.id].kg += p.kg;
+                                                                     }
+                                                                 }
+                                                             });
+                                                             
+                                                             let arameKg = 0;
+                                                             if (newItem.tipo === 'ARMADO' && arameGaugeId && aramePercentage > 0) {
+                                                                 const totalAco = Object.values(summary).reduce((acc, curr) => acc + curr.kg, 0);
+                                                                 arameKg = (totalAco * aramePercentage) / 100;
+                                                                 const arameGauge = arameGauges.find(g => g.id === arameGaugeId);
+                                                                 if (arameGauge && arameKg > 0) {
+                                                                     summary[arameGaugeId] = {
+                                                                         gauge: arameGauge.gauge || '',
+                                                                         name: arameGauge.commercialName || arameGauge.materialType || 'Arame',
+                                                                         kg: arameKg
+                                                                     };
+                                                                 }
+                                                             }
+                                                             
+                                                             const items = Object.values(summary).sort((a, b) => parseFloat(a.gauge.replace(/[^\d.,]/g, '').replace(',', '.')) - parseFloat(b.gauge.replace(/[^\d.,]/g, '').replace(',', '.')));
+                                                             const totalGeral = items.reduce((acc, curr) => acc + curr.kg, 0);
+
+                                                             return (
+                                                                 <>
+                                                                     {items.map((item, idx) => (
+                                                                         <tr key={idx}>
+                                                                             <td className="px-3 py-1.5 text-xs font-bold text-slate-700 uppercase">{item.name} {item.gauge}</td>
+                                                                             <td className="px-3 py-1.5 text-xs font-black text-emerald-700 text-right">{item.kg.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} kg</td>
+                                                                         </tr>
+                                                                     ))}
+                                                                     <tr className="bg-slate-100/50">
+                                                                         <td className="px-3 py-2 text-xs font-black text-slate-800 uppercase text-right">Total Geral:</td>
+                                                                         <td className="px-3 py-2 text-xs font-black text-indigo-700 text-right">{totalGeral.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} kg</td>
+                                                                     </tr>
+                                                                 </>
+                                                             );
+                                                         })()}
+                                                     </tbody>
                                                 </table>
                                             </div>
                                         )}
