@@ -136,7 +136,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     const sB = parseFloat(stirrupB) || 0;
     const sC = parseFloat(stirrupC) || 0;
     if (pieceStirrupFormat === 'quadrado') calculatedStirrupSize = sA * 4 + 10;
-    if (pieceStirrupFormat === 'retangular') calculatedStirrupSize = sA * 2 + sB * 2 + 10;
+    if (pieceStirrupFormat === 'retangular' || pieceStirrupFormat === 'fechado') calculatedStirrupSize = sA * 2 + sB * 2 + 10;
     if (pieceStirrupFormat === 'triangular') calculatedStirrupSize = sA + sB * 2 + 10;
     if (pieceStirrupFormat === 'redondo') calculatedStirrupSize = Math.round(sA * 3.14) + 10;
     if (pieceStirrupFormat === 'sextavado') calculatedStirrupSize = sA * 6 + 10;
@@ -147,7 +147,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     const sB2 = parseFloat(stirrupB2) || 0;
     const sC2 = parseFloat(stirrupC2) || 0;
     if (pieceStirrupFormat2 === 'quadrado') calculatedStirrupSize2 = sA2 * 4 + 10;
-    if (pieceStirrupFormat2 === 'retangular') calculatedStirrupSize2 = sA2 * 2 + sB2 * 2 + 10;
+    if (pieceStirrupFormat2 === 'retangular' || pieceStirrupFormat2 === 'fechado') calculatedStirrupSize2 = sA2 * 2 + sB2 * 2 + 10;
     if (pieceStirrupFormat2 === 'triangular') calculatedStirrupSize2 = sA2 + sB2 * 2 + 10;
     if (pieceStirrupFormat2 === 'redondo') calculatedStirrupSize2 = Math.round(sA2 * 3.14) + 10;
     if (pieceStirrupFormat2 === 'sextavado') calculatedStirrupSize2 = sA2 * 6 + 10;
@@ -669,7 +669,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                         let dimText = '';
                         if (format.includes('quadrad')) {
                             dimText = `${p.stirrupA || 0}X${p.stirrupA || 0}`;
-                        } else if (format.includes('retangular') || format.includes('triangular')) {
+                        } else if (format.includes('retangular') || format.includes('triangular') || format.includes('fechado')) {
                             dimText = `${p.stirrupA || 0}X${p.stirrupB || 0}`;
                         } else if (format.includes('aberto')) {
                             dimText = `${p.stirrupA || 0}X${p.stirrupB || 0}X${p.stirrupC || 0}`;
@@ -681,6 +681,8 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                         
                         if (!['bloco', 'blocos'].some(t => (p.name || '').toLowerCase().includes(t))) {
                             nameAndFormat = `${nameAndFormat} ${format} ${dimText}`.trim();
+                        } else {
+                            nameAndFormat = nameAndFormat.replace(/^(BLOCO(?:S)?)\b/i, `$1 ${format}`);
                         }
                     }
                     parts.push(nameAndFormat.toUpperCase());
@@ -1398,7 +1400,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                         <option value="">NENHUM / NÃO APLICÁVEL</option>
                                                         {['bloco', 'blocos'].includes((pieceName || '').toLowerCase()) ? (
                                                             <>
-                                                                <option value="retangular">Retangular</option>
+                                                                <option value="fechado">Fechado</option>
                                                                 <option value="aberto">Aberto</option>
                                                             </>
                                                         ) : (
@@ -1655,7 +1657,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                             {pieceStirrupFormat === 'aberto' && (
                                                                 <svg viewBox="0 0 40 40" className="w-5 h-5 stroke-orange-600" fill="none" strokeWidth="4" title="Aberto (Base + Lado Dir + Lado Esq)"><path d="M10 10 V30 H30 V10" /></svg>
                                                             )}
-                                                            {pieceStirrupFormat === 'retangular' && (
+                                                            {(pieceStirrupFormat === 'retangular' || pieceStirrupFormat === 'fechado') && (
                                                                 <svg viewBox="0 0 40 40" className="w-5 h-5 stroke-orange-600" fill="none" strokeWidth="4" title="Retangular"><rect x="5" y="10" width="30" height="20" /></svg>
                                                             )}
                                                         </div>
@@ -1698,7 +1700,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                 placeholder="Ex: 15"
                                                             />
                                                         </div>
-                                                        {['retangular', 'triangular', 'aberto'].includes(pieceStirrupFormat) && (
+                                                        {['retangular', 'triangular', 'aberto', 'fechado'].includes(pieceStirrupFormat) && (
                                                             <div className="col-span-12 md:col-span-2">
                                                                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">{pieceStirrupFormat === 'aberto' ? 'Lat Dir (B)' : 'Lado B'}</label>
                                                                 <input 
@@ -1720,7 +1722,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                 />
                                                             </div>
                                                         )}
-                                                        <div className={`col-span-12 ${['aberto'].includes(pieceStirrupFormat) ? 'md:col-span-12' : ['retangular', 'triangular'].includes(pieceStirrupFormat) ? 'md:col-span-4' : 'md:col-span-6'}`}>
+                                                        <div className={`col-span-12 ${['aberto'].includes(pieceStirrupFormat) ? 'md:col-span-12' : ['retangular', 'triangular', 'fechado'].includes(pieceStirrupFormat) ? 'md:col-span-4' : 'md:col-span-6'}`}>
                                                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Bitola do Estribo</label>
                                                             <select 
                                                                 className="w-full border border-slate-300 rounded p-2 text-sm font-bold uppercase focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
@@ -1757,7 +1759,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                             {pieceStirrupFormat2 === 'aberto' && (
                                                                 <svg viewBox="0 0 40 40" className="w-5 h-5 stroke-orange-600" fill="none" strokeWidth="4" title="Aberto (Base + Lado Dir + Lado Esq)"><path d="M10 10 V30 H30 V10" /></svg>
                                                             )}
-                                                            {pieceStirrupFormat2 === 'retangular' && (
+                                                            {(pieceStirrupFormat2 === 'retangular' || pieceStirrupFormat2 === 'fechado') && (
                                                                 <svg viewBox="0 0 40 40" className="w-5 h-5 stroke-orange-600" fill="none" strokeWidth="4" title="Retangular"><rect x="5" y="10" width="30" height="20" /></svg>
                                                             )}
                                                         </div>
@@ -1773,7 +1775,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                 value={pieceStirrupFormat2} onChange={e => setPieceStirrupFormat2(e.target.value)}
                                                             >
                                                                 <option value="">SELECIONE...</option>
-                                                                <option value="retangular">Retangular</option>
+                                                                <option value="fechado">Fechado</option>
                                                                 <option value="aberto">Aberto</option>
                                                             </select>
                                                         </div>
@@ -1811,7 +1813,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                 placeholder="Ex: 15"
                                                             />
                                                         </div>
-                                                        {['retangular', 'triangular', 'aberto'].includes(pieceStirrupFormat2) && (
+                                                        {['retangular', 'triangular', 'aberto', 'fechado'].includes(pieceStirrupFormat2) && (
                                                             <div className="col-span-12 md:col-span-2">
                                                                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">{pieceStirrupFormat2 === 'aberto' ? 'Lat Dir (B)' : 'Lado B'}</label>
                                                                 <input 
@@ -1833,7 +1835,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                 />
                                                             </div>
                                                         )}
-                                                        <div className={`col-span-12 ${['aberto'].includes(pieceStirrupFormat2) ? 'md:col-span-12' : ['retangular', 'triangular'].includes(pieceStirrupFormat2) ? 'md:col-span-4' : 'md:col-span-6'}`}>
+                                                        <div className={`col-span-12 ${['aberto'].includes(pieceStirrupFormat2) ? 'md:col-span-12' : ['retangular', 'triangular', 'fechado'].includes(pieceStirrupFormat2) ? 'md:col-span-4' : 'md:col-span-6'}`}>
                                                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Bitola do Estribo</label>
                                                             <select 
                                                                 className="w-full border border-slate-300 rounded p-2 text-sm font-bold uppercase focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
@@ -1974,7 +1976,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                             </div>
                                                                             <div className="flex flex-wrap gap-x-3 gap-y-1">
                                                                                 <span>A: {p.stirrupA}</span>
-                                                                                {['retangular', 'triangular', 'aberto'].includes(p.stirrupFormat) && <span>B: {p.stirrupB}</span>}
+                                                                                {['retangular', 'triangular', 'aberto', 'fechado'].includes(p.stirrupFormat) && <span>B: {p.stirrupB}</span>}
                                                                                 {['aberto'].includes(p.stirrupFormat) && <span>C: {p.stirrupC}</span>}
                                                                                 <span>Tam: {p.stirrupSize}</span>
                                                                                 {p.stirrupGaugeId && <span className="font-bold text-orange-700">({gauges.find(g => g.id === p.stirrupGaugeId)?.gauge})</span>}

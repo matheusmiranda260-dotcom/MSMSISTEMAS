@@ -48,8 +48,9 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
         let desc = 'AÇO DESCONHECIDO';
         if (gauge) {
             const name = gauge.commercialName || gauge.materialType;
-            const prefix = name.toUpperCase().startsWith('CD ') ? '' : 'CD ';
-            desc = `${prefix}${name} ${gauge.gauge}`;
+            const nameUpper = name.toUpperCase();
+            const prefix = (nameUpper.startsWith('CD') || nameUpper.startsWith('AR')) ? '' : 'CD ';
+            desc = `${prefix}${name} ${gauge.gauge}`.trim();
         }
         
         const cod = gauge?.productCode || '';
