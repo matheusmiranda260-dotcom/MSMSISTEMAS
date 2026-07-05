@@ -285,11 +285,11 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
                                                                 <div className="flex flex-col items-center justify-center gap-1 w-full">
                                                                     {bitolasDetails['drawings'].map((drawing: any, dIdx: number) => (
                                                                         <div key={dIdx} className="flex items-center justify-center gap-1">
-                                                                            <span className="text-[10px] font-bold text-black">{drawing.qty} peças:</span>
+                                                                            <span className="text-[10px] text-black">{drawing.qty} peças:</span>
                                                                             <div className="h-10 w-16 flex items-center justify-center">
                                                                                 {renderDrawingSvg(drawing)}
                                                                             </div>
-                                                                            <span className="text-[10px] font-bold text-black">
+                                                                            <span className="text-[10px] text-black">
                                                                                 , ∅{(() => {
                                                                                     const gId = drawing.gaugeId || drawing.gauge_id;
                                                                                     if (!gId) return 'N/A';

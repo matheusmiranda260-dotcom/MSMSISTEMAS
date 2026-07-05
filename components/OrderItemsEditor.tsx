@@ -1330,11 +1330,11 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                             <div className="flex flex-col gap-1 w-full items-start justify-center">
                                                                 {bitolasDetails['drawings'].map((drawing: any, dIdx: number) => (
                                                                     <div key={dIdx} className="flex items-center gap-1 w-fit">
-                                                                        <span className="text-[10px] font-bold text-slate-700">{drawing.qty} peças:</span>
+                                                                        <span className="text-[10px] text-slate-700">{drawing.qty} peças:</span>
                                                                         <div className="h-8 w-14 flex items-center justify-center">
                                                                             {renderTableDrawingSvg(drawing)}
                                                                         </div>
-                                                                        <span className="text-[10px] font-bold text-slate-700">
+                                                                        <span className="text-[10px] text-slate-700">
                                                                             , ∅{(() => {
                                                                                 const gId = drawing.gaugeId || drawing.gauge_id;
                                                                                 if (!gId) return 'N/A';
