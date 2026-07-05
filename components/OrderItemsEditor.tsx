@@ -1572,13 +1572,13 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                     )}
                                 </div>
                                 {newItem.tipo === 'ARMADO' && bitolasMode === 'PECA' && (
-                                    <div className="ml-6 flex items-center gap-3 bg-indigo-700/50 p-1.5 rounded-lg border border-indigo-400/30">
-                                        <label className="flex items-center gap-2 text-white text-xs font-bold">
-                                            <span className="text-amber-300">⚠️</span>
+                                    <div className="ml-6 flex items-center gap-3 bg-red-50 p-1.5 rounded-lg border border-red-200">
+                                        <label className="flex items-center gap-2 text-red-600 text-xs font-bold">
+                                            <span className="text-amber-500">⚠️</span>
                                             Obrigatório: Arame
                                         </label>
                                         <select 
-                                            className="bg-indigo-900 border border-indigo-500 text-white rounded px-2 py-1 text-xs outline-none max-w-[150px]"
+                                            className="bg-white border border-red-300 text-red-600 font-bold rounded px-2 py-1 text-xs outline-none max-w-[150px]"
                                             value={arameGaugeId}
                                             onChange={e => setArameGaugeId(e.target.value)}
                                         >
@@ -1590,11 +1590,11 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                         <div className="flex items-center gap-1">
                                             <input 
                                                 type="number" step="0.1" min="0"
-                                                className="bg-indigo-900 border border-indigo-500 text-white rounded px-2 py-1 text-xs outline-none w-14 text-right"
+                                                className="bg-white border border-red-300 text-red-600 font-bold rounded px-2 py-1 text-xs outline-none w-14 text-right"
                                                 value={aramePercentage}
                                                 onChange={e => setAramePercentage(parseFloat(e.target.value) || 0)}
                                             />
-                                            <span className="text-white text-xs font-bold">%</span>
+                                            <span className="text-red-600 text-xs font-bold">%</span>
                                         </div>
                                     </div>
                                 )}
