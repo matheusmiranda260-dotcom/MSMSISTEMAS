@@ -464,6 +464,7 @@ export interface CommercialOrder {
     freightValue?: number;
     adjustmentPercentage?: number;
     adjustmentValue?: number;
+    importantObs?: string[];
     history?: OrderHistoryEntry[];
 }
 

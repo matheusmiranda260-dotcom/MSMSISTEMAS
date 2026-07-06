@@ -11,6 +11,7 @@ export interface OrderPrintTemplateProps {
     previewCodigo?: string;
     showItems?: boolean;
     showSummary?: boolean;
+    paymentFees?: { card_1x: number, card_2x: number, card_3x: number };
 }
 
 export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateProps>(({
@@ -22,7 +23,8 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
     activeBrandingPartner,
     previewCodigo,
     showItems = true,
-    showSummary = true
+    showSummary = true,
+    paymentFees = { card_1x: 3.46, card_2x: 4.85, card_3x: 5.44 }
 }, ref) => {
     const bitolasSummary: Record<string, { kg: number }> = {};
     
@@ -174,6 +176,7 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
 
     const totalSummaryKg = summaryRows.filter(r => !r.isFreight).reduce((acc, r) => acc + r.kg, 0);
     const totalSummaryRs = summaryRows.reduce((acc, r) => acc + r.total, 0);
+    const safeValue = totalSummaryRs || 0;
 
     const formattedDate = (order.date && String(order.date).includes('-')) 
         ? String(order.date).split('-').reverse().join('/') 
@@ -367,32 +370,100 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
                             <tr className="h-4">
                                 <td colSpan={6} className="border-none"></td>
                             </tr>
+                            {order.paymentCondition !== 'CARTÃO (MOSTRAR OPÇÕES)' && (
+                                <tr>
+                                    <td colSpan={4} rowSpan={3} className="border-none p-1 align-bottom">
+                                        {order.importantObs && order.importantObs.length > 0 && (
+                                            <div className="w-[85%] border border-black">
+                                                <div className="bg-white text-black font-bold text-[10px] p-0.5 px-1 border-b border-black">
+                                                    OBSERVAÇÕES IMPORTANTES:
+                                                </div>
+                                                <ul className="text-[9px] font-bold">
+                                                    {order.importantObs.map((o, idx) => (
+                                                        <li key={idx} className={`px-1 py-0.5 border-black ${idx !== order.importantObs!.length - 1 ? 'border-b' : ''}`}>
+                                                            - {o}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td className="bg-gray-200 text-black font-bold text-center p-1 border-l border-t border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                        VALOR TOTAL
+                                    </td>
+                                    <td className="bg-gray-200 text-black font-black text-center p-1 border-r border-t border-b border-black text-[11px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                        R$ {totalSummaryRs > 0 ? totalSummaryRs.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : ''}
+                                    </td>
+                                </tr>
+                            )}
                             <tr>
-                                <td colSpan={4} className="border-none"></td>
-                                <td className="bg-gray-200 text-black font-bold text-center p-1 border-l border-t border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
-                                    VALOR TOTAL
-                                </td>
-                                <td className="bg-gray-200 text-black font-black text-center p-1 border-r border-t border-b border-black text-[11px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
-                                    R$ {totalSummaryRs > 0 ? totalSummaryRs.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : ''}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td colSpan={4} className="border-none"></td>
-                                <td className="bg-gray-200 text-black font-bold text-center p-1 border-l border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                {order.paymentCondition === 'CARTÃO (MOSTRAR OPÇÕES)' && (
+                                    <td colSpan={4} rowSpan={5} className="border-none p-1 align-bottom">
+                                        {order.importantObs && order.importantObs.length > 0 && (
+                                            <div className="w-[85%] border border-black">
+                                                <div className="bg-white text-black font-bold text-[10px] p-0.5 px-1 border-b border-black">
+                                                    OBSERVAÇÕES IMPORTANTES:
+                                                </div>
+                                                <ul className="text-[9px] font-bold">
+                                                    {order.importantObs.map((o, idx) => (
+                                                        <li key={idx} className={`px-1 py-0.5 border-black ${idx !== order.importantObs!.length - 1 ? 'border-b' : ''}`}>
+                                                            - {o}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </td>
+                                )}
+                                <td className={`bg-gray-200 text-black font-bold text-center p-1 border-l border-b border-black text-[10px] ${order.paymentCondition === 'CARTÃO (MOSTRAR OPÇÕES)' ? 'border-t' : ''}`} style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                     PESO TOTAL
                                 </td>
-                                <td className="bg-gray-200 text-black font-black text-center p-1 border-r border-b border-black text-[11px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                <td className={`bg-gray-200 text-black font-black text-center p-1 border-r border-b border-black text-[11px] ${order.paymentCondition === 'CARTÃO (MOSTRAR OPÇÕES)' ? 'border-t' : ''}`} style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                     {totalSummaryKg > 0 ? totalSummaryKg.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : ''} KG
                                 </td>
                             </tr>
-                            {order.paymentCondition && (
+                            {order.paymentCondition === 'CARTÃO (MOSTRAR OPÇÕES)' ? (
+                                <>
+                                    <tr>
+                                        <td className="bg-gray-200 text-black font-bold text-right p-1 border-l border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                            TOTAL PIX / À VISTA R$
+                                        </td>
+                                        <td className="bg-gray-200 text-black font-black text-center p-1 border-r border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                            R$ {safeValue.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td className="bg-gray-200 text-black font-bold text-right p-1 border-l border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                            TOTAL CARTÃO 1x R$
+                                        </td>
+                                        <td className="bg-gray-200 text-black font-black text-center p-1 border-r border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                            R$ {(safeValue * (1 + paymentFees.card_1x / 100)).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td className="bg-gray-200 text-black font-bold text-right p-1 border-l border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                            TOTAL CARTÃO 2x R$
+                                        </td>
+                                        <td className="bg-gray-200 text-black font-black text-center p-1 border-r border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                            R$ {(safeValue * (1 + paymentFees.card_2x / 100)).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td className="bg-gray-200 text-black font-bold text-right p-1 border-l border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                            TOTAL CARTÃO 3x R$
+                                        </td>
+                                        <td className="bg-gray-200 text-black font-black text-center p-1 border-r border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                            R$ {(safeValue * (1 + paymentFees.card_3x / 100)).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                        </td>
+                                    </tr>
+                                </>
+                            ) : (
                                 <tr>
-                                    <td colSpan={4} className="border-none"></td>
                                     <td className="bg-gray-200 text-black font-bold text-center p-1 border-l border-b border-black text-[9px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', lineHeight: '1.1'}}>
                                         CONDIÇÃO DE PAGAMENTO
                                     </td>
                                     <td className="bg-gray-200 text-black font-black text-center p-1 border-r border-b border-black text-[10px] uppercase" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
-                                        {order.paymentCondition}
+                                        {order.paymentCondition || 'À VISTA'}
                                     </td>
                                 </tr>
                             )}

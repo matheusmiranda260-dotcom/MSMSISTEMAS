@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { CommercialOrder, CommercialOrderItem, StockGauge, User, Customer, Partner } from '../types';
-import { insertItem, updateItem, deleteItem, fetchItems, fetchTable } from '../services/supabaseService';
+import { insertItem, updateItem, deleteItem, fetchItems, fetchTable, supabase } from '../services/supabaseService';
 import { OrderPrintTemplate } from './OrderPrintTemplate';
 import EstriboDrawingBoard from './EstriboDrawingBoard';
 
@@ -101,6 +101,30 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     const [searchClientError, setSearchClientError] = useState('');
     const [deliveryTime, setDeliveryTime] = useState(order.deliveryTime || '');
     const [paymentCondition, setPaymentCondition] = useState(order.paymentCondition || '');
+    const [paymentFees, setPaymentFees] = useState({ card_1x: 3.46, card_2x: 4.85, card_3x: 5.44 });
+    const [isPaymentConfigOpen, setIsPaymentConfigOpen] = useState(false);
+    
+    const [paymentMode, setPaymentMode] = useState<'A_VISTA' | 'CARTAO' | 'BOLETO' | 'CUSTOM'>(() => {
+        const val = order.paymentCondition || '';
+        if (val === 'CARTÃO (MOSTRAR OPÇÕES)') return 'CARTAO';
+        if (val.startsWith('BOLETO')) return 'BOLETO';
+        if (val === 'À VISTA' || !val) return 'A_VISTA';
+        return 'CUSTOM';
+    });
+    
+    const [paymentDetails, setPaymentDetails] = useState(() => {
+        const val = order.paymentCondition || '';
+        if (val.startsWith('BOLETO')) return val.replace('BOLETO - ', '').replace('BOLETO', '').trim();
+        if (val !== 'CARTÃO (MOSTRAR OPÇÕES)' && val !== 'À VISTA') return val;
+        return '';
+    });
+
+    useEffect(() => {
+        if (paymentMode === 'A_VISTA') setPaymentCondition('À VISTA');
+        else if (paymentMode === 'CARTAO') setPaymentCondition('CARTÃO (MOSTRAR OPÇÕES)');
+        else if (paymentMode === 'BOLETO') setPaymentCondition(`BOLETO - ${paymentDetails}`.trim());
+        else setPaymentCondition(paymentDetails);
+    }, [paymentMode, paymentDetails]);
     const [freight, setFreight] = useState(order.freight || '');
     const [freightValue, setFreightValue] = useState<number>(order.freightValue || 0);
     const [adjustmentPercentage, setAdjustmentPercentage] = useState<number>(order.adjustmentPercentage || 0);
@@ -109,6 +133,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [seller, setSeller] = useState<User | null>(null);
     const [activeBrandingPartner, setActiveBrandingPartner] = useState<Partner | null>(null);
+    const [importantObs, setImportantObs] = useState<string[]>(order.importantObs || []);
 
     // Bitolas Calculator State
     const [gauges, setGauges] = useState<StockGauge[]>([]);
@@ -426,6 +451,15 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
             }
             
             try {
+                const { data } = await supabase.from('system_settings').select('value').eq('key', 'payment_fees').single();
+                if (data && data.value) {
+                    setPaymentFees(data.value as any);
+                }
+            } catch (e) {
+                console.error('Error fetching payment fees', e);
+            }
+            
+            try {
                 const partners = await fetchTable<Partner>('partners');
                 const active = partners.find(p => p.isActiveBranding) || (partners.length > 0 ? partners[0] : null);
                 if (active) setActiveBrandingPartner(active);
@@ -443,20 +477,18 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         loadItems();
     }, [order.id]);
 
-    const handleAddItem = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const saveCurrentItem = async (itemData: typeof newItem, bitolasData: any) => {
         if (!order.id) return;
-
         try {
             const itemToSave = {
                 order_id: order.id,
-                codigo: newItem.codigo!,
-                folha: newItem.folha!,
-                descricao: newItem.descricao!,
-                tipo: newItem.tipo!,
-                peso: newItem.peso!,
-                valor: newItem.valor!,
-                bitolas_details: Object.keys(bitolasQuantities).length > 0 ? bitolasQuantities : undefined,
+                codigo: itemData.codigo!,
+                folha: itemData.folha!,
+                descricao: itemData.descricao!,
+                tipo: itemData.tipo!,
+                peso: itemData.peso!,
+                valor: itemData.valor!,
+                bitolas_details: Object.keys(bitolasData).length > 0 ? bitolasData : undefined,
                 custom_prices: Object.keys(customPrices).length > 0 ? customPrices : undefined
             };
             
@@ -484,6 +516,11 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
             console.error('Error adding item:', error);
             alert('Erro ao salvar item.');
         }
+    };
+
+    const handleAddItem = async (e: React.FormEvent) => {
+        e.preventDefault();
+        await saveCurrentItem(newItem, bitolasQuantities);
     };
 
     const handleEditItem = (item: CommercialOrderItem) => {
@@ -664,7 +701,8 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                 totalWeight: totalWeight,
                 price: totalValue, // Update main price
                 status: statusToSave,
-                history: updatedHistory
+                history: updatedHistory,
+                important_obs: importantObs
             });
             onSaveSuccess();
             onClose();
@@ -1034,14 +1072,15 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         
         setBitolasQuantities({...finalQuantities});
         
-        setNewItem(prev => ({
-            ...prev,
+        const finalItemToSave = {
+            ...newItem,
             peso: totalKg,
             valor: totalRs
-        }));
+        };
+
+        setNewItem(finalItemToSave);
         setIsBitolasModalOpen(false);
-        // Do NOT reset bitolasQuantities here, because they are bound to the current form item.
-        // It will be reset when the item is saved or canceled.
+        saveCurrentItem(finalItemToSave, finalQuantities);
     };
 
     const liveOrder: CommercialOrder = {
@@ -1282,9 +1321,11 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                 >
                                     + Inserir Bitolas
                                 </button>
-                                <button type="submit" className={`px-6 py-2 rounded-lg font-bold text-white transition-colors text-sm shadow-md flex items-center gap-2 ${editingItemId ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20'}`}>
-                                    {editingItemId ? '💾 Salvar Alteração' : '➕ Adicionar Item'}
-                                </button>
+                                {editingItemId && (
+                                    <button type="submit" className="px-6 py-2 rounded-lg font-bold text-white transition-colors text-sm shadow-md flex items-center gap-2 bg-amber-500 hover:bg-amber-600 shadow-amber-500/20">
+                                        💾 Salvar Alteração
+                                    </button>
+                                )}
                             </div>
                         </form>
                     </div>
@@ -1475,15 +1516,39 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                             <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Peso Total:</span>
                             <span className="font-black text-slate-800 w-32 text-right">{totalWeight.toLocaleString('pt-BR', {minimumFractionDigits: 2})} kg</span>
                         </div>
-                        <div className="flex items-center gap-6 text-sm">
-                            <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Condição de Pagamento:</span>
-                            <input 
-                                type="text" 
-                                className="border border-slate-200 rounded px-3 py-1.5 text-sm font-bold w-48 text-right uppercase bg-slate-50 focus:bg-white transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                value={paymentCondition}
-                                onChange={e => setPaymentCondition(e.target.value)}
-                                placeholder="À VISTA"
-                            />
+                        <div className="flex items-center justify-end gap-2 text-sm">
+                            <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Pagamento:</span>
+                            
+                            <select
+                                className="border border-slate-200 rounded px-2 py-1.5 text-xs font-bold uppercase bg-slate-50 focus:bg-white transition-colors focus:border-blue-500"
+                                value={paymentMode}
+                                onChange={e => setPaymentMode(e.target.value as any)}
+                            >
+                                <option value="A_VISTA">À VISTA</option>
+                                <option value="CARTAO">CARTÃO</option>
+                                <option value="BOLETO">BOLETO</option>
+                                <option value="CUSTOM">OUTRO</option>
+                            </select>
+
+                            {paymentMode === 'CARTAO' && (
+                                <button
+                                    onClick={() => setIsPaymentConfigOpen(true)}
+                                    title="Configurar Taxas"
+                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded"
+                                >
+                                    ⚙️
+                                </button>
+                            )}
+
+                            {(paymentMode === 'BOLETO' || paymentMode === 'CUSTOM') && (
+                                <input 
+                                    type="text" 
+                                    className="border border-slate-200 rounded px-2 py-1.5 text-xs font-bold w-28 uppercase bg-slate-50 focus:bg-white transition-colors focus:border-blue-500"
+                                    value={paymentDetails}
+                                    onChange={e => setPaymentDetails(e.target.value)}
+                                    placeholder={paymentMode === 'BOLETO' ? "Ex: 7/14/21" : "..."}
+                                />
+                            )}
                         </div>
                         <div className="flex items-center gap-6 text-xl mt-3 pt-3 border-t border-slate-200">
                             <span className="font-black text-slate-800 uppercase text-xs tracking-wider">Valor Total:</span>
@@ -1494,15 +1559,33 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                     {/* Observações */}
                     <div className="bg-blue-50/50 border border-blue-200 rounded-xl p-5 mb-8">
                         <h4 className="font-black text-blue-800 text-sm flex items-center gap-2 mb-3">
-                            <span>ℹ️</span> Observações Importantes
+                            <span>ℹ️</span> Observações Importantes (Impressas no PDF)
                         </h4>
-                        <ul className="text-xs text-blue-900/70 font-medium space-y-1.5 pl-2 list-disc list-inside">
-                            <li>Orçamento realizado conforme tabela do resumo. Sujeito a alteração caso divergente do quantitativo real.</li>
-                            <li>Ferragem apenas cortada e dobrada, não armada, para os arranques dos pilares, ferragem da laje e escada.</li>
-                            <li>Prazo de entrega condicionado à demanda de produção e logística.</li>
-                            <li>É de responsabilidade do cliente: descarregamento e conferência do material recebido.</li>
-                            <li>Orçamento elaborado de acordo com a leitura e quantificação do projeto. Qualquer alteração, revisão ou inclusão é de total responsabilidade do cliente.</li>
-                        </ul>
+                        <div className="flex flex-col gap-2">
+                            {[
+                                "MATERIAL: AÇO+CORTE E DOBRA+ARMADO",
+                                "PRAZO DE ENTREGA: 10 DIAS ÚTEIS",
+                                "FRETE: INCLUSO",
+                                "A DESCARGA É POR CONTA DO CLIENTE",
+                                "PAGAMENTO: A VISTA OU CARTÃO"
+                            ].map(obs => (
+                                <label key={obs} className="flex items-center gap-3 cursor-pointer group">
+                                    <input 
+                                        type="checkbox"
+                                        className="w-4 h-4 text-blue-600 rounded border-blue-300 focus:ring-blue-500 cursor-pointer"
+                                        checked={importantObs.includes(obs)}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setImportantObs(prev => [...prev, obs]);
+                                            } else {
+                                                setImportantObs(prev => prev.filter(o => o !== obs));
+                                            }
+                                        }}
+                                    />
+                                    <span className="text-sm font-bold text-blue-900 group-hover:text-blue-700 transition-colors">{obs}</span>
+                                </label>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
@@ -1517,6 +1600,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                             seller={seller}
                             activeBrandingPartner={activeBrandingPartner}
                             previewCodigo={newItem.codigo}
+                            paymentFees={paymentFees}
                         />
                     </div>
                 </div>
@@ -2934,6 +3018,58 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                             >
                                 Liberar e Aplicar
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Modal Configuração de Pagamento */}
+            {isPaymentConfigOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[400] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col">
+                        <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center text-white">
+                            <h3 className="font-black flex items-center gap-2">⚙️ Configurar Taxas de Cartão</h3>
+                            <button onClick={() => setIsPaymentConfigOpen(false)} className="text-white/70 hover:text-white">&times;</button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Taxa Cartão 1x (%)</label>
+                                <input 
+                                    type="number" step="0.01" min="0"
+                                    className="w-full border border-slate-300 rounded p-2 focus:border-indigo-500"
+                                    value={paymentFees.card_1x}
+                                    onChange={e => setPaymentFees(prev => ({...prev, card_1x: parseFloat(e.target.value) || 0}))}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Taxa Cartão 2x (%)</label>
+                                <input 
+                                    type="number" step="0.01" min="0"
+                                    className="w-full border border-slate-300 rounded p-2 focus:border-indigo-500"
+                                    value={paymentFees.card_2x}
+                                    onChange={e => setPaymentFees(prev => ({...prev, card_2x: parseFloat(e.target.value) || 0}))}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Taxa Cartão 3x (%)</label>
+                                <input 
+                                    type="number" step="0.01" min="0"
+                                    className="w-full border border-slate-300 rounded p-2 focus:border-indigo-500"
+                                    value={paymentFees.card_3x}
+                                    onChange={e => setPaymentFees(prev => ({...prev, card_3x: parseFloat(e.target.value) || 0}))}
+                                />
+                            </div>
+                        </div>
+                        <div className="p-4 bg-slate-50 border-t flex justify-end gap-2">
+                            <button onClick={() => setIsPaymentConfigOpen(false)} className="px-4 py-2 text-sm font-bold text-slate-600">Cancelar</button>
+                            <button onClick={async () => {
+                                try {
+                                    await supabase.from('system_settings').upsert({ key: 'payment_fees', value: paymentFees }, { onConflict: 'key' });
+                                    setIsPaymentConfigOpen(false);
+                                } catch (e) {
+                                    console.error(e);
+                                    alert("Erro ao salvar configurações");
+                                }
+                            }} className="px-4 py-2 text-sm font-bold text-white bg-indigo-600 rounded hover:bg-indigo-700">Salvar</button>
                         </div>
                     </div>
                 </div>
