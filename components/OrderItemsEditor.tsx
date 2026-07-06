@@ -1315,7 +1315,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                     disabled={!newItem.codigo}
                                     onClick={() => {
                                         setIsBitolasModalOpen(true);
-                                        setBitolasMode(newItem.codigo === 'RESUMO' ? 'KG' : 'PECA');
+                                        setBitolasMode(newItem.codigo === 'RESUMO' ? 'KG' : (newItem.tipo === 'ARMADO' ? 'PECA' : 'DESENHO'));
                                     }}
                                     className={`px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors ${!newItem.codigo ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'text-blue-600 bg-white border border-blue-200 hover:bg-blue-50'}`}
                                 >
@@ -1638,21 +1638,20 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                 POR DESENHO
                                             </button>
                                         </>
+                                    ) : newItem.tipo === 'ARMADO' ? (
+                                        <button 
+                                            onClick={() => setBitolasMode('PECA')}
+                                            className={`px-4 py-1.5 rounded-md transition-all ${bitolasMode === 'PECA' ? 'bg-white text-indigo-700 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
+                                        >
+                                            POR PEÇA
+                                        </button>
                                     ) : (
-                                        <>
-                                            <button 
-                                                onClick={() => setBitolasMode('PECA')}
-                                                className={`px-4 py-1.5 rounded-md transition-all ${bitolasMode === 'PECA' ? 'bg-white text-indigo-700 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
-                                            >
-                                                POR PEÇA
-                                            </button>
-                                            <button 
-                                                onClick={() => setBitolasMode('DESENHO')}
-                                                className={`px-4 py-1.5 rounded-md transition-all ${bitolasMode === 'DESENHO' ? 'bg-white text-indigo-700 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
-                                            >
-                                                POR DESENHO
-                                            </button>
-                                        </>
+                                        <button 
+                                            onClick={() => setBitolasMode('DESENHO')}
+                                            className={`px-4 py-1.5 rounded-md transition-all ${bitolasMode === 'DESENHO' ? 'bg-white text-indigo-700 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
+                                        >
+                                            POR DESENHO
+                                        </button>
                                     )}
                                 </div>
                                 {newItem.tipo === 'ARMADO' && bitolasMode === 'PECA' && (
