@@ -206,33 +206,33 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
                 </div>
 
                 {/* CLIENT INFO */}
-                <div className="text-[12px]">
+                <div className="text-[12px] leading-[1.5]">
                     <div className="flex border-b border-black">
-                        <div className="w-2/3 border-r border-black p-1.5 flex overflow-hidden">
-                            <span className="font-bold w-16 shrink-0">Cliente:</span> 
-                            <span className="uppercase truncate block w-full">{order.clientName}</span>
+                        <div className="w-2/3 border-r border-black p-1.5 flex items-center overflow-hidden">
+                            <span className="font-bold w-16 shrink-0 pt-0.5 pb-1">Cliente:</span> 
+                            <span className="uppercase w-full pt-0.5 pb-1 whitespace-nowrap overflow-hidden text-ellipsis">{order.clientName}</span>
                         </div>
-                        <div className="w-1/3 p-1.5 flex whitespace-nowrap overflow-hidden">
-                            <span className="font-bold w-20 shrink-0">CPF/CNPJ:</span> 
-                            <span className="uppercase truncate block w-full">{customer?.document1 || ''}</span>
+                        <div className="w-1/3 p-1.5 flex items-center overflow-hidden">
+                            <span className="font-bold w-20 shrink-0 pt-0.5 pb-1">CPF/CNPJ:</span> 
+                            <span className="uppercase w-full pt-0.5 pb-1 whitespace-nowrap overflow-hidden text-ellipsis">{customer?.document1 || ''}</span>
                         </div>
                     </div>
-                    <div className="flex border-b border-black p-1.5 overflow-hidden">
-                        <span className="font-bold w-20 shrink-0">Endereço:</span> 
-                        <span className="uppercase truncate block w-full">{order.clientCity}</span>
+                    <div className="flex border-b border-black p-1.5 items-center overflow-hidden">
+                        <span className="font-bold w-20 shrink-0 pt-0.5 pb-1">Endereço:</span> 
+                        <span className="uppercase w-full pt-0.5 pb-1 whitespace-nowrap overflow-hidden text-ellipsis">{order.clientCity}</span>
                     </div>
                     <div className="flex border-b border-black">
-                        <div className="w-1/3 border-r border-black p-1.5 flex overflow-hidden">
-                            <span className="font-bold w-20 shrink-0">Vendedor:</span> 
-                            <span className="uppercase truncate block w-full">{seller?.fullName || order.salesperson}</span>
+                        <div className="w-1/3 border-r border-black p-1.5 flex items-center overflow-hidden">
+                            <span className="font-bold w-20 shrink-0 pt-0.5 pb-1">Vendedor:</span> 
+                            <span className="uppercase w-full pt-0.5 pb-1 whitespace-nowrap overflow-hidden text-ellipsis">{seller?.fullName || order.salesperson}</span>
                         </div>
-                        <div className="w-1/3 border-r border-black p-1.5 flex whitespace-nowrap">
-                            <span className="font-bold w-[110px] shrink-0">Data de emissão:</span> 
-                            <span>{formattedDate}</span>
+                        <div className="w-1/3 border-r border-black p-1.5 flex items-center overflow-hidden">
+                            <span className="font-bold w-[110px] shrink-0 pt-0.5 pb-1">Data de emissão:</span> 
+                            <span className="pt-0.5 pb-1 whitespace-nowrap">{formattedDate}</span>
                         </div>
-                        <div className="w-1/3 p-1.5 flex whitespace-nowrap overflow-hidden">
-                            <span className="font-bold w-[115px] shrink-0">Prazo de entrega:</span> 
-                            <span className="uppercase truncate block w-full">{order.deliveryTime || '10 DIAS ÚTEIS'}</span>
+                        <div className="w-1/3 p-1.5 flex items-center overflow-hidden">
+                            <span className="font-bold w-[115px] shrink-0 pt-0.5 pb-1">Prazo de entrega:</span> 
+                            <span className="uppercase w-full pt-0.5 pb-1 whitespace-nowrap overflow-hidden text-ellipsis">{order.deliveryTime || '10 DIAS ÚTEIS'}</span>
                         </div>
                     </div>
                 </div>
