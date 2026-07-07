@@ -1085,6 +1085,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
 
     const liveOrder: CommercialOrder = {
         ...order,
+        importantObs,
         projectIdent,
         clientName,
         clientCode,
