@@ -1536,7 +1536,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                     </div>
 
                     {/* Observações */}
-                    <div className="bg-blue-50/50 border border-blue-200 rounded-xl p-5 mb-8">
+                    <div className="bg-blue-50/50 border border-blue-200 rounded-xl p-5 mb-8 hidden">
                         <h4 className="font-black text-blue-800 text-sm flex items-center gap-2 mb-3">
                             <span>ℹ️</span> Observações Importantes (Impressas no PDF)
                         </h4>
