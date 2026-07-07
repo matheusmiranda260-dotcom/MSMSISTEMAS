@@ -414,15 +414,19 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
                         <table className="w-full border-collapse border border-gray-300 rounded-lg overflow-hidden text-[10px]">
                             <tbody>
                                 <tr className="border-b border-gray-300">
-                                    <td className="w-10 bg-[#2b2d31] text-white text-center flex items-center justify-center p-2" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-                                        <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+                                    <td className="w-10 bg-[#2b2d31] text-white p-2 align-middle border-b-0 border-gray-300" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                                        <div className="flex justify-center items-center w-full h-full">
+                                            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+                                        </div>
                                     </td>
                                     <td className="bg-gray-100 p-2 font-bold uppercase tracking-wide border-r border-gray-300 w-1/2">VALOR TOTAL</td>
                                     <td className="bg-gray-100 p-2 text-center font-black text-sm">R$ {totalSummaryRs > 0 ? totalSummaryRs.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0,00'}</td>
                                 </tr>
                                 <tr className="border-b border-gray-300">
-                                    <td className="w-10 bg-[#2b2d31] text-white text-center flex items-center justify-center p-2" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-                                        <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 3c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-1 5v5h2V8h-2zm-3 8.5v3h8v-3H8zm-5-3l1.8-6h14.4l1.8 6H3z"/></svg>
+                                    <td className="w-10 bg-[#2b2d31] text-white p-2 align-middle border-b-0 border-gray-300" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                                        <div className="flex justify-center items-center w-full h-full">
+                                            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 3c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-1 5v5h2V8h-2zm-3 8.5v3h8v-3H8zm-5-3l1.8-6h14.4l1.8 6H3z"/></svg>
+                                        </div>
                                     </td>
                                     <td className="p-2 font-bold uppercase tracking-wide border-r border-gray-300">PESO TOTAL</td>
                                     <td className="p-2 text-center font-black text-[12px]">{totalSummaryKg > 0 ? totalSummaryKg.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0,00'} KG</td>
@@ -430,27 +434,29 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
                                 {order.paymentCondition === 'CARTÃO (MOSTRAR OPÇÕES)' ? (
                                     <>
                                         <tr className="border-b border-gray-300">
-                                            <td className="w-10 bg-[#2b2d31] text-white text-center flex items-center justify-center p-2" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-                                                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+                                            <td rowSpan={3} className="w-10 bg-[#2b2d31] text-white p-2 align-middle border-b-0 border-gray-300" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                                                <div className="flex justify-center items-center w-full h-full">
+                                                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+                                                </div>
                                             </td>
                                             <td className="bg-gray-100 p-2 font-bold uppercase tracking-wide border-r border-gray-300">TOTAL CARTÃO 1x R$</td>
                                             <td className="bg-gray-100 p-2 text-center font-bold text-[12px]">R$ {(safeValue * (1 + paymentFees.card_1x / 100)).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                                         </tr>
                                         <tr className="border-b border-gray-300">
-                                            <td className="w-10 bg-[#2b2d31] text-white text-center flex items-center justify-center p-2" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></td>
                                             <td className="bg-gray-100 p-2 font-bold uppercase tracking-wide border-r border-gray-300">TOTAL CARTÃO 2x R$</td>
                                             <td className="bg-gray-100 p-2 text-center font-bold text-[12px]">R$ {(safeValue * (1 + paymentFees.card_2x / 100)).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                                         </tr>
                                         <tr>
-                                            <td className="w-10 bg-[#2b2d31] text-white text-center flex items-center justify-center p-2" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></td>
                                             <td className="bg-gray-100 p-2 font-bold uppercase tracking-wide border-r border-gray-300">TOTAL CARTÃO 3x R$</td>
                                             <td className="bg-gray-100 p-2 text-center font-bold text-[12px]">R$ {(safeValue * (1 + paymentFees.card_3x / 100)).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                                         </tr>
                                     </>
                                 ) : (
                                     <tr>
-                                        <td className="w-10 bg-[#2b2d31] text-white text-center flex items-center justify-center p-2" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-                                            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+                                        <td className="w-10 bg-[#2b2d31] text-white p-2 align-middle border-b-0 border-gray-300" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                                            <div className="flex justify-center items-center w-full h-full">
+                                                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+                                            </div>
                                         </td>
                                         <td className="bg-gray-100 p-2 font-bold uppercase tracking-wide border-r border-gray-300">CONDIÇÃO DE PAGAMENTO</td>
                                         <td className="bg-gray-100 p-2 text-center font-bold text-[11px] uppercase truncate">{order.paymentCondition || 'À VISTA'}</td>
