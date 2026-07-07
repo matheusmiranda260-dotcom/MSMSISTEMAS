@@ -1727,12 +1727,12 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                             )}
                                             {['broca', 'viga', 'pilares', 'bloco', 'blocos'].includes((pieceName || '').toLowerCase()) && (
                                                 <div className="col-span-12 md:col-span-8">
-                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Formato de Estribo (Opcional)</label>
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 leading-tight">Formato de Estribo (Obrigatório)</label>
                                                     <select 
                                                         className="w-full border border-slate-300 rounded p-2 text-sm font-bold uppercase focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                                         value={pieceStirrupFormat} onChange={e => setPieceStirrupFormat(e.target.value)}
                                                     >
-                                                        <option value="">NENHUM / NÃO APLICÁVEL</option>
+                                                        <option value="" disabled>SELECIONE O FORMATO...</option>
                                                         {['bloco', 'blocos'].includes((pieceName || '').toLowerCase()) ? (
                                                             <>
                                                                 <option value="fechado">Fechado</option>
@@ -2109,7 +2109,7 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                                 className="w-full border border-slate-300 rounded p-2 text-sm font-bold uppercase focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-orange-50/50"
                                                                 value={pieceStirrupFormat2} onChange={e => setPieceStirrupFormat2(e.target.value)}
                                                             >
-                                                                <option value="">SELECIONE...</option>
+                                                                <option value="" disabled>SELECIONE O FORMATO...</option>
                                                                 <option value="fechado">Fechado</option>
                                                                 <option value="aberto">Aberto</option>
                                                             </select>
@@ -2221,7 +2221,15 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                     onClick={() => {
                                                         if (!pieceQty || parseInt(pieceQty) <= 0) return;
                                                         const isComplex = ['broca', 'viga', 'pilares', 'bloco', 'blocos'].includes((pieceName || '').toLowerCase());
+                                                        if (isComplex && !pieceStirrupFormat) {
+                                                            alert('O Formato do Estribo é obrigatório!');
+                                                            return;
+                                                        }
                                                         const isBloco = ['bloco', 'blocos'].includes((pieceName || '').toLowerCase());
+                                                        if (isBloco && useSecondStirrup && !pieceStirrupFormat2) {
+                                                            alert('O Formato do 2º Estribo é obrigatório!');
+                                                            return;
+                                                        }
                                                         
                                                         setPiecesList(prev => [...prev, {
                                                             id: Date.now().toString(),
