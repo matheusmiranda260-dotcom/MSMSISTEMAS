@@ -724,7 +724,16 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
             
             if (pieceQty && parseInt(pieceQty) > 0) {
                 const isComplex = ['broca', 'viga', 'pilares', 'bloco', 'blocos'].includes((pieceName || '').toLowerCase());
+                if (isComplex && !pieceStirrupFormat) {
+                    alert('O Formato do Estribo é obrigatório!');
+                    return;
+                }
                 const isBloco = ['bloco', 'blocos'].includes((pieceName || '').toLowerCase());
+                if (isBloco && useSecondStirrup && !pieceStirrupFormat2) {
+                    alert('O Formato do 2º Estribo é obrigatório!');
+                    return;
+                }
+                
                 effectivePieces.push({
                     id: Date.now().toString(),
                     qty: parseInt(pieceQty),
@@ -2216,8 +2225,11 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                 </div>
                                             )}
 
-                                            <div className="col-span-12 flex items-end">
+                                            )}
+
+                                            <div className="col-span-12 hidden">
                                                 <button 
+                                                    type="button"
                                                     onClick={() => {
                                                         if (!pieceQty || parseInt(pieceQty) <= 0) return;
                                                         const isComplex = ['broca', 'viga', 'pilares', 'bloco', 'blocos'].includes((pieceName || '').toLowerCase());
