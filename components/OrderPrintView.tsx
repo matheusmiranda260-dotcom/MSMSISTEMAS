@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import html2canvas from 'html2canvas';
+import * as htmlToImage from 'html-to-image';
 import type { CommercialOrder, CommercialOrderItem, StockGauge, Customer, Partner, User } from '../types';
 import { fetchItems, fetchTable, fetchByColumn } from '../services/supabaseService';
 import { OrderPrintTemplate } from './OrderPrintTemplate';
@@ -32,49 +32,40 @@ export const OrderPrintView: React.FC<OrderPrintViewProps> = ({ order, onClose, 
             // Wait for React to apply isCopying classes (removing margins/centering)
             await new Promise(resolve => setTimeout(resolve, 100));
 
-            // Temporarily scroll to top to prevent html2canvas from cropping the image
+            // Temporarily scroll to top to prevent cropping
             const scrollContainer = printRef.current.closest('.overflow-y-auto');
             if (scrollContainer) {
                 (window as any)._previousScrollY = scrollContainer.scrollTop;
                 scrollContainer.scrollTop = 0;
             }
             
-            const canvas = await html2canvas(printRef.current, {
-                scale: 2, // Higher quality
-                useCORS: true,
+            const blob = await htmlToImage.toBlob(printRef.current, {
+                pixelRatio: 2, // Higher quality
                 backgroundColor: '#ffffff',
-                scrollX: 0,
-                scrollY: 0,
-                onclone: (doc, element) => {
-                    // Force the element out of its scroll container to top-left to avoid clipping
-                    element.style.position = 'fixed';
-                    element.style.top = '0px';
-                    element.style.left = '0px';
-                    element.style.margin = '0px';
-                    element.style.padding = '10mm'; // Ensure padding is present in clone
-                    element.style.width = '210mm';
-                    element.style.transform = 'none';
-                    element.style.boxShadow = 'none';
-                    element.style.boxSizing = 'border-box';
+                style: {
+                    margin: '0',
+                    padding: '10mm', // Ensure padding is present in clone
+                    width: '210mm',
+                    transform: 'none',
+                    boxShadow: 'none',
+                    boxSizing: 'border-box'
                 }
             });
             
-            canvas.toBlob(async (blob) => {
-                if (!blob) {
-                    throw new Error('Falha ao gerar imagem');
-                }
-                
-                try {
-                    await navigator.clipboard.write([
-                        new ClipboardItem({ 'image/png': blob })
-                    ]);
-                    setCopySuccess(true);
-                    setTimeout(() => setCopySuccess(false), 3000);
-                } catch (clipboardError) {
-                    console.error('Erro ao copiar para a área de transferência:', clipboardError);
-                    alert('Não foi possível copiar a imagem automaticamente. O seu navegador pode não suportar esta função.');
-                }
-            }, 'image/png');
+            if (!blob) {
+                throw new Error('Falha ao gerar imagem');
+            }
+            
+            try {
+                await navigator.clipboard.write([
+                    new ClipboardItem({ 'image/png': blob })
+                ]);
+                setCopySuccess(true);
+                setTimeout(() => setCopySuccess(false), 3000);
+            } catch (clipboardError) {
+                console.error('Erro ao copiar para a área de transferência:', clipboardError);
+                alert('Não foi possível copiar a imagem automaticamente. O seu navegador pode não suportar esta função.');
+            }
             
         } catch (error) {
             console.error('Erro ao gerar imagem:', error);
