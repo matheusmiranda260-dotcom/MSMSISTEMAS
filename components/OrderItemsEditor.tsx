@@ -995,13 +995,85 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         
         if (bitolasMode === 'DESENHO') {
             finalQuantities = {};
-            if (drawingPieces.length > 0) {
-                finalQuantities['drawings'] = drawingPieces as any;
-                drawingPieces.forEach(p => {
+            let effectiveDrawingPieces = [...drawingPieces];
+            
+            const qty = parseInt(drawingQty) || 0;
+            if (qty > 0 && drawingGaugeId) {
+                const a = parseFloat(drawingA) || 0;
+                const b = parseFloat(drawingB) || 0;
+                const c = parseFloat(drawingC) || 0;
+                
+                let totalSize = 0;
+                let dimensionsMap: Record<string, number> = {};
+                
+                if (drawingType === 'custom') {
+                    if (customDrawingData && customDrawingData.labels && customDrawingData.labels.length > 0) {
+                        customDrawingData.labels.forEach(l => {
+                            const val = parseFloat(customDimensions[l.text]) || 0;
+                            totalSize += val;
+                            dimensionsMap[l.text] = val;
+                        });
+                    }
+                } else {
+                    if (drawingType === 'barra' || drawingType === 'circular') {
+                        totalSize = drawingType === 'circular' ? (a * 3.14) + 10 : a;
+                    } else if (drawingType === 'ferro_l' || drawingType === 'estribo') {
+                        totalSize = drawingType === 'estribo' ? (a * 2 + b * 2) + 10 : (a + b);
+                    } else if (drawingType === 'ferro_u') {
+                        totalSize = a + b + c;
+                    } else if (drawingType === 'caranguejo') {
+                        totalSize = (a * 2) + b + (c * 2);
+                    } else if (drawingType === 'bandeja') {
+                        totalSize = a + (b * 2) + (c * 2);
+                    } else if (drawingType === 'espiral') {
+                        const numEspiras = b > 0 ? c / b : 0;
+                        const compEspira = Math.sqrt(Math.pow(Math.PI * a, 2) + Math.pow(b, 2));
+                        totalSize = numEspiras * compEspira;
+                    }
+                }
+                
+                const gauge = gauges.find(g => g.id === drawingGaugeId);
+                let kg = 0;
+                if (gauge && gauge.gauge && totalSize > 0) {
+                    const bitolaVal = parseFloat(String(gauge.gauge || '').replace(/[^\d.,]/g, '').replace(',', '.'));
+                    if (!isNaN(bitolaVal)) {
+                        const massaMetro = Math.ceil(bitolaVal * bitolaVal * 0.006162 * 1000) / 1000;
+                        kg = (qty * totalSize / 100) * massaMetro;
+                    }
+                }
+
+                const newPiece = {
+                    id: Date.now().toString(),
+                    type: drawingType,
+                    qty,
+                    gaugeId: drawingGaugeId,
+                    a: drawingType !== 'custom' ? a : undefined,
+                    b: drawingType !== 'custom' ? b : undefined,
+                    c: drawingType !== 'custom' ? c : undefined,
+                    dimensions: drawingType === 'custom' ? dimensionsMap : undefined,
+                    customData: drawingType === 'custom' ? customDrawingData : undefined,
+                    totalSize,
+                    kg,
+                };
+                
+                effectiveDrawingPieces.push(newPiece);
+                setDrawingPieces(effectiveDrawingPieces);
+                
+                setDrawingQty('');
+                setDrawingA('');
+                setDrawingB('');
+                setDrawingC('');
+                setDrawingGaugeId('');
+                setCustomDimensions({});
+            }
+
+            if (effectiveDrawingPieces.length > 0) {
+                finalQuantities['drawings'] = effectiveDrawingPieces as any;
+                effectiveDrawingPieces.forEach(p => {
                     finalQuantities[p.gaugeId] = (finalQuantities[p.gaugeId] || 0) + p.kg;
                 });
                 
-                const drawingsText = drawingPieces.map(p => {
+                const drawingsText = effectiveDrawingPieces.map(p => {
                     const gauge = gauges.find(g => g.id === p.gaugeId);
                     let gaugeStr = '';
                     if (gauge) {
