@@ -42,12 +42,12 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     const [searchQuery, setSearchQuery] = useState('');
     
     // Polled orders fallback and visual feedback state
-    const [localOrders, setLocalOrders] = useState<ProductionOrderData[]>(allProgrammedOrders);
+    const [localOrders, setLocalOrders] = useState<ProductionOrderData[]>(allProgrammedOrders.filter(po => po.status !== 'pending'));
     const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
     useEffect(() => {
         if (allProgrammedOrders.length > 0) {
-            setLocalOrders(allProgrammedOrders);
+            setLocalOrders(allProgrammedOrders.filter(po => po.status !== 'pending'));
         }
     }, [allProgrammedOrders]);
 
@@ -55,7 +55,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         const fetchOrders = async () => {
             const { data } = await supabase.from('production_orders')
                 .select('*')
-                .in('status', ['pending', 'in_progress', 'producing', 'completed']);
+                .in('status', ['in_progress', 'producing', 'completed']);
             if (data) {
                 const mapped = data.map((po: any) => {
                     const newPo: any = { ...po };
