@@ -1284,28 +1284,6 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                             placeholder="Ex: PILARES" required
                                         />
                                     </div>
-                                    <div className="col-span-12 md:col-span-6 flex gap-3">
-                                        <div className="flex-1">
-                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Peso (kg)</label>
-                                            <input 
-                                                type="number" step="0.01" className="w-full border border-slate-200 bg-slate-100 cursor-not-allowed text-slate-500 rounded-lg p-2.5 text-xs font-bold focus:outline-none" 
-                                                value={newItem.peso || ''} 
-                                                readOnly
-                                                placeholder="Calculado pelas bitolas"
-                                                required
-                                            />
-                                        </div>
-                                        <div className="flex-1">
-                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Valor (R$)</label>
-                                            <input 
-                                                type="number" step="0.01" className="w-full border border-slate-200 bg-slate-100 cursor-not-allowed text-slate-500 rounded-lg p-2.5 text-xs font-bold focus:outline-none" 
-                                                value={newItem.valor || ''} 
-                                                readOnly
-                                                placeholder="Calculado pelas bitolas"
-                                                required
-                                            />
-                                        </div>
-                                    </div>
                                 </>
                             )}
                             
