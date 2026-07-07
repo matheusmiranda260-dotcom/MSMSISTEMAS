@@ -718,6 +718,8 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         let totalKg = 0;
         let totalRs = 0;
         let finalQuantities = { ...bitolasQuantities };
+        let updatedFolha = newItem.folha || '';
+        let updatedDescricao = newItem.descricao || '';
 
         if (bitolasMode === 'PECA') {
             let effectivePieces = [...piecesList];
@@ -959,24 +961,16 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
 
                 const totalQty = effectivePieces.reduce((acc, p) => acc + p.qty, 0);
 
-                setNewItem(prev => {
-                    if (prev.codigo === 'DETALHADO') {
-                        return {
-                            ...prev,
-                            folha: totalQty.toString(),
-                            descricao: piecesText
-                        };
-                    } else {
-                        let newDesc = prev.descricao || '';
-                        if (newDesc.includes(' --- PEÇAS: ')) {
-                            newDesc = newDesc.split(' --- PEÇAS: ')[0];
-                        }
-                        return {
-                            ...prev,
-                            descricao: `${newDesc} --- PEÇAS: ${piecesText}`
-                        };
+                if (newItem.codigo === 'DETALHADO') {
+                    updatedFolha = totalQty.toString();
+                    updatedDescricao = piecesText;
+                } else {
+                    let newDesc = updatedDescricao || '';
+                    if (newDesc.includes(' --- PEÇAS: ')) {
+                        newDesc = newDesc.split(' --- PEÇAS: ')[0];
                     }
-                });
+                    updatedDescricao = `${newDesc} --- PEÇAS: ${piecesText}`;
+                }
             }
             // Do NOT return here, let it fall through to calculate totalKg and totalRs from finalQuantities
         }
@@ -1027,16 +1021,11 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                     return `${p.qty} PEÇAS (${shapeName} ${desc.trim()}), ${gaugeStr}`;
                 }).join(' + ');
                 
-                setNewItem(prev => {
-                    let newDesc = prev.descricao || '';
-                    if (newDesc.includes(' --- DESENHOS: ')) {
-                        newDesc = newDesc.split(' --- DESENHOS: ')[0];
-                    }
-                    return {
-                        ...prev,
-                        descricao: `${newDesc} --- DESENHOS: ${drawingsText}`
-                    };
-                });
+                let newDesc = updatedDescricao || '';
+                if (newDesc.includes(' --- DESENHOS: ')) {
+                    newDesc = newDesc.split(' --- DESENHOS: ')[0];
+                }
+                updatedDescricao = `${newDesc} --- DESENHOS: ${drawingsText}`;
             }
         }
 
@@ -1083,6 +1072,8 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
         
         const finalItemToSave = {
             ...newItem,
+            folha: updatedFolha,
+            descricao: updatedDescricao,
             peso: totalKg,
             valor: totalRs
         };
