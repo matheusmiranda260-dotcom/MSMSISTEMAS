@@ -1682,12 +1682,6 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                             >
                                                 POR METRO
                                             </button>
-                                            <button 
-                                                onClick={() => setBitolasMode('DESENHO')}
-                                                className={`px-4 py-1.5 rounded-md transition-all ${bitolasMode === 'DESENHO' ? 'bg-white text-indigo-700 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
-                                            >
-                                                POR DESENHO
-                                            </button>
                                         </>
                                     ) : newItem.tipo === 'ARMADO' ? (
                                         <button 
