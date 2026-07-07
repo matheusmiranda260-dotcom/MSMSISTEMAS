@@ -2225,8 +2225,6 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                 </div>
                                             )}
 
-                                            )}
-
                                             <div className="col-span-12 hidden">
                                                 <button 
                                                     type="button"
