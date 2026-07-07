@@ -312,7 +312,7 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
                                                     })()}
                                                 </div>
                                             </td>
-                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-1 uppercase text-center">{item.tipo || '\u00A0'}</div></td>
+                                            <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-[1.1] px-1 py-1 uppercase text-center text-[9px] break-words whitespace-normal">{item.tipo || '\u00A0'}</div></td>
                                             <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-1">{item.peso > 0 ? item.peso.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0,00'}</div></td>
                                             <td className="border-x border-b border-black p-0"><div className="flex items-center justify-center min-h-[22px] leading-none px-1 py-1">
                                                 {finalValor > 0 ? `R$ ${finalValor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : 'R$ -'}
@@ -425,44 +425,44 @@ export const OrderPrintTemplate = forwardRef<HTMLDivElement, OrderPrintTemplateP
                             {order.paymentCondition === 'CARTÃO (MOSTRAR OPÇÕES)' ? (
                                 <>
                                     <tr>
-                                        <td className="bg-gray-200 text-black font-bold text-right p-1 border-l border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                        <td className="bg-gray-200 text-black font-bold text-right p-1 border-l border-b border-black text-[12px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                             TOTAL PIX / À VISTA R$
                                         </td>
-                                        <td className="bg-gray-200 text-black font-black text-center p-1 border-r border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                        <td className="bg-gray-200 text-black font-black text-center p-1 border-r border-b border-black text-[12px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                             R$ {safeValue.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                                         </td>
                                     </tr>
                                     <tr>
-                                        <td className="bg-gray-200 text-black font-bold text-right p-1 border-l border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                        <td className="bg-gray-200 text-black font-bold text-right p-1 border-l border-b border-black text-[12px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                             TOTAL CARTÃO 1x R$
                                         </td>
-                                        <td className="bg-gray-200 text-black font-black text-center p-1 border-r border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                        <td className="bg-gray-200 text-black font-black text-center p-1 border-r border-b border-black text-[12px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                             R$ {(safeValue * (1 + paymentFees.card_1x / 100)).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                                         </td>
                                     </tr>
                                     <tr>
-                                        <td className="bg-gray-200 text-black font-bold text-right p-1 border-l border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                        <td className="bg-gray-200 text-black font-bold text-right p-1 border-l border-b border-black text-[12px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                             TOTAL CARTÃO 2x R$
                                         </td>
-                                        <td className="bg-gray-200 text-black font-black text-center p-1 border-r border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                        <td className="bg-gray-200 text-black font-black text-center p-1 border-r border-b border-black text-[12px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                             R$ {(safeValue * (1 + paymentFees.card_2x / 100)).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                                         </td>
                                     </tr>
                                     <tr>
-                                        <td className="bg-gray-200 text-black font-bold text-right p-1 border-l border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                        <td className="bg-gray-200 text-black font-bold text-right p-1 border-l border-b border-black text-[12px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                             TOTAL CARTÃO 3x R$
                                         </td>
-                                        <td className="bg-gray-200 text-black font-black text-center p-1 border-r border-b border-black text-[10px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                        <td className="bg-gray-200 text-black font-black text-center p-1 border-r border-b border-black text-[12px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                             R$ {(safeValue * (1 + paymentFees.card_3x / 100)).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                                         </td>
                                     </tr>
                                 </>
                             ) : (
                                 <tr>
-                                    <td className="bg-gray-200 text-black font-bold text-center p-1 border-l border-b border-black text-[9px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', lineHeight: '1.1'}}>
+                                    <td className="bg-gray-200 text-black font-bold text-center p-1 border-l border-b border-black text-[12px]" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', lineHeight: '1.1'}}>
                                         CONDIÇÃO DE PAGAMENTO
                                     </td>
-                                    <td className="bg-gray-200 text-black font-black text-center p-1 border-r border-b border-black text-[10px] uppercase" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
+                                    <td className="bg-gray-200 text-black font-black text-center p-1 border-r border-b border-black text-[12px] uppercase" style={{backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'}}>
                                         {order.paymentCondition || 'À VISTA'}
                                     </td>
                                 </tr>
