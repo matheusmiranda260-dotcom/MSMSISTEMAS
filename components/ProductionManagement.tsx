@@ -179,6 +179,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
     const [orderToAuthorize, setOrderToAuthorize] = useState<CommercialOrder | null>(null);
     const [isMachinesModalOpen, setIsMachinesModalOpen] = useState(false);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [dailyShifts, setDailyShifts] = useState<any[]>([]);
     const [selectedMachineTab, setSelectedMachineTab] = useState<string>('');
     const [machineSearchQuery, setMachineSearchQuery] = useState('');
     const [authorizeDate, setAuthorizeDate] = useState('');
@@ -196,7 +197,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
             try {
                 const { data } = await supabase
                     .from('app_users')
-                    .select('id, username, role, assigned_machines, is_online');
+                    .select('id, username, role, assigned_machines, is_online, current_shift_start');
                 if (data) {
                     const mapped = data.map((u: any) => ({
                         id: u.id,
@@ -212,6 +213,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                             }
                         })(),
                         isOnline: u.is_online || false,
+                        current_shift_start: u.current_shift_start
                     })) as User[];
                     setLiveUsers(mapped);
                 }
@@ -221,6 +223,40 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
         const interval = setInterval(fetchUsers, 3000);
         return () => clearInterval(interval);
     }, [isMachinesModalOpen]);
+
+    const [machineStops, setMachineStops] = useState<any[]>([]);
+    
+    // Fetch shifts and stops for the daily report
+    useEffect(() => {
+        if (!isReportModalOpen || !selectedMachineTab) return;
+        
+        const fetchData = async () => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const { data: shifts } = await supabase
+                .from('operator_shifts')
+                .select('*')
+                .eq('machine', selectedMachineTab)
+                .gte('start_time', today.toISOString())
+                .order('start_time', { ascending: false });
+                
+            if (shifts) setDailyShifts(shifts);
+            
+            const { data: stops } = await supabase
+                .from('machine_stops')
+                .select('*')
+                .eq('machine', selectedMachineTab)
+                .gte('start_time', today.toISOString())
+                .order('start_time', { ascending: false });
+                
+            if (stops) setMachineStops(stops);
+        };
+        
+        fetchData();
+        const interval = setInterval(fetchData, 10000); // refresh every 10s while open
+        return () => clearInterval(interval);
+    }, [isReportModalOpen, selectedMachineTab]);
 
     // Always poll production orders when machines modal is open (guarantees fresh data)
     useEffect(() => {
@@ -1969,16 +2005,77 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                 </div>
                                                 <div className={`w-3 h-3 rounded-full ${isOperatorOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
                                             </div>
-                                            <div className="p-4 rounded-xl border bg-white border-slate-200 flex items-center justify-between">
-                                                <div>
-                                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Início do Turno</p>
-                                                    <p className="text-sm font-bold mt-0.5 text-indigo-900">{shiftStartStr}</p>
+                                            <div className="p-4 rounded-xl border bg-white border-slate-200 flex flex-col justify-center">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Turnos do Dia</p>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                                                 </div>
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                {dailyShifts.length === 0 ? (
+                                                    <p className="text-xs text-slate-400 font-bold">Nenhum turno registrado hoje.</p>
+                                                ) : (
+                                                    <div className="max-h-24 overflow-y-auto pr-2 space-y-1">
+                                                        {dailyShifts.map((shift: any) => (
+                                                            <div key={shift.id} className="flex justify-between text-xs border-b border-slate-100 pb-1 mb-1 last:border-0">
+                                                                <span className="font-bold text-slate-700">{shift.username}</span>
+                                                                <span className="text-slate-500">
+                                                                    {new Date(shift.start_time).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})} - {shift.end_time ? new Date(shift.end_time).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : 'Atual'}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 
-                                        {/* Table */}
+                                        {/* Histórico de Paradas */}
+                                        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                                            <div className="p-4 border-b border-slate-200 bg-rose-50 flex items-center justify-between">
+                                                <h4 className="font-black text-rose-800 uppercase text-xs">Histórico de Paradas</h4>
+                                                <span className="text-[10px] font-bold text-rose-600 bg-rose-100 px-2 py-1 rounded-full">{machineStops.length} registros</span>
+                                            </div>
+                                            {machineStops.length === 0 ? (
+                                                <div className="p-8 text-center text-slate-500 text-sm font-bold">Nenhuma parada registrada hoje para esta máquina.</div>
+                                            ) : (
+                                                <div className="overflow-x-auto max-h-48 overflow-y-auto">
+                                                    <table className="w-full text-left border-collapse">
+                                                        <thead className="sticky top-0 bg-rose-50 border-b border-slate-200 text-[10px] uppercase tracking-wider text-rose-600 font-black">
+                                                            <tr>
+                                                                <th className="p-3 pl-4">Operador</th>
+                                                                <th className="p-3">Início</th>
+                                                                <th className="p-3">Fim</th>
+                                                                <th className="p-3">Motivo</th>
+                                                                <th className="p-3 pr-4 text-right">Duração</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="text-xs font-bold text-slate-700">
+                                                            {machineStops.map(stop => {
+                                                                let durationContent: React.ReactNode = <span className="text-rose-500 font-bold"><ActiveTimer startTime={stop.start_time} /></span>;
+                                                                if (stop.end_time) {
+                                                                    const dStart = new Date(stop.start_time);
+                                                                    const dEnd = new Date(stop.end_time);
+                                                                    const diffS = Math.floor((dEnd.getTime() - dStart.getTime()) / 1000);
+                                                                    const h = Math.floor(diffS / 3600);
+                                                                    const m = Math.floor((diffS % 3600) / 60);
+                                                                    const s = diffS % 60;
+                                                                    durationContent = h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`;
+                                                                }
+                                                                return (
+                                                                    <tr key={stop.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                                                                        <td className="p-3 pl-4">{stop.username}</td>
+                                                                        <td className="p-3">{new Date(stop.start_time).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</td>
+                                                                        <td className="p-3">{stop.end_time ? new Date(stop.end_time).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '--:--'}</td>
+                                                                        <td className="p-3 text-slate-500 font-medium text-[10px] uppercase">{stop.reason || 'Não informado'}</td>
+                                                                        <td className="p-3 pr-4 text-right text-rose-600">{durationContent}</td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Table Cortes */}
                                         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
                                             <div className="p-4 border-b border-slate-200 bg-slate-50">
                                                 <h4 className="font-black text-slate-800 uppercase text-xs">Histórico de Cortes (Item a Item)</h4>

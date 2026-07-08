@@ -80,30 +80,175 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     
     // Shift State
     const [isOnline, setIsOnline] = useState(currentUser.isOnline || false);
+    const [isTogglingShift, setIsTogglingShift] = useState(false);
+
+    // Machine Status State (Local for now)
+    const [machineState, setMachineState] = useState<'PARADA' | 'ATIVA'>(() => {
+        return (localStorage.getItem(`machine_state_${currentUser.id}`) as 'PARADA' | 'ATIVA') || 'PARADA';
+    });
+    const [machineStateSince, setMachineStateSince] = useState<string>(() => {
+        return localStorage.getItem(`machine_state_since_${currentUser.id}`) || new Date().toISOString();
+    });
+    
+    const formatTimeDiff = (startStr: string) => {
+        const start = new Date(startStr).getTime();
+        const now = new Date().getTime();
+        const diff = Math.floor(Math.max(0, now - start) / 1000);
+        const h = Math.floor(diff / 3600).toString().padStart(2, '0');
+        const m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+        const s = (diff % 60).toString().padStart(2, '0');
+        return `${h}:${m}:${s}`;
+    };
+    const [machineTimer, setMachineTimer] = useState<string>(() => formatTimeDiff(machineStateSince));
+
+    useEffect(() => {
+        if (!isOnline) return;
+        const interval = setInterval(() => {
+            setMachineTimer(formatTimeDiff(machineStateSince));
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [isOnline, machineStateSince]);
+
+    const toggleMachineState = async () => {
+        if (machineState === 'ATIVA') {
+            setIsStopReasonModalOpen(true);
+            return;
+        }
+
+        const now = new Date().toISOString();
+        
+        try {
+            await supabase.from('machine_stops')
+                .update({ end_time: now })
+                .eq('user_id', currentUser.id)
+                .eq('machine', selectedMachine)
+                .is('end_time', null);
+        } catch (e) {
+            console.error('Error updating machine stop state', e);
+        }
+
+        setMachineState('ATIVA');
+        setMachineStateSince(now);
+        setMachineTimer('00:00:00');
+        setActiveStopReason('');
+        localStorage.setItem(`machine_state_${currentUser.id}`, 'ATIVA');
+        localStorage.setItem(`machine_state_since_${currentUser.id}`, now);
+        localStorage.removeItem(`machine_stop_reason_${currentUser.id}`);
+    };
 
     // Modal state
+    const [isStopReasonModalOpen, setIsStopReasonModalOpen] = useState(false);
+    const [activeStopReason, setActiveStopReason] = useState<string>(() => localStorage.getItem(`machine_stop_reason_${currentUser.id}`) || 'Aguardando início de produção');
+
+    const confirmStopMachine = async (reason: string) => {
+        setIsStopReasonModalOpen(false);
+        const now = new Date().toISOString();
+        
+        try {
+            await supabase.from('machine_stops').insert({
+                machine: selectedMachine,
+                user_id: currentUser.id,
+                username: currentUser.username,
+                start_time: now,
+                reason: reason
+            });
+        } catch (e) {
+            console.error('Error starting machine stop', e);
+        }
+
+        setMachineState('PARADA');
+        setMachineStateSince(now);
+        setMachineTimer('00:00:00');
+        setActiveStopReason(reason);
+        localStorage.setItem(`machine_state_${currentUser.id}`, 'PARADA');
+        localStorage.setItem(`machine_state_since_${currentUser.id}`, now);
+        localStorage.setItem(`machine_stop_reason_${currentUser.id}`, reason);
+    };
+
+    // SubOs Modal state
     const [activeModalPoId, setActiveModalPoId] = useState<string | null>(null);
     const [subOsSearch, setSubOsSearch] = useState('');
     const [activeSubOs, setActiveSubOs] = useState<any>(null);
 
     const toggleShift = async () => {
+        if (isTogglingShift) return;
+        setIsTogglingShift(true);
+        
         const newValue = !isOnline;
         setIsOnline(newValue);
-        const shiftStart = newValue ? new Date().toISOString() : null;
+        const now = new Date().toISOString();
+        const shiftStart = newValue ? now : null;
         try {
-            const { error } = await supabase.from('app_users').update({ 
-                is_online: newValue,
-                ...(newValue ? { current_shift_start: shiftStart } : {}) 
-            }).eq('id', currentUser.id);
-            if (error) {
-                console.error('Error toggling shift:', error);
-                alert('Erro ao alterar status do turno: ' + error.message);
-                setIsOnline(!newValue);
+            if (newValue) {
+                // Iniciar Turno
+                const { error } = await supabase.from('app_users').update({ 
+                    is_online: true,
+                    current_shift_start: now 
+                }).eq('id', currentUser.id);
+
+                if (!error) {
+                    // Previne turnos fantasmas: fecha qualquer turno que possa ter ficado aberto
+                    await supabase.from('operator_shifts')
+                        .update({ end_time: now })
+                        .eq('user_id', currentUser.id)
+                        .is('end_time', null);
+
+                    await supabase.from('operator_shifts').insert({
+                        user_id: currentUser.id,
+                        username: currentUser.username,
+                        machine: selectedMachine,
+                        start_time: now
+                    });
+                    
+                    // Previne paradas fantasmas
+                    await supabase.from('machine_stops')
+                        .update({ end_time: now })
+                        .eq('user_id', currentUser.id)
+                        .is('end_time', null);
+                        
+                    setMachineState('ATIVA');
+                    setMachineStateSince(now);
+                    setMachineTimer('00:00:00');
+                    setActiveStopReason('');
+                    localStorage.setItem(`machine_state_${currentUser.id}`, 'ATIVA');
+                    localStorage.setItem(`machine_state_since_${currentUser.id}`, now);
+                    localStorage.removeItem(`machine_stop_reason_${currentUser.id}`);
+                } else {
+                    throw error;
+                }
+            } else {
+                // Finalizar Turno
+                const { error } = await supabase.from('app_users').update({ 
+                    is_online: false
+                }).eq('id', currentUser.id);
+                
+                if (!error) {
+                    // Fecha todos os turnos abertos do usuário
+                    await supabase.from('operator_shifts')
+                        .update({ end_time: now })
+                        .eq('user_id', currentUser.id)
+                        .is('end_time', null);
+                        
+                    // Fecha paradas pendentes
+                    await supabase.from('machine_stops')
+                        .update({ end_time: now })
+                        .eq('user_id', currentUser.id)
+                        .is('end_time', null);
+                        
+                    localStorage.removeItem(`machine_state_${currentUser.id}`);
+                    localStorage.removeItem(`machine_state_since_${currentUser.id}`);
+                    localStorage.removeItem(`machine_stop_reason_${currentUser.id}`);
+                    setActiveStopReason('');
+                } else {
+                    throw error;
+                }
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error('Error toggling shift:', e);
-            alert('Erro inesperado.');
+            alert('Erro ao alterar status do turno: ' + (e.message || 'Erro inesperado.'));
             setIsOnline(!newValue);
+        } finally {
+            setIsTogglingShift(false);
         }
     };
 
@@ -282,24 +427,78 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     </div>
                 )}
                 
-                <div className="mt-2">
-                    <button 
-                        onClick={toggleShift}
-                        className={`w-full py-4 rounded-xl font-black text-[15px] uppercase shadow-sm transition-all active:scale-95 flex items-center justify-center gap-3 ${
-                            isOnline 
-                                ? 'bg-rose-50 hover:bg-rose-100 text-rose-600 border-2 border-rose-200' 
-                                : 'bg-emerald-500 hover:bg-emerald-600 text-white border-2 border-emerald-400'
-                        }`}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-6 h-6">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
-                        </svg>
-                        {isOnline ? '🔴 DESLIGAR MÁQUINA (ENCERRAR TURNO)' : '🟢 LIGAR MÁQUINA (INICIAR TURNO)'}
-                    </button>
-                </div>
             </header>
 
-            <main className="flex-1 p-4 flex flex-col gap-4 max-w-lg w-full mx-auto">
+            {!isOnline ? (
+                <div className="flex-1 flex flex-col items-center justify-center p-6 text-center animate-in fade-in slide-in-from-bottom-4">
+                    <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-100 max-w-sm w-full">
+                        <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <h2 className="text-2xl font-black text-slate-800 mb-2 uppercase tracking-tight">Turno Fechado</h2>
+                        <p className="text-slate-500 mb-8 font-medium">Inicie o seu turno para visualizar e processar as ordens de serviço.</p>
+                        <button 
+                            onClick={toggleShift}
+                            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-5 rounded-2xl text-lg uppercase shadow-[0_0_20px_rgba(16,185,129,0.6)] animate-pulse active:scale-95 transition-all flex items-center justify-center gap-3"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            INICIAR TURNO
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <>
+                {/* MACHINE STATUS BAR */}
+                <div className="bg-slate-800 w-full shadow-md z-20">
+                    <div className="max-w-lg mx-auto w-full p-4 flex flex-col gap-3">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Status em tempo real</p>
+                                <p className={`text-lg font-black mt-0.5 ${machineState === 'ATIVA' ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    ESTADO {machineState === 'ATIVA' ? 'ATIVO' : 'PARADO'}
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={toggleMachineState}
+                                    className={`px-4 py-3 rounded-xl flex items-center gap-3 font-black text-white transition-all ${machineState === 'ATIVA' ? 'bg-red-500 hover:bg-red-600 shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'bg-emerald-500 hover:bg-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.5)]'}`}
+                                >
+                                    {machineState === 'ATIVA' ? (
+                                        <>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                                            PARAR MÁQUINA
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                            ATIVAR MÁQUINA
+                                        </>
+                                    )}
+                                </button>
+                                <button 
+                                    onClick={toggleShift}
+                                    className="px-4 py-3 rounded-xl flex items-center gap-2 font-black text-rose-300 hover:text-white bg-slate-700 hover:bg-rose-500 transition-all border border-slate-600 hover:border-rose-400"
+                                    title="Finalizar Turno"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div className={`py-2 px-4 rounded-lg flex items-center justify-center gap-2 font-mono text-xl font-bold ${machineState === 'ATIVA' ? 'bg-emerald-900/50 text-emerald-100' : 'bg-red-500 text-white animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.8)]'}`}>
+                            {machineState === 'PARADA' && (
+                                <span className="uppercase text-[12px] mr-2 font-black tracking-widest">{activeStopReason} — </span>
+                            )}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            {machineTimer}
+                        </div>
+                    </div>
+                </div>
+                
+                <main className="flex-1 p-4 flex flex-col gap-4 max-w-lg w-full mx-auto">
                 <div className="relative">
                     <input 
                         type="text" 
@@ -597,6 +796,36 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     </div>
                 );
             })()}
+
+                {/* Modal Motivo de Parada */}
+                {isStopReasonModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] flex flex-col items-center justify-center p-4 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden flex flex-col shadow-2xl">
+                            <div className="bg-red-50 p-6 border-b border-red-100 flex justify-between items-center">
+                                <div>
+                                    <h3 className="text-xl font-black text-red-900 uppercase tracking-tight">Motivo da Parada</h3>
+                                    <p className="text-xs font-bold text-red-600 mt-1">Selecione o que aconteceu com a máquina</p>
+                                </div>
+                                <button onClick={() => setIsStopReasonModalOpen(false)} className="p-2 bg-white rounded-xl shadow-sm text-slate-400 hover:text-red-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                            <div className="p-6 grid grid-cols-2 gap-3 bg-slate-50">
+                                {['Troca de rolo', 'Alinhamento de ferro', 'Falha de sensor', 'Troca de rolamento', 'Aguardando ponte', 'Outros'].map((reason) => (
+                                    <button
+                                        key={reason}
+                                        onClick={() => confirmStopMachine(reason)}
+                                        className="bg-white border-2 border-slate-200 hover:border-red-400 hover:bg-red-50 text-slate-700 hover:text-red-700 font-bold p-4 rounded-2xl transition-all shadow-sm active:scale-95 text-sm uppercase"
+                                    >
+                                        {reason}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+                </>
+            )}
         </div>
     );
 };

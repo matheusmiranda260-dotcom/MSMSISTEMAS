@@ -426,54 +426,10 @@ const App: React.FC = () => {
         return () => subscription.unsubscribe();
     }, []);
 
-    // Manage user online/offline status and unload behavior
+    // Shift management is now handled manually in MobileOperatorPanel
     useEffect(() => {
-        if (currentUser && currentUser.id && currentUser.id !== 'local-admin-gestor') {
-            // Set online in DB
-            supabase
-                .from('app_users')
-                .update({ is_online: true })
-                .eq('id', currentUser.id)
-                .then();
-
-            const handleBeforeUnload = () => {
-                const supabaseUrl = (supabase as any).supabaseUrl;
-                const supabaseKey = (supabase as any).supabaseKey;
-                if (!supabaseUrl || !supabaseKey) return;
-
-                const url = `${supabaseUrl}/rest/v1/app_users?id=eq.${currentUser.id}`;
-                const body = JSON.stringify({ is_online: false });
-                const headers = {
-                    'Content-Type': 'application/json',
-                    'apikey': supabaseKey,
-                    'Authorization': `Bearer ${supabaseKey}`
-                };
-
-                try {
-                    fetch(url, {
-                        method: 'PATCH',
-                        headers,
-                        body,
-                        keepalive: true
-                    });
-                } catch (e) {
-                    console.error('Error updating status on unload:', e);
-                }
-            };
-
-            window.addEventListener('beforeunload', handleBeforeUnload);
-
-            return () => {
-                window.removeEventListener('beforeunload', handleBeforeUnload);
-                // Set offline in DB
-                supabase
-                    .from('app_users')
-                    .update({ is_online: false })
-                    .eq('id', currentUser.id)
-                    .then();
-            };
-        }
-    }, [currentUser?.id]);
+        // Shift management is now handled manually in MobileOperatorPanel
+    }, [currentUser]);
 
     // LÓGICA DE REINÍCIO (FORCE LOGOUT GLOBAL)
     useEffect(() => {
@@ -525,7 +481,6 @@ const App: React.FC = () => {
 
             if (usersFound && usersFound.password === password) {
                 const updatedFields = {
-                    is_online: true,
                     login_count: (usersFound.login_count || 0) + 1,
                     last_login_at: new Date().toISOString()
                 };
