@@ -21,6 +21,7 @@ ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS piece_size NUMERIC;
 ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS weight_type TEXT DEFAULT 'metro';
 ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS weight_unit TEXT DEFAULT 'kg';
 ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS raw_weight_value NUMERIC;
+ALTER TABLE public.stock_gauges ADD COLUMN IF NOT EXISTS subgroup_code TEXT;
 
 -- Habilitar RLS (Row Level Security) caso a tabela seja nova
 ALTER TABLE public.stock_gauges ENABLE ROW LEVEL SECURITY;

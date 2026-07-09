@@ -566,6 +566,7 @@ export interface StockGauge {
     packagingType?: string;
     qtyPerPackaging?: number;
     imageUrl?: string;
+    subgroupCode?: string;
 }
 
 export interface GaugeComponent {

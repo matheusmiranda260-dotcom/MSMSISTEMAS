@@ -675,6 +675,7 @@ CREATE TABLE IF NOT EXISTS public.stock_gauges (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     material_type TEXT NOT NULL,
     gauge TEXT NOT NULL,
+    subgroup_code TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     UNIQUE(material_type, gauge)
 );

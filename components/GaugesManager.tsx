@@ -74,6 +74,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
     const [gaugeValue, setGaugeValue] = useState('');
     
     const [productCode, setProductCode] = useState('');
+    const [subgroupCode, setSubgroupCode] = useState('');
     const [purchasePrice, setPurchasePrice] = useState('');
     const [technicalDescription, setTechnicalDescription] = useState('');
     const [status, setStatus] = useState('Ativo');
@@ -315,6 +316,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
         setGaugeValue('');
         setSelectedGroup('');
         setProductCode(generateNextCode(gauges));
+        setSubgroupCode('');
         setPurchasePrice('');
         setTechnicalDescription('');
         setStatus('Ativo');
@@ -494,6 +496,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
             materialType: groupToUse,
             gauge: finalGauge,
             productCode: trimmedCode,
+            subgroupCode: subgroupCode.trim() || undefined,
             purchasePrice: purchasePrice ? parseFloat(purchasePrice) : undefined,
             technicalDescription: technicalDescription.trim() || undefined,
             status: status,
@@ -581,6 +584,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
         setGaugeValue(value);
         setMetricUnit(unit);
         setProductCode(g.productCode || '');
+        setSubgroupCode(g.subgroupCode || '');
         setPurchasePrice(g.purchasePrice?.toString() || '');
         setTechnicalDescription(g.technicalDescription || '');
         setStatus(g.status || 'Ativo');
@@ -870,6 +874,17 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                         value={productCode}
                                         onChange={e => setProductCode(e.target.value)}
                                         placeholder="0001"
+                                        className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm"
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">CÓD. SUBGRUPO</label>
+                                    <input
+                                        type="text"
+                                        value={subgroupCode}
+                                        onChange={e => setSubgroupCode(e.target.value)}
+                                        placeholder="Ex: GRP-4.2"
                                         className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm"
                                     />
                                 </div>
@@ -1402,6 +1417,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                         <th className="p-4 text-left">COD</th>
                                         <th className="p-4 text-left">IMAGEM</th>
                                         <th className="p-4 text-left">MATERIAL</th>
+                                        <th className="p-4 text-left">SUBGRUPO</th>
                                         <th className="p-4 text-left">ESPECIFICAÇÃO</th>
                                         <th className="p-4 text-left">BITOLA/DIMENSÃO</th>
                                         <th className="p-4 text-left">FATOR CONVERSÃO</th>
@@ -1482,6 +1498,17 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                                             )}
                                                         </div>
                                                     </div>
+                                                </td>
+
+                                                {/* SUBGRUPO */}
+                                                <td className="p-4">
+                                                    {g.subgroupCode ? (
+                                                        <span className="inline-flex items-center px-2 py-1 rounded-md bg-slate-100 text-slate-700 font-medium text-xs border border-slate-200 shadow-sm">
+                                                            {g.subgroupCode}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-slate-300 text-xs">-</span>
+                                                    )}
                                                 </td>
 
                                                 {/* ESPECIFICAÇÃO */}
