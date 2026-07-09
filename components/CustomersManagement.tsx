@@ -422,36 +422,74 @@ const CustomersManagement: React.FC<CustomersManagementProps> = ({ setPage, cust
                             {/* Right Column - Dashboard */}
                             <div className="w-2/3 bg-black/20 flex flex-col overflow-hidden">
                                 {/* Metrics Cards */}
-                                <div className="p-6 grid grid-cols-3 gap-4 border-b border-white/5">
-                                    <div className="bg-[#0D3B54]/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
-                                        <div>
-                                            <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Total de Pedidos</div>
-                                            <div className="text-2xl font-black text-white">{customerOrders.length}</div>
-                                        </div>
-                                        <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
-                                            <DocumentTextIcon className="w-5 h-5" />
-                                        </div>
-                                    </div>
-                                    <div className="bg-[#0D3B54]/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
-                                        <div>
-                                            <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Peso Total (KG)</div>
-                                            <div className="text-2xl font-black text-white">
-                                                {customerOrders.reduce((acc, order) => acc + (order.totalWeight || 0), 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                <div className="p-6 flex flex-col gap-4 border-b border-white/5">
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="bg-[#0D3B54]/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
+                                            <div>
+                                                <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Total de Pedidos</div>
+                                                <div className="text-2xl font-black text-white">{customerOrders.length}</div>
+                                            </div>
+                                            <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
+                                                <DocumentTextIcon className="w-5 h-5" />
                                             </div>
                                         </div>
-                                        <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400">
-                                            <div className="font-bold text-xs">KG</div>
-                                        </div>
-                                    </div>
-                                    <div className="bg-[#0D3B54]/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
-                                        <div>
-                                            <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Valor Total Movimentado</div>
-                                            <div className="text-2xl font-black text-[#00E5FF]">
-                                                R$ {customerOrders.reduce((acc, order) => acc + (order.price || 0), 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                        <div className="bg-[#0D3B54]/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
+                                            <div>
+                                                <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Peso Total (KG)</div>
+                                                <div className="text-2xl font-black text-white">
+                                                    {customerOrders.reduce((acc, order) => acc + (order.totalWeight || 0), 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                                </div>
+                                            </div>
+                                            <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400">
+                                                <div className="font-bold text-xs">KG</div>
                                             </div>
                                         </div>
-                                        <div className="w-10 h-10 rounded-full bg-[#00E5FF]/20 flex items-center justify-center text-[#00E5FF]">
-                                            <div className="font-bold text-sm">R$</div>
+                                        <div className="bg-[#0D3B54]/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
+                                            <div>
+                                                <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Valor Total Movimentado</div>
+                                                <div className="text-2xl font-black text-[#00E5FF]">
+                                                    R$ {customerOrders.reduce((acc, order) => acc + (order.price || 0), 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                                </div>
+                                            </div>
+                                            <div className="w-10 h-10 rounded-full bg-[#00E5FF]/20 flex items-center justify-center text-[#00E5FF]">
+                                                <div className="font-bold text-sm">R$</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="bg-[#0D3B54]/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
+                                            <div>
+                                                <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Créditos Gerados</div>
+                                                <div className="text-2xl font-black text-emerald-400">
+                                                    R$ {(selectedCustomer.creditGenerated || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                                </div>
+                                            </div>
+                                            <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                                                <div className="font-bold text-sm">R$</div>
+                                            </div>
+                                        </div>
+                                        <div className="bg-[#0D3B54]/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
+                                            <div>
+                                                <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Crédito Usado</div>
+                                                <div className="text-2xl font-black text-red-400">
+                                                    R$ {(selectedCustomer.creditUsed || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                                </div>
+                                            </div>
+                                            <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center text-red-400">
+                                                <div className="font-bold text-sm">R$</div>
+                                            </div>
+                                        </div>
+                                        <div className="bg-[#0D3B54]/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
+                                            <div>
+                                                <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Saldo Disponível</div>
+                                                <div className="text-2xl font-black text-[#00E5FF]">
+                                                    R$ {((selectedCustomer.creditGenerated || 0) - (selectedCustomer.creditUsed || 0)).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                                </div>
+                                            </div>
+                                            <div className="w-10 h-10 rounded-full bg-[#00E5FF]/20 flex items-center justify-center text-[#00E5FF]">
+                                                <div className="font-bold text-sm">R$</div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -622,6 +660,58 @@ const CustomersManagement: React.FC<CustomersManagementProps> = ({ setPage, cust
                                             ))}
                                         </div>
                                     )}
+
+                                    {/* Histórico de Créditos */}
+                                    <div className="mt-8 border-t border-white/5 pt-8">
+                                        <h3 className="text-[#00E5FF] font-black text-sm uppercase tracking-widest flex items-center gap-2 mb-6">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            Histórico de Créditos
+                                        </h3>
+                                        
+                                        {(!selectedCustomer.creditHistory || selectedCustomer.creditHistory.length === 0) ? (
+                                            <div className="text-center py-10 bg-white/5 border border-dashed border-white/10 rounded-xl">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 text-slate-600 mx-auto mb-2">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                <p className="text-slate-400 font-medium">Nenhum crédito aprovado ou rejeitado.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="overflow-hidden rounded-xl border border-white/5 bg-black/20">
+                                                <table className="w-full text-left text-sm">
+                                                    <thead className="bg-[#0A2A3D]">
+                                                        <tr>
+                                                            <th className="p-3 text-xs font-black text-[#00E5FF] uppercase tracking-wider">Data</th>
+                                                            <th className="p-3 text-xs font-black text-[#00E5FF] uppercase tracking-wider">Pedido Nº</th>
+                                                            <th className="p-3 text-xs font-black text-[#00E5FF] uppercase tracking-wider">Solicitado Por</th>
+                                                            <th className="p-3 text-xs font-black text-[#00E5FF] uppercase tracking-wider">Aprovado Por</th>
+                                                            <th className="p-3 text-xs font-black text-[#00E5FF] uppercase tracking-wider text-right">Valor</th>
+                                                            <th className="p-3 text-xs font-black text-[#00E5FF] uppercase tracking-wider text-center">Status</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-white/5">
+                                                        {[...selectedCustomer.creditHistory].reverse().map((entry, idx) => (
+                                                            <tr key={idx} className="hover:bg-white/5 transition-colors">
+                                                                <td className="p-3 text-slate-300 font-medium">{new Date(entry.date).toLocaleString('pt-BR')}</td>
+                                                                <td className="p-3 text-slate-300 font-bold">{entry.orderNumber || '-'}</td>
+                                                                <td className="p-3 text-slate-300">{entry.requestedBy || '-'}</td>
+                                                                <td className="p-3 text-slate-300">{entry.approvedBy || '-'}</td>
+                                                                <td className={`p-3 font-black text-right ${entry.status === 'Rejeitado' ? 'text-slate-500' : 'text-emerald-400'}`}>
+                                                                    R$ {(entry.amount || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                                                </td>
+                                                                <td className="p-3 text-center">
+                                                                    <span className={`text-[10px] font-black uppercase px-2 py-1 rounded border ${entry.status === 'Rejeitado' ? 'border-red-500/30 text-red-400 bg-red-500/10' : 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10'}`}>
+                                                                        {entry.status || 'Aprovado'}
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                             

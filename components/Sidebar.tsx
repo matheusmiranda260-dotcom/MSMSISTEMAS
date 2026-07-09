@@ -189,13 +189,13 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
 
             <div className="sidebar-content">
                 {/* PEDIDOS E ORÇAMENTO */}
-                {(hasPermission('customerRegistration') || hasPermission('customersManagement') || hasPermission('customerOrders') || hasPermission('productsCatalog')) && (
+                {(hasPermission('customerRegistration') || hasPermission('customersManagement') || hasPermission('customerOrders') || hasPermission('financialManagement') || hasPermission('productsCatalog')) && (
                     <div className="sidebar-category">
                         <div className="sidebar-category-title">{isCollapsed ? '📝' : '📝 Pedidos e Orçamento'}</div>
 
                         <button
                             onClick={() => toggleMenu('customers')}
-                            className={`sidebar-item ${['customersManagement', 'customerRegistration', 'customerOrders', 'productsCatalog'].includes(page) ? 'active' : ''} justify-between group`}
+                            className={`sidebar-item ${['customersManagement', 'customerRegistration', 'customerOrders', 'financialManagement', 'productsCatalog'].includes(page) ? 'active' : ''} justify-between group`}
                             title={isCollapsed ? 'Clientes' : ''}
                         >
                             <div className="flex items-center gap-3 overflow-hidden">
@@ -214,6 +214,11 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                                 {hasPermission('customerOrders') && (
                                     <button onClick={() => setPage('customerOrders')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'customerOrders' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
                                         📝 Gestão de Vendas
+                                    </button>
+                                )}
+                                {hasPermission('financialManagement') && (
+                                    <button onClick={() => setPage('financialManagement')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'financialManagement' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                        💰 Financeiro
                                     </button>
                                 )}
                             </div>

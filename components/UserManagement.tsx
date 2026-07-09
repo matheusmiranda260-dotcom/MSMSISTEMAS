@@ -22,6 +22,7 @@ const permissionCategories = [
             { page: 'customerRegistration', label: '✨ Novo Cadastro' },
             { page: 'customersManagement', label: '👥 Gestão de Clientes' },
             { page: 'customerOrders', label: '📝 Gestão de Vendas' },
+            { page: 'financialManagement', label: '💰 Financeiro' },
             { page: 'productsCatalog', label: '📦 Produtos Cadastrados' },
         ]
     },

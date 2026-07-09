@@ -1,6 +1,6 @@
 // types.ts
 
-export type Page = 'login' | 'menu' | 'stock' | 'stockAdd' | 'stockTransfer' | 'documents' | 'finishedGoods' | 'productionOrder' | 'orderManagement' | 'productionManagement' | 'productionDashboard' | 'meetingsTasks' | 'continuousImprovement' | 'peopleManagement' | 'reports' | 'userManagement' | 'gaugesManager' | 'partsManager' | 'workInstructions' | 'people' | 'finished_goods' | 'spare_parts' | 'quality' | 'instructions' | 'weighing' | 'meetings' | 'downtimeConfigs' | 'desbobinadeira' | 'desbobinadeiraDashboard' | 'desbobinadeiraInProgress' | 'desbobinadeiraPending' | 'desbobinadeiraCompleted' | 'desbobinadeiraReports' | 'productionOrderDesbobinadeira' | 'trefila' | 'trefilaInProgress' | 'trefilaPending' | 'trefilaCompleted' | 'trefilaReports' | 'trefilaParts' | 'trefilaWeighing' | 'trefilaRings' | 'trelica' | 'trelicaInProgress' | 'trelicaPending' | 'trelicaCompleted' | 'trelicaReports' | 'trelicaParts' | 'productionOrderTrelica' | 'labelConfig' | 'partnerConfig' | 'pointingSystem' | 'programarMaquinas' | 'customersManagement' | 'customerRegistration' | 'customerOrders' | 'productsCatalog' | 'salesDashboard' | 'blank';
+export type Page = 'login' | 'menu' | 'stock' | 'stockAdd' | 'stockTransfer' | 'documents' | 'finishedGoods' | 'productionOrder' | 'orderManagement' | 'productionManagement' | 'productionDashboard' | 'meetingsTasks' | 'continuousImprovement' | 'peopleManagement' | 'reports' | 'userManagement' | 'gaugesManager' | 'partsManager' | 'workInstructions' | 'people' | 'finished_goods' | 'spare_parts' | 'quality' | 'instructions' | 'weighing' | 'meetings' | 'downtimeConfigs' | 'desbobinadeira' | 'desbobinadeiraDashboard' | 'desbobinadeiraInProgress' | 'desbobinadeiraPending' | 'desbobinadeiraCompleted' | 'desbobinadeiraReports' | 'productionOrderDesbobinadeira' | 'trefila' | 'trefilaInProgress' | 'trefilaPending' | 'trefilaCompleted' | 'trefilaReports' | 'trefilaParts' | 'trefilaWeighing' | 'trefilaRings' | 'trelica' | 'trelicaInProgress' | 'trelicaPending' | 'trelicaCompleted' | 'trelicaReports' | 'trelicaParts' | 'productionOrderTrelica' | 'labelConfig' | 'partnerConfig' | 'pointingSystem' | 'programarMaquinas' | 'customersManagement' | 'customerRegistration' | 'customerOrders' | 'productsCatalog' | 'salesDashboard' | 'financialManagement' | 'blank';
 
 export interface DowntimeConfig {
     id: string;
@@ -35,6 +35,9 @@ export interface Customer {
     addressDelivery?: string; // Entrega
     addressBilling?: string; // Correspondente
     additionalInfo?: string;
+    creditGenerated?: number; // Saldo de crédito gerado
+    creditUsed?: number; // Saldo de crédito utilizado
+    creditHistory?: any[]; // Histórico de aprovação de créditos
     createdAt?: string;
 }
 
@@ -454,6 +457,10 @@ export interface CommercialOrder {
     projectIdent?: string;
     deliveryTime?: string;
     paymentCondition?: string;
+    paymentValue?: number;
+    paymentReceiptUrl?: string;
+    creditRequestUrl?: string;
+    creditRequestStatus?: string;
     totalWeight?: number;
     createdAt?: string;
     engineeringDeadline?: string;

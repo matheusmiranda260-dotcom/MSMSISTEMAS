@@ -34,6 +34,7 @@ import CustomersManagement from './components/CustomersManagement';
 import { CustomerOrders } from './components/CustomerOrders';
 import { OrderManagement } from './components/OrderManagement';
 import { ProductionManagement } from './components/ProductionManagement';
+import { FinancialManagement } from './components/FinancialManagement';
 import MobileOperatorPanel from './components/MobileOperatorPanel';
 import { ProductsCatalog } from './components/ProductsCatalog';
 import { supabase } from './supabaseClient';
@@ -2815,6 +2816,7 @@ const App: React.FC = () => {
             case 'customerRegistration': return <CustomerRegistration setPage={setPage} customers={customers} />;
             case 'customersManagement': return <CustomersManagement setPage={setPage} customers={customers} currentUser={currentUser} />;
             case 'customerOrders': return <CustomerOrders setPage={setPage} customers={customers} commercialOrders={commercialOrders} currentUser={currentUser} activeBrandingPartner={activeBrandingPartner} />;
+            case 'financialManagement': return <FinancialManagement setPage={setPage} customers={customers} commercialOrders={commercialOrders} currentUser={currentUser} activeBrandingPartner={activeBrandingPartner} />;
             case 'productsCatalog': return <ProductsCatalog gauges={gauges} stock={stock} setPage={setPage} />;
             case 'documents': return <DocumentManager setPage={setPage} currentUser={currentUser} />;
             case 'gaugesManager': return <GaugesManager gauges={gauges} stock={stock} onAdd={addGauge} onDelete={deleteGauge} onUpdate={updateGauge} gaugeComponents={gaugeComponents} onSaveComponents={saveGaugeComponents} currentUser={currentUser} />;

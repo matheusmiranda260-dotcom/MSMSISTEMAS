@@ -314,8 +314,10 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
 
     const isVendedor = currentUser?.role?.toLowerCase() === 'vendedor';
     const baseOrders = (commercialOrders || []).filter(o => {
-        // Apenas mostra os pedidos (onde status não é 'orçamento')
-        if (o.status?.toLowerCase().includes('orçamento')) return false;
+        const lowerStatus = o.status?.toLowerCase() || '';
+        
+        // Não mostra orçamentos e nem pedidos que estão no financeiro
+        if (lowerStatus.includes('orçamento') || lowerStatus === 'aguardando financeiro' || lowerStatus === 'análise de crédito') return false;
 
         if (isVendedor) {
             const userName = (currentUser?.name || currentUser?.username || '').toUpperCase();

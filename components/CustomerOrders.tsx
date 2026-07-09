@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Page, Customer, CommercialOrder, User, Partner } from '../types';
-import { insertItem, deleteItem, updateItem } from '../services/supabaseService';
+import { insertItem, deleteItem, updateItem, uploadFile } from '../services/supabaseService';
 import { supabase } from '../supabaseClient';
 import { OrderItemsEditor } from './OrderItemsEditor';
 import { OrderPrintView } from './OrderPrintView';
@@ -89,6 +89,17 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
     const [searchError, setSearchError] = useState('');
     const [newObservations, setNewObservations] = useState('');
 
+    // Credit Request Modal
+    const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
+    const [creditClientSearch, setCreditClientSearch] = useState('');
+    const [creditSelectedClient, setCreditSelectedClient] = useState<Customer | null>(null);
+    const [creditOrderNumber, setCreditOrderNumber] = useState('');
+    const [creditFile, setCreditFile] = useState<File | null>(null);
+    const [creditValue, setCreditValue] = useState('');
+    const [isSubmittingCredit, setIsSubmittingCredit] = useState(false);
+    const [creditSearchError, setCreditSearchError] = useState('');
+    const [isNewCreditFormOpen, setIsNewCreditFormOpen] = useState(false);
+
     const handleSearchClient = () => {
         setSearchError('');
         if (!clientSearchTerm.trim()) {
@@ -129,6 +140,48 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
         } else {
             setSelectedClient(null);
             setSearchError('Cliente não encontrado.');
+        }
+    };
+
+    const handleSearchClientForCredit = () => {
+        setCreditSearchError('');
+        if (!creditClientSearch.trim()) {
+            setCreditSearchError('Digite algo para buscar.');
+            return;
+        }
+
+        const term = creditClientSearch.toLowerCase().trim();
+        
+        if (term === '1001' || term === 'consumidor balcao' || term === 'consumidor balcão') {
+            setCreditSelectedClient({
+                id: '1001',
+                code: '1001',
+                name: 'CONSUMIDOR BALCAO',
+                customerType: 'Pessoa Física',
+                document1: '000.000.000-00',
+                document2: '',
+                phone: '',
+                email: '',
+                addressMain: '',
+                addressDelivery: '',
+                addressBilling: '',
+                createdAt: new Date().toISOString()
+            });
+            return;
+        }
+
+        const found = customers.find(c => 
+            (c.code && c.code.toLowerCase() === term) ||
+            (c.name && c.name.toLowerCase().includes(term)) ||
+            (c.document1 && c.document1.replace(/\D/g, '') === term.replace(/\D/g, '')) ||
+            (c.document2 && c.document2.toLowerCase().includes(term))
+        );
+
+        if (found) {
+            setCreditSelectedClient(found);
+        } else {
+            setCreditSelectedClient(null);
+            setCreditSearchError('Cliente não encontrado.');
         }
     };
 
@@ -228,12 +281,74 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
     const handleExportOrder = async (order: CommercialOrder) => {
         if (window.confirm('LEMBRETE IMPORTANTE:\n\nPor favor, certifique-se de enviar por e-mail ou WhatsApp os projetos/documentos do pedido.\n\nDeseja confirmar a exportação deste pedido?')) {
             try {
-                // Ao exportar, o status muda para Aguardando Engenharia
-                await updateItem('commercial_orders', order.id!, { status: 'Aguardando Engenharia' });
+                // Ao exportar, o status muda para Aguardando Financeiro
+                await updateItem('commercial_orders', order.id!, { status: 'Aguardando Financeiro' });
             } catch (error) {
                 console.error('Erro ao exportar pedido:', error);
                 alert('Erro ao exportar pedido.');
             }
+        }
+    };
+
+    const handleConfirmCreditRequest = async () => {
+        if (!creditSelectedClient) {
+            alert('Por favor, selecione um cliente.');
+            return;
+        }
+        if (!creditOrderNumber.trim()) {
+            alert('Por favor, informe o número do orçamento.');
+            return;
+        }
+        if (!creditFile) {
+            alert('Por favor, anexe o arquivo.');
+            return;
+        }
+        if (!creditValue) {
+            alert('Por favor, informe o valor da solicitação.');
+            return;
+        }
+
+        // Find the order
+        const targetOrder = commercialOrders.find(o => String(o.orderNumber) === creditOrderNumber.trim() && (String(o.clientCode) === creditSelectedClient.code || o.clientId === creditSelectedClient.id));
+        if (!targetOrder) {
+            alert('Orçamento não encontrado para este cliente. Verifique o número digitado.');
+            return;
+        }
+
+        setIsSubmittingCredit(true);
+        try {
+            const fileName = `${Date.now()}_${targetOrder.orderNumber}_credit_${creditFile.name}`;
+            const url = await uploadFile('kb-files', fileName, creditFile);
+            
+            if (url) {
+                const newHistoryEntry = {
+                    date: new Date().toISOString(),
+                    user: (currentUser?.name || currentUser?.username || 'SISTEMA').toUpperCase(),
+                    action: 'Solicitação de Crédito Enviada'
+                };
+                
+                await updateItem('commercial_orders', targetOrder.id!, { 
+                    creditRequestStatus: 'Pendente',
+                    creditRequestUrl: url,
+                    paymentValue: parseFloat(creditValue.replace(/\./g, '').replace(',', '.')) || 0,
+                    history: [...(targetOrder.history || []), newHistoryEntry]
+                });
+                
+                setIsNewCreditFormOpen(false);
+                setCreditClientSearch('');
+                setCreditSelectedClient(null);
+                setCreditOrderNumber('');
+                setCreditValue('');
+                setCreditFile(null);
+                alert('Solicitação de crédito enviada com sucesso!');
+            } else {
+                throw new Error("Falha ao obter URL do arquivo.");
+            }
+        } catch (error) {
+            console.error('Erro ao enviar solicitação:', error);
+            alert('Erro ao enviar a solicitação. Tente novamente.');
+        } finally {
+            setIsSubmittingCredit(false);
         }
     };
 
@@ -288,6 +403,11 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
 
     const totalOrcamentos = baseOrders.filter(o => o.status?.toLowerCase().includes('orçamento')).length;
     const totalPedidos = baseOrders.filter(o => !o.status?.toLowerCase().includes('orçamento')).length;
+
+    const sellerCreditOrders = (commercialOrders || []).filter(o => 
+        o.creditRequestUrl && 
+        (isGestor || (o.salesperson || '').toUpperCase() === (currentUser?.name || currentUser?.username || '').toUpperCase())
+    );
 
     if (editingOrder) {
         return (
@@ -356,6 +476,12 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                             className="bg-emerald-500 hover:bg-emerald-600 text-white font-black py-2.5 px-6 rounded-full transition-all shadow-md flex items-center gap-2 text-xs uppercase tracking-wider border border-emerald-400"
                         >
                             <span>+ Novo Orçamento</span>
+                        </button>
+                        <button 
+                            onClick={() => setIsCreditModalOpen(true)}
+                            className="bg-sky-500 hover:bg-sky-600 text-white font-black py-2.5 px-6 rounded-full transition-all shadow-md flex items-center gap-2 text-xs uppercase tracking-wider border border-sky-400"
+                        >
+                            <span>💳 Solicitar Crédito</span>
                         </button>
                     </div>
                     <div className="flex items-center gap-2 bg-[#264b52] p-1.5 rounded-full border border-white/5 shadow-inner">
@@ -522,6 +648,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         const st = q.status?.toLowerCase() || '';
                                         let activeStage = 'orcamento';
                                         if (st === 'orçamento') activeStage = 'orcamento';
+                                        else if (st === 'aguardando financeiro' || st === 'financeiro' || st === 'análise de crédito') activeStage = 'financeiro';
                                         else if (st === 'em processo de leitura' || st === 'aguardando engenharia') activeStage = 'leitura';
                                         else if (st.includes('aguardo setor de produção')) {
                                             activeStage = isAllProgrammed ? 'producao' : 'pcp';
@@ -534,20 +661,24 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         else if (st.includes('entreg') && !st.includes('entregue') && !st.includes('finalizado')) activeStage = 'entrega';
                                         else if (st.includes('entregue') || st.includes('finalizado')) activeStage = 'completed';
 
-                                        const getDotClasses = (stageName: string, isPastOrActive: boolean) => {
+                                        const stageOrder = ['orcamento', 'financeiro', 'leitura', 'pedido', 'pcp', 'producao', 'entrega', 'completed'];
+                                        const activeStageIndex = stageOrder.indexOf(activeStage);
+                                        const isPastOrActive = (stageName: string) => stageOrder.indexOf(stageName) <= activeStageIndex;
+
+                                        const getDotClasses = (stageName: string, legacyIsPast?: boolean) => {
                                             if (activeStage === stageName) return 'bg-orange-500 ring-4 ring-orange-500/40 scale-[1.3] animate-pulse shadow-[0_0_15px_rgba(249,115,22,0.6)]';
-                                            if (isPastOrActive) return 'bg-emerald-500 ring-4 ring-emerald-500/30 scale-110 shadow-[0_0_10px_rgba(16,185,129,0.4)]';
+                                            if (isPastOrActive(stageName)) return 'bg-emerald-500 ring-4 ring-emerald-500/30 scale-110 shadow-[0_0_10px_rgba(16,185,129,0.4)]';
                                             return 'bg-black/20';
                                         };
 
-                                        const getLabelClasses = (stageName: string, isPastOrActive: boolean) => {
+                                        const getLabelClasses = (stageName: string, legacyIsPast?: boolean) => {
                                             if (activeStage === stageName) return 'text-orange-600';
-                                            if (isPastOrActive) return 'text-emerald-700';
+                                            if (isPastOrActive(stageName)) return 'text-emerald-700';
                                             return 'text-black/40';
                                         };
 
-                                        const isCompleted = (stageName: string, isPastOrActive: boolean) => {
-                                            return isPastOrActive && activeStage !== stageName;
+                                        const isCompleted = (stageName: string, legacyIsPast?: boolean) => {
+                                            return isPastOrActive(stageName) && activeStage !== stageName;
                                         };
 
                                         const Checkmark = () => (
@@ -597,6 +728,33 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 </div>
                                                 
                                                 <div className="relative flex flex-col items-center gap-2 z-10 w-16 group">
+                                                    <div className={`w-5 h-5 flex items-center justify-center rounded-full transition-all duration-300 ${getDotClasses('financeiro', !isOrcamento && activeStage !== 'financeiro')}`}>
+                                                        {isCompleted('financeiro', !isOrcamento && activeStage !== 'financeiro') ? <Checkmark /> : (activeStage === 'financeiro' ? <GearIcon /> : null)}
+                                                    </div>
+                                                    <span className={`text-[9px] font-black uppercase mt-1 transition-all ${getLabelClasses('financeiro', !isOrcamento && activeStage !== 'financeiro')}`}>Financeiro</span>
+                                                    {!isOrcamento && expandedOrderId === q.id && (
+                                                        <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-white rounded-xl p-3 shadow-xl border border-slate-100 flex flex-col min-w-[180px] z-30 cursor-default" onClick={(e) => e.stopPropagation()}>
+                                                            <div className="bg-[#3b82f6] text-white text-[10px] font-black px-3 py-1.5 rounded-t-lg absolute top-0 left-0 right-0 text-center uppercase tracking-widest shadow-sm">
+                                                                Financeiro
+                                                            </div>
+                                                            <div className="pt-8 flex flex-col gap-2 text-[10px] text-slate-600 font-medium whitespace-nowrap">
+                                                                {isPastOrActive('financeiro') ? (
+                                                                    activeStage === 'financeiro' ? (
+                                                                        <span className="text-amber-500 font-black uppercase animate-pulse">
+                                                                            {q.status?.toLowerCase() === 'análise de crédito' ? '- EM ANÁLISE DE CRÉDITO' : '- AGUARDANDO APROVAÇÃO'}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-emerald-600 font-black uppercase">- APROVADO</span>
+                                                                    )
+                                                                ) : (
+                                                                    <span className="text-slate-400 font-black uppercase italic">Pendente...</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="relative flex flex-col items-center gap-2 z-10 w-16 group">
                                                     <div className={`w-5 h-5 flex items-center justify-center rounded-full transition-all duration-300 ${getDotClasses('leitura', !isOrcamento)}`}>
                                                         {isCompleted('leitura', !isOrcamento) ? <Checkmark /> : (activeStage === 'leitura' ? <GearIcon /> : null)}
                                                     </div>
@@ -607,18 +765,24 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                                 Leitura
                                                             </div>
                                                             <div className="pt-8 flex flex-col gap-2 text-[10px] text-slate-600 font-medium whitespace-nowrap">
-                                                                {q.status?.toLowerCase() === 'em processo de leitura' ? (
-                                                                    <span className="text-orange-600 font-black uppercase animate-pulse">- EM LEITURA</span>
-                                                                ) : q.status?.toLowerCase() === 'aguardando engenharia' ? (
-                                                                    <span className="text-orange-600 font-black uppercase animate-pulse">- AGUARDANDO APROVAÇÃO</span>
-                                                                ) : q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? (
-                                                                    <span className="text-emerald-600 font-black uppercase">- FINALIZADA</span>
+                                                                {isPastOrActive('leitura') ? (
+                                                                    <>
+                                                                        {q.status?.toLowerCase() === 'em processo de leitura' ? (
+                                                                            <span className="text-orange-600 font-black uppercase animate-pulse">- EM LEITURA</span>
+                                                                        ) : q.status?.toLowerCase() === 'aguardando engenharia' ? (
+                                                                            <span className="text-orange-600 font-black uppercase animate-pulse">- AGUARDANDO APROVAÇÃO</span>
+                                                                        ) : q.status?.toLowerCase() === 'leitura finalizada, aguardo setor de produção' ? (
+                                                                            <span className="text-emerald-600 font-black uppercase">- FINALIZADA</span>
+                                                                        ) : (
+                                                                            <span className="text-slate-700 font-bold uppercase w-full truncate">- STATUS: {q.status}</span>
+                                                                        )}
+                                                                        {q.readingStartedAt && <span>- ENVIADO: <span className="font-bold text-slate-800">{q.readingStartedAt}</span></span>}
+                                                                        {q.engineeringDeadline && <span>- PRAZO: <span className="font-bold text-red-600">{q.engineeringDeadline}</span></span>}
+                                                                        {q.readingFinishedAt && <span>- FINALIZADO: <span className="font-bold text-emerald-600">{q.readingFinishedAt}</span></span>}
+                                                                    </>
                                                                 ) : (
-                                                                    <span className="text-slate-700 font-bold uppercase w-full truncate">- STATUS: {q.status}</span>
+                                                                    <span className="text-slate-400 font-black uppercase italic">Pendente...</span>
                                                                 )}
-                                                                {q.readingStartedAt && <span>- ENVIADO: <span className="font-bold text-slate-800">{q.readingStartedAt}</span></span>}
-                                                                {q.engineeringDeadline && <span>- PRAZO: <span className="font-bold text-red-600">{q.engineeringDeadline}</span></span>}
-                                                                {q.readingFinishedAt && <span>- FINALIZADO: <span className="font-bold text-emerald-600">{q.readingFinishedAt}</span></span>}
                                                             </div>
                                                         </div>
                                                     )}
@@ -1007,6 +1171,266 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                             >
                                 Confirmar Exclusão
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Credit Management Modal */}
+            {isCreditModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 xl:p-8">
+                    <div className="bg-white w-full h-full max-w-7xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="p-6 border-b border-slate-200 bg-[#0A2A3D] text-white flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="bg-sky-500/20 p-3 rounded-full text-sky-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-black text-white">Solicitações de Crédito</h2>
+                                    <p className="text-sm font-bold text-sky-200/70 mt-1">Acompanhe os créditos solicitados, gerados e rejeitados.</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setIsCreditModalOpen(false)}
+                                className="text-white/60 hover:text-white hover:bg-white/10 p-2 rounded-lg transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-auto bg-slate-50 p-6 flex flex-col gap-6">
+                            {!isNewCreditFormOpen ? (
+                                <>
+                                    <div className="flex justify-between items-center">
+                                        <h3 className="text-lg font-black text-slate-800">Suas Solicitações</h3>
+                                        <button
+                                            onClick={() => setIsNewCreditFormOpen(true)}
+                                            className="bg-sky-600 hover:bg-sky-700 text-white font-black py-2 px-6 rounded-xl transition-all shadow-md flex items-center gap-2 text-xs uppercase tracking-wider"
+                                        >
+                                            <span>+ Nova Solicitação</span>
+                                        </button>
+                                    </div>
+                                    {/* Table */}
+                                    <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left border-collapse">
+                                                <thead>
+                                                    <tr className="bg-slate-800 text-white">
+                                                        <th className="p-4 text-center font-bold text-xs uppercase w-20">Nº</th>
+                                                        <th className="p-4 text-center font-bold text-xs uppercase w-24">Data</th>
+                                                        <th className="p-4 text-center font-bold text-xs uppercase w-28">Vendedor</th>
+                                                        <th className="p-4 font-bold text-xs uppercase">Cliente</th>
+                                                        <th className="p-4 text-center font-bold text-xs uppercase w-32">Status</th>
+                                                        <th className="p-4 text-center font-bold text-xs uppercase w-36">Valor Solicitado</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {sellerCreditOrders.length === 0 ? (
+                                                        <tr>
+                                                            <td colSpan={6} className="p-8 text-center text-slate-500 font-medium border-b border-slate-100">
+                                                                Nenhuma solicitação de crédito encontrada.
+                                                            </td>
+                                                        </tr>
+                                                    ) : (
+                                                        sellerCreditOrders.map(order => {
+                                                            const formattedDate = (order.date && String(order.date).includes('-')) 
+                                                                ? String(order.date).split('-').reverse().join('/') 
+                                                                : (order.date || '');
+                                                                
+                                                            const isPending = order.status === 'Análise de Crédito';
+                                                            const isRejected = order.status?.toLowerCase().includes('orçamento');
+                                                            const isApproved = !isPending && !isRejected;
+                                                            
+                                                            const creditEvent = order.history?.find(h => h.action.includes('Solicitação de Crédito Enviada'));
+                                                            const creditTime = creditEvent ? new Date(creditEvent.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : null;
+
+                                                            return (
+                                                                <tr key={order.id} className="hover:bg-slate-50 border-b border-slate-100 transition-colors">
+                                                                    <td className="p-4 text-center font-black text-slate-900 text-sm">{order.orderNumber}</td>
+                                                                    <td className="p-4 text-center font-bold text-slate-600 text-xs">{formattedDate}</td>
+                                                                    <td className="p-4 text-center font-bold text-slate-700 text-xs">{order.salesperson || 'N/A'}</td>
+                                                                    <td className="p-4">
+                                                                        <div className="flex flex-col">
+                                                                            <span className="font-extrabold text-slate-950 text-xs uppercase">
+                                                                                ({order.clientCode}) {order.clientName}
+                                                                            </span>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="p-4 text-center">
+                                                                        {isPending && (
+                                                                            <div className="flex flex-col items-center gap-1">
+                                                                                <div className="bg-purple-100 text-purple-700 text-[10px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm border border-purple-200 inline-block">
+                                                                                    Em Análise
+                                                                                </div>
+                                                                                {creditTime && (
+                                                                                    <span className="text-[9px] font-bold text-slate-500">{creditTime}</span>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                        {isApproved && (
+                                                                            <div className="bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm border border-emerald-200 inline-block">
+                                                                                Aprovado / Gerado
+                                                                            </div>
+                                                                        )}
+                                                                        {isRejected && (
+                                                                            <div className="bg-red-100 text-red-700 text-[10px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm border border-red-200 inline-block">
+                                                                                Rejeitado
+                                                                            </div>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="p-4 text-center font-black text-slate-900 text-sm">
+                                                                        <div className="flex flex-col items-center gap-1">
+                                                                            <span className="text-xs text-sky-600 bg-sky-50 px-1.5 py-0.5 rounded">R$ {(order.paymentValue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-lg font-black text-slate-800">Nova Solicitação de Crédito</h3>
+                                        <button
+                                            onClick={() => setIsNewCreditFormOpen(false)}
+                                            className="text-slate-500 hover:text-slate-800 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors text-xs font-bold uppercase tracking-wider"
+                                        >
+                                            ← Voltar para Lista
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                                        {!creditSelectedClient ? (
+                                            <div className="space-y-4 max-w-md mx-auto">
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider">
+                                                        Buscar Cliente Cadastrado
+                                                    </label>
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="text"
+                                                            value={creditClientSearch}
+                                                            onChange={(e) => setCreditClientSearch(e.target.value)}
+                                                            onKeyDown={(e) => e.key === 'Enter' && handleSearchClientForCredit()}
+                                                            placeholder="Nome, CNPJ/CPF ou Código..."
+                                                            className="flex-grow bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-slate-900 font-bold focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none transition-all uppercase"
+                                                        />
+                                                        <button
+                                                            onClick={handleSearchClientForCredit}
+                                                            className="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-3 rounded-xl transition-all shadow-md shadow-sky-500/20"
+                                                        >
+                                                            🔎
+                                                        </button>
+                                                    </div>
+                                                    {creditSearchError && <p className="text-xs font-bold text-red-500 mt-1">{creditSearchError}</p>}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4 max-w-md mx-auto">
+                                                <div className="bg-sky-50 p-4 rounded-xl border border-sky-100 flex justify-between items-center">
+                                                    <div>
+                                                        <p className="text-[10px] font-black text-sky-600 uppercase tracking-wider mb-0.5">Cliente Selecionado</p>
+                                                        <p className="text-sm font-black text-slate-900">{creditSelectedClient.name}</p>
+                                                        <p className="text-xs font-bold text-slate-500 mt-0.5">
+                                                            Cód: {creditSelectedClient.code} | {creditSelectedClient.document1}
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setCreditSelectedClient(null)}
+                                                        className="text-xs font-bold text-red-500 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+                                                    >
+                                                        Mudar
+                                                    </button>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider">
+                                                        Número do Orçamento
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={creditOrderNumber}
+                                                        onChange={(e) => setCreditOrderNumber(e.target.value)}
+                                                        placeholder="Ex: 504"
+                                                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-slate-900 font-bold focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none transition-all"
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-2 pt-2">
+                                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider">
+                                                        Valor Solicitado
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        value={creditValue}
+                                                        onChange={(e) => setCreditValue(e.target.value)}
+                                                        placeholder="Ex: 1500.00"
+                                                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-slate-900 font-bold focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none transition-all"
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-2 pt-2">
+                                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider">
+                                                        Arquivo da Solicitação (Imagem ou PDF)
+                                                    </label>
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*,.pdf"
+                                                        onChange={(e) => {
+                                                            if (e.target.files && e.target.files[0]) {
+                                                                setCreditFile(e.target.files[0]);
+                                                            }
+                                                        }}
+                                                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-slate-900 font-bold focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none transition-all"
+                                                    />
+                                                </div>
+                                                
+                                                <div className="pt-4 flex justify-end gap-3">
+                                                    <button
+                                                        onClick={() => {
+                                                            setIsNewCreditFormOpen(false);
+                                                            setCreditClientSearch('');
+                                                            setCreditSelectedClient(null);
+                                                            setCreditOrderNumber('');
+                                                            setCreditValue('');
+                                                            setCreditFile(null);
+                                                            setCreditSearchError('');
+                                                        }}
+                                                        disabled={isSubmittingCredit}
+                                                        className="px-5 py-2.5 rounded-xl font-bold bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition-colors disabled:opacity-50"
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            handleConfirmCreditRequest().then(() => {
+                                                                if (!creditSearchError && creditValue && creditOrderNumber && creditFile) {
+                                                                    setIsNewCreditFormOpen(false); // only close form on success if possible. Actually the handle uses alert, so it will stay open if error. But if success it closes modal. We can just change handleConfirmCreditRequest if we want to stay in modal. 
+                                                                }
+                                                            });
+                                                        }}
+                                                        disabled={isSubmittingCredit || !creditFile || !creditOrderNumber || !creditValue}
+                                                        className="px-5 py-2.5 rounded-xl font-bold bg-sky-600 hover:bg-sky-700 text-white transition-colors shadow-md shadow-sky-500/20 disabled:opacity-50 flex items-center gap-2"
+                                                    >
+                                                        {isSubmittingCredit ? 'Enviando...' : 'Enviar Solicitação'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
