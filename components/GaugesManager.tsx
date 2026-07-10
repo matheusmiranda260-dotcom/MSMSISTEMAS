@@ -42,6 +42,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
     const [imageUrl, setImageUrl] = useState('');
     const [isUploading, setIsUploading] = useState(false);
     const [viewingGauge, setViewingGauge] = useState<StockGauge | null>(null);
+    const [expandedRows, setExpandedRows] = useState<string[]>([]);
 
     // SVG icon for eye
     const EyeIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
@@ -96,6 +97,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
 
     // Compound products states
     const [itemType, setItemType] = useState<'materia_prima' | 'produto_composto'>('materia_prima');
+    const [quickSubproducts, setQuickSubproducts] = useState<{id?: string, name: string, price: string, code?: string, packagingType?: string, pieceSize?: string, showInStockManagement?: boolean}[]>([]);
     const [componentsForm, setComponentsForm] = useState<{
         componentGaugeId: string;
         funcao: string;
@@ -168,7 +170,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
     const [searchTerm, setSearchTerm] = useState('');
 
     const allExistingGroups = useMemo(() => {
-        const groups = Array.from(new Set(gauges.map(g => g.materialType))).filter(Boolean) as string[];
+        const groups = Array.from(new Set(gauges.filter(g => !g.subgroupCode || g.subgroupCode === g.productCode).map(g => g.materialType))).filter(Boolean) as string[];
         return groups.sort();
     }, [gauges]);
 
@@ -176,7 +178,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
         const groups = Array.from(
             new Set(
                 gauges
-                    .filter(g => (g.itemType === 'produto_composto' ? 'produto_composto' : 'materia_prima') === itemType)
+                    .filter(g => (!g.subgroupCode || g.subgroupCode === g.productCode) && (g.itemType === 'produto_composto' ? 'produto_composto' : 'materia_prima') === itemType)
                     .map(g => g.materialType)
             )
         ).filter(Boolean) as string[];
@@ -338,6 +340,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
         setPackagingType('granel');
         setQtyPerPackaging('1');
         setImageUrl('');
+        setQuickSubproducts([]);
     };
 
     const calculateRowConsumptionWeight = (
@@ -475,7 +478,8 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
         const duplicateExists = gauges.some(g => 
             g.id !== editingId && 
             g.materialType.toLowerCase() === groupToUse.toLowerCase() && 
-            g.gauge.toLowerCase() === finalGauge.toLowerCase()
+            g.gauge.toLowerCase() === finalGauge.toLowerCase() &&
+            (g.subgroupCode || '') === (subgroupCode.trim() || '')
         );
         if (duplicateExists) {
             alert('Esta bitola/medida já está cadastrada para este material.');
@@ -525,6 +529,57 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                 }
             } else {
                 savedGauge = await onAdd(gaugeData as Omit<StockGauge, 'id'>);
+            }
+
+            if (itemType === 'materia_prima') {
+                let hasValidSubproducts = false;
+                for (let i = 0; i < quickSubproducts.length; i++) {
+                    const sp = quickSubproducts[i];
+                    if (!sp.name.trim()) continue;
+                    hasValidSubproducts = true;
+                    
+                    const spData: Partial<StockGauge> = {
+                        ...gaugeData,
+                        id: undefined,
+                        materialType: sp.name.trim(),
+                        technicalDescription: `${gaugeData.materialType} ${gaugeData.gauge} - ${sp.name.trim()}`,
+                        productCode: sp.code || `${gaugeData.productCode}-${i + 1}`,
+                        purchasePrice: sp.price ? parseFloat(sp.price) : undefined,
+                        subgroupCode: gaugeData.subgroupCode || gaugeData.productCode, // Ensure link
+                        packagingType: sp.packagingType || gaugeData.packagingType,
+                        showInStockManagement: sp.showInStockManagement ?? true,
+                    };
+
+                    if (sp.packagingType === 'barra' && sp.pieceSize) {
+                        const size = parseFloat(sp.pieceSize);
+                        spData.pieceSize = size;
+                        spData.weightType = 'unid';
+                        // calculate rawWeightValue (kg per barra) = size * weightPerMeter of parent
+                        if (gaugeData.weightPerMeter) {
+                             spData.rawWeightValue = gaugeData.weightPerMeter * size;
+                        }
+                    }
+
+                    let existingSpId = sp.id;
+                    if (!existingSpId) {
+                        const existingSp = gauges.find(gx => 
+                            gx.productCode?.toLowerCase() === spData.productCode?.toLowerCase() || 
+                            (gx.materialType.toLowerCase() === spData.materialType?.toLowerCase() && gx.gauge.toLowerCase() === spData.gauge?.toLowerCase())
+                        );
+                        if (existingSp) existingSpId = existingSp.id;
+                    }
+
+                    if (existingSpId) {
+                        await onUpdate(existingSpId, spData);
+                    } else {
+                        await onAdd(spData as Omit<StockGauge, 'id'>);
+                    }
+                }
+                
+                // If parent had no subgroupCode but derived items were created, update parent to link them
+                if (!gaugeData.subgroupCode && hasValidSubproducts && savedGauge?.id) {
+                    await onUpdate(savedGauge.id, { subgroupCode: gaugeData.productCode });
+                }
             }
 
             if (itemType === 'produto_composto' && savedGauge?.id) {
@@ -598,6 +653,19 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
         setQtyPerPackaging(g.qtyPerPackaging?.toString() || '1');
         setWeightPerMeter(g.weightPerMeter?.toString() || '');
         setPieceSize(g.pieceSize?.toString() || '');
+        
+        const targetSubgroupCode = g.subgroupCode || g.productCode;
+        const linked = gauges.filter(gx => gx.subgroupCode && gx.subgroupCode === targetSubgroupCode && gx.id !== g.id && gx.itemType === 'materia_prima');
+        setQuickSubproducts(linked.map(lx => ({
+            id: lx.id,
+            name: lx.materialType || '',
+            price: lx.purchasePrice?.toString() || '',
+            code: lx.productCode || '',
+            packagingType: lx.packagingType || 'rolo',
+            pieceSize: lx.pieceSize?.toString() || '',
+            showInStockManagement: lx.showInStockManagement !== false
+        })));
+
         setWeightType(g.weightType || 'metro');
         setWeightUnit(g.weightUnit || 'kg');
         setRawWeightValue(g.rawWeightValue?.toString() || g.weightPerMeter?.toString() || '');
@@ -715,7 +783,7 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-8 animate-fadeIn">
-            <div className="max-w-6xl mx-auto space-y-6">
+            <div className="w-full max-w-[1500px] mx-auto space-y-6">
                 <header className="flex items-center justify-between pt-4 bg-transparent border-none">
                     <div>
                         <h1 className="text-3xl font-bold text-slate-800">Configuração de Materiais</h1>
@@ -810,447 +878,183 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                             </div>
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-stretch">
-                            {/* Column 1: Identificação */}
-                            <div className="flex flex-col space-y-4">
-                                <div>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">MATERIAL</label>
-                                        {!isCreatingNewGroup && !editingId && selectedGroup !== '' && (
-                                            <div className="flex items-center gap-1.5">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleRenameGroup(selectedGroup)}
-                                                    title="Renomear Material"
-                                                    className="text-slate-400 hover:text-blue-600 transition"
-                                                >
-                                                    <PencilIcon className="h-3 w-3" />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDeleteGroup(selectedGroup)}
-                                                    title="Excluir Material"
-                                                    className="text-slate-400 hover:text-red-600 transition"
-                                                >
-                                                    <TrashIcon className="h-3 w-3" />
-                                                </button>
-                                            </div>
+                        <div className="flex flex-col gap-4">
+                            {/* Linha 1: Dados Principais */}
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">DADOS PRINCIPAIS</h3>
+                                <div className="flex flex-wrap md:flex-nowrap gap-3 items-start">
+                                    <div className="w-full md:w-1/4">
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">MATERIAL</label>
+                                            {!isCreatingNewGroup && !editingId && selectedGroup !== '' && (
+                                                <div className="flex items-center gap-1.5">
+                                                    <button type="button" onClick={() => handleRenameGroup(selectedGroup)} title="Renomear Material" className="text-slate-400 hover:text-blue-600 transition"><PencilIcon className="h-3 w-3" /></button>
+                                                    <button type="button" onClick={() => handleDeleteGroup(selectedGroup)} title="Excluir Material" className="text-slate-400 hover:text-red-600 transition"><TrashIcon className="h-3 w-3" /></button>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <select
+                                            value={isCreatingNewGroup ? '__NEW_GROUP__' : selectedGroup}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                if (val === '__NEW_GROUP__') { setIsCreatingNewGroup(true); } else { setIsCreatingNewGroup(false); setSelectedGroup(val); }
+                                            }}
+                                            className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none shadow-sm bg-white font-medium text-slate-700 text-sm"
+                                        >
+                                            <option value="">Selecione um material...</option>
+                                            {dynamicGroups.map(m => <option key={m} value={m}>{m}</option>)}
+                                            <option value="__NEW_GROUP__" className="text-blue-600 font-bold">+ Cadastrar Novo Material...</option>
+                                        </select>
+                                        {isCreatingNewGroup && (
+                                            <input type="text" value={customGroupName} onChange={e => setCustomGroupName(e.target.value)} placeholder="Nome do Novo Material (Ex: CA-60)" className="w-full p-2.5 mt-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none shadow-sm text-sm" autoFocus />
                                         )}
                                     </div>
-                                    <select
-                                        value={isCreatingNewGroup ? '__NEW_GROUP__' : selectedGroup}
-                                        onChange={e => {
-                                            const val = e.target.value;
-                                            if (val === '__NEW_GROUP__') {
-                                                setIsCreatingNewGroup(true);
-                                            } else {
-                                                setIsCreatingNewGroup(false);
-                                                setSelectedGroup(val);
-                                            }
-                                        }}
-                                        className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm bg-white font-medium text-slate-700 text-sm"
-                                    >
-                                        <option value="">Selecione um material...</option>
-                                        {dynamicGroups.map(m => <option key={m} value={m}>{m}</option>)}
-                                        <option value="__NEW_GROUP__" className="text-blue-600 font-bold">+ Cadastrar Novo Material...</option>
-                                    </select>
-                                    
-                                    {isCreatingNewGroup && (
-                                        <input
-                                            type="text"
-                                            value={customGroupName}
-                                            onChange={e => setCustomGroupName(e.target.value)}
-                                            placeholder="Nome do Novo Material (Ex: CA-60)"
-                                            className="w-full p-3 mt-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm text-sm"
-                                            autoFocus
-                                        />
+                                    <div className="w-full md:w-[15%]">
+                                        <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">CÓD. PRODUTO</label>
+                                        <input type="text" value={productCode} onChange={e => setProductCode(e.target.value)} placeholder="0001" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm" />
+                                    </div>
+                                    <div className="w-full md:w-[15%]">
+                                        <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">EMBALAGEM</label>
+                                        <select value={packagingType} onChange={e => { const val = e.target.value; setPackagingType(val); setWeightType('metro'); setQtyPerPackaging('1'); }} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white text-slate-700">
+                                            <option value="rolo">Rolo / Bobina</option>
+                                            <option value="barra">Barra / Peça</option>
+                                        </select>
+                                    </div>
+                                    <div className="w-full md:w-[15%]">
+                                        <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">MEDIDA (MM)</label>
+                                        <input type="text" value={gaugeValue} onChange={e => setGaugeValue(e.target.value)} placeholder="Ex: 8.00" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm" />
+                                    </div>
+                                    <div className="w-full md:w-[15%]">
+                                        <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">MASSA (KG/M)</label>
+                                        <input type="number" value={itemType === 'produto_composto' ? totalTheoreticalWeight.toFixed(3) : rawWeightValue} onChange={e => setRawWeightValue(e.target.value)} placeholder="Ex: 0.109" step="any" min="0" disabled={itemType === 'produto_composto'} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white disabled:bg-slate-50 disabled:text-slate-400" />
+                                    </div>
+                                    {packagingType === 'barra' && (
+                                        <div className="w-full md:w-[15%] animate-fadeIn">
+                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">COMPR. (MTS)</label>
+                                            <input type="number" value={pieceSize} onChange={e => setPieceSize(e.target.value)} placeholder="Ex: 12.0" step="any" min="0" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white" />
+                                        </div>
                                     )}
                                 </div>
-
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">CÓD. PRODUTO</label>
-                                    <input
-                                        type="text"
-                                        value={productCode}
-                                        onChange={e => setProductCode(e.target.value)}
-                                        placeholder="0001"
-                                        className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm"
-                                    />
-                                </div>
-                                
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">CÓD. SUBGRUPO</label>
-                                    <input
-                                        type="text"
-                                        value={subgroupCode}
-                                        onChange={e => setSubgroupCode(e.target.value)}
-                                        placeholder="Ex: GRP-4.2"
-                                        className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm"
-                                    />
-                                </div>
                             </div>
 
-                            {/* Column 2: Métricas */}
-                            <div className="flex flex-col space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">MÉTRICA E MEDIDA PRINCIPAL</label>
-                                    <div className="flex gap-2">
-                                        <select
-                                            value={metricUnit}
-                                            onChange={e => setMetricUnit(e.target.value)}
-                                            className="w-1/3 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm bg-white font-medium text-slate-700 text-sm"
-                                        >
-                                            <option value="mm">mm</option>
-                                            <option value="mts">mts</option>
-                                            <option value="kg">kg</option>
-                                            <option value="unid">unid</option>
-                                            <option value="BWG">BWG</option>
-                                            <option value="nenhum">Sem unid.</option>
+                            {/* Linha 2: Configurações */}
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">CONFIGURAÇÕES FINANCEIRAS & EXTRAS</h3>
+                                <div className="flex flex-wrap md:flex-nowrap gap-3 items-start">
+                                    <div className="w-full md:w-1/4">
+                                        <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">PREÇO COMPRA (KG)</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
+                                            <input type="number" value={purchasePrice} onChange={e => setPurchasePrice(e.target.value)} placeholder="0,00" step="0.01" min="0" className="w-full p-2.5 pl-9 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white" />
+                                        </div>
+                                    </div>
+                                    <div className="w-full md:w-1/4">
+                                        <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">NUMERAÇÃO DO LOTE</label>
+                                        <select value={autoGenerateLot ? 'true' : 'false'} onChange={e => setAutoGenerateLot(e.target.value === 'true')} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none shadow-sm bg-white font-medium text-slate-700 text-sm">
+                                            <option value="false">Manual</option>
+                                            <option value="true">Automático</option>
                                         </select>
-                                        <input
-                                            type="text"
-                                            value={gaugeValue}
-                                            onChange={e => setGaugeValue(e.target.value)}
-                                            placeholder="Ex: 8.00 ou B"
-                                            className="w-2/3 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm"
-                                        />
+                                    </div>
+                                    {editingId && (
+                                        <div className="w-full md:w-1/4">
+                                            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">STATUS</label>
+                                            <select value={status} onChange={e => setStatus(e.target.value)} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none shadow-sm bg-white font-bold text-slate-700 text-sm">
+                                                <option value="Ativo">Ativo</option>
+                                                <option value="Inativo">Inativo</option>
+                                            </select>
+                                        </div>
+                                    )}
+                                    <div className="w-full md:w-1/4 flex items-center h-[66px]">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input type="checkbox" checked={useCustomField} onChange={e => { setUseCustomField(e.target.checked); if (e.target.checked && !customFieldLabel) setCustomFieldLabel('Especificações'); }} className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded" />
+                                            <span className="text-xs font-bold text-slate-700">Ativar Campo Adicional</span>
+                                        </label>
                                     </div>
                                 </div>
-
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">NUMERAÇÃO DO LOTE</label>
-                                    <select
-                                        value={autoGenerateLot ? 'true' : 'false'}
-                                        onChange={e => setAutoGenerateLot(e.target.value === 'true')}
-                                        className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm bg-white font-medium text-slate-700 text-sm"
-                                    >
-                                        <option value="false">Manual (Digitar no recebimento)</option>
-                                        <option value="true">Automático (Gerar sequencial)</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">CAMPO ADICIONAL PERSONALIZADO</label>
-                                    <div className="space-y-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                type="checkbox"
-                                                id="useCustomField"
-                                                checked={useCustomField}
-                                                onChange={e => {
-                                                    setUseCustomField(e.target.checked);
-                                                    if (e.target.checked && !customFieldLabel) {
-                                                        setCustomFieldLabel('Especificações');
-                                                    }
-                                                }}
-                                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
-                                            />
-                                            <label htmlFor="useCustomField" className="text-xs font-bold text-slate-700 cursor-pointer">
-                                                Ativar Informação Adicional
-                                            </label>
+                                {useCustomField && (
+                                    <div className="flex flex-wrap md:flex-nowrap gap-3 items-start mt-3 pt-3 border-t border-slate-200 animate-fadeIn">
+                                        <div className="w-full md:w-1/3">
+                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nome do Campo</label>
+                                            <input type="text" value={customFieldLabel} onChange={e => setCustomFieldLabel(e.target.value)} placeholder="Ex: Especificações" className="w-full p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
                                         </div>
-
-                                        {useCustomField && (
-                                            <div className="space-y-2 animate-fadeIn">
-                                                <div>
-                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nome do Campo</label>
-                                                    <input
-                                                        type="text"
-                                                        value={customFieldLabel}
-                                                        onChange={e => setCustomFieldLabel(e.target.value)}
-                                                        placeholder="Ex: Especificações, Dureza, Cor"
-                                                        className="w-full p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Opções do Campo (separadas por vírgula ou hífen)</label>
-                                                    <input
-                                                        type="text"
-                                                        value={customFieldOptions}
-                                                        onChange={e => setCustomFieldOptions(e.target.value)}
-                                                        placeholder="Ex: 1006, 1010, 1018 ou 1006-1018"
-                                                        className="w-full p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Valor Padrão</label>
-                                                    <div className="relative">
-                                                        <input
-                                                            type="text"
-                                                            list="default-value-options"
-                                                            value={customFieldValue}
-                                                            onChange={e => setCustomFieldValue(e.target.value)}
-                                                            placeholder="Selecione ou digite o valor padrão"
-                                                            className="w-full p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                                                        />
-                                                        <datalist id="default-value-options">
-                                                            {customFieldOptions
-                                                                .split(/[,;\-]+/)
-                                                                .map(o => o.trim())
-                                                                .filter(Boolean)
-                                                                .map(opt => (
-                                                                    <option key={opt} value={opt} />
-                                                                ))}
-                                                        </datalist>
-                                                    </div>
-                                                </div>
+                                        <div className="w-full md:w-1/3">
+                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Opções (separadas por vírgula)</label>
+                                            <input type="text" value={customFieldOptions} onChange={e => setCustomFieldOptions(e.target.value)} placeholder="Ex: 1006, 1010, 1018" className="w-full p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                                        </div>
+                                        <div className="w-full md:w-1/3">
+                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Valor Padrão</label>
+                                            <div className="relative">
+                                                <input type="text" list="default-value-options" value={customFieldValue} onChange={e => setCustomFieldValue(e.target.value)} placeholder="Selecione..." className="w-full p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                                                <datalist id="default-value-options">
+                                                    {customFieldOptions.split(/[,;\-]+/).map(o => o.trim()).filter(Boolean).map(opt => <option key={opt} value={opt} />)}
+                                                </datalist>
                                             </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Column 3: CONFIGURAÇÃO DE EMBALAGEM & CONVERSÃO */}
-                            <div className={`rounded-2xl p-4 border flex flex-col justify-between space-y-4 transition-colors ${
-                                itemType === 'produto_composto'
-                                    ? 'bg-purple-50/50 border-purple-200'
-                                    : 'bg-slate-100 border-slate-200'
-                            }`}>
-                                <h3 className={`text-xs font-bold uppercase tracking-wider text-center border-b pb-2 ${
-                                    itemType === 'produto_composto' ? 'text-purple-700 border-purple-200' : 'text-slate-700 border-slate-200'
-                                }`}>
-                                    {itemType === 'produto_composto' ? 'PESO TEÓRICO (FICHA)' : 'EMBALAGEM & CONVERSÃO'}
-                                </h3>
-
-                                <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">TIPO DE EMBALAGEM</label>
-                                    <select
-                                        value={packagingType}
-                                        onChange={e => {
-                                            const val = e.target.value;
-                                            setPackagingType(val);
-                                            if (val === 'rolo') {
-                                                setWeightType('peso');
-                                                setRawWeightValue('2000');
-                                                setQtyPerPackaging('1');
-                                            } else if (val === 'pacote') {
-                                                setWeightType('unid');
-                                                setQtyPerPackaging('200');
-                                            } else if (val === 'barra') {
-                                                setWeightType('unid');
-                                                setQtyPerPackaging('1');
-                                            } else {
-                                                setWeightType('metro');
-                                                setQtyPerPackaging('1');
-                                            }
-                                        }}
-                                        className="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white text-slate-700"
-                                    >
-                                        <option value="granel">Granel (Apenas Peso)</option>
-                                        <option value="rolo">Rolo / Bobina</option>
-                                        <option value="pacote">Fardo / Pacote</option>
-                                        <option value="barra">Barra / Peça Avulsa</option>
-                                    </select>
-                                </div>
-
-                                {packagingType === 'pacote' && (
-                                    <div className="animate-fadeIn">
-                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">QTD DE PEÇAS NO PACOTE</label>
-                                        <input
-                                            type="number"
-                                            value={qtyPerPackaging}
-                                            onChange={e => setQtyPerPackaging(e.target.value)}
-                                            placeholder="Ex: 200"
-                                            min="1"
-                                            className="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white"
-                                        />
-                                    </div>
-                                )}
-
-                                <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">TIPO DE CONTROLE DE PESO</label>
-                                    <select
-                                        value={weightType}
-                                        onChange={e => setWeightType(e.target.value)}
-                                        className="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white text-slate-700"
-                                    >
-                                        <option value="metro">Por Metro (Mts)</option>
-                                        <option value="unid">Por Unidade / Barra (Ex: 12m, 13m)</option>
-                                        <option value="peso">Apenas por Peso (Kg)</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                                        {weightType === 'metro' ? 'PESO POR METRO' : weightType === 'unid' ? 'PESO TOTAL DA BARRA/PEÇA' : 'PESO BASE'}
-                                    </label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="number"
-                                            value={
-                                                itemType === 'produto_composto'
-                                                    ? totalTheoreticalWeight.toFixed(3)
-                                                    : (packagingType === 'rolo' && weightType === 'peso')
-                                                    ? weightPerMeter
-                                                    : rawWeightValue
-                                            }
-                                            onChange={e => {
-                                                if (packagingType === 'rolo' && weightType === 'peso') {
-                                                    setWeightPerMeter(e.target.value);
-                                                } else {
-                                                    setRawWeightValue(e.target.value);
-                                                }
-                                            }}
-                                            placeholder={weightType === 'metro' ? "Ex: 0.109" : weightType === 'unid' ? "Ex: 10.5" : "Ex: 1.0"}
-                                            step="any"
-                                            min="0"
-                                            disabled={(weightType === 'peso' && packagingType !== 'rolo') || itemType === 'produto_composto'}
-                                            className="w-2/3 p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white disabled:bg-slate-50 disabled:text-slate-400"
-                                        />
-                                        <select
-                                            value={itemType === 'produto_composto' ? 'kg' : weightUnit}
-                                            onChange={e => setWeightUnit(e.target.value)}
-                                            disabled={(weightType === 'peso' && packagingType !== 'rolo') || itemType === 'produto_composto'}
-                                            className="w-1/3 p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white text-slate-700 disabled:bg-slate-50 disabled:text-slate-400"
-                                        >
-                                            <option value="kg">kg</option>
-                                            <option value="g">gramas</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {(weightType === 'unid' || packagingType === 'pacote' || packagingType === 'barra') && (
-                                    <div className="animate-fadeIn">
-                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">COMPRIMENTO DA BARRA/PEÇA (MTS)</label>
-                                        <input
-                                            type="number"
-                                            value={pieceSize}
-                                            onChange={e => setPieceSize(e.target.value)}
-                                            placeholder="Ex: 12.0"
-                                            step="any"
-                                            min="0"
-                                            className="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white"
-                                        />
-                                    </div>
-                                )}
-
-                                <div className="text-[10px] text-slate-500 font-semibold space-y-1 bg-white/50 p-2 rounded-xl border border-slate-200">
-                                    <span className="block">
-                                        Status de Conversão:
-                                    </span>
-                                    <span className="block text-slate-600 font-bold">
-                                        Calculado: {parseFloat(weightPerMeter) ? `${parseFloat(weightPerMeter).toFixed(4)} kg/m` : '---'}
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Column 4: Imagem, Preço & Ações */}
-                            <div className="flex flex-col justify-between space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">IMAGEM DO PRODUTO</label>
-                                    <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                                        <div className="w-16 h-16 rounded-lg border bg-white flex items-center justify-center overflow-hidden flex-shrink-0 shadow-inner">
-                                            {imageUrl ? (
-                                                <img src={imageUrl} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <ScaleIcon className="h-8 w-8 text-slate-300" />
-                                            )}
-                                        </div>
-                                        <div className="flex flex-col space-y-1.5 w-full">
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={handleImageUpload}
-                                                id="gauge-image-upload"
-                                                className="hidden"
-                                                disabled={isUploading}
-                                            />
-                                            <label
-                                                htmlFor="gauge-image-upload"
-                                                className={`text-center text-xs font-bold py-1.5 px-3 rounded-lg border cursor-pointer transition ${
-                                                    isUploading
-                                                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
-                                                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300 shadow-sm'
-                                                }`}
-                                            >
-                                                {isUploading ? 'Enviando...' : 'Selecionar Imagem'}
-                                            </label>
-                                            {imageUrl && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setImageUrl('')}
-                                                    className="text-left text-[10px] text-red-500 hover:text-red-700 font-bold uppercase tracking-wider"
-                                                >
-                                                    Remover Imagem
-                                                </button>
-                                            )}
                                         </div>
                                     </div>
-                                </div>
+                                )}
+                            </div>
 
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                                        {itemType === 'produto_composto' ? 'CUSTO MATÉRIA-PRIMA' : 'PREÇO DE COMPRA (KG)'}
-                                    </label>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
-                                        <input
-                                            type="number"
-                                            value={purchasePrice}
-                                            onChange={e => setPurchasePrice(e.target.value)}
-                                            placeholder="0,00"
-                                            step="0.01"
-                                            min="0"
-                                            className="w-full p-3 pl-9 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-semibold text-sm bg-white"
-                                        />
-                                    </div>
-                                    <span className="text-[10px] text-slate-400 font-semibold mt-1.5 block">
-                                        {itemType === 'produto_composto' ? '(Custo Teórico Total)' : `(R$ ${pricePerMeter} / Mts)`}
-                                    </span>
-                                </div>
-
-                                {editingId && (
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">STATUS</label>
-                                        <select
-                                            value={status}
-                                            onChange={e => setStatus(e.target.value)}
-                                            className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none shadow-sm bg-white font-bold text-slate-700 text-sm"
-                                        >
-                                            <option value="Ativo">Ativo</option>
-                                            <option value="Inativo">Inativo</option>
-                                        </select>
+                            {/* Linha 3: Derivados & Imagem & Ações */}
+                            <div className="flex flex-col md:flex-row gap-4 items-stretch">
+                                {itemType === 'materia_prima' && (
+                                    <div className="flex-1 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">DERIVADOS RÁPIDOS</h3>
+                                            <button type="button" onClick={() => {
+                                                const nextIndex = quickSubproducts.length > 0 ? Math.max(...quickSubproducts.map(s => { if (!s.code) return 0; const parts = s.code.split('-'); return parseInt(parts[parts.length - 1] || '0') || 0; })) + 1 : 1;
+                                                const nextCode = productCode ? `${productCode}-${nextIndex}` : `-${nextIndex}`;
+                                                setQuickSubproducts([...quickSubproducts, { name: '', price: '', code: nextCode, packagingType: 'rolo', pieceSize: '' }]);
+                                            }} className="text-blue-600 hover:text-blue-700 text-[10px] font-bold uppercase flex items-center gap-1 transition-colors"><PlusIcon className="h-3 w-3"/> Adicionar</button>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {quickSubproducts.map((sp, idx) => (
+                                                <div key={idx} className="flex gap-1.5 items-center animate-fadeIn bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+                                                    <div className="w-[15%]">
+                                                        <input type="text" value={sp.code || ''} readOnly placeholder="Auto" className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:outline-none bg-slate-100 text-slate-600 font-bold text-center" />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <input type="text" value={sp.name} onChange={e => { const newSp = [...quickSubproducts]; newSp[idx].name = e.target.value; setQuickSubproducts(newSp); }} placeholder="Nome (ex: VERGALHAO CDA)" className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
+                                                    </div>
+                                                    <div className="w-[20%]">
+                                                        <select value={sp.packagingType || 'rolo'} onChange={e => { const newSp = [...quickSubproducts]; newSp[idx].packagingType = e.target.value; setQuickSubproducts(newSp); }} className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                                                            <option value="rolo">Rolo</option>
+                                                            <option value="barra">Barra</option>
+                                                        </select>
+                                                    </div>
+                                                    {sp.packagingType === 'barra' && (
+                                                        <div className="w-[15%] relative">
+                                                            <input type="number" step="0.1" value={sp.pieceSize || ''} onChange={e => { const newSp = [...quickSubproducts]; newSp[idx].pieceSize = e.target.value; setQuickSubproducts(newSp); }} placeholder="Tamanho" title="Tamanho da Barra (m)" className="w-full p-2 pr-6 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
+                                                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[10px]">m</span>
+                                                        </div>
+                                                    )}
+                                                    <div className="w-[20%] relative">
+                                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[10px]">R$</span>
+                                                        <input type="number" step="0.01" value={sp.price} onChange={e => { const newSp = [...quickSubproducts]; newSp[idx].price = e.target.value; setQuickSubproducts(newSp); }} placeholder="Preço" title="Preço por KG" className="w-full p-2 pl-6 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
+                                                    </div>
+                                                    <div className="flex items-center gap-1 bg-slate-50 p-1.5 rounded border border-slate-200 shrink-0" title="Aparecer no Gestão de Lotes">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={sp.showInStockManagement !== false}
+                                                            onChange={e => { const newSp = [...quickSubproducts]; newSp[idx].showInStockManagement = e.target.checked; setQuickSubproducts(newSp); }}
+                                                            className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                                                        />
+                                                        <span className="text-[9px] font-bold text-slate-500 uppercase">Lotes</span>
+                                                    </div>
+                                                    <button type="button" onClick={() => { const newSp = quickSubproducts.filter((_, i) => i !== idx); setQuickSubproducts(newSp); }} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors shrink-0"><TrashIcon className="h-4 w-4" /></button>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
 
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">BOTÕES AÇÃO</label>
-                                    <div className="flex gap-2 flex-wrap md:flex-nowrap">
-                                        {editingId && (
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setEditingId(null);
-                                                    alert("Modo de edição desativado. Agora você pode salvar este item como um NOVO cadastro!");
-                                                }}
-                                                className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold py-3.5 px-3 rounded-xl shadow-sm transition text-xs flex items-center justify-center gap-1.5 flex-grow"
-                                                title="Usar os dados atuais para criar um novo registro"
-                                            >
-                                                Usar como Modelo
-                                            </button>
-                                        )}
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                handleReset();
-                                                setViewMode('list');
-                                            }}
-                                            className="flex-grow bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold py-3.5 px-3 rounded-xl shadow-sm transition text-xs flex items-center justify-center gap-1.5"
-                                        >
-                                            <XIcon className="h-4 w-4" /> {editingId ? 'Cancelar' : 'Voltar'}
+                                <div className="w-full md:w-[400px] flex flex-col gap-4 justify-end">
+                                    <div className="flex gap-2 flex-wrap md:flex-nowrap mt-auto">
+                                        <button type="button" onClick={() => { handleReset(); setViewMode('list'); }} className="flex-grow bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold py-2.5 px-3 rounded-lg shadow-sm transition text-xs flex items-center justify-center gap-1.5">
+                                            <XIcon className="h-3 w-3" /> {editingId ? 'Cancelar' : 'Voltar'}
                                         </button>
-                                        <button
-                                            type="button"
-                                            onClick={handleSave}
-                                            className="bg-[#0F3F5C] hover:bg-[#0A2A3D] text-white font-bold p-3.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2 flex-grow border border-transparent text-xs"
-                                            title={editingId ? 'Salvar Alterações' : 'Salvar Material'}
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4">
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                            </svg>
-                                            Salvar
+                                        {editingId && <button type="button" onClick={() => { setEditingId(null); alert("Modo de edição desativado. Agora você pode salvar este item como um NOVO cadastro!"); }} className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold py-2.5 px-3 rounded-lg shadow-sm transition text-xs flex items-center justify-center gap-1.5 flex-grow" title="Usar como Modelo">Modelo</button>}
+                                        <button type="button" onClick={handleSave} className="bg-[#0F3F5C] hover:bg-[#0A2A3D] text-white font-bold py-2.5 px-3 rounded-lg shadow-sm transition flex items-center justify-center gap-2 flex-grow text-xs">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg> Salvar
                                         </button>
                                     </div>
                                 </div>
@@ -1415,10 +1219,8 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                 <thead>
                                     <tr className="bg-slate-50/70 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
                                         <th className="p-4 text-left">COD</th>
-                                        <th className="p-4 text-left">IMAGEM</th>
                                         <th className="p-4 text-left">MATERIAL</th>
                                         <th className="p-4 text-left">SUBGRUPO</th>
-                                        <th className="p-4 text-left">ESPECIFICAÇÃO</th>
                                         <th className="p-4 text-left">BITOLA/DIMENSÃO</th>
                                         <th className="p-4 text-left">FATOR CONVERSÃO</th>
                                         <th className="p-4 text-left">ESTOQUE</th>
@@ -1427,227 +1229,253 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                         {isGestor && <th className="p-4 text-center">AÇÕES</th>}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100 text-sm">
-                                    {filteredGauges.map(g => {
-                                        const stockInfo = getStockInfo(g.materialType, g.gauge);
-                                        const hasStock = stockInfo.count > 0;
-                                        
-                                        // Parse value and unit for display
-                                        let displayValue = g.gauge.replace('.', ',');
-                                        let displayUnit = '';
-                                        const units = ['mm', 'mts', 'kg', 'unid', 'BWG'];
-                                        for (const u of units) {
-                                            if (g.gauge.toLowerCase().endsWith(` ${u.toLowerCase()}`)) {
-                                                displayValue = g.gauge.substring(0, g.gauge.length - u.length - 1).replace('.', ',');
-                                                displayUnit = u;
-                                                break;
-                                            } else if (g.gauge.toLowerCase().endsWith(u.toLowerCase())) {
-                                                displayValue = g.gauge.substring(0, g.gauge.length - u.length).replace('.', ',');
-                                                displayUnit = u;
-                                                break;
+                                <tbody className="text-sm">
+                                    
+                                    {(() => {
+                                        const childrenMap = new Map<string, import('../types').StockGauge[]>();
+                                        const topLevelGauges = filteredGauges.filter(g => {
+                                            if (g.subgroupCode && g.subgroupCode !== g.productCode) {
+                                                const parent = filteredGauges.find(p => p.productCode === g.subgroupCode);
+                                                if (parent) {
+                                                    if (!childrenMap.has(parent.id)) childrenMap.set(parent.id, []);
+                                                    childrenMap.get(parent.id).push(g);
+                                                    return false; // It's a child
+                                                }
                                             }
-                                        }
+                                            return true; // Top level
+                                        });
 
-                                        const percent = g.idealWeight ? Math.min(100, (stockInfo.totalWeight / g.idealWeight) * 100) : (stockInfo.totalWeight > 0 ? 50 : 0);
-                                        
-                                        return (
-                                            <tr key={g.id} className="hover:bg-slate-50/50 transition-colors group">
-                                                {/* COD */}
-                                                <td className="p-4 font-semibold text-slate-900">
-                                                    <span className={g.productCode ? 'text-blue-600 font-mono font-bold text-sm' : 'text-slate-400 italic text-sm'}>
-                                                        {g.productCode || 'Sem código'}
-                                                    </span>
-                                                </td>
+                                        const toggleExpand = (id: string) => {
+                                            setExpandedRows(prev => prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]);
+                                        };
 
-                                                {/* IMAGEM */}
-                                                <td className="p-4">
-                                                    <div className="w-12 h-12 rounded-lg border bg-white flex items-center justify-center overflow-hidden shadow-sm">
-                                                        {g.imageUrl ? (
-                                                            <img src={g.imageUrl} className="w-full h-full object-cover" />
-                                                        ) : g.materialType.toLowerCase().includes('rolo') || g.gauge.toLowerCase().includes('rolo') ? (
-                                                            <img src="/images/wire_coil.png" className="w-full h-full object-cover opacity-90" />
-                                                        ) : g.materialType.toLowerCase().includes('vergalhão') || g.materialType.toLowerCase().includes('barra') || g.packagingType === 'barra' ? (
-                                                            <img src="/images/steel_bars.png" className="w-full h-full object-cover opacity-90" />
-                                                        ) : (
-                                                            <ScaleIcon className="h-6 w-6 text-slate-300" />
-                                                        )}
-                                                    </div>
-                                                </td>
+                                        return topLevelGauges.map(g => {
+                                            const children = childrenMap.get(g.id) || [];
+                                            const hasChildren = children.length > 0;
+                                            const isExpanded = expandedRows.includes(g.id);
+                                            
+                                            const stockInfo = getStockInfo(g.materialType, g.gauge);
+                                            
+                                            // Aggregate totals
+                                            let totalWeight = stockInfo.totalWeight;
+                                            let totalLots = stockInfo.count;
+                                            children.forEach(child => {
+                                                const childStock = getStockInfo(child.materialType, child.gauge);
+                                                totalWeight += childStock.totalWeight;
+                                                totalLots += childStock.count;
+                                            });
+                                            
+                                            const percent = g.idealWeight ? Math.min(100, (totalWeight / g.idealWeight) * 100) : (totalWeight > 0 ? 50 : 0);
 
-                                                {/* MATERIAL */}
-                                                <td className="p-4">
-                                                    <div className="flex flex-col space-y-1">
-                                                        <span className="font-bold text-slate-805 text-sm">{g.materialType}</span>
-                                                        <div className="flex flex-wrap gap-1">
-                                                            <span className={`inline-block px-1.5 py-0.5 text-[9px] font-bold rounded ${
-                                                                g.itemType === 'produto_composto'
-                                                                    ? 'bg-purple-100 text-purple-700 border border-purple-200'
-                                                                    : 'bg-blue-100 text-blue-700 border border-blue-200'
-                                                            }`}>
-                                                                {g.itemType === 'produto_composto' ? 'Composto' : 'Matéria-Prima'}
-                                                            </span>
-                                                            {g.packagingType && g.packagingType !== 'granel' && (
-                                                                <span className="inline-block px-1.5 py-0.5 text-[9px] font-bold rounded bg-indigo-100 text-indigo-700 border border-indigo-200">
-                                                                    {g.packagingType === 'rolo' ? 'Rolo' : g.packagingType === 'pacote' ? `Pacote` : g.packagingType === 'barra' ? 'Barra' : 'Granel'}
+                                            const renderRow = (item: import('../types').StockGauge, isChild: boolean, aggregatedTotalWeight?: number, aggregatedTotalLots?: number, percentValue?: number, hasChildrenFlag?: boolean) => {
+                                                const itemStockInfo = getStockInfo(item.materialType, item.gauge);
+                                                const hasStock = itemStockInfo.count > 0;
+                                                
+                                                let displayValue = item.gauge.replace('.', ',');
+                                                let displayUnit = '';
+                                                const units = ['mm', 'mts', 'kg', 'unid', 'BWG'];
+                                                for (const u of units) {
+                                                    if (item.gauge.toLowerCase().endsWith(` ${u.toLowerCase()}`)) {
+                                                        displayValue = item.gauge.substring(0, item.gauge.length - u.length - 1).replace('.', ',');
+                                                        displayUnit = u;
+                                                        break;
+                                                    } else if (item.gauge.toLowerCase().endsWith(u.toLowerCase())) {
+                                                        displayValue = item.gauge.substring(0, item.gauge.length - u.length).replace('.', ',');
+                                                        displayUnit = u;
+                                                        break;
+                                                    }
+                                                }
+
+                                                return (
+                                                    <tr key={item.id} className={`hover:bg-slate-50/50 transition-colors group border-b border-slate-100 ${isChild ? 'bg-slate-50 border-l-4 border-l-blue-400' : ''}`}>
+                                                        <td className="p-4 font-semibold text-slate-900">
+                                                            <div className="flex items-center gap-2">
+                                                                {!isChild && hasChildren && (
+                                                                    <button onClick={() => toggleExpand(item.id)} className="p-1 text-slate-400 hover:text-blue-600 bg-white rounded shadow-sm border border-slate-200">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                                        </svg>
+                                                                    </button>
+                                                                )}
+                                                                {isChild && <div className="w-4" />}
+                                                                <span className={item.productCode ? 'text-blue-600 font-mono font-bold text-sm' : 'text-slate-400 italic text-sm'}>
+                                                                    {item.productCode || 'Sem código'}
                                                                 </span>
-                                                            )}
-                                                            {g.defaultSteelType && (
-                                                                <span className="inline-block px-1.5 py-0.5 text-[9px] font-bold rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                                                    {g.defaultSteelType}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </td>
-
-                                                {/* SUBGRUPO */}
-                                                <td className="p-4">
-                                                    {g.subgroupCode ? (
-                                                        <span className="inline-flex items-center px-2 py-1 rounded-md bg-slate-100 text-slate-700 font-medium text-xs border border-slate-200 shadow-sm">
-                                                            {g.subgroupCode}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-slate-300 text-xs">-</span>
-                                                    )}
-                                                </td>
-
-                                                {/* ESPECIFICAÇÃO */}
-                                                <td className="p-4">
-                                                    <span className="text-slate-600 font-medium text-xs">
-                                                        {g.technicalDescription || 'Norma ABNT NBR 7480'}
-                                                    </span>
-                                                </td>
-
-                                                {/* BITOLA/DIMENSÃO */}
-                                                <td className="p-4 font-bold text-slate-850 text-sm">
-                                                    <div className="flex flex-col">
-                                                        <span>
-                                                            {displayValue}{displayUnit ? ` ${displayUnit}` : ''}
-                                                            {g.weightType === 'unid' && g.pieceSize ? ` x ${String(g.pieceSize).replace('.', ',')}m` : ''}
-                                                        </span>
-                                                        <span className="text-[10px] text-slate-400 font-normal">
-                                                            {g.weightType === 'unid' && g.pieceSize ? '(Ø/L)' : '(Ø)'}
-                                                        </span>
-                                                    </div>
-                                                </td>
-
-                                                {/* FATOR CONVERSÃO */}
-                                                <td className="p-4 text-xs font-semibold text-slate-700">
-                                                    {g.weightType === 'unid' && g.pieceSize ? (
-                                                        <div className="flex flex-col">
-                                                            <span>{String(g.rawWeightValue || 0).replace('.', ',')} kg/barra</span>
-                                                            <span className="text-[10px] text-slate-400 font-normal">({String(g.weightPerMeter || 0).replace('.', ',')} kg/m)</span>
-                                                        </div>
-                                                    ) : (
-                                                        <span>{String(g.weightPerMeter || 0).replace('.', ',')} kg/m</span>
-                                                    )}
-                                                </td>
-
-                                                {/* ESTOQUE */}
-                                                <td className="p-4 text-xs font-semibold text-slate-700">
-                                                    <div className="flex flex-col space-y-1">
-                                                        <span className="font-bold text-slate-800">
-                                                            Total: {stockInfo.totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 3 })} kg
-                                                        </span>
-                                                        <span className="text-xs text-slate-500 font-semibold">
-                                                            {stockInfo.count} {stockInfo.count === 1 ? 'Lote' : 'Lotes'}
-                                                        </span>
-                                                        {stockInfo.totalWeight > 0 && (
-                                                            <div className="w-24 bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                                                                <div 
-                                                                    className={`h-full rounded-full ${
-                                                                        percent < 25 ? 'bg-red-500' : percent < 60 ? 'bg-amber-500' : 'bg-emerald-500'
-                                                                    }`}
-                                                                    style={{ width: `${percent}%` }}
-                                                                />
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                </td>
+                                                        </td>
 
-                                                {/* PREÇO (KG) */}
-                                                <td className="p-4 font-bold text-slate-850 text-sm">
-                                                    {g.purchasePrice ? `R$ ${g.purchasePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
-                                                </td>
-
-                                                {/* STATUS */}
-                                                <td className="p-4">
-                                                    <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full border flex items-center gap-1 w-fit ${
-                                                        g.status === 'Inativo'
-                                                            ? 'bg-slate-100 text-slate-500 border-slate-200'
-                                                            : 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                                                    }`}>
-                                                        <span className={`h-1.5 w-1.5 rounded-full ${g.status === 'Inativo' ? 'bg-slate-450' : 'bg-emerald-500'}`} />
-                                                        {g.status || 'Ativo'}
-                                                    </span>
-                                                </td>
-
-                                                {/* AÇÕES */}
-                                                {isGestor && (
-                                                    <td className="p-4">
-                                                        <div className="flex items-center justify-center gap-2">
-                                                            {g.id.startsWith('STOCK-') ? (
-                                                                <>
-                                                                    <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-bold">
-                                                                        Sem cadastro
+                                                        <td className="p-4">
+                                                            <div className="flex flex-col space-y-1">
+                                                                <span className="font-bold text-slate-805 text-sm">{item.materialType}</span>
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    <span className={`inline-block px-1.5 py-0.5 text-[9px] font-bold rounded ${
+                                                                        item.itemType === 'produto_composto'
+                                                                            ? 'bg-purple-100 text-purple-700 border border-purple-200'
+                                                                            : 'bg-blue-100 text-blue-700 border border-blue-200'
+                                                                    }`}>
+                                                                        {item.itemType === 'produto_composto' ? 'Composto' : 'Matéria-Prima'}
                                                                     </span>
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            if (confirm(`A bitola "${g.gauge}" do material "${g.materialType}" aparece no estoque mas não está cadastrada no sistema.\n\nCadastre-a para ter controle total.\n\nDeseja apenas remover da visualização?`)) {
-                                                                                onDelete(g.id);
-                                                                            }
-                                                                        }}
-                                                                        className="p-1.5 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition"
-                                                                        title="Remover da visualização (não cadastrado)"
-                                                                    >
-                                                                        <TrashIcon className="h-4 w-4" />
-                                                                    </button>
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <button
-                                                                        onClick={() => setViewingGauge(g)}
-                                                                        className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
-                                                                        title="Visualizar Detalhes"
-                                                                    >
-                                                                        <EyeIcon className="h-4 w-4" />
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => handleStartEdit(g)}
-                                                                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                                                                        title="Editar"
-                                                                    >
-                                                                        <PencilIcon className="h-4 w-4" />
-                                                                    </button>
-                                                                    {hasStock ? (
-                                                                        <button
-                                                                            onClick={() => alert(`Não é possível excluir pois existem lotes em estoque usando esta bitola.`)}
-                                                                            className="p-1.5 text-slate-300 cursor-not-allowed rounded-lg"
-                                                                            title="Em estoque (bloqueado)"
-                                                                        >
-                                                                            <TrashIcon className="h-4 w-4 opacity-50" />
-                                                                        </button>
-                                                                    ) : (
-                                                                        <button
-                                                                            onClick={() => {
-                                                                                if (confirm(`Deseja realmente excluir a bitola ${g.gauge} do material ${g.materialType}?`)) {
-                                                                                    onDelete(g.id);
-                                                                                }
-                                                                            }}
-                                                                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
-                                                                            title="Excluir"
-                                                                        >
-                                                                            <TrashIcon className="h-4 w-4" />
-                                                                        </button>
+                                                                    {item.packagingType && item.packagingType !== 'granel' && (
+                                                                        <span className="inline-block px-1.5 py-0.5 text-[9px] font-bold rounded bg-indigo-100 text-indigo-700 border border-indigo-200">
+                                                                            {item.packagingType === 'rolo' ? 'Rolo' : item.packagingType === 'pacote' ? `Pacote` : item.packagingType === 'barra' ? 'Barra' : 'Granel'}
+                                                                        </span>
                                                                     )}
-                                                                </>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+
+                                                        <td className="p-4">
+                                                            {item.subgroupCode ? (
+                                                                <span className="inline-flex items-center px-2 py-1 rounded-md bg-slate-100 text-slate-700 font-medium text-xs border border-slate-200 shadow-sm">
+                                                                    {item.subgroupCode}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-slate-300 text-xs">-</span>
                                                             )}
-                                                        </div>
-                                                    </td>
-                                                )}
-                                            </tr>
-                                        );
-                                    })}
+                                                        </td>
+
+                                                        <td className="p-4 font-bold text-slate-850 text-sm">
+                                                            <div className="flex flex-col">
+                                                                <span>
+                                                                    {displayValue}{displayUnit ? ` ${displayUnit}` : ''}
+                                                                    {item.weightType === 'unid' && item.pieceSize ? ` x ${String(item.pieceSize).replace('.', ',')}m` : ''}
+                                                                </span>
+                                                                <span className="text-[10px] text-slate-400 font-normal">
+                                                                    {item.weightType === 'unid' && item.pieceSize ? '(Ø/L)' : '(Ø)'}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+
+                                                        <td className="p-4 text-xs font-semibold text-slate-700">
+                                                            {item.weightType === 'unid' && item.pieceSize ? (
+                                                                <div className="flex flex-col">
+                                                                    <span>{String(item.rawWeightValue || 0).replace('.', ',')} kg/barra</span>
+                                                                    <span className="text-[10px] text-slate-400 font-normal">({String(item.weightPerMeter || 0).replace('.', ',')} kg/m)</span>
+                                                                </div>
+                                                            ) : (
+                                                                <span>{String(item.weightPerMeter || 0).replace('.', ',')} kg/m</span>
+                                                            )}
+                                                        </td>
+
+                                                        <td className="p-4 text-xs font-semibold text-slate-700">
+                                                            <div className="flex flex-col space-y-1">
+                                                                <span className="font-bold text-slate-800">
+                                                                    Total: {(aggregatedTotalWeight !== undefined ? aggregatedTotalWeight : itemStockInfo.totalWeight).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 3 })} kg
+                                                                </span>
+                                                                <span className="text-xs text-slate-500 font-semibold">
+                                                                    {aggregatedTotalLots !== undefined ? aggregatedTotalLots : itemStockInfo.count} Lotes
+                                                                </span>
+                                                                {(aggregatedTotalWeight !== undefined ? aggregatedTotalWeight : itemStockInfo.totalWeight) > 0 && (
+                                                                    <div className="w-24 bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                                                        <div 
+                                                                            className={`h-full rounded-full ${
+                                                                                (percentValue !== undefined ? percentValue : 50) < 25 ? 'bg-red-500' : (percentValue !== undefined ? percentValue : 50) < 60 ? 'bg-amber-500' : 'bg-emerald-500'
+                                                                            }`}
+                                                                            style={{ width: `${percentValue !== undefined ? percentValue : 50}%` }}
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+
+                                                        <td className="p-4 font-bold text-slate-850 text-sm">
+                                                            {item.purchasePrice ? `R$ ${item.purchasePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                                                        </td>
+
+                                                        <td className="p-4">
+                                                            <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full border flex items-center gap-1 w-fit ${
+                                                                item.status === 'Inativo'
+                                                                    ? 'bg-slate-100 text-slate-500 border-slate-200'
+                                                                    : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                                            }`}>
+                                                                <span className={`h-1.5 w-1.5 rounded-full ${item.status === 'Inativo' ? 'bg-slate-450' : 'bg-emerald-500'}`} />
+                                                                {item.status || 'Ativo'}
+                                                            </span>
+                                                        </td>
+
+                                                        {isGestor && (
+                                                            <td className="p-4">
+                                                                <div className="flex items-center justify-center gap-2">
+                                                                    {item.id.startsWith('STOCK-') ? (
+                                                                        <>
+                                                                            <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-bold">
+                                                                                Sem cadastro
+                                                                            </span>
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    if (confirm(`A bitola "${item.gauge}" do material "${item.materialType}" aparece no estoque mas não está cadastrada no sistema.\n\nCadastre-a para ter controle total.\n\nDeseja apenas remover da visualização?`)) {
+                                                                                        onDelete(item.id);
+                                                                                    }
+                                                                                }}
+                                                                                className="p-1.5 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition"
+                                                                                title="Remover da visualização (não cadastrado)"
+                                                                            >
+                                                                                <TrashIcon className="h-4 w-4" />
+                                                                            </button>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <button
+                                                                                onClick={() => setViewingGauge(item)}
+                                                                                className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
+                                                                                title="Visualizar Histórico e Detalhes"
+                                                                            >
+                                                                                <EyeIcon className="h-4 w-4" />
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => handleStartEdit(item)}
+                                                                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                                                                                title="Editar"
+                                                                            >
+                                                                                <PencilIcon className="h-4 w-4" />
+                                                                            </button>
+                                                                            {hasStock ? (
+                                                                                <button
+                                                                                    onClick={() => alert(`Não é possível excluir pois existem lotes em estoque usando esta bitola.`)}
+                                                                                    className="p-1.5 text-slate-300 cursor-not-allowed rounded-lg"
+                                                                                    title="Em estoque (bloqueado)"
+                                                                                >
+                                                                                    <TrashIcon className="h-4 w-4 opacity-50" />
+                                                                                </button>
+                                                                            ) : hasChildrenFlag ? (
+                                                                                <button
+                                                                                    onClick={() => alert(`Não é possível excluir este grupo pois existem derivados/subprodutos associados a ele. Exclua os subprodutos primeiro.`)}
+                                                                                    className="p-1.5 text-slate-300 cursor-not-allowed rounded-lg"
+                                                                                    title="Possui subprodutos (bloqueado)"
+                                                                                >
+                                                                                    <TrashIcon className="h-4 w-4 opacity-50" />
+                                                                                </button>
+                                                                            ) : (
+                                                                                <button
+                                                                                    onClick={() => {
+                                                                                        if (confirm(`Deseja realmente excluir a bitola ${item.gauge} do material ${item.materialType}?`)) {
+                                                                                            onDelete(item.id);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                                                                                    title="Excluir"
+                                                                                >
+                                                                                    <TrashIcon className="h-4 w-4" />
+                                                                                </button>
+                                                                            )}
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        )}
+                                                    </tr>
+                                                );
+                                            };
+
+                                            return (
+                                                <React.Fragment key={g.id}>
+                                                    {renderRow(g, false, hasChildren ? totalWeight : undefined, hasChildren ? totalLots : undefined, hasChildren ? percent : undefined, hasChildren)}
+                                                    {isExpanded && children.map(child => renderRow(child, true, undefined, undefined, undefined, false))}
+                                                    <tr className="h-4 border-0 bg-transparent"><td colSpan={10}></td></tr>
+                                                </React.Fragment>
+                                            );
+                                        });
+                                    })()}
                                     {filteredGauges.length === 0 && (
                                         <tr>
                                             <td colSpan={isGestor ? 10 : 9} className="p-8 text-center text-slate-400 italic">

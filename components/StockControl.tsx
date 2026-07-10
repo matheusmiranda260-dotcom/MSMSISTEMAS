@@ -91,7 +91,7 @@ const AddConferencePage: React.FC<{
     activeBrandingPartner?: Partner | null;
 }> = ({ onClose, onSubmit, stock, onShowReport, conferences, onEditConference, onDeleteConference, gauges, isGestor, setPage, activeBrandingPartner }) => {
     const dynamicMaterialOptions = useMemo(() => {
-        const list = Array.from(new Set(gauges.map(g => g.materialType))).filter(Boolean) as string[];
+        const list = Array.from(new Set(gauges.filter(g => !g.subgroupCode || g.subgroupCode === g.productCode).map(g => g.materialType))).filter(Boolean) as string[];
         return list.sort();
     }, [gauges]);
 
@@ -900,7 +900,6 @@ const StockControl: React.FC<{
     const [editingItem, setEditingItem] = useState<StockItem | null>(null);
     const [consumingItem, setConsumingItem] = useState<StockItem | null>(null);
     const [materialFilter, setMaterialFilter] = useState('');
-    const [bitolaFilter, setBitolaFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState<string[]>([]);
     const [isStatusOpen, setIsStatusOpen] = useState(false);
     const [isMobileStatusOpen, setIsMobileStatusOpen] = useState(false);
@@ -908,9 +907,11 @@ const StockControl: React.FC<{
     const [reprintLot, setReprintLot] = useState<StockItem | null>(null);
 
     const dynamicMaterialOptions = useMemo(() => {
-        const list = Array.from(new Set(gauges.map(g => g.materialType))).filter(Boolean) as string[];
+        const activeGauges = gauges.filter(g => g.showInStockManagement !== false).map(g => `${g.materialType} - ${g.gauge}`);
+        const stockItems = stock.filter(i => i.status !== 'Consumido').map(i => `${i.materialType} - ${i.bitola}`);
+        const list = Array.from(new Set([...activeGauges, ...stockItems])).filter(s => s && s !== ' - ' && s !== 'undefined - undefined');
         return list.sort();
-    }, [gauges]);
+    }, [gauges, stock]);
 
     const statusDesktopRef = useRef<HTMLDivElement>(null);
     const statusMobileRef = useRef<HTMLDivElement>(null);
@@ -969,23 +970,6 @@ const StockControl: React.FC<{
         }, 250);
     };
 
-    const availableBitolas = useMemo(() => {
-        let options: string[] = [];
-        if (materialFilter) {
-            options = gauges.filter(g => g.materialType === materialFilter).map(g => g.gauge);
-        } else {
-            options = gauges.map(g => g.gauge);
-        }
-
-        const stockBitolas = stock
-            .filter(i => i.status !== 'Consumido' && (materialFilter === '' || i.materialType === materialFilter))
-            .map(i => i.bitola);
-
-        return [...new Set([...options, ...stockBitolas])]
-            .filter(Boolean)
-            .sort((a, b) => parseFloat(a.replace(',', '.')) - parseFloat(b.replace(',', '.')));
-    }, [gauges, stock, materialFilter]);
-
     const filtered = useMemo(() => stock.filter(i => {
         const gauge = gauges.find(g => g.materialType === i.materialType && g.gauge === i.bitola);
         const productCode = gauge?.productCode || '';
@@ -998,8 +982,16 @@ const StockControl: React.FC<{
             (productCode || '').toLowerCase().includes(searchLower)
         ) : true;
 
-        const passesMaterial = materialFilter === '' || i.materialType === materialFilter;
-        const passesBitola = bitolaFilter === '' || i.bitola === bitolaFilter;
+        let splitMaterial = materialFilter;
+        let splitBitola = '';
+        if (materialFilter.includes(' - ')) {
+            const parts = materialFilter.split(' - ');
+            splitMaterial = parts[0];
+            splitBitola = parts.slice(1).join(' - ');
+        }
+
+        const passesMaterial = materialFilter === '' || (i.materialType === splitMaterial && i.bitola === splitBitola);
+        const passesBitola = true; // Unified with Material
 
         if (statusFilter.length > 0) {
             return passesSearch && passesMaterial && passesBitola && statusFilter.includes(i.status);
@@ -1015,11 +1007,10 @@ const StockControl: React.FC<{
             if (lotA !== lotB) return lotA - lotB;
             return a.internalLot.localeCompare(b.internalLot);
         } else {
-            // Ordem Decrescente para visualização em tela
             if (lotA !== lotB) return lotB - lotA;
             return b.internalLot.localeCompare(a.internalLot);
         }
-    }), [stock, searchTerm, materialFilter, bitolaFilter, statusFilter, isPrinting]);
+    }), [stock, searchTerm, materialFilter, statusFilter, isPrinting]);
 
     const handlePrint = () => {
         setIsPrinting(true);
@@ -1028,9 +1019,53 @@ const StockControl: React.FC<{
     const stats = useMemo(() => {
         return filtered.reduce((acc, item) => ({
             count: acc.count + 1,
-            weight: acc.weight + item.remainingQuantity
+            weight: acc.weight + (item.weight || 0)
         }), { count: 0, weight: 0 });
     }, [filtered]);
+
+    const summaryData = useMemo(() => {
+        if (!materialFilter) return null;
+        
+        let splitMaterial = materialFilter;
+        let splitBitola = '';
+        if (materialFilter.includes(' - ')) {
+            const parts = materialFilter.split(' - ');
+            splitMaterial = parts[0];
+            splitBitola = parts.slice(1).join(' - ');
+        }
+        
+        const parentGauge = gauges.find(g => g.materialType === splitMaterial && g.gauge === splitBitola);
+        if (!parentGauge) return null;
+        
+        const subgroups = parentGauge.productCode 
+            ? gauges.filter(g => g.subgroupCode === parentGauge.productCode && g.id !== parentGauge.id)
+            : [];
+            
+        const getStats = (g: StockGauge) => {
+            const items = stock.filter(i => i.materialType === g.materialType && i.bitola === g.gauge && i.status !== 'Consumido');
+            const qty = items.reduce((acc, curr) => acc + (curr.remainingQuantity || curr.quantity || 1), 0);
+            const weight = items.reduce((acc, curr) => acc + (curr.weight || 0), 0);
+            const formattedName = g.productCode ? `${g.productCode} - ${g.materialType} ${g.gauge}` : `${g.materialType} ${g.gauge}`;
+            return {
+                name: formattedName,
+                qty,
+                weight
+            };
+        };
+
+        const parentStats = getStats(parentGauge);
+        const subgroupStats = subgroups.map(getStats);
+        
+        const totalQty = parentStats.qty + subgroupStats.reduce((sum, s) => sum + s.qty, 0);
+        const totalWeight = parentStats.weight + subgroupStats.reduce((sum, s) => sum + s.weight, 0);
+        
+        return {
+            parent: parentStats,
+            subgroups: subgroupStats,
+            totalQty,
+            totalWeight
+        };
+    }, [materialFilter, gauges, stock]);
 
     const handleRevertToAvailable = (item: StockItem) => {
         if (confirm(`Deseja voltar o lote ${item.internalLot} para status "Disponível"?`)) {
@@ -1082,21 +1117,9 @@ const StockControl: React.FC<{
                 <div className="flex justify-between items-center bg-slate-50 p-4 rounded-lg border">
                     <div className="flex gap-8">
                         <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Filtro Material</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Filtro Material e Descrição</p>
                             <p className="text-base font-black text-slate-800">{materialFilter || 'Todos'}</p>
                         </div>
-                        <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Filtro Descrição</p>
-                            <p className="text-base font-black text-slate-800">{bitolaFilter || 'Todas'}</p>
-                        </div>
-                        {bitolaFilter && gauges.find(g => g.gauge === bitolaFilter && (materialFilter === '' || g.materialType === materialFilter))?.productCode && (
-                            <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cód. Produto</p>
-                                <p className="text-base font-black text-slate-800">
-                                    {gauges.find(g => g.gauge === bitolaFilter && (materialFilter === '' || g.materialType === materialFilter))?.productCode}
-                                </p>
-                            </div>
-                        )}
                         <div>
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</p>
                             <p className="text-base font-black text-slate-800 max-w-[150px] truncate">{statusFilter.length === 0 ? 'Todos' : statusFilter.join(', ')}</p>
@@ -1133,19 +1156,10 @@ const StockControl: React.FC<{
                     <h1 className="text-3xl font-bold text-slate-800 shrink-0 no-print">Estoque</h1>
                     <div className="hidden md:flex items-center gap-4 no-print grow">
                         <div className="bg-white p-2 rounded-xl shadow border flex items-center gap-2 px-4 shrink-0">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">Material</label>
-                            <select value={materialFilter} onChange={e => setMaterialFilter(e.target.value)} className="bg-transparent outline-none font-bold text-sm min-w-[120px]">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Material e Descrição</label>
+                            <select value={materialFilter} onChange={e => setMaterialFilter(e.target.value)} className="bg-transparent outline-none font-bold text-sm min-w-[200px]">
                                 <option value="">Todos</option>
                                 {dynamicMaterialOptions.map(m => <option key={m} value={m}>{m}</option>)}
-                            </select>
-                        </div>
-                        <div className="bg-white p-2 rounded-xl shadow border flex items-center gap-2 px-4 shrink-0">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">Descrição</label>
-                            <select value={bitolaFilter} onChange={e => setBitolaFilter(e.target.value)} className="bg-transparent outline-none font-bold text-sm min-w-[80px]">
-                                <option value="">Todas</option>
-                                {availableBitolas.map(b => (
-                                    <option key={b} value={b}>{b}</option>
-                                ))}
                             </select>
                         </div>
                         <div className="bg-white p-2 rounded-xl shadow border flex items-center gap-2 px-4 shrink-0 relative" ref={statusDesktopRef}>
@@ -1207,23 +1221,14 @@ const StockControl: React.FC<{
                 </div>
             </header>
             <div className="md:hidden flex flex-wrap gap-2 no-print p-2">
-                <div className="bg-white p-2 rounded-lg shadow border flex items-center gap-2 px-4 shadow-sm">
-                    <label className="text-[10px] font-bold text-slate-500">MP:</label>
-                    <select value={materialFilter} onChange={e => setMaterialFilter(e.target.value)} className="bg-transparent outline-none font-bold text-xs">
+                <div className="bg-white p-2 rounded-lg shadow border flex items-center gap-2 px-4 shadow-sm w-full">
+                    <label className="text-[10px] font-bold text-slate-500">MAT / DESC:</label>
+                    <select value={materialFilter} onChange={e => setMaterialFilter(e.target.value)} className="bg-transparent outline-none font-bold text-xs w-full">
                         <option value="">Todos</option>
                         {dynamicMaterialOptions.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                 </div>
-                <div className="bg-white p-2 rounded-lg shadow border flex items-center gap-2 px-4 shadow-sm">
-                    <label className="text-[10px] font-bold text-slate-500">Ø:</label>
-                    <select value={bitolaFilter} onChange={e => setBitolaFilter(e.target.value)} className="bg-transparent outline-none font-bold text-xs">
-                        <option value="">Todas</option>
-                        {availableBitolas.map(b => (
-                            <option key={b} value={b}>{b}</option>
-                        ))}
-                    </select>
-                </div>
-                <div className="bg-white p-2 rounded-lg shadow border flex items-center gap-2 px-4 shadow-sm relative" ref={statusMobileRef}>
+                <div className="bg-white p-2 rounded-lg shadow border flex items-center gap-2 px-4 shadow-sm relative flex-grow" ref={statusMobileRef}>
                     <label className="text-[10px] font-bold text-slate-500">ST:</label>
                     <button
                         onClick={() => setIsMobileStatusOpen(!isMobileStatusOpen)}
@@ -1260,6 +1265,52 @@ const StockControl: React.FC<{
                     )}
                 </div>
             </div>
+
+            {summaryData && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-inner no-print animate-fadeIn">
+                    <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-4 border-b pb-2">Resumo do Material Selecionado</h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+                            <span className="text-[10px] font-bold text-blue-500 uppercase">Grupo Principal</span>
+                            <div className="font-black text-slate-800 text-lg uppercase">{summaryData.parent.name}</div>
+                            <div className="flex gap-6 mt-3">
+                                <div>
+                                    <span className="text-[10px] text-slate-400 font-bold block uppercase mb-1">Itens</span>
+                                    <span className="text-xl font-black text-slate-700">{summaryData.parent.qty}</span>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] text-slate-400 font-bold block uppercase mb-1">Peso Total</span>
+                                    <span className="text-xl font-black text-slate-700">{summaryData.parent.weight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} <span className="text-sm font-bold text-slate-400">kg</span></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {summaryData.subgroups.length > 0 && (
+                            <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+                                <span className="text-[10px] font-bold text-indigo-500 uppercase mb-2 block">Derivados / Subgrupos ({summaryData.subgroups.length})</span>
+                                <div className="space-y-3">
+                                    {summaryData.subgroups.map((sg, idx) => (
+                                        <div key={idx} className="flex justify-between items-center border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+                                            <span className="font-bold text-slate-600 text-xs uppercase" title={sg.name}>{sg.name}</span>
+                                            <div className="flex gap-4 text-right">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[9px] text-slate-400 font-bold uppercase">Qtd</span>
+                                                    <span className="text-sm font-black text-slate-600">{sg.qty}</span>
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[9px] text-slate-400 font-bold uppercase">Peso</span>
+                                                    <span className="text-sm font-black text-slate-700">{sg.weight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
             <div className="no-print bg-white p-4 rounded-xl shadow border flex items-center gap-4">
                 <SearchIcon className="h-5 w-5 text-slate-400" />
                 <input type="text" placeholder="Buscar lote ou NFe..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="flex-grow outline-none" />
@@ -1558,7 +1609,7 @@ const EditStockItemModal: React.FC<{ item: StockItem; onClose: () => void; onSav
     const [showManualInput, setShowManualInput] = useState(false);
 
     const dynamicMaterialOptions = useMemo(() => {
-        const list = Array.from(new Set(gauges.map(g => g.materialType))).filter(Boolean) as string[];
+        const list = Array.from(new Set(gauges.filter(g => !g.subgroupCode || g.subgroupCode === g.productCode).map(g => g.materialType))).filter(Boolean) as string[];
         return list.sort();
     }, [gauges]);
 

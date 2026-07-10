@@ -1,15 +1,16 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import type { ConferenceData, StockGauge } from '../types';
+import type { ConferenceData, StockGauge, Partner } from '../types';
 import { PrinterIcon } from './icons';
 
 interface ConferenceReportProps {
   reportData: ConferenceData;
   onClose: () => void;
   gauges: StockGauge[];
+  activeBrandingPartner?: Partner | null;
 }
 
-const ConferenceReport: React.FC<ConferenceReportProps> = ({ reportData, onClose, gauges }) => {
+const ConferenceReport: React.FC<ConferenceReportProps> = ({ reportData, onClose, gauges, activeBrandingPartner }) => {
   const safeLots = (reportData.lots || []).map(lot => ({
     ...lot,
     labelWeight: Number(lot.labelWeight) || 0,
@@ -44,10 +45,17 @@ const ConferenceReport: React.FC<ConferenceReportProps> = ({ reportData, onClose
         <div className="overflow-y-auto print-section bg-white flex flex-col h-full font-sans text-black">
           <div className="p-4 w-full h-full flex flex-col">
 
-            {/* 1. Centered Title */}
-            <h1 className="text-xl md:text-2xl font-bold text-black uppercase text-center mb-6 tracking-wide">
-              CONFERÊNCIA DE MATÉRIA PRIMA - SETOR LAMINAÇÃO
-            </h1>
+            {/* 1. Centered Title and Logo */}
+            <div className="flex items-center justify-between mb-6 border-b-2 border-slate-900 pb-4">
+              {activeBrandingPartner?.logoUrl ? (
+                 <img src={activeBrandingPartner.logoUrl} alt={activeBrandingPartner.companyName} className="h-16 md:h-20 object-contain" style={{ maxHeight: '80px' }} />
+              ) : (
+                 <div className="h-16 md:h-20 w-32 bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-xs uppercase border border-slate-200">Sem Logo</div>
+              )}
+              <h1 className="text-xl md:text-2xl font-bold text-black uppercase text-center flex-1 tracking-wide pl-4">
+                CONFERÊNCIA DE MATÉRIA PRIMA
+              </h1>
+            </div>
 
             {/* 2. Three Boxes Header */}
             <div className="flex gap-4 mb-6">

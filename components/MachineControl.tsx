@@ -2092,8 +2092,21 @@ const MachineControl: React.FC<MachineControlProps> = ({
                             const isAlreadyUsed = usedLotIds.has(lot.id);
                             if (isAlreadyUsed) return false;
 
+                            const activeOrderGauge = gauges.find(g => g.productCode === activeOrder?.productCode);
+                            if (activeOrderGauge?.subgroupCode) {
+                                // Find the lot's gauge in the catalog
+                                const lotGauge = gauges.find(g => 
+                                    (g.productCode === lot.materialType || g.materialType === lot.materialType) && 
+                                    g.gauge === lot.bitola
+                                );
+                                
+                                if (lotGauge?.subgroupCode === activeOrderGauge.subgroupCode) {
+                                    return true; // Allow selection since they share the same subgroup code!
+                                }
+                            }
+
                             const isFioMaquina = lot.materialType === 'Fio Máquina';
-                            if (!isFioMaquina) return false;
+                            if (activeMachine.startsWith('Trefila') && !isFioMaquina) return false;
 
                             // Se tiver bitola de entrada definida na ordem fantasma, filtra por ela
                             if (activeOrder?.isGhostOrder && activeOrder?.inputBitola) {
