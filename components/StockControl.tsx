@@ -94,7 +94,7 @@ const AddConferencePage: React.FC<{
         const list = Array.from(new Set(gauges.map(g => g.materialType))).filter(m => {
             if (!m) return false;
             const normalized = m.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            if (normalized === 'vergalhao cd' || normalized === 'vergalhao cda' || normalized === 'vergalhaoi cd' || normalized === 'barra') return false;
+            if (normalized === 'vergalhao cd' || normalized === 'vergalhao cda' || normalized === 'vergalhaoi cd' || normalized === 'barra' || normalized === 'arame cd' || normalized === 'arame cda') return false;
             return true;
         }) as string[];
         return list.sort();

@@ -1040,7 +1040,20 @@ const GaugesManager: React.FC<GaugesManagerProps> = ({ gauges, stock, onAdd, onD
                                                         />
                                                         <span className="text-[9px] font-bold text-slate-500 uppercase">Lotes</span>
                                                     </div>
-                                                    <button type="button" onClick={() => { const newSp = quickSubproducts.filter((_, i) => i !== idx); setQuickSubproducts(newSp); }} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors shrink-0"><TrashIcon className="h-4 w-4" /></button>
+                                                    <button type="button" onClick={async () => { 
+                                                        if (sp.id) {
+                                                            if (!confirm(`Deseja excluir definitivamente o derivado ${sp.name}?`)) return;
+                                                            try {
+                                                                await onDelete(sp.id);
+                                                            } catch (err) {
+                                                                console.error(err);
+                                                                alert("Erro ao excluir. Pode estar em uso.");
+                                                                return;
+                                                            }
+                                                        }
+                                                        const newSp = quickSubproducts.filter((_, i) => i !== idx); 
+                                                        setQuickSubproducts(newSp); 
+                                                    }} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors shrink-0"><TrashIcon className="h-4 w-4" /></button>
                                                 </div>
                                             ))}
                                         </div>

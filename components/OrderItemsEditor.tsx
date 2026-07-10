@@ -240,6 +240,8 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
 
     const arameGauges = gauges.filter(g => {
         const name = (g.commercialName || g.materialType || '').toUpperCase();
+        if (newItem.tipo === 'CORTE / DOBRA') return name.includes('ARAME CD') && !name.includes('CDA');
+        if (newItem.tipo === 'ARMADO') return name.includes('ARAME CDA');
         return name.includes('ARAME');
     });
 
