@@ -220,8 +220,8 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
 
     const vergalhaoGauges = gauges.filter(g => {
         const name = (g.commercialName || g.materialType || '').toUpperCase();
-        if (newItem.tipo === 'CORTE / DOBRA') return name.includes('CD VERGALH');
-        if (newItem.tipo === 'ARMADO') return name.includes('AR VERGALH');
+        if (newItem.tipo === 'CORTE / DOBRA') return name.includes('VERGALHAO CD') && !name.includes('CDA');
+        if (newItem.tipo === 'ARMADO') return name.includes('VERGALHAO CDA');
         return name.includes('VERGALH');
     });
 
@@ -2814,15 +2814,13 @@ export const OrderItemsEditor: React.FC<OrderItemsEditorProps> = ({ order, onClo
                                                     <td className="p-3 text-sm font-black text-emerald-600 text-right group">
                                                         <div className="flex items-center justify-end gap-2">
                                                             {(() => {
-                                                                const defaultPricePerKg = (g.rawWeightValue && g.rawWeightValue > 0) 
-                                                                    ? (g.purchasePrice || 0) / g.rawWeightValue 
-                                                                    : (g.purchasePrice || 0);
+                                                                const defaultPricePerKg = (g.rawWeightValue || 0) * (g.purchasePrice || 0);
                                                                 const currentPrice = customPrices[g.id] !== undefined ? customPrices[g.id] : defaultPricePerKg;
                                                                 return `R$ ${currentPrice.toFixed(2)}`;
                                                             })()}
                                                             <button 
                                                                 onClick={() => {
-                                                                    const currentPrice = customPrices[g.id] !== undefined ? customPrices[g.id] : ((g.rawWeightValue && g.rawWeightValue > 0) ? (g.purchasePrice || 0) / g.rawWeightValue : (g.purchasePrice || 0));
+                                                                    const currentPrice = customPrices[g.id] !== undefined ? customPrices[g.id] : ((g.rawWeightValue || 0) * (g.purchasePrice || 0));
                                                                     setTempPrice(currentPrice.toFixed(2));
                                                                     setAuthModal({ isOpen: true, gaugeId: g.id });
                                                                 }}

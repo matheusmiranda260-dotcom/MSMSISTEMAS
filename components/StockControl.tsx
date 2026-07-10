@@ -94,7 +94,7 @@ const AddConferencePage: React.FC<{
         const list = Array.from(new Set(gauges.map(g => g.materialType))).filter(m => {
             if (!m) return false;
             const normalized = m.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            if (normalized === 'vergalhao cd' || normalized === 'vergalhao cda' || normalized === 'vergalhaoi cd') return false;
+            if (normalized === 'vergalhao cd' || normalized === 'vergalhao cda' || normalized === 'vergalhaoi cd' || normalized === 'barra') return false;
             return true;
         }) as string[];
         return list.sort();
@@ -913,7 +913,11 @@ const StockControl: React.FC<{
     const dynamicMaterialOptions = useMemo(() => {
         const activeGauges = gauges.filter(g => g.showInStockManagement !== false).map(g => `${g.materialType} - ${g.gauge}`);
         const stockItems = stock.filter(i => i.status !== 'Consumido').map(i => `${i.materialType} - ${i.bitola}`);
-        const list = Array.from(new Set([...activeGauges, ...stockItems])).filter(s => s && s !== ' - ' && s !== 'undefined - undefined');
+        const list = Array.from(new Set([...activeGauges, ...stockItems])).filter(s => {
+            if (!s || s === ' - ' || s === 'undefined - undefined') return false;
+            if (s.toUpperCase().includes('VERGALHAO COM 12 METROS') || s.toUpperCase().includes('VERGALHAO COM 11 METROS') || s.toUpperCase().includes('VERGALHAO COM 10 METROS')) return false;
+            return true;
+        });
         return list.sort();
     }, [gauges, stock]);
 
