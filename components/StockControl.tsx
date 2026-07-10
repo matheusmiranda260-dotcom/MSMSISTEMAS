@@ -91,7 +91,12 @@ const AddConferencePage: React.FC<{
     activeBrandingPartner?: Partner | null;
 }> = ({ onClose, onSubmit, stock, onShowReport, conferences, onEditConference, onDeleteConference, gauges, isGestor, setPage, activeBrandingPartner }) => {
     const dynamicMaterialOptions = useMemo(() => {
-        const list = Array.from(new Set(gauges.filter(g => !g.subgroupCode || g.subgroupCode === g.productCode).map(g => g.materialType))).filter(Boolean) as string[];
+        const list = Array.from(new Set(gauges.map(g => g.materialType))).filter(m => {
+            if (!m) return false;
+            const normalized = m.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            if (normalized === 'vergalhao cd' || normalized === 'vergalhao cda' || normalized === 'vergalhaoi cd') return false;
+            return true;
+        }) as string[];
         return list.sort();
     }, [gauges]);
 
