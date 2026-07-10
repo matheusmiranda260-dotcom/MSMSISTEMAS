@@ -490,19 +490,19 @@ const AddConferencePage: React.FC<{
                 onDeleteConference={onDeleteConference}
                 gauges={gauges}
             />}
-            <div className="max-w-7xl mx-auto space-y-6">
+            <div className="max-w-[98%] 2xl:max-w-[1600px] mx-auto space-y-6">
                 <div className="flex items-center justify-between">
                     <button onClick={onClose} className="bg-white p-2 rounded-full shadow-sm hover:bg-slate-100 flex items-center gap-2 px-4 font-bold"><ArrowLeftIcon className="h-5 w-5" /> Voltar</button>
                     <button onClick={() => setHistoryOpen(true)} className="bg-white text-slate-600 font-bold py-2 px-4 rounded-lg shadow-sm border">Histórico</button>
                 </div>
                 <form onSubmit={handleFinalSubmit} className="bg-white rounded-xl shadow-lg border overflow-hidden">
-                    <div className="p-6 bg-slate-50 border-b grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div className="text-center"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data</label><input type="date" value={conferenceData.entryDate} onChange={e => setConferenceData({ ...conferenceData, entryDate: e.target.value })} className="w-full p-2 border rounded text-center" required /></div>
-                        <div className="text-center"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Fornecedor</label><input type="text" value={conferenceData.supplier} onChange={e => setConferenceData({ ...conferenceData, supplier: e.target.value })} className="w-full p-2 border rounded text-center" required /></div>
-                        <div className="text-center"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">NFe</label><input type="text" value={conferenceData.nfe} onChange={e => setConferenceData({ ...conferenceData, nfe: e.target.value })} className="w-full p-2 border rounded text-center" required /></div>
-                        <div className="text-center relative"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nº Conf.</label>
-                            <input type="text" value={conferenceData.conferenceNumber} onChange={e => setConferenceData({ ...conferenceData, conferenceNumber: e.target.value })} className={`w-full p-2 border rounded text-center ${conferenceNumberError ? 'border-red-500 bg-red-50' : ''}`} required />
-                            {conferenceNumberError && <p className="text-red-500 text-[10px] font-bold absolute -bottom-5 w-full left-0">{conferenceNumberError}</p>}
+                    <div className="p-6 bg-slate-50 border-b grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="text-center"><label className="block text-sm font-bold text-slate-500 uppercase mb-1">Data</label><input type="date" value={conferenceData.entryDate} onChange={e => setConferenceData({ ...conferenceData, entryDate: e.target.value })} className="w-full p-3 border rounded-lg text-center text-lg font-semibold" required /></div>
+                        <div className="text-center"><label className="block text-sm font-bold text-slate-500 uppercase mb-1">Fornecedor</label><input type="text" value={conferenceData.supplier} onChange={e => setConferenceData({ ...conferenceData, supplier: e.target.value })} className="w-full p-3 border rounded-lg text-center text-lg font-semibold" required /></div>
+                        <div className="text-center"><label className="block text-sm font-bold text-slate-500 uppercase mb-1">NFe</label><input type="text" value={conferenceData.nfe} onChange={e => setConferenceData({ ...conferenceData, nfe: e.target.value })} className="w-full p-3 border rounded-lg text-center text-lg font-semibold" required /></div>
+                        <div className="text-center relative"><label className="block text-sm font-bold text-slate-500 uppercase mb-1">Nº Conf.</label>
+                            <input type="text" value={conferenceData.conferenceNumber} onChange={e => setConferenceData({ ...conferenceData, conferenceNumber: e.target.value })} className={`w-full p-3 border rounded-lg text-center text-lg font-semibold ${conferenceNumberError ? 'border-red-500 bg-red-50' : ''}`} required />
+                            {conferenceNumberError && <p className="text-red-500 text-xs font-bold absolute -bottom-5 w-full left-0">{conferenceNumberError}</p>}
                         </div>
                     </div>
 
@@ -527,7 +527,7 @@ const AddConferencePage: React.FC<{
                                             }
                                         }
                                         return (
-                                            <th key={h} className="p-3 text-center font-bold text-slate-600 uppercase text-[10px]">
+                                            <th key={h} className="p-4 text-center font-bold text-slate-600 uppercase text-xs border-b-2 border-slate-200">
                                                 {displayHeader}
                                             </th>
                                         );
@@ -543,14 +543,14 @@ const AddConferencePage: React.FC<{
                                                     type="text"
                                                     value={lot.internalLot || '(Gerado Automático)'}
                                                     disabled
-                                                    className="w-full p-2 border rounded text-center bg-slate-100 text-slate-500 font-semibold italic"
+                                                    className="w-full min-w-[180px] p-3 border rounded-lg text-center bg-slate-100 text-slate-500 font-semibold italic text-base"
                                                 />
                                             ) : (
                                                 <input
                                                     type="text"
                                                     value={lot.internalLot || ''}
                                                     onChange={e => handleLotChange(index, 'internalLot', e.target.value)}
-                                                    className="w-full p-2 border rounded text-center"
+                                                    className="w-full min-w-[180px] p-3 border rounded-lg text-center text-base font-semibold"
                                                     required
                                                 />
                                             )}
@@ -579,7 +579,7 @@ const AddConferencePage: React.FC<{
                                                                         handleLotChange(index, 'steelType', val);
                                                                     }
                                                                 }}
-                                                                className="w-full p-2 border rounded text-center bg-white"
+                                                                className="w-full p-3 border rounded-lg text-center bg-white text-base font-semibold"
                                                                 required
                                                             >
                                                                 <option value="">Selecione...</option>
@@ -597,7 +597,7 @@ const AddConferencePage: React.FC<{
                                                                 value={lot.steelType || ''}
                                                                 onChange={e => handleLotChange(index, 'steelType', e.target.value)}
                                                                 placeholder={(g.customFieldLabel === 'Tipo de Aço' ? 'Especificações' : g.customFieldLabel) || 'Especificações'}
-                                                                className="w-full p-2 border rounded text-center bg-white"
+                                                                className="w-full p-3 border rounded-lg text-center bg-white text-base font-semibold"
                                                                 required
                                                             />
                                                             {options.length > 0 && (
@@ -621,14 +621,14 @@ const AddConferencePage: React.FC<{
                                                             type="text"
                                                             value="-"
                                                             disabled
-                                                            className="w-full p-2 border rounded text-center bg-slate-100 text-slate-500 font-semibold cursor-not-allowed"
+                                                            className="w-full p-3 border rounded-lg text-center bg-slate-100 text-slate-500 font-semibold cursor-not-allowed"
                                                         />
                                                     );
                                                 }
                                             })()}
                                         </td>
-                                        <td className="p-2"><input type="text" value={lot.runNumber || ''} onChange={e => handleLotChange(index, 'runNumber', e.target.value)} className="w-full p-2 border rounded text-center" required /></td>
-                                        <td className="p-2"><select value={lot.materialType} onChange={e => handleLotChange(index, 'materialType', e.target.value)} className="w-full p-2 border rounded text-center">{dynamicMaterialOptions.map(m => <option key={m} value={m}>{m}</option>)}</select></td>
+                                        <td className="p-2"><input type="text" value={lot.runNumber || ''} onChange={e => handleLotChange(index, 'runNumber', e.target.value)} className="w-full min-w-[120px] p-3 border rounded-lg text-center text-base font-semibold" required /></td>
+                                        <td className="p-2"><select value={lot.materialType} onChange={e => handleLotChange(index, 'materialType', e.target.value)} className="w-full min-w-[260px] p-3 border rounded-lg text-center text-base font-semibold">{dynamicMaterialOptions.map(m => <option key={m} value={m}>{m}</option>)}</select></td>
                                         <td className="p-2">
                                             {(() => {
                                                 const customGauges = gauges.filter(g => g.materialType === lot.materialType);
@@ -653,7 +653,7 @@ const AddConferencePage: React.FC<{
                                                     <select 
                                                         value={selectValue} 
                                                         onChange={e => handleLotChange(index, 'bitola', e.target.value)} 
-                                                        className="w-full p-2 border rounded text-center bg-white"
+                                                        className="w-full min-w-[250px] p-3 border rounded-lg text-center bg-white text-base font-semibold"
                                                     >
                                                         {uniqueOptions.map(opt => (
                                                             <option key={`${opt.gauge}-${opt.code}`} value={opt.gauge}>
@@ -678,22 +678,21 @@ const AddConferencePage: React.FC<{
                                                         : `~${g.rawWeightValue || 2000}kg`;
                                                     
                                                     return (
-                                                        <div className="flex flex-col items-center">
-                                                            <div className="flex items-center gap-1">
-                                                                <input
-                                                                    type="number"
-                                                                    value={lot.qtyPackages || 1}
-                                                                    onChange={e => {
-                                                                        const val = Math.max(1, parseInt(e.target.value) || 1);
-                                                                        handleLotChange(index, 'qtyPackages', val);
-                                                                    }}
-                                                                    className="w-16 p-1 border rounded text-center font-bold"
-                                                                    min="1"
-                                                                    required
-                                                                />
-                                                                <span className="text-xs font-semibold text-slate-700">{packName}s</span>
-                                                            </div>
-                                                            <span className="text-[10px] text-slate-500 font-bold mt-1">({descText})</span>
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            <input
+                                                                type="number"
+                                                                value={lot.qtyPackages || 1}
+                                                                onChange={e => {
+                                                                    const val = Math.max(1, parseInt(e.target.value) || 1);
+                                                                    handleLotChange(index, 'qtyPackages', val);
+                                                                }}
+                                                                className="w-16 p-2 border rounded-lg text-center font-bold text-base"
+                                                                min="1"
+                                                                required
+                                                            />
+                                                            <span className="text-sm font-bold text-slate-700 whitespace-nowrap">
+                                                                {packName}s <span className="text-slate-500 font-semibold">de ({descText})</span>
+                                                            </span>
                                                         </div>
                                                     );
                                                 } else {
@@ -702,28 +701,28 @@ const AddConferencePage: React.FC<{
                                                             type="text"
                                                             value="-"
                                                             disabled
-                                                            className="w-full p-2 border rounded text-center bg-slate-100 text-slate-500 font-semibold cursor-not-allowed"
+                                                            className="w-full p-3 border rounded-lg text-center bg-slate-100 text-slate-500 font-semibold cursor-not-allowed text-base"
                                                         />
                                                     );
                                                 }
                                             })()}
                                         </td>
                                         <td className="p-2">
-                                            <input
-                                                type="text"
-                                                inputMode="decimal"
-                                                value={lot.labelWeightInput !== undefined ? lot.labelWeightInput : (lot.labelWeight || '')}
-                                                onChange={e => {
-                                                    const val = e.target.value.replace(/[^0-9.,]/g, '');
-                                                    const normalized = val.replace(',', '.');
-                                                    const parsed = parseFloat(normalized);
-                                                    handleLotChange(index, 'labelWeight', isNaN(parsed) ? 0 : parsed);
-                                                    handleLotChange(index, 'labelWeightInput', val);
-                                                }}
-                                                className="w-full p-2 border rounded font-bold text-center no-spinner"
-                                                placeholder="0"
-                                                required
-                                            />
+                                                <input
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    value={lot.labelWeightInput !== undefined ? lot.labelWeightInput : (lot.labelWeight || '')}
+                                                    onChange={e => {
+                                                        const val = e.target.value.replace(/[^0-9.,]/g, '');
+                                                        const normalized = val.replace(',', '.');
+                                                        const parsed = parseFloat(normalized);
+                                                        handleLotChange(index, 'labelWeight', isNaN(parsed) ? 0 : parsed);
+                                                        handleLotChange(index, 'labelWeightInput', val);
+                                                    }}
+                                                    className="w-full p-3 border rounded-lg font-bold text-center no-spinner text-xl text-blue-800"
+                                                    placeholder="0"
+                                                    required
+                                                />
                                         </td>
                                         <td className="p-2"><button type="button" onClick={() => setLots(lots.filter((_, i) => i !== index))} className="p-2 text-red-500"><TrashIcon className="h-5 w-5" /></button></td>
                                     </tr>
@@ -1047,9 +1046,13 @@ const StockControl: React.FC<{
             : [];
             
         const getStats = (g: StockGauge) => {
-            const items = stock.filter(i => i.materialType === g.materialType && i.bitola === g.gauge && i.status !== 'Consumido');
-            const qty = items.reduce((acc, curr) => acc + (curr.remainingQuantity || curr.quantity || 1), 0);
-            const weight = items.reduce((acc, curr) => acc + (curr.weight || 0), 0);
+            const items = stock.filter(i => 
+                i.materialType?.trim() === g.materialType?.trim() && 
+                (i.bitola === g.gauge || getStandardizedGaugeKey(i.bitola) === getStandardizedGaugeKey(g.gauge)) && 
+                i.status !== 'Consumido'
+            );
+            const qty = items.reduce((acc, curr) => acc + (curr.qtyPackages || curr.totalPieces || 1), 0);
+            const weight = items.reduce((acc, curr) => acc + (curr.weight || curr.labelWeight || 0), 0);
             const formattedName = g.productCode ? `${g.productCode} - ${g.materialType} ${g.gauge}` : `${g.materialType} ${g.gauge}`;
             return {
                 name: formattedName,
@@ -1277,16 +1280,46 @@ const StockControl: React.FC<{
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
-                            <span className="text-[10px] font-bold text-blue-500 uppercase">Grupo Principal</span>
-                            <div className="font-black text-slate-800 text-lg uppercase">{summaryData.parent.name}</div>
-                            <div className="flex gap-6 mt-3">
-                                <div>
-                                    <span className="text-[10px] text-slate-400 font-bold block uppercase mb-1">Itens</span>
-                                    <span className="text-xl font-black text-slate-700">{summaryData.parent.qty}</span>
+                            <span className="text-[10px] font-bold text-blue-500 uppercase">Resumo Geral</span>
+                            <div className="font-black text-slate-800 text-sm uppercase mb-3 truncate" title={summaryData.parent.name}>{summaryData.parent.name}</div>
+                            
+                            <div className="flex flex-col gap-2">
+                                {/* Rolos / Lotes (Parent) */}
+                                <div className="flex justify-between items-center bg-slate-50 p-2 rounded border">
+                                    <span className="text-xs font-bold text-slate-600 uppercase">Lotes / Rolos</span>
+                                    <div className="flex gap-4 text-right">
+                                        <div className="flex flex-col">
+                                            <span className="text-[9px] text-slate-400 font-bold uppercase">Qtd</span>
+                                            <span className="text-sm font-black text-slate-700">{summaryData.parent.qty}</span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[9px] text-slate-400 font-bold uppercase">Peso (kg)</span>
+                                            <span className="text-sm font-black text-slate-700">{summaryData.parent.weight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <span className="text-[10px] text-slate-400 font-bold block uppercase mb-1">Peso Total</span>
-                                    <span className="text-xl font-black text-slate-700">{summaryData.parent.weight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} <span className="text-sm font-bold text-slate-400">kg</span></span>
+                                
+                                {/* Barras (Subgroups) */}
+                                <div className="flex justify-between items-center bg-slate-50 p-2 rounded border">
+                                    <span className="text-xs font-bold text-slate-600 uppercase">Barras (Deriv.)</span>
+                                    <div className="flex gap-4 text-right">
+                                        <div className="flex flex-col">
+                                            <span className="text-[9px] text-slate-400 font-bold uppercase">Qtd</span>
+                                            <span className="text-sm font-black text-slate-700">{summaryData.totalQty - summaryData.parent.qty}</span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[9px] text-slate-400 font-bold uppercase">Peso (kg)</span>
+                                            <span className="text-sm font-black text-slate-700">{(summaryData.totalWeight - summaryData.parent.weight).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Total Geral */}
+                                <div className="flex justify-between items-center p-2 mt-1 border-t-2 border-slate-100">
+                                    <span className="text-sm font-black text-slate-800 uppercase">Total Geral</span>
+                                    <div className="text-right">
+                                        <span className="text-lg font-black text-blue-600">{summaryData.totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} <span className="text-xs font-bold text-blue-400">kg</span></span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1344,6 +1377,8 @@ const StockControl: React.FC<{
                                         return 'Especificações';
                                     })()}
                                 </th>
+                                <th className="p-3 text-center">NFe</th>
+                                <th className="p-3 text-center">Conf.</th>
                                 <th className="p-3 text-center">Mat.</th>
                                 <th className="p-3 text-center">Descrição</th>
                                 <th className="p-3 text-center">Peso (kg)</th>
@@ -1363,6 +1398,8 @@ const StockControl: React.FC<{
                                             return hasCustom ? (item.steelType || '-') : '-';
                                         })()}
                                     </td>
+                                    <td className="p-3 text-center font-bold text-slate-500">{item.nfe || '-'}</td>
+                                    <td className="p-3 text-center font-bold text-slate-500">{item.conferenceNumber || '-'}</td>
                                     <td className="p-3 text-center text-slate-500">{item.materialType}</td>
                                     <td className="p-3 text-center">
                                         <div className="flex flex-col items-center">

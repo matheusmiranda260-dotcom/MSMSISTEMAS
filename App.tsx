@@ -764,6 +764,7 @@ const App: React.FC = () => {
                 steelType: lot.steelType || '',
                 materialType: lot.materialType,
                 bitola: lot.bitola,
+                weight: lot.labelWeight,
                 labelWeight: lot.labelWeight,
                 initialQuantity: lot.labelWeight,
                 remainingQuantity: lot.labelWeight,
