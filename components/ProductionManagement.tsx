@@ -2102,11 +2102,12 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                             id: `stop_end_${stop.id}`,
                                             timestampRaw: stop.end_time,
                                             label: 'Retorno à Produção',
-                                            details: `Voltou de: ${stop.reason || 'Não informado'} (Parado por ${formatDuration(durS)})`,
+                                            details: `Voltou de: ${stop.reason || 'Não informado'}`,
                                             operator: stop.username,
                                             icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
                                             colorClass: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-                                            type: 'stop'
+                                            type: 'stop',
+                                            durationDisplay: `Parado por ${formatDuration(durS)}`
                                         });
                                     }
                                 });
@@ -2123,24 +2124,26 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                             id: `cut_${item.osNum}_${item.subNum}_${idx}`,
                                             timestampRaw: item.endTimeRaw, // Sorting by completion time or start time? Let's use start time to keep chronological order of execution. Actually, end time is fine for completed.
                                             label: 'Corte Realizado',
-                                            details: `O.S. #${item.osNum} - POS ${item.subNum} | Peso: ${item.weightPerCut.toFixed(2)} kg | Comp: ${item.metersPerCut.toFixed(2)} m (Dur: ${formatDuration(durS)})`,
+                                            details: `O.S. #${item.osNum} - POS ${item.subNum} | Peso: ${item.weightPerCut.toFixed(2)} kg | Comp: ${item.metersPerCut.toFixed(2)} m`,
                                             operator: 'Sistema',
                                             icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7"/></svg>,
                                             colorClass: 'bg-blue-100 text-blue-700 border-blue-200',
                                             type: 'cut',
-                                            timeDisplay: `${new Date(item.startTimeRaw).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})} - ${new Date(item.endTimeRaw).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}`
+                                            timeDisplay: `${new Date(item.startTimeRaw).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})} - ${new Date(item.endTimeRaw).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}`,
+                                            durationDisplay: `Duração: ${formatDuration(durS)}`
                                         });
                                     } else {
                                         timelineEvents.push({
                                             id: `cut_${item.osNum}_${item.subNum}_${idx}`,
                                             timestampRaw: item.startTimeRaw,
                                             label: 'Cortando...',
-                                            details: `O.S. #${item.osNum} - POS ${item.subNum} | Peso: ${item.weightPerCut.toFixed(2)} kg | Comp: ${item.metersPerCut.toFixed(2)} m (Em andamento: ${formatDuration(durS)})`,
+                                            details: `O.S. #${item.osNum} - POS ${item.subNum} | Peso: ${item.weightPerCut.toFixed(2)} kg | Comp: ${item.metersPerCut.toFixed(2)} m`,
                                             operator: 'Sistema',
                                             icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>,
                                             colorClass: 'bg-red-100 text-red-600 border-red-300 animate-pulse',
                                             type: 'cut',
-                                            timeDisplay: `${new Date(item.startTimeRaw).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})} - Agora`
+                                            timeDisplay: `${new Date(item.startTimeRaw).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})} - Agora`,
+                                            durationDisplay: `Em andamento: ${formatDuration(durS)}`
                                         });
                                     }
                                 });
@@ -2193,11 +2196,12 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                     id: `idle_${currentTime}`,
                                                     timestampRaw: new Date(currentTime).toISOString(),
                                                     label: 'Aguardando O.S.',
-                                                    details: `Máquina ociosa aguardando início de O.S. (${formatDuration(durS)})`,
+                                                    details: `Máquina ociosa aguardando início de O.S.`,
                                                     operator: shift.username,
                                                     icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
                                                     colorClass: 'bg-orange-100 text-orange-700 border-orange-200',
-                                                    type: 'idle'
+                                                    type: 'idle',
+                                                    durationDisplay: `Duração: ${formatDuration(durS)}`
                                                 });
                                             }
                                         }
@@ -2213,11 +2217,12 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                 id: `idle_${currentTime}`,
                                                 timestampRaw: new Date(currentTime).toISOString(),
                                                 label: 'Aguardando O.S.',
-                                                details: `Máquina ociosa aguardando início de O.S. (${formatDuration(durS)})`,
+                                                details: `Máquina ociosa aguardando início de O.S.`,
                                                 operator: shift.username,
                                                 icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
                                                 colorClass: 'bg-orange-100 text-orange-700 border-orange-200',
-                                                type: 'idle'
+                                                type: 'idle',
+                                                durationDisplay: `Duração: ${formatDuration(durS)}`
                                             });
                                         }
                                     }
@@ -2314,7 +2319,8 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                         </div>
                                                                         <div className="flex flex-col items-end">
                                                                             <span className="text-xs font-bold text-slate-500">{ev.timeDisplay || new Date(ev.timestampRaw).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</span>
-                                                                            <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">{ev.operator}</span>
+                                                                            {ev.durationDisplay && <span className="text-[10px] font-bold text-indigo-500 uppercase mt-0.5">{ev.durationDisplay}</span>}
+                                                                            <span className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">{ev.operator}</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
