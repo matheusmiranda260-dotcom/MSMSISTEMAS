@@ -676,7 +676,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                             <div className="p-6 flex flex-col gap-6">
                                 <div>
                                     <label className="text-sm font-bold text-slate-600 block mb-2">Digite o número da OS:</label>
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 w-full">
                                         <input 
                                             type="text" 
                                             inputMode="numeric"
@@ -684,9 +684,9 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                             onChange={e => setSubOsSearch(e.target.value)}
                                             onKeyDown={e => e.key === 'Enter' && handleSearch()}
                                             placeholder="Ex: 147"
-                                            className="flex-1 bg-slate-100 border-2 border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-slate-800 focus:outline-none focus:border-indigo-500"
+                                            className="flex-1 min-w-0 bg-slate-100 border-2 border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-slate-800 focus:outline-none focus:border-indigo-500"
                                         />
-                                        <button onClick={handleSearch} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 rounded-xl flex items-center justify-center">
+                                        <button onClick={handleSearch} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 rounded-xl flex-none flex items-center justify-center">
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
                                         </button>
                                     </div>
