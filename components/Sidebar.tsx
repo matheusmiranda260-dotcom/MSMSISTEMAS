@@ -385,9 +385,8 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                         <MenuItem target="userManagement" label="Usuários" icon={UserGroupIcon} />
                         <MenuItem target="partnerConfig" label="Configuração de Parceiros" icon={UserGroupIcon} />
                         <MenuItem target="gaugesManager" label="Configuração de Materiais" icon={CogIcon} />
-                        <MenuItem target="labelConfig" label="Configuração de Etiqueta" icon={CogIcon} />
-
-
+                        <MenuItem target="labelConfig" label="Configuração de Etiquetas" icon={DocumentTextIcon} />
+                        <MenuItem target="databaseMetrics" label="Banco de Dados" icon={ChartBarIcon} />
                     </div>
                 )}
             </div>

@@ -28,6 +28,7 @@ import LabelConfiguration from './components/LabelConfiguration';
 import StickyNotes from './components/StickyNotes';
 import MeetingsTasks from './components/MeetingsTasks';
 import DocumentManager from './components/DocumentManager';
+import DatabaseMetrics from './components/DatabaseMetrics';
 import DowntimeConfigManager from './components/DowntimeConfigManager';
 import CustomerRegistration from './components/CustomerRegistration';
 import CustomersManagement from './components/CustomersManagement';
@@ -2885,6 +2886,9 @@ const App: React.FC = () => {
                     showNotification={showNotification}
                     currentUser={currentUser}
                 />
+            );
+            case 'databaseMetrics': return (
+                <DatabaseMetrics />
             );
             case 'meetingsTasks':
                 return <MeetingsTasks
