@@ -242,6 +242,8 @@ export interface ConferenceData {
     nfe: string;
     conferenceNumber: string;
     lots: ConferenceLotData[];
+    nfFileUrl?: string;
+    certificadoFileUrl?: string;
 }
 
 export interface ProductionOrderData {

@@ -14,6 +14,7 @@ import {
 import ConferenceReport from './ConferenceReport';
 import FinishedConferencesModal from './FinishedConferencesModal';
 import LotHistoryModal from './LotHistoryModal';
+import { uploadFile } from '../services/supabaseService';
 
 declare const extractLotDataFromImage: any;
 
@@ -106,6 +107,8 @@ const AddConferencePage: React.FC<{
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
+    const [nfFile, setNfFile] = useState<File | null>(null);
+    const [certificadoFile, setCertificadoFile] = useState<File | null>(null);
     const [lots, setLots] = useState<Partial<ConferenceLotData>[]>([{
         internalLot: '', runNumber: '', steelType: '', bitola: '', materialType: dynamicMaterialOptions[0] || '', labelWeight: 0, labelWeightInput: '0'
     }]);
@@ -370,7 +373,26 @@ const AddConferencePage: React.FC<{
 
         setIsSubmitting(true);
         try {
-            const final = { ...conferenceData, lots: validLots } as ConferenceData;
+            let nfUrl = undefined;
+            let certUrl = undefined;
+            
+            if (nfFile) {
+                const ext = nfFile.name.split('.').pop();
+                const path = `recebimentos/${Date.now()}_nf.${ext}`;
+                nfUrl = await uploadFile('material_documents', path, nfFile) || undefined;
+            }
+            if (certificadoFile) {
+                const ext = certificadoFile.name.split('.').pop();
+                const path = `recebimentos/${Date.now()}_cert.${ext}`;
+                certUrl = await uploadFile('material_documents', path, certificadoFile) || undefined;
+            }
+
+            const final = { 
+                ...conferenceData, 
+                lots: validLots,
+                nfFileUrl: nfUrl,
+                certificadoFileUrl: certUrl 
+            } as ConferenceData;
             await onSubmit(final);
             setPrintLots(validLots);
             setSubmitResult({ type: 'success', message: 'Conferência registrada no sistema com sucesso!' });
@@ -731,9 +753,24 @@ const AddConferencePage: React.FC<{
                         </table>
                         <button type="button" onClick={handleAddLot} className="w-full py-4 text-[#0F3F5C] font-bold hover:bg-slate-50 transition">+ Adicionar Peça</button>
                     </div>
-                    <div className="p-6 bg-slate-50 border-t flex justify-end gap-4">
-                        <button type="button" onClick={onClose} className="font-bold text-slate-500 px-6">Cancelar</button>
-                        <button type="submit" disabled={isSubmitting} className="bg-[#0F3F5C] text-white px-10 py-3 rounded-xl font-bold">{isSubmitting ? 'Salvando...' : 'Finalizar'}</button>
+                    <div className="p-6 bg-slate-50 border-t flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div className="flex gap-4 flex-wrap">
+                            <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 border rounded-xl shadow-sm hover:bg-slate-50 transition text-sm font-bold text-slate-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-indigo-500"><path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" /></svg>
+                                {nfFile ? nfFile.name : 'Anexar NF'}
+                                <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => setNfFile(e.target.files?.[0] || null)} />
+                            </label>
+                            
+                            <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 border rounded-xl shadow-sm hover:bg-slate-50 transition text-sm font-bold text-slate-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-indigo-500"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                                {certificadoFile ? certificadoFile.name : 'Anexar Certificado'}
+                                <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => setCertificadoFile(e.target.files?.[0] || null)} />
+                            </label>
+                        </div>
+                        <div className="flex gap-4">
+                            <button type="button" onClick={onClose} className="font-bold text-slate-500 px-6">Cancelar</button>
+                            <button type="submit" disabled={isSubmitting} className="bg-[#0F3F5C] text-white px-10 py-3 rounded-xl font-bold">{isSubmitting ? 'Salvando...' : 'Finalizar'}</button>
+                        </div>
                     </div>
                 </form>
             {/* Hidden printable label container */}
