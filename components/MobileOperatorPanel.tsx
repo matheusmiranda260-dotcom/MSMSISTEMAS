@@ -546,32 +546,23 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 </div>
             ) : (
                 <>
-                {/* MACHINE STATUS BAR */}
+                {machineState === 'ATIVA' && (
                 <div className="bg-slate-800 w-full shadow-md z-20">
                     <div className="max-w-lg mx-auto w-full p-4 flex flex-col gap-3">
                         <div className="flex justify-between items-center">
                             <div>
                                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Status em tempo real</p>
-                                <p className={`text-lg font-black mt-0.5 ${machineState === 'ATIVA' ? 'text-emerald-400' : 'text-red-400'}`}>
-                                    ESTADO {machineState === 'ATIVA' ? 'ATIVO' : 'PARADO'}
+                                <p className="text-lg font-black mt-0.5 text-emerald-400">
+                                    ESTADO ATIVO
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">
                                 <button 
                                     onClick={toggleMachineState}
-                                    className={`px-4 py-3 rounded-xl flex items-center gap-3 font-black text-white transition-all ${machineState === 'ATIVA' ? 'bg-red-500 hover:bg-red-600 shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'bg-emerald-500 hover:bg-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.5)]'}`}
+                                    className="px-4 py-3 rounded-xl flex items-center gap-3 font-black text-white transition-all bg-red-500 hover:bg-red-600 shadow-[0_0_15px_rgba(239,68,68,0.5)]"
                                 >
-                                    {machineState === 'ATIVA' ? (
-                                        <>
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                                            PARAR MÁQUINA
-                                        </>
-                                    ) : (
-                                        <>
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                                            ATIVAR MÁQUINA
-                                        </>
-                                    )}
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                                    PARAR MÁQUINA
                                 </button>
                                 <button 
                                     onClick={toggleShift}
@@ -584,18 +575,16 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                 </button>
                             </div>
                         </div>
-                        <div className={`py-2 px-4 rounded-lg flex items-center justify-center gap-2 font-mono text-xl font-bold ${machineState === 'ATIVA' ? (idleSince ? 'bg-orange-900/50 text-orange-400 border border-orange-500/30' : 'bg-emerald-900/50 text-emerald-100') : 'bg-red-500 text-white animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.8)]'}`}>
-                            {machineState === 'PARADA' && (
-                                <span className="uppercase text-[12px] mr-2 font-black tracking-widest">{activeStopReason} — </span>
-                            )}
-                            {machineState === 'ATIVA' && idleSince && (
+                        <div className={`py-2 px-4 rounded-lg flex items-center justify-center gap-2 font-mono text-xl font-bold ${idleSince ? 'bg-orange-900/50 text-orange-400 border border-orange-500/30' : 'bg-emerald-900/50 text-emerald-100'}`}>
+                            {idleSince && (
                                 <span className="uppercase text-[12px] mr-2 font-black tracking-widest text-orange-400 animate-pulse">AGUARDANDO O.S. — </span>
                             )}
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                            {machineState === 'ATIVA' && idleSince ? idleTimer : machineTimer}
+                            {idleSince ? idleTimer : machineTimer}
                         </div>
                     </div>
                 </div>
+                )}
                 
                 <main className="flex-1 p-4 flex flex-col gap-4 max-w-lg w-full mx-auto relative">
                     {machineState === 'PARADA' && (
@@ -606,15 +595,34 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                 </svg>
                             </div>
                             <h2 className="text-3xl font-black text-slate-800 mb-2 uppercase tracking-tight">MÁQUINA PARADA</h2>
-                            <p className="text-red-500 mb-4 font-black text-2xl uppercase tracking-wider bg-red-50 px-4 py-2 rounded-xl border border-red-100">{activeStopReason || 'Motivo não especificado'}</p>
-                            <p className="text-slate-500 mb-8 font-medium">Você precisa ativar a máquina para voltar a operar e registrar cortes.</p>
-                            <button 
-                                onClick={toggleMachineState}
-                                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-5 rounded-2xl text-xl uppercase shadow-[0_0_20px_rgba(16,185,129,0.6)] active:scale-95 transition-all flex items-center justify-center gap-3"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                                RETORNAR À PRODUÇÃO
-                            </button>
+                            
+                            <div className="flex flex-col items-center justify-center bg-red-50 border border-red-100 px-6 py-4 rounded-2xl mb-8 w-full max-w-xs shadow-sm">
+                                <p className="text-red-500 font-black text-2xl uppercase tracking-wider">{activeStopReason || 'Motivo não especificado'}</p>
+                                <div className="flex items-center gap-2 mt-2 text-red-400 font-mono text-xl font-bold">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                    {machineTimer}
+                                </div>
+                            </div>
+
+                            <div className="w-full flex flex-col gap-3 max-w-xs">
+                                <button 
+                                    onClick={toggleMachineState}
+                                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-5 rounded-2xl text-xl uppercase shadow-[0_0_20px_rgba(16,185,129,0.6)] active:scale-95 transition-all flex items-center justify-center gap-3"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                    RETORNAR À PRODUÇÃO
+                                </button>
+                                
+                                <button 
+                                    onClick={toggleShift}
+                                    className="w-full bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold py-4 rounded-2xl text-lg uppercase active:scale-95 transition-all flex items-center justify-center gap-2 mt-2"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
+                                    </svg>
+                                    FINALIZAR TURNO
+                                </button>
+                            </div>
                         </div>
                     )}
                 <div className="relative">
