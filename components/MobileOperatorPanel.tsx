@@ -101,13 +101,47 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     };
     const [machineTimer, setMachineTimer] = useState<string>(() => formatTimeDiff(machineStateSince));
 
+    const [idleSince, setIdleSince] = useState<string | null>(() => {
+        return localStorage.getItem(`machine_idle_since_${currentUser.id}`);
+    });
+    const [idleTimer, setIdleTimer] = useState<string>('00:00:00');
+
     useEffect(() => {
         if (!isOnline) return;
         const interval = setInterval(() => {
             setMachineTimer(formatTimeDiff(machineStateSince));
+            setIdleTimer(prev => {
+                const newIdle = localStorage.getItem(`machine_idle_since_${currentUser.id}`);
+                return newIdle ? formatTimeDiff(newIdle) : '00:00:00';
+            });
         }, 1000);
         return () => clearInterval(interval);
-    }, [isOnline, machineStateSince]);
+    }, [isOnline, machineStateSince, currentUser.id]);
+
+    const isAnyProducing = React.useMemo(() => {
+        return localOrders.some(po => {
+            if (!po.sub_items_progress) return false;
+            try {
+                const progressObj = typeof po.sub_items_progress === 'string' ? JSON.parse(po.sub_items_progress) : po.sub_items_progress;
+                return Object.values(progressObj).some((p: any) => p.status === 'producing');
+            } catch (e) { return false; }
+        });
+    }, [localOrders]);
+
+    useEffect(() => {
+        if (machineState === 'ATIVA' && !isAnyProducing) {
+            if (!idleSince) {
+                const now = new Date().toISOString();
+                setIdleSince(now);
+                localStorage.setItem(`machine_idle_since_${currentUser.id}`, now);
+            }
+        } else {
+            if (idleSince !== null) {
+                setIdleSince(null);
+                localStorage.removeItem(`machine_idle_since_${currentUser.id}`);
+            }
+        }
+    }, [machineState, isAnyProducing, idleSince, currentUser.id]);
 
     const toggleMachineState = async () => {
         if (machineState === 'ATIVA') {
@@ -545,12 +579,15 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                 </button>
                             </div>
                         </div>
-                        <div className={`py-2 px-4 rounded-lg flex items-center justify-center gap-2 font-mono text-xl font-bold ${machineState === 'ATIVA' ? 'bg-emerald-900/50 text-emerald-100' : 'bg-red-500 text-white animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.8)]'}`}>
+                        <div className={`py-2 px-4 rounded-lg flex items-center justify-center gap-2 font-mono text-xl font-bold ${machineState === 'ATIVA' ? (idleSince ? 'bg-orange-900/50 text-orange-400 border border-orange-500/30' : 'bg-emerald-900/50 text-emerald-100') : 'bg-red-500 text-white animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.8)]'}`}>
                             {machineState === 'PARADA' && (
                                 <span className="uppercase text-[12px] mr-2 font-black tracking-widest">{activeStopReason} — </span>
                             )}
+                            {machineState === 'ATIVA' && idleSince && (
+                                <span className="uppercase text-[12px] mr-2 font-black tracking-widest text-orange-400 animate-pulse">AGUARDANDO O.S. — </span>
+                            )}
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                            {machineTimer}
+                            {machineState === 'ATIVA' && idleSince ? idleTimer : machineTimer}
                         </div>
                     </div>
                 </div>
