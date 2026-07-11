@@ -2019,6 +2019,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                 osNum,
                                                 subNum,
                                                 startTimeRaw: val.start_time,
+                                                endTimeRaw: val.end_time,
                                                 startTimeStr: new Date(val.start_time).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'}),
                                                 endTimeStr: val.end_time ? new Date(val.end_time).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'}) : '--:--:--',
                                                 durationStr,
@@ -2028,13 +2029,109 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                     });
                                 });
 
-                                // Ordenar do mais recente para o mais antigo (pelo start_time)
-                                reportItems.sort((a, b) => new Date(b.startTimeRaw).getTime() - new Date(a.startTimeRaw).getTime());
+                                const formatDuration = (s: number) => {
+                                    const h = Math.floor(s / 3600);
+                                    const m = Math.floor((s % 3600) / 60);
+                                    const sec = s % 60;
+                                    if (h > 0) return `${h}h ${m}m ${sec}s`;
+                                    return `${m}m ${sec}s`;
+                                };
+
+                                let totalProductionS = 0;
+                                let totalStopS = 0;
+                                const nowTime = new Date().getTime();
+
+                                const timelineEvents: any[] = [];
+
+                                // 1. Shifts
+                                dailyShifts.forEach((shift: any) => {
+                                    timelineEvents.push({
+                                        id: `shift_start_${shift.id}`,
+                                        timestampRaw: shift.start_time,
+                                        label: 'Início do Turno',
+                                        details: 'Turno iniciado',
+                                        operator: shift.username,
+                                        icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3v18"/><path d="m19 9-7 7-7-7"/></svg>,
+                                        colorClass: 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                    });
+                                    if (shift.end_time) {
+                                        timelineEvents.push({
+                                            id: `shift_end_${shift.id}`,
+                                            timestampRaw: shift.end_time,
+                                            label: 'Fim do Turno',
+                                            details: 'Turno finalizado',
+                                            operator: shift.username,
+                                            icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>,
+                                            colorClass: 'bg-slate-200 text-slate-700 border-slate-300'
+                                        });
+                                    }
+                                });
+
+                                // 2. Stops
+                                machineStops.forEach((stop: any) => {
+                                    const dStart = new Date(stop.start_time).getTime();
+                                    const dEnd = stop.end_time ? new Date(stop.end_time).getTime() : nowTime;
+                                    const durS = Math.floor(Math.max(0, dEnd - dStart) / 1000);
+                                    totalStopS += durS;
+
+                                    timelineEvents.push({
+                                        id: `stop_start_${stop.id}`,
+                                        timestampRaw: stop.start_time,
+                                        label: 'Máquina Parada',
+                                        details: `Motivo: ${stop.reason || 'Não informado'}`,
+                                        operator: stop.username,
+                                        icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>,
+                                        colorClass: 'bg-rose-100 text-rose-700 border-rose-200'
+                                    });
+                                    if (stop.end_time) {
+                                        timelineEvents.push({
+                                            id: `stop_end_${stop.id}`,
+                                            timestampRaw: stop.end_time,
+                                            label: 'Retorno à Produção',
+                                            details: `Voltou de: ${stop.reason || 'Não informado'} (Parado por ${formatDuration(durS)})`,
+                                            operator: stop.username,
+                                            icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+                                            colorClass: 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                                        });
+                                    }
+                                });
+
+                                // 3. Cuts
+                                reportItems.forEach((item, idx) => {
+                                    const dStart = new Date(item.startTimeRaw).getTime();
+                                    const dEnd = item.endTimeRaw ? new Date(item.endTimeRaw).getTime() : nowTime;
+                                    const durS = Math.floor(Math.max(0, dEnd - dStart) / 1000);
+                                    totalProductionS += durS;
+
+                                    timelineEvents.push({
+                                        id: `cut_start_${item.osNum}_${item.subNum}_${idx}`,
+                                        timestampRaw: item.startTimeRaw,
+                                        label: 'Início de Corte',
+                                        details: `O.S. #${item.osNum} - POS ${item.subNum}`,
+                                        operator: 'Sistema',
+                                        icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>,
+                                        colorClass: 'bg-amber-100 text-amber-700 border-amber-200'
+                                    });
+                                    if (item.endTimeRaw) {
+                                        timelineEvents.push({
+                                            id: `cut_end_${item.osNum}_${item.subNum}_${idx}`,
+                                            timestampRaw: item.endTimeRaw,
+                                            label: 'Fim de Corte',
+                                            details: `O.S. #${item.osNum} - POS ${item.subNum} (Cortando por ${formatDuration(durS)})`,
+                                            operator: 'Sistema',
+                                            icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7"/></svg>,
+                                            colorClass: 'bg-blue-100 text-blue-700 border-blue-200'
+                                        });
+                                    }
+                                });
+
+                                // Sort timeline
+                                timelineEvents.sort((a, b) => new Date(b.timestampRaw).getTime() - new Date(a.timestampRaw).getTime());
 
                                 return (
                                     <div className="space-y-6">
-                                        {/* Shift Info */}
-                                        <div className="grid grid-cols-2 gap-4">
+                                        {/* Metricas */}
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                             <div className={`p-4 rounded-xl border flex items-center justify-between ${isOperatorOnline ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-100 border-slate-200'}`}>
                                                 <div>
                                                     <p className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Operador Logado</p>
@@ -2044,117 +2141,69 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                 </div>
                                                 <div className={`w-3 h-3 rounded-full ${isOperatorOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
                                             </div>
-                                            <div className="p-4 rounded-xl border bg-white border-slate-200 flex flex-col justify-center">
-                                                <div className="flex justify-between items-center mb-2">
-                                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Turnos do Dia</p>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                            
+                                            <div className="p-4 rounded-xl border bg-blue-50 border-blue-200 flex items-center justify-between">
+                                                <div>
+                                                    <p className="text-[10px] font-black uppercase text-blue-500 tracking-wider">Tempo em Produção</p>
+                                                    <p className="text-xl font-bold mt-0.5 text-blue-800">
+                                                        {formatDuration(totalProductionS)}
+                                                    </p>
                                                 </div>
-                                                {dailyShifts.length === 0 ? (
-                                                    <p className="text-xs text-slate-400 font-bold">Nenhum turno registrado hoje.</p>
+                                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                </div>
+                                            </div>
+
+                                            <div className="p-4 rounded-xl border bg-rose-50 border-rose-200 flex items-center justify-between">
+                                                <div>
+                                                    <p className="text-[10px] font-black uppercase text-rose-500 tracking-wider">Tempo de Parada</p>
+                                                    <p className="text-xl font-bold mt-0.5 text-rose-800">
+                                                        {formatDuration(totalStopS)}
+                                                    </p>
+                                                </div>
+                                                <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-rose-600">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Linha do Tempo */}
+                                        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                                            <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                                                <h4 className="font-black text-slate-800 uppercase text-xs flex items-center gap-2">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400"><path d="M12 2v20"/><path d="m8 6 4-4 4 4"/><path d="m8 18 4 4 4-4"/></svg>
+                                                    Linha do Tempo (Sequencial)
+                                                </h4>
+                                                <span className="text-[10px] font-bold text-slate-500">{timelineEvents.length} eventos</span>
+                                            </div>
+                                            
+                                            <div className="p-4 max-h-[60vh] overflow-y-auto">
+                                                {timelineEvents.length === 0 ? (
+                                                    <div className="py-8 text-center text-slate-400 text-sm font-bold">Nenhum evento registrado hoje.</div>
                                                 ) : (
-                                                    <div className="max-h-24 overflow-y-auto pr-2 space-y-1">
-                                                        {dailyShifts.map((shift: any) => (
-                                                            <div key={shift.id} className="flex justify-between text-xs border-b border-slate-100 pb-1 mb-1 last:border-0">
-                                                                <span className="font-bold text-slate-700">{shift.username}</span>
-                                                                <span className="text-slate-500">
-                                                                    {new Date(shift.start_time).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})} - {shift.end_time ? new Date(shift.end_time).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : 'Atual'}
-                                                                </span>
+                                                    <div className="relative border-l-2 border-slate-200 ml-4 space-y-6 pb-4">
+                                                        {timelineEvents.map((ev, i) => (
+                                                            <div key={ev.id} className="relative pl-6">
+                                                                <div className={`absolute -left-[17px] top-1 w-8 h-8 rounded-full border-2 bg-white flex items-center justify-center shadow-sm z-10 ${ev.colorClass}`}>
+                                                                    {ev.icon}
+                                                                </div>
+                                                                <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
+                                                                    <div className="flex justify-between items-start">
+                                                                        <div className="flex flex-col">
+                                                                            <span className={`text-[11px] font-black uppercase tracking-wider ${ev.colorClass.split(' ')[1]}`}>{ev.label}</span>
+                                                                            <span className="text-sm font-bold text-slate-800 mt-0.5">{ev.details}</span>
+                                                                        </div>
+                                                                        <div className="flex flex-col items-end">
+                                                                            <span className="text-xs font-bold text-slate-500">{new Date(ev.timestampRaw).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</span>
+                                                                            <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">{ev.operator}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         ))}
                                                     </div>
                                                 )}
                                             </div>
-                                        </div>
-
-                                        {/* Histórico de Paradas */}
-                                        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                                            <div className="p-4 border-b border-slate-200 bg-rose-50 flex items-center justify-between">
-                                                <h4 className="font-black text-rose-800 uppercase text-xs">Histórico de Paradas</h4>
-                                                <span className="text-[10px] font-bold text-rose-600 bg-rose-100 px-2 py-1 rounded-full">{machineStops.length} registros</span>
-                                            </div>
-                                            {machineStops.length === 0 ? (
-                                                <div className="p-8 text-center text-slate-500 text-sm font-bold">Nenhuma parada registrada hoje para esta máquina.</div>
-                                            ) : (
-                                                <div className="overflow-x-auto max-h-48 overflow-y-auto">
-                                                    <table className="w-full text-left border-collapse">
-                                                        <thead className="sticky top-0 bg-rose-50 border-b border-slate-200 text-[10px] uppercase tracking-wider text-rose-600 font-black">
-                                                            <tr>
-                                                                <th className="p-3 pl-4">Operador</th>
-                                                                <th className="p-3">Início</th>
-                                                                <th className="p-3">Fim</th>
-                                                                <th className="p-3">Motivo</th>
-                                                                <th className="p-3 pr-4 text-right">Duração</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="text-xs font-bold text-slate-700">
-                                                            {machineStops.map(stop => {
-                                                                let durationContent: React.ReactNode = <span className="text-rose-500 font-bold"><ActiveTimer startTime={stop.start_time} /></span>;
-                                                                if (stop.end_time) {
-                                                                    const dStart = new Date(stop.start_time);
-                                                                    const dEnd = new Date(stop.end_time);
-                                                                    const diffS = Math.floor((dEnd.getTime() - dStart.getTime()) / 1000);
-                                                                    const h = Math.floor(diffS / 3600);
-                                                                    const m = Math.floor((diffS % 3600) / 60);
-                                                                    const s = diffS % 60;
-                                                                    durationContent = h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`;
-                                                                }
-                                                                return (
-                                                                    <tr key={stop.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                                                                        <td className="p-3 pl-4">{stop.username}</td>
-                                                                        <td className="p-3">{new Date(stop.start_time).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</td>
-                                                                        <td className="p-3">{stop.end_time ? new Date(stop.end_time).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '--:--'}</td>
-                                                                        <td className="p-3 text-slate-500 font-medium text-[10px] uppercase">{stop.reason || 'Não informado'}</td>
-                                                                        <td className="p-3 pr-4 text-right text-rose-600">{durationContent}</td>
-                                                                    </tr>
-                                                                );
-                                                            })}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Table Cortes */}
-                                        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                                            <div className="p-4 border-b border-slate-200 bg-slate-50">
-                                                <h4 className="font-black text-slate-800 uppercase text-xs">Histórico de Cortes (Item a Item)</h4>
-                                            </div>
-                                            {reportItems.length === 0 ? (
-                                                <div className="p-8 text-center text-slate-500 text-sm font-bold">Nenhum corte registrado hoje para esta máquina.</div>
-                                            ) : (
-                                                <div className="overflow-x-auto">
-                                                    <table className="w-full text-left border-collapse">
-                                                        <thead>
-                                                            <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wider text-slate-500 font-black">
-                                                                <th className="p-3 pl-4">O.S.</th>
-                                                                <th className="p-3">Posição</th>
-                                                                <th className="p-3">Início</th>
-                                                                <th className="p-3">Fim</th>
-                                                                <th className="p-3">Duração</th>
-                                                                <th className="p-3 pr-4 text-right">Status</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="text-xs font-bold text-slate-700">
-                                                            {reportItems.map((item, idx) => (
-                                                                <tr key={idx} className="border-b border-slate-100 hover:bg-indigo-50/30 transition-colors">
-                                                                    <td className="p-3 pl-4">{item.osNum}</td>
-                                                                    <td className="p-3">POS {item.subNum}</td>
-                                                                    <td className="p-3">{item.startTimeStr}</td>
-                                                                    <td className="p-3">{item.endTimeStr}</td>
-                                                                    <td className="p-3">{item.durationStr}</td>
-                                                                    <td className="p-3 pr-4 text-right">
-                                                                        {item.status === 'completed' ? (
-                                                                            <span className="inline-block px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[9px] uppercase tracking-wider">Finalizado</span>
-                                                                        ) : (
-                                                                            <span className="inline-block px-2 py-1 bg-orange-100 text-orange-700 rounded text-[9px] uppercase tracking-wider animate-pulse">Em Andamento</span>
-                                                                        )}
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
                                 );
