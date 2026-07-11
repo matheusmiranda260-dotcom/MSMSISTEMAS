@@ -20,13 +20,28 @@ export const FinancialManagement: React.FC<FinancialManagementProps> = ({
     activeBrandingPartner
 }) => {
     const [activeTab, setActiveTab] = useState<'pedidos' | 'creditos'>('pedidos');
+    const [orderFilter, setOrderFilter] = useState<'pendentes' | 'aceitos'>('pendentes');
+    const [creditFilter, setCreditFilter] = useState<'pendentes' | 'aceitos'>('pendentes');
     const [isUpdating, setIsUpdating] = useState(false);
     const [viewingOrder, setViewingOrder] = useState<CommercialOrder | null>(null);
     const [printingOrder, setPrintingOrder] = useState<CommercialOrder | null>(null);
 
     // Filter orders
-    const pendingOrders = commercialOrders.filter(o => o.status?.toLowerCase() === 'aguardando financeiro');
-    const creditOrders = commercialOrders.filter(o => o.creditRequestStatus === 'Pendente');
+    const pendingOrdersCount = commercialOrders.filter(o => o.status?.toLowerCase() === 'aguardando financeiro' || o.status?.toLowerCase() === 'rejeitado pelo financeiro').length;
+    const pendingOrders = commercialOrders.filter(o => {
+        const isPending = o.status?.toLowerCase() === 'aguardando financeiro' || o.status?.toLowerCase() === 'rejeitado pelo financeiro';
+        if (orderFilter === 'pendentes') return isPending;
+        return !isPending && o.status?.toLowerCase() !== 'orçamento';
+    }).sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+
+    const pendingCreditsCount = commercialOrders.filter(o => o.creditRequestStatus === 'Pendente' || o.creditRequestStatus === 'Rejeitado').length;
+    const creditOrders = commercialOrders.filter(o => {
+        if (creditFilter === 'pendentes') {
+            return o.creditRequestStatus === 'Pendente' || o.creditRequestStatus === 'Rejeitado';
+        } else {
+            return o.creditRequestStatus === 'Aprovado' || o.creditRequestStatus === 'Aprovado / Gerado';
+        }
+    }).sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
 
     const handleApproveOrder = async (order: CommercialOrder) => {
         if (window.confirm(`Deseja aprovar o pedido ${order.orderNumber} e enviá-lo para a Engenharia (Leitura)?`)) {
@@ -43,16 +58,31 @@ export const FinancialManagement: React.FC<FinancialManagementProps> = ({
     };
 
     const handleRejectOrder = async (order: CommercialOrder) => {
-        if (window.confirm(`Deseja rejeitar o pedido ${order.orderNumber} e devolvê-lo para Orçamento?`)) {
-            setIsUpdating(true);
-            try {
-                await updateItem('commercial_orders', order.id!, { status: 'Orçamento' });
-            } catch (error) {
-                console.error('Erro ao rejeitar pedido:', error);
-                alert('Erro ao rejeitar pedido.');
-            } finally {
-                setIsUpdating(false);
-            }
+        const reason = window.prompt(`Deseja rejeitar o pedido ${order.orderNumber}? Se sim, digite a justificativa (obrigatória):`);
+        if (reason === null) return;
+        if (!reason.trim()) {
+            alert('A justificativa é obrigatória para rejeitar o pedido.');
+            return;
+        }
+
+        setIsUpdating(true);
+        try {
+            const historyEntry = {
+                date: new Date().toISOString(),
+                user: currentUser?.name || 'Financeiro',
+                action: 'Pedido Rejeitado pelo Financeiro',
+                details: reason.trim()
+            };
+
+            await updateItem('commercial_orders', order.id!, { 
+                status: 'Rejeitado pelo Financeiro',
+                history: [...(order.history || []), historyEntry]
+            });
+        } catch (error) {
+            console.error('Erro ao rejeitar pedido:', error);
+            alert('Erro ao rejeitar pedido.');
+        } finally {
+            setIsUpdating(false);
         }
     };
 
@@ -90,36 +120,53 @@ export const FinancialManagement: React.FC<FinancialManagementProps> = ({
         }
     };
 
-    const handleRejectCredit = async (order: CommercialOrder) => {
-        if (window.confirm(`Deseja rejeitar o crédito para o pedido ${order.orderNumber}?`)) {
-            setIsUpdating(true);
-            try {
-                // Adiciona o histórico de rejeição ao cliente
-                const customer = customers.find(c => (order.clientId && c.id === order.clientId) || (order.clientCode && String(c.code) === String(order.clientCode)));
-                if (customer) {
-                    const creditToReject = order.paymentValue || 0;
-                    
-                    const historyEntry = {
-                        date: new Date().toISOString(),
-                        amount: creditToReject,
-                        requestedBy: order.salesperson || 'Desconhecido',
-                        approvedBy: currentUser?.name || 'Financeiro',
-                        orderNumber: order.orderNumber,
-                        status: 'Rejeitado'
-                    };
-                    
-                    await updateItem('customers', customer.id, {
-                        creditHistory: [...(customer.creditHistory || []), historyEntry]
-                    });
-                }
-                
-                await updateItem('commercial_orders', order.id!, { creditRequestStatus: 'Rejeitado' });
-            } catch (error) {
-                console.error('Erro ao rejeitar crédito:', error);
-                alert('Erro ao rejeitar crédito.');
-            } finally {
-                setIsUpdating(false);
+    const handleRejectCredit = async (order: CommercialOrder, reason?: string) => {
+        if (!reason) {
+            reason = window.prompt(`Deseja rejeitar o crédito para o pedido ${order.orderNumber}? Se sim, digite o motivo da rejeição (obrigatório):`) || '';
+            if (!reason.trim()) {
+                alert('A justificativa é obrigatória para rejeitar a solicitação de crédito.');
+                return;
             }
+        }
+
+        setIsUpdating(true);
+        try {
+            // Adiciona o histórico de rejeição ao cliente
+            const customer = customers.find(c => (order.clientId && c.id === order.clientId) || (order.clientCode && String(c.code) === String(order.clientCode)));
+            if (customer) {
+                const creditToReject = order.paymentValue || 0;
+                
+                const historyEntry = {
+                    date: new Date().toISOString(),
+                    amount: creditToReject,
+                    requestedBy: order.salesperson || 'Desconhecido',
+                    approvedBy: currentUser?.name || 'Financeiro',
+                    orderNumber: order.orderNumber,
+                    status: 'Rejeitado',
+                    details: reason.trim()
+                };
+                
+                await updateItem('customers', customer.id, {
+                    creditHistory: [...(customer.creditHistory || []), historyEntry]
+                });
+            }
+            
+            const orderHistoryEntry = {
+                date: new Date().toISOString(),
+                user: currentUser?.name || 'Financeiro',
+                action: 'Solicitação de Crédito Rejeitada',
+                details: reason.trim()
+            };
+
+            await updateItem('commercial_orders', order.id!, { 
+                creditRequestStatus: 'Rejeitado',
+                history: [...(order.history || []), orderHistoryEntry]
+            });
+        } catch (error) {
+            console.error('Erro ao rejeitar crédito:', error);
+            alert('Erro ao rejeitar crédito.');
+        } finally {
+            setIsUpdating(false);
         }
     };
 
@@ -183,19 +230,33 @@ export const FinancialManagement: React.FC<FinancialManagementProps> = ({
                             onClick={() => setActiveTab('pedidos')}
                             className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all shadow-sm ${activeTab === 'pedidos' ? 'bg-[#112331] text-white shadow-lg' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
                         >
-                            <span>📝 Pedidos ({pendingOrders.length})</span>
+                            <span>📝 Pedidos ({pendingOrdersCount})</span>
                         </button>
                         <button 
                             onClick={() => setActiveTab('creditos')}
                             className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all shadow-sm ${activeTab === 'creditos' ? 'bg-[#112331] text-white shadow-lg' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
                         >
-                            <span>💳 Análise de Crédito ({creditOrders.length})</span>
+                            <span>💳 Análise de Crédito ({pendingCreditsCount})</span>
                         </button>
                     </div>
 
-                    {/* Orders Tab */}
+                    {/* Pedidos Tab */}
                     {activeTab === 'pedidos' && (
                         <div className="bg-white rounded-2xl border shadow-sm overflow-hidden no-print">
+                            <div className="p-4 border-b border-slate-100 flex justify-end gap-2 bg-slate-50/50">
+                                <button 
+                                    onClick={() => setOrderFilter('pendentes')}
+                                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all ${orderFilter === 'pendentes' ? 'bg-slate-800 text-white shadow-md' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'}`}
+                                >
+                                    Pendentes
+                                </button>
+                                <button 
+                                    onClick={() => setOrderFilter('aceitos')}
+                                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all ${orderFilter === 'aceitos' ? 'bg-slate-800 text-white shadow-md' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'}`}
+                                >
+                                    Aceitos / Finalizados
+                                </button>
+                            </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse">
                                     <thead>
@@ -236,8 +297,8 @@ export const FinancialManagement: React.FC<FinancialManagementProps> = ({
                                                             </div>
                                                         </td>
                                                         <td className="p-4 text-center">
-                                                            <div className="bg-red-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full animate-pulse whitespace-nowrap shadow-md border border-red-600 inline-block">
-                                                                Aguardando Fin.
+                                                            <div className={`${order.status?.toLowerCase().includes('rejeitado') ? 'bg-red-500 border-red-600' : (order.status?.toLowerCase() === 'aguardando financeiro' ? 'bg-red-500 border-red-600 animate-pulse' : 'bg-emerald-500 border-emerald-600')} text-white text-[10px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-md border inline-block`}>
+                                                                {order.status}
                                                             </div>
                                                         </td>
                                                         <td className="p-4 text-center font-black text-slate-900 text-sm">
@@ -250,25 +311,34 @@ export const FinancialManagement: React.FC<FinancialManagementProps> = ({
                                                         </td>
                                                         <td className="p-4 text-center">
                                                             <div className="min-w-[140px] w-full xl:w-auto flex justify-center">
-                                                                    <select 
-                                                                        className="w-full xl:w-auto bg-white border border-transparent hover:border-slate-300 rounded-xl px-3 py-2.5 text-xs font-black text-slate-800 shadow-md focus:ring-2 focus:ring-[#315f69] cursor-pointer outline-none transition-all appearance-none text-center"
-                                                                        style={{ backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%231c3a40%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right .7rem top 50%', backgroundSize: '.65rem auto', paddingRight: '2rem' }}
-                                                                        onChange={(e) => {
-                                                                            if (e.target.value === 'view') {
-                                                                                setPrintingOrder(order);
-                                                                            } else if (e.target.value === 'approve') {
-                                                                                handleApproveOrder(order);
-                                                                            } else if (e.target.value === 'reject') {
-                                                                                handleRejectOrder(order);
-                                                                            }
-                                                                            e.target.value = '';
-                                                                        }}
-                                                                    >
-                                                                        <option value="">Ações...</option>
-                                                                        <option value="view">👁️ Ver Orçamento</option>
-                                                                        <option value="approve">✅ Aprovar</option>
-                                                                        <option value="reject">❌ Rejeitar</option>
-                                                                    </select>
+                                                                    {orderFilter === 'pendentes' ? (
+                                                                        <select 
+                                                                            className="w-full xl:w-auto bg-white border border-transparent hover:border-slate-300 rounded-xl px-3 py-2.5 text-xs font-black text-slate-800 shadow-md focus:ring-2 focus:ring-[#315f69] cursor-pointer outline-none transition-all appearance-none text-center"
+                                                                            style={{ backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%231c3a40%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right .7rem top 50%', backgroundSize: '.65rem auto', paddingRight: '2rem' }}
+                                                                            onChange={(e) => {
+                                                                                if (e.target.value === 'view') {
+                                                                                    setPrintingOrder(order);
+                                                                                } else if (e.target.value === 'approve') {
+                                                                                    handleApproveOrder(order);
+                                                                                } else if (e.target.value === 'reject') {
+                                                                                    handleRejectOrder(order);
+                                                                                }
+                                                                                e.target.value = '';
+                                                                            }}
+                                                                        >
+                                                                            <option value="">Ações...</option>
+                                                                            <option value="view">👁️ Ver Orçamento</option>
+                                                                            <option value="approve">✅ Aprovar</option>
+                                                                            <option value="reject">❌ Rejeitar</option>
+                                                                        </select>
+                                                                    ) : (
+                                                                        <button 
+                                                                            onClick={() => setPrintingOrder(order)}
+                                                                            className="bg-sky-50 text-sky-600 hover:bg-sky-100 border border-sky-200 px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-colors whitespace-nowrap shadow-sm"
+                                                                        >
+                                                                            👁️ Ver Orçamento
+                                                                        </button>
+                                                                    )}
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -284,6 +354,20 @@ export const FinancialManagement: React.FC<FinancialManagementProps> = ({
                     {/* Credit Tab */}
                     {activeTab === 'creditos' && (
                         <div className="bg-white rounded-2xl border shadow-sm overflow-hidden no-print">
+                            <div className="p-4 border-b border-slate-100 flex justify-end gap-2 bg-slate-50/50">
+                                <button 
+                                    onClick={() => setCreditFilter('pendentes')}
+                                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all ${creditFilter === 'pendentes' ? 'bg-slate-800 text-white shadow-md' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'}`}
+                                >
+                                    Pendentes
+                                </button>
+                                <button 
+                                    onClick={() => setCreditFilter('aceitos')}
+                                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all ${creditFilter === 'aceitos' ? 'bg-slate-800 text-white shadow-md' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'}`}
+                                >
+                                    Aceitos
+                                </button>
+                            </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse">
                                     <thead>
@@ -311,7 +395,7 @@ export const FinancialManagement: React.FC<FinancialManagementProps> = ({
                                                     : (order.date || '');
 
                                                 return (
-                                                    <tr key={order.id} className="bg-purple-50/50 hover:bg-purple-100/50 border-b border-slate-100 transition-colors">
+                                                    <tr key={order.id} className={`${order.creditRequestStatus === 'Rejeitado' ? 'bg-red-50/80 hover:bg-red-100' : 'bg-purple-50/50 hover:bg-purple-100/50'} border-b border-slate-100 transition-colors`}>
                                                         <td className="p-4 text-center font-black text-slate-900 text-sm">{order.orderNumber}</td>
                                                         <td className="p-4 text-center font-bold text-slate-600 text-xs">{formattedDate}</td>
                                                         <td className="p-4 text-center font-bold text-slate-700 text-xs">{order.salesperson || 'N/A'}</td>
@@ -324,8 +408,16 @@ export const FinancialManagement: React.FC<FinancialManagementProps> = ({
                                                             </div>
                                                         </td>
                                                         <td className="p-4 text-center">
-                                                            <div className="bg-purple-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm border border-purple-600 inline-block">
-                                                                Análise Crédito
+                                                            <div className="flex flex-col items-center gap-1">
+                                                                <div className={`${order.creditRequestStatus === 'Rejeitado' ? 'bg-red-100 text-red-700 border-red-200' : (order.creditRequestStatus === 'Aprovado' || order.creditRequestStatus === 'Aprovado / Gerado' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-purple-100 text-purple-700 border-purple-200')} text-[10px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm border inline-block`}>
+                                                                    {order.creditRequestStatus}
+                                                                </div>
+                                                                {order.creditRequestStatus === 'Rejeitado' && (() => {
+                                                                    const rejectionReason = order.history?.slice().reverse().find((h: any) => h.action === 'Solicitação de Crédito Rejeitada')?.details;
+                                                                    return rejectionReason ? (
+                                                                        <span className="text-red-600 text-[9px] font-black italic max-w-[120px] truncate" title={rejectionReason}>Motivo: {rejectionReason}</span>
+                                                                    ) : null;
+                                                                })()}
                                                             </div>
                                                         </td>
                                                         <td className="p-4 text-center font-black text-slate-900 text-sm">
@@ -346,25 +438,25 @@ export const FinancialManagement: React.FC<FinancialManagementProps> = ({
                                                                         📄 Ver Anexo
                                                                     </a>
                                                                 )}
-                                                                <div className="min-w-[140px] w-full xl:w-auto flex justify-center">
+                                                                <div className="flex justify-center">
                                                                     <select 
-                                                                        className="w-full xl:w-auto bg-white border border-transparent hover:border-slate-300 rounded-xl px-3 py-2.5 text-xs font-black text-slate-800 shadow-md focus:ring-2 focus:ring-[#315f69] cursor-pointer outline-none transition-all appearance-none text-center"
+                                                                        className="appearance-none bg-white border border-slate-200 text-slate-700 font-bold text-[10px] uppercase rounded-xl px-4 py-2 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20 shadow-sm cursor-pointer transition-all"
                                                                         style={{ backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%231c3a40%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right .7rem top 50%', backgroundSize: '.65rem auto', paddingRight: '2rem' }}
                                                                         onChange={(e) => {
-                                                                            if (e.target.value === 'view') {
-                                                                                setPrintingOrder(order);
-                                                                            } else if (e.target.value === 'approve') {
+                                                                            const action = e.target.value;
+                                                                            e.target.value = '';
+                                                                            if (action === 'view' && order.creditRequestUrl) {
+                                                                                window.open(order.creditRequestUrl, '_blank');
+                                                                            } else if (action === 'approve') {
                                                                                 handleApproveCredit(order);
-                                                                            } else if (e.target.value === 'reject') {
+                                                                            } else if (action === 'reject') {
                                                                                 handleRejectCredit(order);
                                                                             }
-                                                                            e.target.value = '';
                                                                         }}
                                                                     >
                                                                         <option value="">Ações...</option>
-                                                                        <option value="view">👁️ Ver Orçamento</option>
-                                                                        <option value="approve">✅ Aprovar</option>
-                                                                        <option value="reject">❌ Rejeitar</option>
+                                                                        {order.creditRequestStatus !== 'Rejeitado' && <option value="approve">✅ Aprovar</option>}
+                                                                        {order.creditRequestStatus !== 'Rejeitado' && <option value="reject">❌ Rejeitar</option>}
                                                                     </select>
                                                                 </div>
                                                             </div>

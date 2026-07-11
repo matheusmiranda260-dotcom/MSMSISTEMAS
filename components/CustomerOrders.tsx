@@ -295,10 +295,6 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
             alert('Por favor, selecione um cliente.');
             return;
         }
-        if (!creditOrderNumber.trim()) {
-            alert('Por favor, informe o número do orçamento.');
-            return;
-        }
         if (!creditFile) {
             alert('Por favor, anexe o arquivo.');
             return;
@@ -308,16 +304,18 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
             return;
         }
 
-        // Find the order
-        const targetOrder = commercialOrders.find(o => String(o.orderNumber) === creditOrderNumber.trim() && (String(o.clientCode) === creditSelectedClient.code || o.clientId === creditSelectedClient.id));
-        if (!targetOrder) {
-            alert('Orçamento não encontrado para este cliente. Verifique o número digitado.');
-            return;
+        let targetOrder = null;
+        if (creditOrderNumber.trim()) {
+            targetOrder = commercialOrders.find(o => String(o.orderNumber) === creditOrderNumber.trim() && (String(o.clientCode) === creditSelectedClient.code || o.clientId === creditSelectedClient.id));
+            if (!targetOrder) {
+                alert('Orçamento não encontrado para este cliente. Verifique o número digitado.');
+                return;
+            }
         }
 
         setIsSubmittingCredit(true);
         try {
-            const fileName = `${Date.now()}_${targetOrder.orderNumber}_credit_${creditFile.name}`;
+            const fileName = `${Date.now()}_${targetOrder ? targetOrder.orderNumber : 'AVULSO'}_credit_${creditFile.name}`;
             const url = await uploadFile('kb-files', fileName, creditFile);
             
             if (url) {
@@ -327,12 +325,41 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                     action: 'Solicitação de Crédito Enviada'
                 };
                 
-                await updateItem('commercial_orders', targetOrder.id!, { 
-                    creditRequestStatus: 'Pendente',
-                    creditRequestUrl: url,
-                    paymentValue: parseFloat(creditValue.replace(/\./g, '').replace(',', '.')) || 0,
-                    history: [...(targetOrder.history || []), newHistoryEntry]
-                });
+                if (targetOrder) {
+                    await updateItem('commercial_orders', targetOrder.id!, { 
+                        creditRequestStatus: 'Pendente',
+                        creditRequestUrl: url,
+                        paymentValue: parseFloat(creditValue.replace(/\./g, '').replace(',', '.')) || 0,
+                        history: [...(targetOrder.history || []), newHistoryEntry]
+                    });
+                } else {
+                    const maxId = commercialOrders.reduce((max, q) => {
+                        const num = parseInt(q.orderNumber, 10);
+                        return isNaN(num) ? max : Math.max(max, num);
+                    }, 0);
+                    const nextId = String(maxId + 1).padStart(7, '0');
+
+                    const newCreditOrder = {
+                        orderNumber: nextId,
+                        date: new Date().toISOString().split('T')[0],
+                        salesperson: (currentUser?.name || currentUser?.username || 'SISTEMA').toUpperCase(),
+                        clientCode: creditSelectedClient.code || '1001',
+                        clientName: creditSelectedClient.name,
+                        clientCity: creditSelectedClient.addressMain || '',
+                        clientObs: 'OBS: Solicitação de Crédito Avulsa',
+                        price: 0.00,
+                        status: 'Orçamento',
+                        creditRequestStatus: 'Pendente',
+                        creditRequestUrl: url,
+                        paymentValue: parseFloat(creditValue.replace(/\./g, '').replace(',', '.')) || 0,
+                        history: [{
+                            date: new Date().toISOString(),
+                            user: (currentUser?.name || currentUser?.username || 'SISTEMA').toUpperCase(),
+                            action: 'Orçamento iniciado'
+                        }, newHistoryEntry]
+                    };
+                    await insertItem<CommercialOrder>('commercial_orders', newCreditOrder);
+                }
                 
                 setIsNewCreditFormOpen(false);
                 setCreditClientSearch('');
@@ -356,6 +383,9 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
         if (!status) return 'bg-green-200 border-b-2 border-green-400 text-slate-900 font-medium shadow-sm';
         const clean = status.toLowerCase();
         
+        if (clean === 'rejeitado pelo financeiro') {
+            return 'bg-red-200 border-b-2 border-red-400 text-slate-900 font-medium shadow-sm';
+        }
         if (clean === 'orçamento' || clean === 'orçamento vazio' || clean === 'orçamento incompleto') {
             return 'bg-green-200 border-b-2 border-green-400 text-slate-900 font-medium shadow-sm';
         }
@@ -636,7 +666,10 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 </svg>
                                                 VENDEDOR: {q.salesperson || 'NÃO INFORMADO'}
                                             </span>
-                                            {q.clientObs && <span className="text-[9px] font-black text-slate-900/80 italic">{q.clientObs}</span>}
+                                            {(() => {
+                                                const displayObs = q.clientObs ? q.clientObs.replace(/\[FINANCEIRO REJEITOU\]:.*$/s, '').trim() : '';
+                                                return displayObs ? <span className="text-[9px] font-black text-slate-900/80 italic">{displayObs}</span> : null;
+                                            })()}
                                         </div>
                                     </div>
                                 </div>
@@ -646,9 +679,10 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                 {(() => {
                                         const isAllProgrammed = projectBitolas.length > 0 && projectBitolas.every(b => programmedBitolas[q.id || '']?.includes(String(b)));
                                         const st = q.status?.toLowerCase() || '';
+                                        const isRejectedByFinance = st === 'rejeitado pelo financeiro';
                                         let activeStage = 'orcamento';
                                         if (st === 'orçamento') activeStage = 'orcamento';
-                                        else if (st === 'aguardando financeiro' || st === 'financeiro' || st === 'análise de crédito') activeStage = 'financeiro';
+                                        else if (st === 'aguardando financeiro' || st === 'financeiro' || st === 'análise de crédito' || isRejectedByFinance) activeStage = 'financeiro';
                                         else if (st === 'em processo de leitura' || st === 'aguardando engenharia') activeStage = 'leitura';
                                         else if (st.includes('aguardo setor de produção')) {
                                             activeStage = isAllProgrammed ? 'producao' : 'pcp';
@@ -666,12 +700,14 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         const isPastOrActive = (stageName: string) => stageOrder.indexOf(stageName) <= activeStageIndex;
 
                                         const getDotClasses = (stageName: string, legacyIsPast?: boolean) => {
+                                            if (isRejectedByFinance && stageName === 'financeiro') return 'bg-red-500 ring-4 ring-red-500/40 scale-[1.3] animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.6)]';
                                             if (activeStage === stageName) return 'bg-orange-500 ring-4 ring-orange-500/40 scale-[1.3] animate-pulse shadow-[0_0_15px_rgba(249,115,22,0.6)]';
                                             if (isPastOrActive(stageName)) return 'bg-emerald-500 ring-4 ring-emerald-500/30 scale-110 shadow-[0_0_10px_rgba(16,185,129,0.4)]';
                                             return 'bg-black/20';
                                         };
 
                                         const getLabelClasses = (stageName: string, legacyIsPast?: boolean) => {
+                                            if (isRejectedByFinance && stageName === 'financeiro') return 'text-red-600 font-black';
                                             if (activeStage === stageName) return 'text-orange-600';
                                             if (isPastOrActive(stageName)) return 'text-emerald-700';
                                             return 'text-black/40';
@@ -729,20 +765,36 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 
                                                 <div className="relative flex flex-col items-center gap-2 z-10 w-16 group">
                                                     <div className={`w-5 h-5 flex items-center justify-center rounded-full transition-all duration-300 ${getDotClasses('financeiro', !isOrcamento && activeStage !== 'financeiro')}`}>
-                                                        {isCompleted('financeiro', !isOrcamento && activeStage !== 'financeiro') ? <Checkmark /> : (activeStage === 'financeiro' ? <GearIcon /> : null)}
+                                                        {isCompleted('financeiro', !isOrcamento && activeStage !== 'financeiro') ? <Checkmark /> : (activeStage === 'financeiro' ? (isRejectedByFinance ? <span className="text-white text-xs font-bold leading-none">!</span> : <GearIcon />) : null)}
                                                     </div>
                                                     <span className={`text-[9px] font-black uppercase mt-1 transition-all ${getLabelClasses('financeiro', !isOrcamento && activeStage !== 'financeiro')}`}>Financeiro</span>
-                                                    {!isOrcamento && expandedOrderId === q.id && (
+                                                    {(!isOrcamento || isRejectedByFinance) && expandedOrderId === q.id && (
                                                         <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-white rounded-xl p-3 shadow-xl border border-slate-100 flex flex-col min-w-[180px] z-30 cursor-default" onClick={(e) => e.stopPropagation()}>
-                                                            <div className="bg-[#3b82f6] text-white text-[10px] font-black px-3 py-1.5 rounded-t-lg absolute top-0 left-0 right-0 text-center uppercase tracking-widest shadow-sm">
+                                                            <div className={`${isRejectedByFinance ? 'bg-red-500' : 'bg-[#3b82f6]'} text-white text-[10px] font-black px-3 py-1.5 rounded-t-lg absolute top-0 left-0 right-0 text-center uppercase tracking-widest shadow-sm`}>
                                                                 Financeiro
                                                             </div>
                                                             <div className="pt-8 flex flex-col gap-2 text-[10px] text-slate-600 font-medium whitespace-nowrap">
                                                                 {isPastOrActive('financeiro') ? (
                                                                     activeStage === 'financeiro' ? (
-                                                                        <span className="text-amber-500 font-black uppercase animate-pulse">
-                                                                            {q.status?.toLowerCase() === 'análise de crédito' ? '- EM ANÁLISE DE CRÉDITO' : '- AGUARDANDO APROVAÇÃO'}
-                                                                        </span>
+                                                                        isRejectedByFinance ? (
+                                                                            <div className="flex flex-col gap-1">
+                                                                                <span className="text-red-600 font-black uppercase">- REJEITADO</span>
+                                                                                {(() => {
+                                                                                    const rejectionReason = q.history?.slice().reverse().find((h: any) => h.action === 'Pedido Rejeitado pelo Financeiro')?.details || 
+                                                                                        (q.clientObs && q.clientObs.includes('[FINANCEIRO REJEITOU]:') ? q.clientObs.split('[FINANCEIRO REJEITOU]:')[1].trim() : null);
+                                                                                    
+                                                                                    return rejectionReason ? (
+                                                                                        <span className="text-slate-600 whitespace-normal mt-0.5 italic text-[9px] break-words max-w-[150px]">
+                                                                                            Motivo: {rejectionReason}
+                                                                                        </span>
+                                                                                    ) : null;
+                                                                                })()}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className="text-amber-500 font-black uppercase animate-pulse">
+                                                                                {q.status?.toLowerCase() === 'análise de crédito' ? '- EM ANÁLISE DE CRÉDITO' : '- AGUARDANDO APROVAÇÃO'}
+                                                                            </span>
+                                                                        )
                                                                     ) : (
                                                                         <span className="text-emerald-600 font-black uppercase">- APROVADO</span>
                                                                     )
@@ -969,13 +1021,13 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         }}
                                     >
                                         <option value="">Ações...</option>
-                                        {q.status?.toLowerCase() === 'orçamento' && (
+                                        {(q.status?.toLowerCase() === 'orçamento' || q.status?.toLowerCase() === 'rejeitado pelo financeiro') && (
                                             <option value="edit">✏️ Editar</option>
                                         )}
                                         {!isIncomplete && (
                                             <option value="print">🖨️ Imprimir</option>
                                         )}
-                                        {q.status?.toLowerCase() === 'orçamento' && !isIncomplete && (
+                                        {(q.status?.toLowerCase() === 'orçamento' || q.status?.toLowerCase() === 'rejeitado pelo financeiro') && !isIncomplete && (
                                             <option value="export">➡️ Exportar</option>
                                         )}
                                         {/* Regular delete removed - only gestor can delete */}
@@ -1228,12 +1280,13 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                         <th className="p-4 font-bold text-xs uppercase">Cliente</th>
                                                         <th className="p-4 text-center font-bold text-xs uppercase w-32">Status</th>
                                                         <th className="p-4 text-center font-bold text-xs uppercase w-36">Valor Solicitado</th>
+                                                        <th className="p-4 text-center font-bold text-xs uppercase w-32">Ações</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {sellerCreditOrders.length === 0 ? (
                                                         <tr>
-                                                            <td colSpan={6} className="p-8 text-center text-slate-500 font-medium border-b border-slate-100">
+                                                            <td colSpan={7} className="p-8 text-center text-slate-500 font-medium border-b border-slate-100">
                                                                 Nenhuma solicitação de crédito encontrada.
                                                             </td>
                                                         </tr>
@@ -1243,9 +1296,9 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                                 ? String(order.date).split('-').reverse().join('/') 
                                                                 : (order.date || '');
                                                                 
-                                                            const isPending = order.status === 'Análise de Crédito';
-                                                            const isRejected = order.status?.toLowerCase().includes('orçamento');
-                                                            const isApproved = !isPending && !isRejected;
+                                                            const isPending = order.creditRequestStatus === 'Pendente' || (!order.creditRequestStatus && order.status === 'Análise de Crédito');
+                                                            const isRejected = order.creditRequestStatus === 'Rejeitado' || (!order.creditRequestStatus && order.status?.toLowerCase().includes('orçamento'));
+                                                            const isApproved = order.creditRequestStatus === 'Aprovado' || (!isPending && !isRejected);
                                                             
                                                             const creditEvent = order.history?.find(h => h.action.includes('Solicitação de Crédito Enviada'));
                                                             const creditTime = creditEvent ? new Date(creditEvent.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : null;
@@ -1279,14 +1332,46 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                                             </div>
                                                                         )}
                                                                         {isRejected && (
-                                                                            <div className="bg-red-100 text-red-700 text-[10px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm border border-red-200 inline-block">
-                                                                                Rejeitado
+                                                                            <div className="flex flex-col items-center gap-1">
+                                                                                <div className="bg-red-100 text-red-700 text-[10px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-sm border border-red-200 inline-block">
+                                                                                    Rejeitado
+                                                                                </div>
+                                                                                {(() => {
+                                                                                    const rejectionReason = order.history?.slice().reverse().find((h: any) => h.action === 'Solicitação de Crédito Rejeitada')?.details;
+                                                                                    return rejectionReason ? (
+                                                                                        <span className="text-red-600 text-[9px] font-black italic max-w-[120px] truncate" title={rejectionReason}>Motivo: {rejectionReason}</span>
+                                                                                    ) : null;
+                                                                                })()}
                                                                             </div>
                                                                         )}
                                                                     </td>
                                                                     <td className="p-4 text-center font-black text-slate-900 text-sm">
                                                                         <div className="flex flex-col items-center gap-1">
                                                                             <span className="text-xs text-sky-600 bg-sky-50 px-1.5 py-0.5 rounded">R$ {(order.paymentValue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="p-4 text-center">
+                                                                        <div className="flex justify-center items-center gap-2 flex-wrap">
+                                                                            {order.creditRequestUrl && (
+                                                                                <button onClick={() => window.open(order.creditRequestUrl, '_blank')} className="text-sky-600 hover:text-sky-800 text-[10px] font-black flex items-center gap-1 uppercase transition-colors" title="Ver Anexo">
+                                                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                                                                    </svg>
+                                                                                </button>
+                                                                            )}
+                                                                            {isRejected && (
+                                                                                <button 
+                                                                                    onClick={() => {
+                                                                                        setCreditSelectedClient({ code: order.clientCode, name: order.clientName, id: order.clientId });
+                                                                                        setCreditOrderNumber(order.orderNumber);
+                                                                                        setCreditValue((order.paymentValue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
+                                                                                        setIsNewCreditFormOpen(true);
+                                                                                    }}
+                                                                                    className="bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-colors shadow-sm whitespace-nowrap"
+                                                                                >
+                                                                                    Reenviar
+                                                                                </button>
+                                                                            )}
                                                                         </div>
                                                                     </td>
                                                                 </tr>
@@ -1356,13 +1441,13 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
 
                                                 <div className="space-y-2">
                                                     <label className="text-xs font-black text-slate-500 uppercase tracking-wider">
-                                                        Número do Orçamento
+                                                        Número do Orçamento (Opcional)
                                                     </label>
                                                     <input
                                                         type="text"
                                                         value={creditOrderNumber}
                                                         onChange={(e) => setCreditOrderNumber(e.target.value)}
-                                                        placeholder="Ex: 504"
+                                                        placeholder="Ex: 504 (Deixe em branco para crédito avulso)"
                                                         className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-slate-900 font-bold focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none transition-all"
                                                     />
                                                 </div>
@@ -1415,12 +1500,12 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                     <button
                                                         onClick={() => {
                                                             handleConfirmCreditRequest().then(() => {
-                                                                if (!creditSearchError && creditValue && creditOrderNumber && creditFile) {
+                                                                if (!creditSearchError && creditValue && creditFile) {
                                                                     setIsNewCreditFormOpen(false); // only close form on success if possible. Actually the handle uses alert, so it will stay open if error. But if success it closes modal. We can just change handleConfirmCreditRequest if we want to stay in modal. 
                                                                 }
                                                             });
                                                         }}
-                                                        disabled={isSubmittingCredit || !creditFile || !creditOrderNumber || !creditValue}
+                                                        disabled={isSubmittingCredit || !creditFile || !creditValue}
                                                         className="px-5 py-2.5 rounded-xl font-bold bg-sky-600 hover:bg-sky-700 text-white transition-colors shadow-md shadow-sky-500/20 disabled:opacity-50 flex items-center gap-2"
                                                     >
                                                         {isSubmittingCredit ? 'Enviando...' : 'Enviar Solicitação'}
