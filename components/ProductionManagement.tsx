@@ -224,6 +224,25 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
         return () => clearInterval(interval);
     }, [isMachinesModalOpen]);
 
+    const [currentMachineStop, setCurrentMachineStop] = useState<any>(null);
+    useEffect(() => {
+        if (!isMachinesModalOpen || !selectedMachineTab) return;
+        const fetchStops = async () => {
+            try {
+                const { data } = await supabase
+                    .from('machine_stops')
+                    .select('*')
+                    .eq('machine', selectedMachineTab)
+                    .is('end_time', null)
+                    .limit(1);
+                setCurrentMachineStop(data && data.length > 0 ? data[0] : null);
+            } catch(e) {}
+        };
+        fetchStops();
+        const interval = setInterval(fetchStops, 3000);
+        return () => clearInterval(interval);
+    }, [isMachinesModalOpen, selectedMachineTab]);
+
     const [machineStops, setMachineStops] = useState<any[]>([]);
     
     // Fetch shifts and stops for the daily report
@@ -1737,14 +1756,14 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                 return (
                                                     <div className="space-y-3">
                                                         {/* Status da máquina */}
-                                                        <div className={`flex items-center gap-3 p-4 rounded-xl border ${hasAssignedOperator && !isOperatorOnline ? 'bg-rose-50 border-rose-200' : isOperatorOnline ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
-                                                            <div className={`w-3 h-3 rounded-full ${hasAssignedOperator && !isOperatorOnline ? 'bg-rose-500' : isOperatorOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></div>
+                                                        <div className={`flex items-center gap-3 p-4 rounded-xl border ${hasAssignedOperator && !isOperatorOnline ? 'bg-rose-50 border-rose-200' : isOperatorOnline ? (currentMachineStop ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200') : 'bg-slate-50 border-slate-200'}`}>
+                                                            <div className={`w-3 h-3 rounded-full ${hasAssignedOperator && !isOperatorOnline ? 'bg-rose-500' : isOperatorOnline ? (currentMachineStop ? 'bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'bg-emerald-500 animate-pulse') : 'bg-slate-400'}`}></div>
                                                             <div>
-                                                                <p className={`text-xs font-black uppercase tracking-wide ${hasAssignedOperator && !isOperatorOnline ? 'text-rose-600' : isOperatorOnline ? 'text-emerald-700' : 'text-slate-600'}`}>
-                                                                    {hasAssignedOperator && !isOperatorOnline ? '🔴 Máquina Desligada' : isOperatorOnline ? '🟢 Operador Online' : '⚪ Sem operador vinculado'}
+                                                                <p className={`text-xs font-black uppercase tracking-wide ${hasAssignedOperator && !isOperatorOnline ? 'text-rose-600' : isOperatorOnline ? (currentMachineStop ? 'text-red-700' : 'text-emerald-700') : 'text-slate-600'}`}>
+                                                                    {hasAssignedOperator && !isOperatorOnline ? '🔴 Máquina Desligada' : isOperatorOnline ? (currentMachineStop ? '🔴 Máquina Parada' : '🟢 Operador Online') : '⚪ Sem operador vinculado'}
                                                                 </p>
-                                                                <p className="text-[10px] text-slate-500 mt-0.5">
-                                                                    {hasAssignedOperator && !isOperatorOnline ? 'Turno não iniciado' : isOperatorOnline ? 'Aguardando O.S.' : 'Nenhuma O.S. na fila'}
+                                                                <p className={`text-[10px] mt-0.5 font-bold ${currentMachineStop ? 'text-red-500' : 'text-slate-500'}`}>
+                                                                    {hasAssignedOperator && !isOperatorOnline ? 'Turno não iniciado' : isOperatorOnline ? (currentMachineStop ? `Motivo: ${currentMachineStop.reason}` : 'Aguardando O.S.') : 'Nenhuma O.S. na fila'}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -1758,13 +1777,18 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                             return (
                                                 <div className="space-y-3">
                                                     {/* Banner status do operador */}
-                                                    <div className={`flex items-center gap-3 p-3 rounded-xl border ${hasAssignedOperator && !isOperatorOnline ? 'bg-rose-50 border-rose-200' : isOperatorOnline ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
-                                                        <div className={`w-3 h-3 rounded-full shrink-0 ${hasAssignedOperator && !isOperatorOnline ? 'bg-rose-500' : isOperatorOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></div>
-                                                        <p className={`text-xs font-black uppercase tracking-wide ${hasAssignedOperator && !isOperatorOnline ? 'text-rose-600' : isOperatorOnline ? 'text-emerald-700' : 'text-amber-700'}`}>
-                                                            {hasAssignedOperator && !isOperatorOnline ? '🔴 Operador Offline — Turno não iniciado' 
-                                                             : isOperatorOnline ? `🟢 ${operatorsAssigned.find(u=>u.isOnline)?.username || 'Operador'} está online` 
-                                                             : '⚪ Sem operador vinculado'}
-                                                        </p>
+                                                    <div className={`flex items-center gap-3 p-3 rounded-xl border ${hasAssignedOperator && !isOperatorOnline ? 'bg-rose-50 border-rose-200' : isOperatorOnline ? (currentMachineStop ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200') : 'bg-amber-50 border-amber-200'}`}>
+                                                        <div className={`w-3 h-3 rounded-full shrink-0 ${hasAssignedOperator && !isOperatorOnline ? 'bg-rose-500' : isOperatorOnline ? (currentMachineStop ? 'bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'bg-emerald-500 animate-pulse') : 'bg-amber-500'}`}></div>
+                                                        <div className="flex flex-col">
+                                                            <p className={`text-xs font-black uppercase tracking-wide ${hasAssignedOperator && !isOperatorOnline ? 'text-rose-600' : isOperatorOnline ? (currentMachineStop ? 'text-red-700' : 'text-emerald-700') : 'text-amber-700'}`}>
+                                                                {hasAssignedOperator && !isOperatorOnline ? '🔴 Operador Offline — Turno não iniciado' 
+                                                                 : isOperatorOnline ? (currentMachineStop ? '🔴 MÁQUINA PARADA' : `🟢 ${operatorsAssigned.find(u=>u.isOnline)?.username || 'Operador'} está online`) 
+                                                                 : '⚪ Sem operador vinculado'}
+                                                            </p>
+                                                            {isOperatorOnline && currentMachineStop && (
+                                                                <p className="text-[10px] font-bold text-red-500 uppercase mt-0.5">Motivo: {currentMachineStop.reason}</p>
+                                                            )}
+                                                        </div>
                                                     </div>
 
                                                     {/* Lista de O.S. */}
@@ -1888,8 +1912,8 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                                 </div>
                                                                             ) : isOperatorOnline ? (
                                                                                 <div>
-                                                                                    <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">🟢 Máquina Ligada</p>
-                                                                                    <p className="text-[9px] text-emerald-500 font-bold">Aguardando início da O.S.</p>
+                                                                                    <p className={`text-[9px] font-black uppercase tracking-widest ${currentMachineStop ? 'text-red-600 animate-pulse' : 'text-emerald-600'}`}>{currentMachineStop ? '🔴 Máquina Parada' : '🟢 Máquina Ligada'}</p>
+                                                                                    <p className={`text-[9px] font-bold ${currentMachineStop ? 'text-red-500' : 'text-emerald-500'}`}>{currentMachineStop ? `Motivo: ${currentMachineStop.reason}` : 'Aguardando início da O.S.'}</p>
                                                                                 </div>
                                                                             ) : (
                                                                                 <div>
