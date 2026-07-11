@@ -2118,26 +2118,29 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                     const durS = Math.floor(Math.max(0, dEnd - dStart) / 1000);
                                     totalProductionS += durS;
 
-                                    timelineEvents.push({
-                                        id: `cut_start_${item.osNum}_${item.subNum}_${idx}`,
-                                        timestampRaw: item.startTimeRaw,
-                                        label: 'Início de Corte',
-                                        details: `O.S. #${item.osNum} - POS ${item.subNum} | Peso: ${item.weightPerCut.toFixed(2)} kg | Comp: ${item.metersPerCut.toFixed(2)} m`,
-                                        operator: 'Sistema',
-                                        icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>,
-                                        colorClass: 'bg-amber-100 text-amber-700 border-amber-200',
-                                        type: 'cut'
-                                    });
                                     if (item.endTimeRaw) {
                                         timelineEvents.push({
-                                            id: `cut_end_${item.osNum}_${item.subNum}_${idx}`,
-                                            timestampRaw: item.endTimeRaw,
-                                            label: 'Fim de Corte',
+                                            id: `cut_${item.osNum}_${item.subNum}_${idx}`,
+                                            timestampRaw: item.endTimeRaw, // Sorting by completion time or start time? Let's use start time to keep chronological order of execution. Actually, end time is fine for completed.
+                                            label: 'Corte Realizado',
                                             details: `O.S. #${item.osNum} - POS ${item.subNum} | Peso: ${item.weightPerCut.toFixed(2)} kg | Comp: ${item.metersPerCut.toFixed(2)} m (Dur: ${formatDuration(durS)})`,
                                             operator: 'Sistema',
                                             icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7"/></svg>,
                                             colorClass: 'bg-blue-100 text-blue-700 border-blue-200',
-                                            type: 'cut'
+                                            type: 'cut',
+                                            timeDisplay: `${new Date(item.startTimeRaw).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})} - ${new Date(item.endTimeRaw).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}`
+                                        });
+                                    } else {
+                                        timelineEvents.push({
+                                            id: `cut_${item.osNum}_${item.subNum}_${idx}`,
+                                            timestampRaw: item.startTimeRaw,
+                                            label: 'Cortando...',
+                                            details: `O.S. #${item.osNum} - POS ${item.subNum} | Peso: ${item.weightPerCut.toFixed(2)} kg | Comp: ${item.metersPerCut.toFixed(2)} m (Em andamento: ${formatDuration(durS)})`,
+                                            operator: 'Sistema',
+                                            icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>,
+                                            colorClass: 'bg-red-100 text-red-600 border-red-300 animate-pulse',
+                                            type: 'cut',
+                                            timeDisplay: `${new Date(item.startTimeRaw).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})} - Agora`
                                         });
                                     }
                                 });
@@ -2310,7 +2313,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                             <span className="text-sm font-bold text-slate-800 mt-0.5">{ev.details}</span>
                                                                         </div>
                                                                         <div className="flex flex-col items-end">
-                                                                            <span className="text-xs font-bold text-slate-500">{new Date(ev.timestampRaw).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</span>
+                                                                            <span className="text-xs font-bold text-slate-500">{ev.timeDisplay || new Date(ev.timestampRaw).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</span>
                                                                             <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">{ev.operator}</span>
                                                                         </div>
                                                                     </div>
