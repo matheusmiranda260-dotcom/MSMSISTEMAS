@@ -245,38 +245,54 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
 
     const [machineStops, setMachineStops] = useState<any[]>([]);
     const [timelineFilter, setTimelineFilter] = useState<'all' | 'stops' | 'cuts'>('all');
+    const [selectedShiftId, setSelectedShiftId] = useState<string>('');
+    const [allMachineShifts, setAllMachineShifts] = useState<any[]>([]);
     
     // Fetch shifts and stops for the daily report
     useEffect(() => {
         if (!isReportModalOpen || !selectedMachineTab) return;
         
         const fetchData = async () => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
             const { data: shifts } = await supabase
                 .from('operator_shifts')
                 .select('*')
                 .eq('machine', selectedMachineTab)
-                .gte('start_time', today.toISOString())
-                .order('start_time', { ascending: false });
+                .order('start_time', { ascending: false })
+                .limit(50); // Get recent 50 shifts for history
                 
-            if (shifts) setDailyShifts(shifts);
-            
-            const { data: stops } = await supabase
-                .from('machine_stops')
-                .select('*')
-                .eq('machine', selectedMachineTab)
-                .gte('start_time', today.toISOString())
-                .order('start_time', { ascending: false });
+            if (shifts && shifts.length > 0) {
+                setAllMachineShifts(shifts);
                 
-            if (stops) setMachineStops(stops);
+                // If no shift is selected, default to the most recent one
+                const targetShiftId = selectedShiftId || shifts[0].id;
+                if (!selectedShiftId) setSelectedShiftId(targetShiftId);
+                
+                const activeShift = shifts.find(s => s.id === targetShiftId) || shifts[0];
+                setDailyShifts([activeShift]);
+                
+                let stopsQuery = supabase
+                    .from('machine_stops')
+                    .select('*')
+                    .eq('machine', selectedMachineTab)
+                    .gte('start_time', activeShift.start_time);
+                    
+                if (activeShift.end_time) {
+                    stopsQuery = stopsQuery.lte('start_time', activeShift.end_time);
+                }
+                
+                const { data: stops } = await stopsQuery.order('start_time', { ascending: false });
+                if (stops) setMachineStops(stops);
+            } else {
+                setAllMachineShifts([]);
+                setDailyShifts([]);
+                setMachineStops([]);
+            }
         };
         
         fetchData();
         const interval = setInterval(fetchData, 10000); // refresh every 10s while open
         return () => clearInterval(interval);
-    }, [isReportModalOpen, selectedMachineTab]);
+    }, [isReportModalOpen, selectedMachineTab, selectedShiftId]);
 
     // Always poll production orders when machines modal is open (guarantees fresh data)
     useEffect(() => {
@@ -1986,6 +2002,22 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                 <p className="text-xs font-bold text-indigo-700 mt-1 uppercase">Acompanhamento Diário da Máquina</p>
                             </div>
                             <div className="flex items-center gap-3">
+                                {allMachineShifts.length > 0 && (
+                                    <div className="flex items-center gap-2 bg-white rounded-lg p-1.5 border border-slate-200 shadow-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 ml-2"><path d="M5 3v18"/><path d="m19 9-7 7-7-7"/></svg>
+                                        <select 
+                                            value={selectedShiftId}
+                                            onChange={(e) => setSelectedShiftId(e.target.value)}
+                                            className="bg-transparent text-xs font-bold text-slate-700 outline-none uppercase py-1 px-2 cursor-pointer w-48"
+                                        >
+                                            {allMachineShifts.map((shift, idx) => (
+                                                <option key={shift.id} value={shift.id}>
+                                                    {new Date(shift.start_time).toLocaleDateString('pt-BR')} - {new Date(shift.start_time).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})} {shift.end_time ? `às ${new Date(shift.end_time).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}` : '(Em andamento)'}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                                 <button onClick={() => window.print()} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-xl shadow-sm transition-colors flex items-center gap-2 text-sm uppercase">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                                     Imprimir
@@ -2016,6 +2048,18 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                     const progress = getParsedProgress(po);
                                     Object.entries(progress).forEach(([subKey, val]: [string, any]) => {
                                         if (val && typeof val === 'object' && val.start_time) {
+                                            // Verifica se o item pertence ao turno selecionado
+                                            const activeShift = dailyShifts[0];
+                                            if (activeShift) {
+                                                const itemTime = new Date(val.start_time).getTime();
+                                                const shiftStartTime = new Date(activeShift.start_time).getTime();
+                                                const shiftEndTime = activeShift.end_time ? new Date(activeShift.end_time).getTime() : new Date().getTime() + 86400000;
+                                                
+                                                if (itemTime < shiftStartTime || itemTime > shiftEndTime) {
+                                                    return; // Ignora se não estiver no range do turno
+                                                }
+                                            }
+
                                             const subNum = subKey.replace('sub_', '');
                                             const osNum = getField(po, 'order_number', 'orderNumber');
                                             
