@@ -800,8 +800,8 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 {/* Modal Motivo de Parada */}
                 {isStopReasonModalOpen && (
                     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] flex flex-col items-center justify-center p-4 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden flex flex-col shadow-2xl">
-                            <div className="bg-red-50 p-6 border-b border-red-100 flex justify-between items-center">
+                        <div className="bg-white rounded-3xl w-full max-w-3xl overflow-hidden flex flex-col shadow-2xl">
+                            <div className="bg-red-50 p-6 border-b border-red-100 flex justify-between items-center shrink-0">
                                 <div>
                                     <h3 className="text-xl font-black text-red-900 uppercase tracking-tight">Motivo da Parada</h3>
                                     <p className="text-xs font-bold text-red-600 mt-1">Selecione o que aconteceu com a máquina</p>
@@ -810,12 +810,19 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                 </button>
                             </div>
-                            <div className="p-6 grid grid-cols-2 gap-3 bg-slate-50">
-                                {['Troca de rolo', 'Alinhamento de ferro', 'Falha de sensor', 'Troca de rolamento', 'Aguardando ponte', 'Outros'].map((reason) => (
+                            <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-3 bg-slate-50 overflow-y-auto max-h-[65vh]">
+                                {[
+                                    'Check-list', 'Refeição', 'Set Up', 'Falta Materia Prima', 
+                                    'Abastecimento', 'Acúmulo de Produção', 'Manutenção', 'Regulagem', 
+                                    'Falta Energia Elétrica', 'Reunião / Treinamento', 'Manutenção Autônoma', 
+                                    'Máquina sem Programação', 'Embalagem', 'Limpeza e organização', 
+                                    'Digitação', 'Embolo no desbobinamento', 'Problema no Compressor', 
+                                    'Problema no Pórtico', 'Outros'
+                                ].map((reason) => (
                                     <button
                                         key={reason}
                                         onClick={() => confirmStopMachine(reason)}
-                                        className="bg-white border-2 border-slate-200 hover:border-red-400 hover:bg-red-50 text-slate-700 hover:text-red-700 font-bold p-4 rounded-2xl transition-all shadow-sm active:scale-95 text-sm uppercase"
+                                        className="bg-white border-2 border-slate-200 hover:border-red-400 hover:bg-red-50 text-slate-700 hover:text-red-700 font-bold p-3 rounded-2xl transition-all shadow-sm active:scale-95 text-[11px] uppercase flex items-center justify-center text-center h-full min-h-[60px]"
                                     >
                                         {reason}
                                     </button>
