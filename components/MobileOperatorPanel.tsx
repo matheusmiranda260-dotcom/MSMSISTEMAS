@@ -254,8 +254,44 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
 
     const handleOpenModal = (osId: string) => {
         setActiveModalPoId(osId);
-        setSubOsSearch('');
-        setActiveSubOs(null);
+        const po = localOrders.find(p => p.id === osId);
+        let foundProducing = false;
+
+        if (po) {
+            const currentProgressObj = typeof po.sub_items_progress === 'string' 
+                ? JSON.parse(po.sub_items_progress) 
+                : (po.sub_items_progress || {});
+            
+            for (const subOsKey in currentProgressObj) {
+                if (currentProgressObj[subOsKey].status === 'producing') {
+                    const commOrderId = (po as any).related_commercial_order_id || (po as any).relatedCommercialOrderId;
+                    const commOrder = commercialOrders.find(co => co.id === commOrderId);
+                    const rawProjectData = (commOrder as any)?.project_data || commOrder?.projectData;
+                    
+                    if (rawProjectData && Array.isArray(rawProjectData)) {
+                        const normalizedData = rawProjectData.map(item => {
+                            const newItem: any = {};
+                            for (const key in item) {
+                                newItem[key.trim().toLowerCase()] = item[key];
+                            }
+                            return newItem;
+                        });
+                        const foundSub = normalizedData.find(s => String(s.os).trim() === subOsKey);
+                        if (foundSub) {
+                            setActiveSubOs(foundSub);
+                            setSubOsSearch(subOsKey);
+                            foundProducing = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (!foundProducing) {
+            setSubOsSearch('');
+            setActiveSubOs(null);
+        }
     };
 
     const handleStartSubOs = async (osId: string, subOsKey: string) => {
@@ -602,14 +638,14 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                     <div className="flex gap-2">
                                         <button 
                                             onClick={() => handleOpenModal(po.id)}
-                                            className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-black py-5 rounded-xl text-lg uppercase shadow-md active:scale-95 transition-all"
+                                            className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-black py-4 px-2 rounded-xl text-[13px] sm:text-sm uppercase shadow-md active:scale-95 transition-all whitespace-nowrap"
                                         >
                                             CONTINUAR CORTE
                                         </button>
                                         <button 
                                             disabled={loadingAction === `finish-batch-${po.id}`}
                                             onClick={() => handleFinishProductionBatch(po.id)}
-                                            className="flex-none px-4 bg-red-500 hover:bg-red-600 text-white font-black py-5 rounded-xl text-sm uppercase shadow-md active:scale-95 transition-all disabled:opacity-50"
+                                            className="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-black py-4 px-2 rounded-xl text-[13px] sm:text-sm uppercase shadow-md active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap"
                                         >
                                             {loadingAction === `finish-batch-${po.id}` ? 'AGUARDE...' : 'FINALIZAR'}
                                         </button>
@@ -674,23 +710,25 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                             </div>
                             
                             <div className="p-6 flex flex-col gap-6">
-                                <div>
-                                    <label className="text-sm font-bold text-slate-600 block mb-2">Digite o número da OS:</label>
-                                    <div className="flex gap-2 w-full">
-                                        <input 
-                                            type="text" 
-                                            inputMode="numeric"
-                                            value={subOsSearch}
-                                            onChange={e => setSubOsSearch(e.target.value)}
-                                            onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                                            placeholder="Ex: 147"
-                                            className="flex-1 min-w-0 bg-slate-100 border-2 border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-slate-800 focus:outline-none focus:border-indigo-500"
-                                        />
-                                        <button onClick={handleSearch} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 rounded-xl flex-none flex items-center justify-center">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
-                                        </button>
+                                {currentItemStatus !== 'producing' && (
+                                    <div>
+                                        <label className="text-sm font-bold text-slate-600 block mb-2">Digite o número da OS:</label>
+                                        <div className="flex gap-2 w-full">
+                                            <input 
+                                                type="text" 
+                                                inputMode="numeric"
+                                                value={subOsSearch}
+                                                onChange={e => setSubOsSearch(e.target.value)}
+                                                onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                                                placeholder="Ex: 147"
+                                                className="flex-1 min-w-0 bg-slate-100 border-2 border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-slate-800 focus:outline-none focus:border-indigo-500"
+                                            />
+                                            <button onClick={handleSearch} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 rounded-xl flex-none flex items-center justify-center">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
 
                                 {activeSubOs && (
                                     <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col gap-4">
