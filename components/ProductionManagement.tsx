@@ -2125,6 +2125,82 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                     }
                                 });
 
+                                // 4. Idle periods (Aguardando O.S.)
+                                const busyIntervals: {start: number, end: number}[] = [];
+                                reportItems.forEach(item => {
+                                    busyIntervals.push({
+                                        start: new Date(item.startTimeRaw).getTime(),
+                                        end: item.endTimeRaw ? new Date(item.endTimeRaw).getTime() : nowTime
+                                    });
+                                });
+                                machineStops.forEach((stop: any) => {
+                                    busyIntervals.push({
+                                        start: new Date(stop.start_time).getTime(),
+                                        end: stop.end_time ? new Date(stop.end_time).getTime() : nowTime
+                                    });
+                                });
+                                
+                                busyIntervals.sort((a, b) => a.start - b.start);
+                                const mergedBusy: {start: number, end: number}[] = [];
+                                if (busyIntervals.length > 0) {
+                                    mergedBusy.push({...busyIntervals[0]});
+                                    for (let i = 1; i < busyIntervals.length; i++) {
+                                        const last = mergedBusy[mergedBusy.length - 1];
+                                        const curr = busyIntervals[i];
+                                        if (curr.start <= last.end) {
+                                            last.end = Math.max(last.end, curr.end);
+                                        } else {
+                                            mergedBusy.push({...curr});
+                                        }
+                                    }
+                                }
+
+                                dailyShifts.forEach((shift: any) => {
+                                    const sStart = new Date(shift.start_time).getTime();
+                                    const sEnd = shift.end_time ? new Date(shift.end_time).getTime() : nowTime;
+                                    
+                                    let currentTime = sStart;
+                                    for (const busy of mergedBusy) {
+                                        if (busy.end <= currentTime) continue;
+                                        if (busy.start >= sEnd) break;
+                                        
+                                        if (busy.start > currentTime) {
+                                            const gapEnd = Math.min(busy.start, sEnd);
+                                            const durS = Math.floor((gapEnd - currentTime) / 1000);
+                                            if (durS > 5) {
+                                                totalStopS += durS;
+                                                timelineEvents.push({
+                                                    id: `idle_${currentTime}`,
+                                                    timestampRaw: new Date(currentTime).toISOString(),
+                                                    label: 'Aguardando O.S.',
+                                                    details: `Máquina ociosa aguardando início de O.S. (${formatDuration(durS)})`,
+                                                    operator: shift.username,
+                                                    icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+                                                    colorClass: 'bg-orange-100 text-orange-700 border-orange-200'
+                                                });
+                                            }
+                                        }
+                                        currentTime = Math.max(currentTime, Math.min(busy.end, sEnd));
+                                    }
+                                    
+                                    if (currentTime < sEnd) {
+                                        const gapEnd = sEnd;
+                                        const durS = Math.floor((gapEnd - currentTime) / 1000);
+                                        if (durS > 5) {
+                                            totalStopS += durS;
+                                            timelineEvents.push({
+                                                id: `idle_${currentTime}`,
+                                                timestampRaw: new Date(currentTime).toISOString(),
+                                                label: 'Aguardando O.S.',
+                                                details: `Máquina ociosa aguardando início de O.S. (${formatDuration(durS)})`,
+                                                operator: shift.username,
+                                                icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+                                                colorClass: 'bg-orange-100 text-orange-700 border-orange-200'
+                                            });
+                                        }
+                                    }
+                                });
+
                                 // Sort timeline
                                 timelineEvents.sort((a, b) => new Date(b.timestampRaw).getTime() - new Date(a.timestampRaw).getTime());
 
