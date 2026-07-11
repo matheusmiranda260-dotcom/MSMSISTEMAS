@@ -574,8 +574,8 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                         <div className="flex justify-between items-center">
                             <div>
                                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Status em tempo real</p>
-                                <p className="text-lg font-black mt-0.5 text-emerald-400">
-                                    ESTADO ATIVO
+                                <p className={`text-lg font-black mt-0.5 ${idleSince ? 'text-orange-400 animate-pulse' : 'text-emerald-400'}`}>
+                                    {idleSince ? 'MÁQUINA PARADA' : 'ESTADO ATIVO'}
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">
