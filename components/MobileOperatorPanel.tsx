@@ -78,8 +78,11 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         return () => clearInterval(interval);
     }, []);
     
-    // Shift State
-    const [isOnline, setIsOnline] = useState(currentUser.isOnline || false);
+    const [isOnline, setIsOnline] = useState<boolean>(() => {
+        const stored = localStorage.getItem(`shift_online_${currentUser.id}`);
+        if (stored !== null) return stored === 'true';
+        return currentUser.isOnline || false;
+    });
     const [isTogglingShift, setIsTogglingShift] = useState(false);
 
     // Machine Status State (Local for now)
@@ -210,6 +213,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         
         const newValue = !isOnline;
         setIsOnline(newValue);
+        localStorage.setItem(`shift_online_${currentUser.id}`, String(newValue));
         const now = new Date().toISOString();
         const shiftStart = newValue ? now : null;
         try {
@@ -281,6 +285,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
             console.error('Error toggling shift:', e);
             alert('Erro ao alterar status do turno: ' + (e.message || 'Erro inesperado.'));
             setIsOnline(!newValue);
+            localStorage.setItem(`shift_online_${currentUser.id}`, String(!newValue));
         } finally {
             setIsTogglingShift(false);
         }
