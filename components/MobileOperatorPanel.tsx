@@ -252,29 +252,10 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         }
     };
 
-    const handleOpenModal = async (osId: string) => {
-        setLoadingAction(`start-batch-${osId}`);
-        try {
-            const po = localOrders.find(p => p.id === osId);
-            if (!po) return;
-            const startTime = new Date().toISOString();
-            
-            setLocalOrders(prev => prev.map(p => {
-                if (p.id === osId) {
-                    return { ...p, status: 'producing', startTime };
-                }
-                return p;
-            }));
-
-            await supabase
-                .from('production_orders')
-                .update({ status: 'producing', start_time: startTime })
-                .eq('id', osId);
-        } catch (e) {
-            console.error('Erro:', e);
-        } finally {
-            setLoadingAction(null);
-        }
+    const handleOpenModal = (osId: string) => {
+        setActiveModalPoId(osId);
+        setSubOsSearch('');
+        setActiveSubOs(null);
     };
 
     const handleStartSubOs = async (osId: string, subOsKey: string) => {
@@ -367,8 +348,29 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 alert('Erro do sistema ao finalizar o corte.');
             }
                 
-            setSubOsSearch('');
-            setActiveSubOs(null);
+            const commOrderId = (po as any).related_commercial_order_id || (po as any).relatedCommercialOrderId;
+            const commOrder = commercialOrders.find(co => co.id === commOrderId);
+            
+            let totalSubItems = 0;
+            const rawProjectData = (commOrder as any)?.project_data || commOrder?.projectData;
+            if (rawProjectData && Array.isArray(rawProjectData)) {
+                const subItems = rawProjectData.filter(item => {
+                    const mm = item.mm || item.bitola || item.diametro || item.bit;
+                    const poBitola = (po as any).target_bitola || po.targetBitola || '0';
+                    return parseFloat(String(mm).replace(',', '.').replace(/[^\d.-]/g, '')) === parseFloat(String(poBitola).replace(',', '.').replace(/[^\d.-]/g, ''));
+                });
+                totalSubItems = subItems.length;
+            }
+
+            const completedCount = Object.values(updatedProgress).filter((p: any) => p.status === 'completed').length;
+
+            if (totalSubItems > 0 && completedCount >= totalSubItems) {
+                // Auto-finaliza a O.S pai
+                await handleFinishProductionBatch(osId);
+            } else {
+                setSubOsSearch('');
+                setActiveSubOs(null);
+            }
         } catch (e) {
             console.error('Erro ao finalizar mini OS:', e);
             alert('Erro ao finalizar corte da peça.');
@@ -583,7 +585,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                 </div>
                                 
                                 {isProducing && po.startTime && (
-                                    <div className="bg-orange-50 rounded-xl p-4 flex flex-col items-center justify-center border border-orange-200 mt-2">
+                                    <div className="bg-orange-50 rounded-xl p-4 flex flex-col items-center justify-center border border-orange-200">
                                         <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest animate-pulse mb-1">Em Execução Global</span>
                                         <ActiveTimer startTime={po.startTime} />
                                     </div>
@@ -597,13 +599,21 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                         Iniciar Produção
                                     </button>
                                 ) : (
-                                    <button 
-                                        disabled={loadingAction === `finish-batch-${po.id}`}
-                                        onClick={() => handleFinishProductionBatch(po.id)}
-                                        className="w-full bg-red-500 hover:bg-red-600 text-white font-black py-5 rounded-xl text-lg uppercase shadow-md active:scale-95 transition-all disabled:opacity-50"
-                                    >
-                                        {loadingAction === `finish-batch-${po.id}` ? 'AGUARDE...' : 'FINALIZAR O CORTE'}
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={() => handleOpenModal(po.id)}
+                                            className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-black py-5 rounded-xl text-lg uppercase shadow-md active:scale-95 transition-all"
+                                        >
+                                            CONTINUAR CORTE
+                                        </button>
+                                        <button 
+                                            disabled={loadingAction === `finish-batch-${po.id}`}
+                                            onClick={() => handleFinishProductionBatch(po.id)}
+                                            className="flex-none px-4 bg-red-500 hover:bg-red-600 text-white font-black py-5 rounded-xl text-sm uppercase shadow-md active:scale-95 transition-all disabled:opacity-50"
+                                        >
+                                            {loadingAction === `finish-batch-${po.id}` ? 'AGUARDE...' : 'FINALIZAR'}
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         );
@@ -611,6 +621,138 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 </div>
             </main>
 
+            {/* MODAL DE EXECUÇÃO INDIVIDUAL */}
+            {activeModalPoId && (() => {
+                const po = localOrders.find(p => p.id === activeModalPoId);
+                if (!po) return null;
+                const commOrderId = (po as any).related_commercial_order_id || (po as any).relatedCommercialOrderId;
+                const commOrder = commercialOrders.find(co => co.id === commOrderId);
+                
+                let subItems: any[] = [];
+                const rawProjectData = (commOrder as any)?.project_data || commOrder?.projectData;
+                if (rawProjectData && Array.isArray(rawProjectData)) {
+                    const normalizedData = rawProjectData.map(item => {
+                        const newItem: any = {};
+                        for (const key in item) {
+                            newItem[key.trim().toLowerCase()] = item[key];
+                        }
+                        return newItem;
+                    });
+                    subItems = normalizedData.filter(item => {
+                        const mm = item.mm || item.bitola || item.diametro || item.bit;
+                        const poBitola = (po as any).target_bitola || po.targetBitola || '0';
+                        return parseFloat(String(mm).replace(',', '.').replace(/[^\d.-]/g, '')) === parseFloat(String(poBitola).replace(',', '.').replace(/[^\d.-]/g, ''));
+                    });
+                }
+
+                const handleSearch = () => {
+                    if (!subOsSearch.trim()) return;
+                    const found = subItems.find(s => String(s.os).trim() === subOsSearch.trim());
+                    if (found) {
+                        setActiveSubOs(found);
+                    } else {
+                        alert('O.S. não encontrada neste lote de bitola.');
+                        setActiveSubOs(null);
+                    }
+                };
+
+                const currentProgressObj = typeof po.sub_items_progress === 'string' ? JSON.parse(po.sub_items_progress) : (po.sub_items_progress || {});
+                const currentItemStatus = activeSubOs ? currentProgressObj?.[activeSubOs.os]?.status : null;
+                const currentItemStart = activeSubOs ? (currentProgressObj?.[activeSubOs.os]?.start_time || currentProgressObj?.[activeSubOs.os]?.startTime) : null;
+
+                return (
+                    <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                        <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+                            <div className="bg-[#0F3F5C] p-4 flex justify-between items-center text-white">
+                                <div>
+                                    <h2 className="font-black text-xl tracking-tight">Execução Detalhada</h2>
+                                    <p className="text-xs text-indigo-200">Lote Bitola {(po as any).target_bitola || po.targetBitola}mm</p>
+                                </div>
+                                <button onClick={() => setActiveModalPoId(null)} className="p-2 bg-white/10 rounded-full hover:bg-white/20">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                            
+                            <div className="p-6 flex flex-col gap-6">
+                                <div>
+                                    <label className="text-sm font-bold text-slate-600 block mb-2">Digite o número da OS:</label>
+                                    <div className="flex gap-2">
+                                        <input 
+                                            type="text" 
+                                            inputMode="numeric"
+                                            value={subOsSearch}
+                                            onChange={e => setSubOsSearch(e.target.value)}
+                                            onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                                            placeholder="Ex: 147"
+                                            className="flex-1 bg-slate-100 border-2 border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-slate-800 focus:outline-none focus:border-indigo-500"
+                                        />
+                                        <button onClick={handleSearch} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 rounded-xl flex items-center justify-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {activeSubOs && (
+                                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col gap-4">
+                                        <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+                                            <h3 className="font-black text-3xl text-slate-800 tracking-tighter">O.S. {activeSubOs.os}</h3>
+                                            <div className="bg-slate-200 px-3 py-1 rounded-lg text-slate-600 font-bold text-sm uppercase">POS {activeSubOs.pos}</div>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase">Quantidade</p>
+                                                <p className="font-black text-slate-700 text-xl">{activeSubOs.qunti || activeSubOs.quantidade || activeSubOs.qtd || '-'} un.</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase">Comprimento</p>
+                                                <p className="font-black text-slate-700 text-xl">{activeSubOs.comprimento || activeSubOs.comp || '-'} cm</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-2 pt-4 border-t border-slate-200">
+                                            {currentItemStatus === 'completed' ? (
+                                                <div className="bg-emerald-100 text-emerald-700 font-black p-4 rounded-xl text-center flex flex-col items-center gap-2">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8"><path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" /></svg>
+                                                    Corte Concluído!
+                                                </div>
+                                            ) : currentItemStatus === 'producing' ? (
+                                                <div className="flex flex-col gap-3">
+                                                    <div className="flex justify-between items-center text-xs text-slate-500 font-bold px-1">
+                                                        <span>QUANTIDADE</span>
+                                                        <span>COMPRIMENTO</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
+                                                        <span className="font-black text-xl text-slate-800">{activeSubOs.quantidade || activeSubOs.qtd} un.</span>
+                                                        <span className="font-black text-xl text-slate-800">{activeSubOs.comprimento || activeSubOs.comp} cm</span>
+                                                    </div>
+                                                    <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-inner">
+                                                        <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Em Andamento</span>
+                                                        <ActiveTimer startTime={currentItemStart!} />
+                                                    </div>
+                                                    <button 
+                                                        disabled={loadingAction === `finish-${po.id}-${activeSubOs.os}`}
+                                                        onClick={() => handleFinishSubOs(po.id, activeSubOs.os)} 
+                                                        className="w-full bg-red-500 hover:bg-red-600 text-white font-black py-4 rounded-xl text-lg uppercase shadow-md active:scale-95 transition-all disabled:opacity-50">
+                                                        {loadingAction === `finish-${po.id}-${activeSubOs.os}` ? 'FINALIZANDO...' : 'FINALIZAR CORTE'}
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button 
+                                                    disabled={loadingAction === `start-${po.id}-${activeSubOs.os}`}
+                                                    onClick={() => handleStartSubOs(po.id, activeSubOs.os)} 
+                                                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 rounded-xl text-lg uppercase shadow-sm active:scale-95 transition-all disabled:opacity-50">
+                                                    {loadingAction === `start-${po.id}-${activeSubOs.os}` ? 'INICIANDO...' : 'INICIAR CORTE'}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
                 {/* Modal Motivo de Parada */}
                 {isStopReasonModalOpen && (
