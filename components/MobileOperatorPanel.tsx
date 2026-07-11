@@ -597,7 +597,26 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     </div>
                 </div>
                 
-                <main className="flex-1 p-4 flex flex-col gap-4 max-w-lg w-full mx-auto">
+                <main className="flex-1 p-4 flex flex-col gap-4 max-w-lg w-full mx-auto relative">
+                    {machineState === 'PARADA' && (
+                        <div className="absolute inset-0 z-30 bg-slate-50/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in zoom-in-95 duration-300">
+                            <div className="w-32 h-32 bg-red-100 rounded-full flex items-center justify-center mb-6 shadow-inner animate-pulse">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <h2 className="text-3xl font-black text-slate-800 mb-2 uppercase tracking-tight">MÁQUINA PARADA</h2>
+                            <p className="text-red-500 mb-4 font-black text-2xl uppercase tracking-wider bg-red-50 px-4 py-2 rounded-xl border border-red-100">{activeStopReason || 'Motivo não especificado'}</p>
+                            <p className="text-slate-500 mb-8 font-medium">Você precisa ativar a máquina para voltar a operar e registrar cortes.</p>
+                            <button 
+                                onClick={toggleMachineState}
+                                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-5 rounded-2xl text-xl uppercase shadow-[0_0_20px_rgba(16,185,129,0.6)] active:scale-95 transition-all flex items-center justify-center gap-3"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                RETORNAR À PRODUÇÃO
+                            </button>
+                        </div>
+                    )}
                 <div className="relative">
                     <input 
                         type="text" 
