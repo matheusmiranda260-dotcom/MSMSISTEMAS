@@ -15,12 +15,18 @@ import {
 } from '../types';
 
 /** Generic fetch function returning raw data */
-export const fetchData = async <T>(table: string): Promise<T[]> => {
-    const limit = 1000;
-    const { data, error } = await supabase
-        .from(table)
-        .select('*')
-        .limit(limit);
+export const fetchData = async <T>(
+    table: string,
+    options?: { limit?: number; orderBy?: string; ascending?: boolean }
+): Promise<T[]> => {
+    const limit = options?.limit ?? 2000;
+    let query = supabase.from(table).select('*');
+    
+    if (options?.orderBy) {
+        query = query.order(options.orderBy, { ascending: options.ascending ?? false });
+    }
+    
+    const { data, error } = await query.limit(limit);
         
     if (error) {
         console.error(`Error fetching ${table}:`, error);
@@ -87,12 +93,18 @@ const mapToSnakeCase = (obj: any): any => {
 };
 
 /** Fetch table with camelCase conversion */
-export const fetchTable = async <T>(table: string): Promise<T[]> => {
-    const limit = 1000;
-    const { data, error } = await supabase
-        .from(table)
-        .select('*')
-        .limit(limit);
+export const fetchTable = async <T>(
+    table: string,
+    options?: { limit?: number; orderBy?: string; ascending?: boolean }
+): Promise<T[]> => {
+    const limit = options?.limit ?? 2000;
+    let query = supabase.from(table).select('*');
+    
+    if (options?.orderBy) {
+        query = query.order(options.orderBy, { ascending: options.ascending ?? false });
+    }
+
+    const { data, error } = await query.limit(limit);
         
     if (error) {
         console.error(`Error fetching ${table}:`, error);
