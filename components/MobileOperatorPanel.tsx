@@ -473,6 +473,28 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         }
     };
 
+    const handlePauseProductionBatch = async (osId: string) => {
+        setLoadingAction(`pause-batch-${osId}`);
+        try {
+            await supabase
+                .from('production_orders')
+                .update({ status: 'pending' })
+                .eq('id', osId);
+                
+            setLocalOrders(prev => prev.map(po => {
+                if (po.id === osId) {
+                    return { ...po, status: 'pending' };
+                }
+                return po;
+            }));
+        } catch (e) {
+            console.error('Erro ao pausar produção:', e);
+            alert('Erro ao pausar a O.S.');
+        } finally {
+            setLoadingAction(null);
+        }
+    };
+
     if (assignedMachines.length === 0) {
         return (
             <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4">
@@ -712,11 +734,11 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                             CONTINUAR CORTE
                                         </button>
                                         <button 
-                                            disabled={loadingAction === `finish-batch-${po.id}`}
-                                            onClick={() => handleFinishProductionBatch(po.id)}
-                                            className="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-black py-4 px-2 rounded-xl text-[13px] sm:text-sm uppercase shadow-md active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap"
+                                            disabled={loadingAction === `pause-batch-${po.id}`}
+                                            onClick={() => handlePauseProductionBatch(po.id)}
+                                            className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-black py-4 px-2 rounded-xl text-[13px] sm:text-sm uppercase shadow-md active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap"
                                         >
-                                            {loadingAction === `finish-batch-${po.id}` ? 'AGUARDE...' : 'FINALIZAR'}
+                                            {loadingAction === `pause-batch-${po.id}` ? 'AGUARDE...' : 'PAUSAR'}
                                         </button>
                                     </div>
                                 )}
