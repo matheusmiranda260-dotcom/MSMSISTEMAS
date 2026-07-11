@@ -189,13 +189,14 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
 
             <div className="sidebar-content">
                 {/* PEDIDOS E ORÇAMENTO */}
-                {(hasPermission('customerRegistration') || hasPermission('customersManagement') || hasPermission('customerOrders') || hasPermission('financialManagement') || hasPermission('productsCatalog')) && (
+                {/* PEDIDOS E ORÇAMENTO */}
+                {(hasPermission('customerRegistration') || hasPermission('customersManagement') || hasPermission('customerOrders') || hasPermission('productsCatalog')) && (
                     <div className="sidebar-category">
                         <div className="sidebar-category-title">{isCollapsed ? '📝' : '📝 Pedidos e Orçamento'}</div>
 
                         <button
                             onClick={() => toggleMenu('customers')}
-                            className={`sidebar-item ${['customersManagement', 'customerRegistration', 'customerOrders', 'financialManagement', 'productsCatalog'].includes(page) ? 'active' : ''} justify-between group`}
+                            className={`sidebar-item ${['customersManagement', 'customerRegistration', 'customerOrders', 'productsCatalog'].includes(page) ? 'active' : ''} justify-between group`}
                             title={isCollapsed ? 'Clientes' : ''}
                         >
                             <div className="flex items-center gap-3 overflow-hidden">
@@ -216,13 +217,29 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                                         📝 Gestão de Vendas
                                     </button>
                                 )}
-                                {hasPermission('financialManagement') && (
-                                    <button onClick={() => setPage('financialManagement')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'financialManagement' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
-                                        💰 Financeiro
-                                    </button>
-                                )}
                             </div>
                         )}
+                    </div>
+                )}
+
+                {/* FINANCEIRO */}
+                {hasPermission('financialManagement') && (
+                    <div className="sidebar-category">
+                        <div className="sidebar-category-title">{isCollapsed ? '💰' : '💰 Gestão Financeira'}</div>
+                        <button
+                            onClick={() => setPage('financialManagement')}
+                            className={`sidebar-item ${page === 'financialManagement' ? 'active' : ''} justify-between group`}
+                            title={isCollapsed ? 'Financeiro' : ''}
+                        >
+                            <div className="flex items-center gap-3 overflow-hidden">
+                                <div className="sidebar-item-icon shrink-0 text-emerald-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-full h-full">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                {!isCollapsed && <span className="sidebar-item-label whitespace-nowrap text-emerald-600 font-bold group-hover:text-emerald-700">Financeiro</span>}
+                            </div>
+                        </button>
                     </div>
                 )}
 
