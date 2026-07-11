@@ -844,11 +844,11 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                     <div className={`w-5 h-5 flex items-center justify-center rounded-full transition-all duration-300 ${getDotClasses('pedido', !isOrcamento && (st.includes('produção') || st.includes('fechado')))}`}>
                                                         {isCompleted('pedido', !isOrcamento && (st.includes('produção') || st.includes('fechado'))) && <Checkmark />}
                                                     </div>
-                                                    <span className={`text-[9px] font-black uppercase mt-1 transition-all ${getLabelClasses('pedido', !isOrcamento && (st.includes('produção') || st.includes('fechado')))}`}>Pedido</span>
+                                                    <span className={`text-[9px] font-black uppercase mt-1 transition-all ${getLabelClasses('pedido', !isOrcamento && (st.includes('produção') || st.includes('fechado')))}`}>Ordem de Produção</span>
                                                     {!isOrcamento && expandedOrderId === q.id && (
                                                         <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-white rounded-xl p-3 shadow-xl border border-slate-100 flex flex-col min-w-[150px] z-30 cursor-default" onClick={(e) => e.stopPropagation()}>
                                                             <div className="bg-[#2a4e55] text-white text-[10px] font-black px-3 py-1.5 rounded-t-lg absolute top-0 left-0 right-0 text-center uppercase tracking-widest shadow-sm">
-                                                                Pedido
+                                                                Ordem de Produção
                                                             </div>
                                                             <div className="pt-8 flex flex-col gap-2 text-[10px] text-slate-600 font-medium whitespace-nowrap">
                                                                 {(st.includes('produção') || st.includes('aguardo setor de produção') || st.includes('fechado')) ? (
