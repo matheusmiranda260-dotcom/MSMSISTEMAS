@@ -91,7 +91,7 @@ export const FinancialManagement: React.FC<FinancialManagementProps> = ({
             setIsUpdating(true);
             try {
                 // Adiciona o crédito ao cliente
-                const customer = customers.find(c => (order.clientId && c.id === order.clientId) || (order.clientCode && String(c.code) === String(order.clientCode)));
+                const customer = customers.find(c => (order.clientCode && String(c.code) === String(order.clientCode)));
                 if (customer) {
                     const creditToAdd = order.paymentValue || 0;
                     

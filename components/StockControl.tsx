@@ -92,9 +92,9 @@ const AddConferencePage: React.FC<{
     activeBrandingPartner?: Partner | null;
 }> = ({ onClose, onSubmit, stock, onShowReport, conferences, onEditConference, onDeleteConference, gauges, isGestor, setPage, activeBrandingPartner }) => {
     const dynamicMaterialOptions = useMemo(() => {
-        const list = Array.from(new Set(gauges.map(g => g.materialType))).filter(m => {
+        const list = Array.from(new Set(gauges.map(g => g.materialType))).filter((m: any) => {
             if (!m) return false;
-            const normalized = m.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const normalized = String(m).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             if (normalized === 'vergalhao cd' || normalized === 'vergalhao cda' || normalized === 'vergalhaoi cd' || normalized === 'barra' || normalized === 'arame cd' || normalized === 'arame cda') return false;
             return true;
         }) as string[];
@@ -459,12 +459,11 @@ const AddConferencePage: React.FC<{
                                 <button
                                     type="button"
                                     onClick={() => {
+                                        const final = { ...conferenceData, lots: printLots || [] } as ConferenceData;
+                                        onShowReport(final);
                                         setTimeout(() => {
                                             window.print();
                                             setSubmitResult(null);
-                                            const validLots = lots.filter(l => !!l.internalLot) as ConferenceLotData[];
-                                            const final = { ...conferenceData, lots: validLots } as ConferenceData;
-                                            onShowReport(final);
                                             onClose();
                                         }, 200);
                                     }}
@@ -477,8 +476,7 @@ const AddConferencePage: React.FC<{
                                     type="button"
                                     onClick={() => {
                                         setSubmitResult(null);
-                                        const validLots = lots.filter(l => !!l.internalLot) as ConferenceLotData[];
-                                        const final = { ...conferenceData, lots: validLots } as ConferenceData;
+                                        const final = { ...conferenceData, lots: printLots || [] } as ConferenceData;
                                         onShowReport(final);
                                         onClose();
                                     }}
@@ -1187,7 +1185,7 @@ const StockControl: React.FC<{
                 </div>
             </div>
 
-            {reportView && <ConferenceReport reportData={reportView} onClose={() => setReportView(null)} gauges={gauges} />}
+            {reportView && <ConferenceReport reportData={reportView} onClose={() => setReportView(null)} gauges={gauges} activeBrandingPartner={activeBrandingPartner} />}
             {historyLot && <LotHistoryModal lot={historyLot} onClose={() => setHistoryLot(null)} />}
             {editingItem && (
                 <EditStockItemModal

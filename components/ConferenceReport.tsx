@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { ConferenceData, StockGauge, Partner } from '../types';
 import { PrinterIcon } from './icons';
+import { supabase } from '../supabaseClient';
 
 interface ConferenceReportProps {
   reportData: ConferenceData;
@@ -16,6 +17,28 @@ const ConferenceReport: React.FC<ConferenceReportProps> = ({ reportData, onClose
     labelWeight: Number(lot.labelWeight) || 0,
   }));
   const totalLabelWeight = safeLots.reduce((acc, lot) => acc + lot.labelWeight, 0);
+
+  // Sempre busca o parceiro direto do banco para garantir a logo
+  const [resolvedLogoUrl, setResolvedLogoUrl] = useState<string>(activeBrandingPartner?.logoUrl || '');
+  const [resolvedCompanyName, setResolvedCompanyName] = useState<string>(activeBrandingPartner?.companyName || '');
+
+  useEffect(() => {
+    if (activeBrandingPartner?.logoUrl) {
+      setResolvedLogoUrl(activeBrandingPartner.logoUrl);
+      setResolvedCompanyName(activeBrandingPartner.companyName || '');
+      return;
+    }
+    // Busca direto do banco como fallback garantido
+    supabase.from('partners').select('id, company_name, logo_url, is_active_branding').then(({ data }) => {
+      if (data && data.length > 0) {
+        const active = data.find((p: any) => p.is_active_branding) || data[0];
+        if (active?.logo_url) {
+          setResolvedLogoUrl(active.logo_url);
+          setResolvedCompanyName(active.company_name || '');
+        }
+      }
+    });
+  }, [activeBrandingPartner]);
 
   return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999] print-modal-container">
@@ -45,19 +68,27 @@ const ConferenceReport: React.FC<ConferenceReportProps> = ({ reportData, onClose
         <div className="overflow-y-auto print-section bg-white flex flex-col h-full font-sans text-black">
           <div className="p-4 w-full h-full flex flex-col">
 
-            {/* 1. Centered Title and Logo */}
+            {/* 1. Logo e Título */}
             <div className="flex items-center justify-between mb-6 border-b-2 border-slate-900 pb-4">
-              {activeBrandingPartner?.logoUrl ? (
-                 <img src={activeBrandingPartner.logoUrl} alt={activeBrandingPartner.companyName} className="h-16 md:h-20 object-contain" style={{ maxHeight: '80px' }} />
+              {resolvedLogoUrl ? (
+                <img
+                  src={resolvedLogoUrl}
+                  alt={resolvedCompanyName || 'Logo'}
+                  className="h-16 md:h-20 object-contain"
+                  style={{ maxHeight: '80px', maxWidth: '200px' }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
               ) : (
-                 <div className="h-16 md:h-20 w-32 bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-xs uppercase border border-slate-200">Sem Logo</div>
+                <div className="h-16 w-40 flex items-center justify-center text-slate-300 text-xs italic">
+                  {/* espaço reservado para logo */}
+                </div>
               )}
               <h1 className="text-xl md:text-2xl font-bold text-black uppercase text-center flex-1 tracking-wide pl-4">
                 CONFERÊNCIA DE MATÉRIA PRIMA
               </h1>
             </div>
 
-            {/* 2. Three Boxes Header */}
+            {/* 2. Cabeçalho com Data, NF e Conferência */}
             <div className="flex gap-4 mb-6">
               <div className="flex-1 border-2 border-slate-900 px-2 py-1">
                 <span className="font-bold text-[10px] text-black block">Data:</span>
@@ -79,7 +110,7 @@ const ConferenceReport: React.FC<ConferenceReportProps> = ({ reportData, onClose
               </div>
             </div>
 
-            {/* 3. Table - Exact Column Order & Style */}
+            {/* 3. Tabela de Lotes */}
             <div className="flex-grow">
               <table className="w-full text-sm text-left border-collapse">
                 <thead className="text-sm text-black uppercase font-black border-y-2 border-slate-900">
@@ -96,7 +127,6 @@ const ConferenceReport: React.FC<ConferenceReportProps> = ({ reportData, onClose
                 <tbody className="text-black border-b-2 border-slate-900">
                   {safeLots.map((lot, index) => {
                     const displaySupplier = lot.supplier || reportData.supplier;
-
                     return (
                       <tr key={index} className="border-b border-slate-300">
                         <td className="px-2 py-2 text-center border-l border-r border-slate-400 font-bold text-base">{index + 1}</td>
@@ -119,9 +149,8 @@ const ConferenceReport: React.FC<ConferenceReportProps> = ({ reportData, onClose
                   })}
                 </tbody>
                 <tfoot className="font-bold text-black">
-                  {/* Spacer Row */}
                   <tr>
-                    <td colSpan={9} className="h-4"></td> {/* Added Space */}
+                    <td colSpan={9} className="h-4"></td>
                   </tr>
                   <tr className="text-base">
                     <td colSpan={6} className="px-2 py-2 text-right uppercase font-black text-sm">Total Geral:</td>
@@ -131,7 +160,7 @@ const ConferenceReport: React.FC<ConferenceReportProps> = ({ reportData, onClose
               </table>
             </div>
 
-            {/* 4. Signatures & Footer */}
+            {/* 4. Assinaturas e Rodapé */}
             <div className="mt-8">
               <div className="mb-4">
                 <span className="font-bold text-xs uppercase text-slate-700 block mb-6">CONFERENTE:</span>
@@ -141,11 +170,11 @@ const ConferenceReport: React.FC<ConferenceReportProps> = ({ reportData, onClose
                 <span className="font-bold text-xs uppercase text-slate-700 block mb-6">ENCARREGADO:</span>
                 <div className="border-b-2 border-slate-900 w-full mb-1"></div>
               </div>
-
               <div className="text-center pt-8">
                 <p className="text-xs text-slate-500 font-medium">Sistema de Gestões inteligente MSM</p>
               </div>
             </div>
+
           </div>
         </div>
 
