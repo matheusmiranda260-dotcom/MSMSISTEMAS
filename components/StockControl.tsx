@@ -223,58 +223,85 @@ const AddConferencePage: React.FC<{
     };
 
     const handleLotChange = (index: number, field: keyof ConferenceLotData, value: any) => {
-        const newLots = [...lots];
-        (newLots[index] as any)[field] = value;
+        setLots(prevLots => {
+            const newLots = [...prevLots];
+            (newLots[index] as any)[field] = value;
 
-        if (field === 'materialType') {
-            const all = gauges.filter(g => g.materialType === value).map(g => g.gauge);
+            if (field === 'materialType') {
+                const all = gauges.filter(g => g.materialType === value).map(g => g.gauge);
 
-            if (!all.includes(newLots[index].bitola || '')) {
-                newLots[index].bitola = all[0] || '';
-            }
-        }
-
-        // Auto-populate default steel type and packaging if configured
-        const currentMaterial = newLots[index].materialType;
-        const currentBitola = newLots[index].bitola;
-        if (currentMaterial && currentBitola) {
-            const targetGauge = gauges.find(g => g.materialType === currentMaterial && getStandardizedGaugeKey(g.gauge) === getStandardizedGaugeKey(currentBitola));
-            if (targetGauge) {
-                if (field === 'materialType' || field === 'bitola') {
-                    if (targetGauge.customFieldLabel || targetGauge.defaultSteelType) {
-                        newLots[index].steelType = targetGauge.customFieldValue || targetGauge.defaultSteelType || '';
-                    } else {
-                        newLots[index].steelType = '';
-                    }
-                }
-
-                if (field === 'materialType' || field === 'bitola' || field === 'qtyPackages') {
-                    newLots[index].packagingType = targetGauge.packagingType || 'granel';
-                    newLots[index].qtyPerPackaging = targetGauge.qtyPerPackaging || 1;
-                    newLots[index].pieceSize = targetGauge.pieceSize || 0;
-
-                    const qtyPack = field === 'qtyPackages' ? (Number(value) || 0) : 1;
-                    if (field !== 'qtyPackages') {
-                        newLots[index].qtyPackages = 1;
-                    }
-
-                    newLots[index].totalPieces = newLots[index].packagingType === 'pacote' 
-                        ? (targetGauge.qtyPerPackaging || 200) * qtyPack 
-                        : qtyPack;
-
-                    const defaultWeight = calculateTheoreticalWeight(targetGauge, qtyPack);
-                    if (defaultWeight > 0) {
-                        newLots[index].labelWeight = defaultWeight;
-                        newLots[index].labelWeightInput = String(defaultWeight).replace('.', ',');
-                    } else {
-                        newLots[index].labelWeight = 0;
-                        newLots[index].labelWeightInput = '0';
-                    }
+                if (!all.includes(newLots[index].bitola || '')) {
+                    newLots[index].bitola = all[0] || '';
                 }
             }
-        }
 
-        setLots(newLots);
+            // Auto-populate default steel type and packaging if configured
+            const currentMaterial = newLots[index].materialType;
+            const currentBitola = newLots[index].bitola;
+            if (currentMaterial && currentBitola) {
+                const targetGauge = gauges.find(g => g.materialType === currentMaterial && getStandardizedGaugeKey(g.gauge) === getStandardizedGaugeKey(currentBitola));
+                if (targetGauge) {
+                    if (field === 'materialType' || field === 'bitola') {
+                        if (targetGauge.customFieldLabel || targetGauge.defaultSteelType) {
+                            newLots[index].steelType = targetGauge.customFieldValue || targetGauge.defaultSteelType || '';
+                        } else {
+                            newLots[index].steelType = '';
+                        }
+                    }
+
+                    if (field === 'materialType' || field === 'bitola' || field === 'qtyPackages') {
+                        newLots[index].packagingType = targetGauge.packagingType || 'granel';
+                        newLots[index].qtyPerPackaging = targetGauge.qtyPerPackaging || 1;
+                        newLots[index].pieceSize = targetGauge.pieceSize || 0;
+
+                        const qtyPack = field === 'qtyPackages' ? (Number(value) || 0) : 1;
+                        if (field !== 'qtyPackages') {
+                            newLots[index].qtyPackages = 1;
+                        }
+
+                        newLots[index].totalPieces = newLots[index].packagingType === 'pacote' 
+                            ? (targetGauge.qtyPerPackaging || 200) * qtyPack 
+                            : qtyPack;
+
+                        const defaultWeight = calculateTheoreticalWeight(targetGauge, qtyPack);
+                        if (defaultWeight > 0) {
+                            newLots[index].labelWeight = defaultWeight;
+                            newLots[index].labelWeightInput = String(defaultWeight).replace('.', ',');
+                        } else {
+                            newLots[index].labelWeight = 0;
+                            newLots[index].labelWeightInput = '0';
+                        }
+                    } else if (field === 'labelWeight') {
+                        const weightVal = Number(value) || 0;
+                        if (weightVal > 0 && targetGauge.packagingType && targetGauge.packagingType !== 'granel') {
+                            const type = targetGauge.packagingType;
+                            const qtyPerPack = targetGauge.qtyPerPackaging || 1;
+                            const size = targetGauge.pieceSize || 0;
+                            const wpm = targetGauge.weightPerMeter || 0;
+                            
+                            let calculatedQty = 1;
+                            if (type === 'rolo') {
+                                const w = targetGauge.rawWeightValue || 2000;
+                                if (w > 0) calculatedQty = Math.round(weightVal / w);
+                            } else if (type === 'pacote') {
+                                const w = qtyPerPack * size * wpm;
+                                if (w > 0) calculatedQty = Math.round(weightVal / w);
+                            } else if (type === 'barra') {
+                                const w = size * wpm;
+                                if (w > 0) calculatedQty = Math.round(weightVal / w);
+                            }
+                            
+                            if (calculatedQty > 0) {
+                                newLots[index].qtyPackages = calculatedQty;
+                                newLots[index].totalPieces = type === 'pacote' ? (qtyPerPack * calculatedQty) : calculatedQty;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return newLots;
+        });
     };
 
     const handleGlobalScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1153,7 +1180,7 @@ const StockControl: React.FC<{
                 <div className="flex justify-between items-center mb-6">
                     <div>
                         <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">MSM <span className="text-slate-500 font-light">Gestão Inteligente</span></h1>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Relatório de Inventário de Estoque - Setor Laminação</p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Relatório de Inventário de Estoque</p>
                     </div>
                     <div className="text-right">
                         <p className="text-xs font-bold text-slate-900">{new Date().toLocaleDateString('pt-BR')} {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>

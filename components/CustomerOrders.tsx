@@ -731,7 +731,8 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         );
 
                                         return (
-                                            <div className="flex-1 flex items-center justify-between px-6 relative h-16 w-full xl:w-auto mt-4 xl:mt-0">
+                                            <div className={`flex-1 w-full xl:w-auto mt-4 xl:mt-0 overflow-x-auto overflow-y-hidden custom-scrollbar ${expandedOrderId === q.id ? 'pb-40' : ''}`}>
+                                                <div className="flex items-center justify-between px-6 relative h-16 min-w-[1100px]">
                                                 {/* The connecting line in background */}
                                                 <div className="absolute left-10 right-10 h-1.5 bg-black/10 top-1/2 -translate-y-1/2 rounded-full"></div>
                                                 
@@ -992,6 +993,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                         </div>
                                                     )}
                                                 </div>
+                                            </div>
                                             </div>
                                         );
                                     })()}
