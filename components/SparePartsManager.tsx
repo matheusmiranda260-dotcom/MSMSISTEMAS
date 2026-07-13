@@ -4,9 +4,10 @@ import { SparePart, PartUsage } from '../types';
 import { fetchTable, insertItem, updateItem, deleteItem, fetchByColumn, uploadFile } from '../services/supabaseService';
 
 interface SparePartsManagerProps {
+    activeBrandingPartner?: any;
 }
 
-const SparePartsManager: React.FC<SparePartsManagerProps> = () => {
+const SparePartsManager: React.FC<SparePartsManagerProps> = ({ activeBrandingPartner }) => {
     const [parts, setParts] = useState<SparePart[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -59,7 +60,8 @@ const SparePartsManager: React.FC<SparePartsManagerProps> = () => {
             setFormData({ ...part });
         } else {
             setSelectedPart(null);
-            setFormData({ name: '', model: '', machine: 'Geral', currentStock: 0, minStock: 0, imageUrl: '' });
+            const initialMachine = activeBrandingPartner?.machines?.length > 0 ? activeBrandingPartner.machines[0].name : 'Geral';
+            setFormData({ name: '', model: '', machine: initialMachine, currentStock: 0, minStock: 0, imageUrl: '' });
         }
         setImageFile(null);
         setIsEditModalOpen(true);
@@ -454,12 +456,21 @@ const SparePartsManager: React.FC<SparePartsManagerProps> = () => {
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Máquina</label>
-                                <select value={formData.machine} onChange={e => setFormData({ ...formData, machine: e.target.value })} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                                    <option value="Geral">Geral</option>
-                                    <option value="Trefila">Trefila</option>
-                                    <option value="Treliça">Treliça</option>
-                                    <option value="Empilhadeira">Empilhadeira</option>
-                                </select>
+                                {activeBrandingPartner?.machines?.length > 0 ? (
+                                    <select value={formData.machine} onChange={e => setFormData({ ...formData, machine: e.target.value })} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                                        <option value="Geral">Geral</option>
+                                        {activeBrandingPartner.machines.map((m: any, idx: number) => (
+                                            <option key={idx} value={m.name}>{m.name}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <select value={formData.machine} onChange={e => setFormData({ ...formData, machine: e.target.value })} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                                        <option value="Geral">Geral</option>
+                                        <option value="Trefila">Trefila</option>
+                                        <option value="Treliça">Treliça</option>
+                                        <option value="Empilhadeira">Empilhadeira</option>
+                                    </select>
+                                )}
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>

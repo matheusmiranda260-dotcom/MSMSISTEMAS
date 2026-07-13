@@ -64,7 +64,7 @@ const MachineManagement: React.FC<MachineManagementProps> = ({ activeBrandingPar
             {/* Content Area */}
             <main className="flex-1 overflow-y-auto bg-slate-50/50">
                 {activeTab === 'maintenance' && <MaintenanceManager activeBrandingPartner={activeBrandingPartner} />}
-                {activeTab === 'parts' && <SparePartsManager />}
+                {activeTab === 'parts' && <SparePartsManager activeBrandingPartner={activeBrandingPartner} />}
                 {activeTab === 'purchases' && <PurchaseOrdersManager activeBrandingPartner={activeBrandingPartner} />}
             </main>
         </div>
