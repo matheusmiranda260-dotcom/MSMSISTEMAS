@@ -93,9 +93,9 @@ const SparePartsManager: React.FC<SparePartsManagerProps> = ({ activeBrandingPar
                 setParts(prev => [...prev, newPart]);
             }
             setIsEditModalOpen(false);
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            const msg = error instanceof Error ? error.message : 'Desconhecido';
+            const msg = error?.message || error?.details || 'Desconhecido';
             alert(`Erro ao salvar: ${msg}`);
         }
     };
