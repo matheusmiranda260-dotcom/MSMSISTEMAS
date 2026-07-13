@@ -3,7 +3,11 @@ import SparePartsManager from '../SparePartsManager';
 import MaintenanceManager from './MaintenanceManager';
 import PurchaseOrdersManager from './PurchaseOrdersManager';
 
-const MachineManagement: React.FC = () => {
+interface MachineManagementProps {
+    activeBrandingPartner: any;
+}
+
+const MachineManagement: React.FC<MachineManagementProps> = ({ activeBrandingPartner }) => {
     const [activeTab, setActiveTab] = useState<'maintenance' | 'parts' | 'purchases'>('maintenance');
 
     return (
@@ -59,9 +63,9 @@ const MachineManagement: React.FC = () => {
 
             {/* Content Area */}
             <main className="flex-1 overflow-y-auto bg-slate-50/50">
-                {activeTab === 'maintenance' && <MaintenanceManager />}
+                {activeTab === 'maintenance' && <MaintenanceManager activeBrandingPartner={activeBrandingPartner} />}
                 {activeTab === 'parts' && <SparePartsManager />}
-                {activeTab === 'purchases' && <PurchaseOrdersManager />}
+                {activeTab === 'purchases' && <PurchaseOrdersManager activeBrandingPartner={activeBrandingPartner} />}
             </main>
         </div>
     );

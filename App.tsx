@@ -2814,7 +2814,7 @@ const App: React.FC = () => {
 
             case 'partsManager': return <SparePartsManager />;
             case 'continuousImprovement': return <ContinuousImprovement setPage={setPage} />;
-            case 'machineManagement': return <MachineManagement />;
+            case 'machineManagement': return <MachineManagement activeBrandingPartner={activeBrandingPartner} />;
             case 'workInstructions': return <WorkInstructions setPage={setPage} />;
             case 'peopleManagement': return <PeopleManagement setPage={setPage} currentUser={currentUser} activeBrandingPartner={activeBrandingPartner} />;
             case 'customerRegistration': return <CustomerRegistration setPage={setPage} customers={customers} />;

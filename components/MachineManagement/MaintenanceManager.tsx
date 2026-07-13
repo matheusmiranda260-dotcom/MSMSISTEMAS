@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 
-const MaintenanceManager: React.FC = () => {
+interface MaintenanceManagerProps {
+    activeBrandingPartner?: any;
+}
+
+const MaintenanceManager: React.FC<MaintenanceManagerProps> = ({ activeBrandingPartner }) => {
     const [maintenances, setMaintenances] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -9,6 +13,14 @@ const MaintenanceManager: React.FC = () => {
 
     // Form state
     const [machineName, setMachineName] = useState('');
+    
+    // Set initial machine name if options exist
+    useEffect(() => {
+        if (activeBrandingPartner?.machineConfiguration?.length > 0 && !machineName) {
+            setMachineName(activeBrandingPartner.machineConfiguration[0].name);
+        }
+    }, [activeBrandingPartner]);
+
     const [maintenanceType, setMaintenanceType] = useState('Preventiva');
     const [description, setDescription] = useState('');
     const [technicianName, setTechnicianName] = useState('');
@@ -142,7 +154,16 @@ const MaintenanceManager: React.FC = () => {
                         <form onSubmit={handleSave} className="p-6 flex flex-col gap-4">
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Máquina *</label>
-                                <input required value={machineName} onChange={e => setMachineName(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/50 text-slate-700" placeholder="Ex: Trefila 1" />
+                                {activeBrandingPartner?.machineConfiguration?.length > 0 ? (
+                                    <select required value={machineName} onChange={e => setMachineName(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/50 text-slate-700">
+                                        <option value="">Selecione uma máquina</option>
+                                        {activeBrandingPartner.machineConfiguration.map((m: any, idx: number) => (
+                                            <option key={idx} value={m.name}>{m.name}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <input required value={machineName} onChange={e => setMachineName(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/50 text-slate-700" placeholder="Ex: Trefila 1" />
+                                )}
                             </div>
                             
                             <div className="grid grid-cols-2 gap-4">

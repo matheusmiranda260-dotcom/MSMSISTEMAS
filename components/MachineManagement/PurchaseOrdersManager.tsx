@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 
-const PurchaseOrdersManager: React.FC = () => {
+interface PurchaseOrdersManagerProps {
+    activeBrandingPartner?: any;
+}
+
+const PurchaseOrdersManager: React.FC<PurchaseOrdersManagerProps> = ({ activeBrandingPartner }) => {
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -155,7 +159,16 @@ const PurchaseOrdersManager: React.FC = () => {
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Máquina Relacionada</label>
-                                    <input value={machineName} onChange={e => setMachineName(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/50 text-slate-700" placeholder="Ex: Trefila 2" />
+                                    {activeBrandingPartner?.machineConfiguration?.length > 0 ? (
+                                        <select value={machineName} onChange={e => setMachineName(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/50 text-slate-700">
+                                            <option value="">Nenhuma / Geral</option>
+                                            {activeBrandingPartner.machineConfiguration.map((m: any, idx: number) => (
+                                                <option key={idx} value={m.name}>{m.name}</option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <input value={machineName} onChange={e => setMachineName(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/50 text-slate-700" placeholder="Ex: Trefila 2" />
+                                    )}
                                 </div>
                             </div>
                             
