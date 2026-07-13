@@ -731,8 +731,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         );
 
                                         return (
-                                            <div className={`flex-1 w-full xl:w-auto mt-4 xl:mt-0 overflow-x-auto overflow-y-hidden custom-scrollbar ${expandedOrderId === q.id ? 'pb-40' : ''}`}>
-                                                <div className="flex items-center justify-between px-6 relative h-16 min-w-[1100px]">
+                                            <div className={`flex-1 flex items-center justify-between px-6 relative h-16 w-full xl:w-auto mt-4 xl:mt-0 transition-all duration-300 ${expandedOrderId === q.id ? 'mb-40' : ''}`}>
                                                 {/* The connecting line in background */}
                                                 <div className="absolute left-10 right-10 h-1.5 bg-black/10 top-1/2 -translate-y-1/2 rounded-full"></div>
                                                 
@@ -770,8 +769,11 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                     </div>
                                                     <span className={`text-[9px] font-black uppercase mt-1 transition-all ${getLabelClasses('financeiro', !isOrcamento && activeStage !== 'financeiro')}`}>Financeiro</span>
                                                     {(!isOrcamento || isRejectedByFinance) && expandedOrderId === q.id && (
-                                                        <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-white rounded-xl p-3 shadow-xl border border-slate-100 flex flex-col min-w-[180px] z-30 cursor-default" onClick={(e) => e.stopPropagation()}>
-                                                            <div className={`${isRejectedByFinance ? 'bg-red-500' : 'bg-[#3b82f6]'} text-white text-[10px] font-black px-3 py-1.5 rounded-t-lg absolute top-0 left-0 right-0 text-center uppercase tracking-widest shadow-sm`}>
+                                                        <div className="absolute top-[120px] left-1/2 -translate-x-1/2 bg-white rounded-xl p-3 shadow-xl border border-slate-100 flex flex-col min-w-[180px] z-30 cursor-default" onClick={(e) => e.stopPropagation()}>
+                                                            {/* Connector line pointing up */}
+                                                            <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-0.5 h-12 bg-slate-200 z-0"></div>
+                                                            <div className="absolute -top-14 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-slate-300 z-0"></div>
+                                                            <div className={`${isRejectedByFinance ? 'bg-red-500' : 'bg-[#3b82f6]'} text-white text-[10px] font-black px-3 py-1.5 rounded-t-lg absolute top-0 left-0 right-0 text-center uppercase tracking-widest shadow-sm z-10`}>
                                                                 Financeiro
                                                             </div>
                                                             <div className="pt-8 flex flex-col gap-2 text-[10px] text-slate-600 font-medium whitespace-nowrap">
@@ -847,8 +849,11 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                     </div>
                                                     <span className={`text-[9px] font-black uppercase mt-1 transition-all ${getLabelClasses('pedido', !isOrcamento && (st.includes('produção') || st.includes('fechado')))}`}>Ordem de Produção</span>
                                                     {!isOrcamento && expandedOrderId === q.id && (
-                                                        <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-white rounded-xl p-3 shadow-xl border border-slate-100 flex flex-col min-w-[150px] z-30 cursor-default" onClick={(e) => e.stopPropagation()}>
-                                                            <div className="bg-[#2a4e55] text-white text-[10px] font-black px-3 py-1.5 rounded-t-lg absolute top-0 left-0 right-0 text-center uppercase tracking-widest shadow-sm">
+                                                        <div className="absolute top-[120px] left-1/2 -translate-x-1/2 bg-white rounded-xl p-3 shadow-xl border border-slate-100 flex flex-col min-w-[150px] z-30 cursor-default" onClick={(e) => e.stopPropagation()}>
+                                                            {/* Connector line pointing up */}
+                                                            <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-0.5 h-12 bg-slate-200 z-0"></div>
+                                                            <div className="absolute -top-14 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-slate-300 z-0"></div>
+                                                            <div className="bg-[#2a4e55] text-white text-[10px] font-black px-3 py-1.5 rounded-t-lg absolute top-0 left-0 right-0 text-center uppercase tracking-widest shadow-sm z-10">
                                                                 Ordem de Produção
                                                             </div>
                                                             <div className="pt-8 flex flex-col gap-2 text-[10px] text-slate-600 font-medium whitespace-nowrap">
@@ -927,8 +932,11 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                     </div>
                                                     <span className={`text-[9px] font-black uppercase mt-1 transition-all ${getLabelClasses('producao', !isOrcamento && (activeStage === 'producao' || activeStage === 'entrega' || activeStage === 'completed'))}`}>Produção</span>
                                                     {!isOrcamento && expandedOrderId === q.id && (
-                                                        <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-white rounded-xl p-3 shadow-xl border border-slate-100 flex flex-col min-w-[150px] z-30 cursor-default" onClick={(e) => e.stopPropagation()}>
-                                                            <div className="bg-[#5e7845] text-white text-[10px] font-black px-3 py-1.5 rounded-t-lg absolute top-0 left-0 right-0 text-center uppercase tracking-widest shadow-sm">
+                                                        <div className="absolute top-[120px] left-1/2 -translate-x-1/2 bg-white rounded-xl p-3 shadow-xl border border-slate-100 flex flex-col min-w-[150px] z-30 cursor-default" onClick={(e) => e.stopPropagation()}>
+                                                            {/* Connector line pointing up */}
+                                                            <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-0.5 h-12 bg-slate-200 z-0"></div>
+                                                            <div className="absolute -top-14 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-slate-300 z-0"></div>
+                                                            <div className="bg-[#5e7845] text-white text-[10px] font-black px-3 py-1.5 rounded-t-lg absolute top-0 left-0 right-0 text-center uppercase tracking-widest shadow-sm z-10">
                                                                 Produção
                                                             </div>
                                                             <div className="pt-8 flex flex-col gap-2 text-[10px] text-slate-600 font-medium whitespace-nowrap">
@@ -984,7 +992,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                     <span className={`text-[9px] font-black uppercase mt-1 transition-all ${getLabelClasses('entrega', !isOrcamento && st.includes('entreg'))}`}>Entrega</span>
                                                     {!isOrcamento && expandedOrderId === q.id && (
                                                         <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-white rounded-xl p-3 shadow-xl border border-slate-100 flex flex-col min-w-[150px] z-30 cursor-default" onClick={(e) => e.stopPropagation()}>
-                                                            <div className="bg-[#284a44] text-white text-[10px] font-black px-3 py-1.5 rounded-t-lg absolute top-0 left-0 right-0 text-center uppercase tracking-widest shadow-sm">
+                                                            <div className="bg-[#284a44] text-white text-[10px] font-black px-3 py-1.5 rounded-t-lg absolute top-0 left-0 right-0 text-center uppercase tracking-widest shadow-sm z-10">
                                                                 Entrega
                                                             </div>
                                                             <div className="pt-8 flex flex-col gap-2 text-[10px] text-slate-600 font-medium whitespace-nowrap">
@@ -993,7 +1001,6 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                         </div>
                                                     )}
                                                 </div>
-                                            </div>
                                             </div>
                                         );
                                     })()}
