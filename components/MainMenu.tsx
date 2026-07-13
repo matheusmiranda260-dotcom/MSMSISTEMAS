@@ -160,8 +160,8 @@ const MainMenu: React.FC<MainMenuProps> = ({ setPage, onLogout, currentUser }) =
                             )}                        </div>
                     </section>
                 )}
-                {/* RH */}
-                {(hasPermission('continuousImprovement') || hasPermission('peopleManagement')) && (
+                {/* RH & Máquinas */}
+                {(hasPermission('continuousImprovement') || hasPermission('peopleManagement') || hasPermission('machineManagement')) && (
                     <section>
                         <div className="section-title">
                             <h2>Recursos Humanos</h2>
@@ -184,6 +184,15 @@ const MainMenu: React.FC<MainMenuProps> = ({ setPage, onLogout, currentUser }) =
                                     icon={<UserGroupIcon />}
                                     color="cyan"
                                     notificationCount={pendingKaizenCount}
+                                />
+                            )}
+                            {hasPermission('machineManagement') && (
+                                <MenuButton
+                                    onClick={() => setPage('machineManagement')}
+                                    label="Gestão de Máquinas"
+                                    description="Manutenções, peças de reposição e compras."
+                                    icon={<AdjustmentsIcon />}
+                                    color="slate"
                                 />
                             )}
                         </div>

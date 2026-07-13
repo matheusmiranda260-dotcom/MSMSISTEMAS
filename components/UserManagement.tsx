@@ -46,6 +46,7 @@ const permissionCategories = [
         permissions: [
             { page: 'peopleManagement', label: '👥 Gestão de Pessoas' },
             { page: 'continuousImprovement', label: '✨ Melhoria Contínua' },
+            { page: 'machineManagement', label: '⚙️ Gestão de Máquinas' },
         ]
     },
     {
