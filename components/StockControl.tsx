@@ -225,7 +225,7 @@ const AddConferencePage: React.FC<{
     const handleLotChange = (index: number, field: keyof ConferenceLotData, value: any) => {
         setLots(prevLots => {
             const newLots = [...prevLots];
-            (newLots[index] as any)[field] = value;
+            newLots[index] = { ...newLots[index], [field]: value };
 
             if (field === 'materialType') {
                 const all = gauges.filter(g => g.materialType === value).map(g => g.gauge);
