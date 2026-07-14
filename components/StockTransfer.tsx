@@ -14,7 +14,7 @@ interface StockTransferProps {
 }
 
 const StockTransfer: React.FC<StockTransferProps> = ({ stock, transfers, setPage, createTransfer, gauges }) => {
-    const [destinationSector, setDestinationSector] = useState('Coluna');
+    const [destinationSector, setDestinationSector] = useState('');
 
     interface TransferRequest {
         id: string;
@@ -268,16 +268,13 @@ const StockTransfer: React.FC<StockTransferProps> = ({ stock, transfers, setPage
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-semibold text-slate-600 mb-1">Setor de Destino</label>
-                                <select
+                                <input
+                                    type="text"
                                     value={destinationSector}
                                     onChange={e => setDestinationSector(e.target.value)}
+                                    placeholder="Digite o setor de destino..."
                                     className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0F3F5C] outline-none bg-slate-50"
-                                >
-                                    <option value="Coluna">Coluna</option>
-                                    <option value="CA50">CA50</option>
-                                    <option value="Mediterranea">Mediterranea</option>
-                                    <option value="Outros">Outros</option>
-                                </select>
+                                />
                             </div>
                         </div>
                     </div>
@@ -341,7 +338,10 @@ const StockTransfer: React.FC<StockTransferProps> = ({ stock, transfers, setPage
                                                 className="w-full p-2 border border-slate-300 rounded-md focus:ring-1 focus:ring-[#0F3F5C] outline-none bg-white text-sm"
                                             >
                                                 <option value="">Selecione...</option>
-                                                {MaterialOptions.map(m => <option key={m} value={m}>{m}</option>)}
+                                                {(() => {
+                                                    const dynamicMaterialOptions = Array.from(new Set(gauges.map(g => g.materialType))).filter(Boolean) as string[];
+                                                    return dynamicMaterialOptions.sort().map(m => <option key={m} value={m}>{m}</option>);
+                                                })()}
                                             </select>
                                         </div>
                                         <div className="grid grid-cols-2 gap-3">

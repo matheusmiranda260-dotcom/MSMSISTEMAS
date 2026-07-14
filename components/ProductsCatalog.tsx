@@ -9,9 +9,27 @@ interface ProductsCatalogProps {
 
 export const ProductsCatalog: React.FC<ProductsCatalogProps> = ({ gauges, stock, setPage }) => {
     const [search, setSearch] = useState('');
+    const [categoryFilter, setCategoryFilter] = useState('Todos');
 
     const catalogData = useMemo(() => {
-        return gauges.map(g => {
+        const allowedRegex = /\b(cd|cda|arame cd|arame cda)\b/i;
+        const vergalhaoRegex = /vergalh[aã]o com 12 metros/i;
+        const allowedVergalhaoGauges = [12.5, 10, 8, 6.3, 5];
+
+        return gauges
+            .filter(g => {
+                const desc = g.commercialName || g.technicalDescription || `Bitola ${g.gauge}`;
+                const mat = g.materialType || '';
+                
+                const isCdOrCda = allowedRegex.test(desc) || allowedRegex.test(mat);
+                
+                const isVergalhao = vergalhaoRegex.test(desc) || vergalhaoRegex.test(mat);
+                const numericGauge = parseFloat(String(g.gauge).replace(',', '.'));
+                const isAllowedVergalhao = isVergalhao && allowedVergalhaoGauges.includes(numericGauge);
+
+                return isCdOrCda || isAllowedVergalhao;
+            })
+            .map(g => {
             // Calculate available stock for this gauge
             // Based on matching bitola/gauge and materialType
             const relatedStock = stock.filter(s => 
@@ -35,15 +53,34 @@ export const ProductsCatalog: React.FC<ProductsCatalogProps> = ({ gauges, stock,
     }, [gauges, stock]);
 
     const filteredCatalog = useMemo(() => {
-        if (!search.trim()) return catalogData;
-        const term = search.toLowerCase().trim();
-        return catalogData.filter(item => 
-            item.description.toLowerCase().includes(term) ||
-            item.code.toLowerCase().includes(term) ||
-            item.gauge.toLowerCase().includes(term) ||
-            item.material.toLowerCase().includes(term)
-        );
-    }, [catalogData, search]);
+        let result = catalogData;
+
+        if (categoryFilter !== 'Todos') {
+            if (categoryFilter === 'Vergalhão 12m') {
+                const filterRegex = /vergalh[aã]o com 12 metros/i;
+                result = result.filter(item => 
+                    filterRegex.test(item.description) || filterRegex.test(item.material)
+                );
+            } else {
+                const filterRegex = new RegExp(`\\b${categoryFilter}\\b`, 'i');
+                result = result.filter(item => 
+                    filterRegex.test(item.description) || filterRegex.test(item.material)
+                );
+            }
+        }
+
+        if (search.trim()) {
+            const term = search.toLowerCase().trim();
+            result = result.filter(item => 
+                item.description.toLowerCase().includes(term) ||
+                item.code.toLowerCase().includes(term) ||
+                item.gauge.toLowerCase().includes(term) ||
+                item.material.toLowerCase().includes(term)
+            );
+        }
+
+        return result;
+    }, [catalogData, search, categoryFilter]);
 
     return (
         <div className="p-4 md:p-8 space-y-6">
@@ -66,7 +103,19 @@ export const ProductsCatalog: React.FC<ProductsCatalogProps> = ({ gauges, stock,
             </div>
 
             <div className="bg-white p-5 rounded-2xl border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
-                <div className="flex items-center gap-2.5 max-w-md w-full">
+                <div className="flex items-center gap-2.5 w-full">
+                    <select
+                        value={categoryFilter}
+                        onChange={(e) => setCategoryFilter(e.target.value)}
+                        className="p-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-slate-50 font-semibold text-slate-700 min-w-[150px]"
+                    >
+                        <option value="Todos">Todos</option>
+                        <option value="CD">CD</option>
+                        <option value="CDA">CDA</option>
+                        <option value="Arame CD">Arame CD</option>
+                        <option value="Arame CDA">Arame CDA</option>
+                        <option value="Vergalhão 12m">Vergalhão 12m</option>
+                    </select>
                     <input 
                         type="text" 
                         placeholder="Pesquisar produto, código, bitola ou material..." 
@@ -86,13 +135,13 @@ export const ProductsCatalog: React.FC<ProductsCatalogProps> = ({ gauges, stock,
                                 <th className="p-4 font-bold text-xs uppercase">Descrição do Produto</th>
                                 <th className="p-4 font-bold text-xs uppercase w-32">Bitola</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-40">Preço Base (R$)</th>
-                                <th className="p-4 text-center font-bold text-xs uppercase w-48">Estoque Disponível</th>
+
                             </tr>
                         </thead>
                         <tbody>
                             {filteredCatalog.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="p-8 text-center text-slate-500 font-medium">
+                                    <td colSpan={4} className="p-8 text-center text-slate-500 font-medium">
                                         Nenhum produto encontrado.
                                     </td>
                                 </tr>
@@ -108,16 +157,7 @@ export const ProductsCatalog: React.FC<ProductsCatalogProps> = ({ gauges, stock,
                                         <td className="p-4 text-center font-black text-emerald-600 text-sm">
                                             R$ {item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
                                         </td>
-                                        <td className="p-4 text-center">
-                                            <div className="flex flex-col items-center">
-                                                <span className={`font-black text-sm ${item.stockWeight > 0 ? 'text-sky-600' : 'text-slate-400'}`}>
-                                                    {item.stockWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG
-                                                </span>
-                                                {item.stockWeight <= 0 && (
-                                                    <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest mt-0.5">Sem Estoque</span>
-                                                )}
-                                            </div>
-                                        </td>
+
                                     </tr>
                                 ))
                             )}

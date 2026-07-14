@@ -418,9 +418,10 @@ const EditConferenceModal: React.FC<{
                                                 return (
                                                     <input
                                                         type="text"
-                                                        value="-"
-                                                        disabled
-                                                        className="w-full p-2 border border-slate-300 rounded text-center bg-slate-100 text-slate-500 font-semibold cursor-not-allowed"
+                                                        value={lot.steelType || ''}
+                                                        onChange={e => handleLotChange(idx, 'steelType', e.target.value)}
+                                                        placeholder="-"
+                                                        className="w-full p-2 border border-slate-300 rounded text-center bg-white"
                                                     />
                                                 );
                                             }

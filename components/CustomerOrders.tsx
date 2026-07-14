@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Page, Customer, CommercialOrder, User, Partner } from '../types';
-import { insertItem, deleteItem, updateItem, uploadFile } from '../services/supabaseService';
+import { insertItem, deleteItem, updateItem, uploadFile, fetchTable } from '../services/supabaseService';
 import { supabase } from '../supabaseClient';
 import { OrderItemsEditor } from './OrderItemsEditor';
 import { OrderPrintView } from './OrderPrintView';
@@ -88,6 +88,13 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
     const [newStatus, setNewStatus] = useState('Em Produção');
     const [searchError, setSearchError] = useState('');
     const [newObservations, setNewObservations] = useState('');
+    const [newDeliveryLocation, setNewDeliveryLocation] = useState('');
+    const [newDeliveryTime, setNewDeliveryTime] = useState('');
+
+    const [editingDeliveryOrder, setEditingDeliveryOrder] = useState<CommercialOrder | null>(null);
+    const [editDeliveryLocation, setEditDeliveryLocation] = useState('');
+    const [editDeliveryTime, setEditDeliveryTime] = useState('');
+    const [unlockedDeliveryOrder, setUnlockedDeliveryOrder] = useState<string | null>(null);
 
     // Credit Request Modal
     const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
@@ -209,6 +216,8 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
             clientName: selectedClient.name,
             clientCity: selectedClient.addressMain || '',
             clientObs: newObservations.trim() ? `OBS: ${newObservations.trim()}` : '',
+            deliveryLocation: newDeliveryLocation.trim() || undefined,
+            deliveryTime: newDeliveryTime.trim() || undefined,
             price: 0.00,
             status: 'Orçamento',
             history: [{
@@ -232,6 +241,8 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
         setSelectedClient(null);
         setSearchError('');
         setNewObservations('');
+        setNewDeliveryLocation('');
+        setNewDeliveryTime('');
     };
 
     const handleDeleteOrder = async (id: string) => {
@@ -278,7 +289,49 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
         }
     };
 
+    const handleSaveDeliveryDetails = async () => {
+        if (!editingDeliveryOrder?.id) return;
+        try {
+            await updateItem('commercial_orders', editingDeliveryOrder.id, {
+                deliveryLocation: editDeliveryLocation,
+                deliveryTime: editDeliveryTime
+            });
+            setEditingDeliveryOrder(null);
+            setEditDeliveryLocation('');
+            setEditDeliveryTime('');
+            setUnlockedDeliveryOrder(null);
+        } catch (error) {
+            console.error('Erro ao salvar detalhes da entrega:', error);
+            alert('Erro ao salvar os detalhes da entrega.');
+        }
+    };
+
+    const handleUnlockDeliveryEdit = async () => {
+        const pwd = window.prompt('Digite a senha de Gestor para liberar a edição:');
+        if (pwd) {
+            try {
+                const users = await fetchTable<User>('app_users');
+                const manager = users.find(u => u.password === pwd && (u.role === 'admin' || u.role === 'gestor'));
+                if (manager) {
+                    setUnlockedDeliveryOrder(editingDeliveryOrder?.id || null);
+                } else {
+                    alert('Senha inválida ou usuário sem permissão.');
+                }
+            } catch (e) {
+                console.error('Erro ao verificar senha', e);
+                alert('Erro ao verificar senha.');
+            }
+        }
+    };
+
     const handleExportOrder = async (order: CommercialOrder) => {
+        if (!order.deliveryLocation || !order.deliveryTime) {
+            alert('ATENÇÃO: É obrigatório informar a Localização da Entrega e a Data Prometida da Entrega antes de exportar o pedido.\n\nPor favor, vá em Ações > Local/Data de Entrega para preencher.');
+            return;
+        }
+
+        alert(`PRAZO DE ENTREGA DIA ${order.deliveryTime.split('-').reverse().join('/')}`);
+        
         if (window.confirm('LEMBRETE IMPORTANTE:\n\nPor favor, certifique-se de enviar por e-mail ou WhatsApp os projetos/documentos do pedido.\n\nDeseja confirmar a exportação deste pedido?')) {
             try {
                 // Ao exportar, o status muda para Aguardando Financeiro
@@ -1005,7 +1058,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         );
                                     })()}
 
-                                {/* Actions Dropdown */}
+                                {/* Delivery and Actions */}
                                 <div className="min-w-[140px] w-full xl:w-auto mt-4 xl:mt-0 flex justify-end xl:justify-center">
                                     <select 
                                         className="w-full xl:w-auto bg-white border border-transparent hover:border-slate-300 rounded-xl px-3 py-2.5 text-xs font-black text-slate-800 shadow-md focus:ring-2 focus:ring-[#315f69] cursor-pointer outline-none transition-all appearance-none text-center"
@@ -1025,6 +1078,10 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                 setPrintingOrder(q);
                                             } else if (e.target.value === 'export') {
                                                 handleExportOrder(q);
+                                            } else if (e.target.value === 'delivery_details') {
+                                                setEditDeliveryLocation(q.deliveryLocation || '');
+                                                setEditDeliveryTime(q.deliveryTime || '');
+                                                setEditingDeliveryOrder(q);
                                             }
                                             e.target.value = '';
                                         }}
@@ -1039,6 +1096,7 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         {(q.status?.toLowerCase() === 'orçamento' || q.status?.toLowerCase() === 'rejeitado pelo financeiro') && !isIncomplete && (
                                             <option value="export">➡️ Exportar</option>
                                         )}
+                                        <option value="delivery_details">📍 Local/Data de Entrega</option>
                                         {/* Regular delete removed - only gestor can delete */}
                                         {isGestor && (
                                             <option value="delete_gestor" className="text-red-600 font-bold">🗑️ Excluir (Gestor)</option>
@@ -1052,6 +1110,84 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                     );
                 })}
             </div>
+
+            {/* Delivery Details Modal */}
+            {editingDeliveryOrder && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                            <div>
+                                <h2 className="text-lg font-black text-slate-900">Detalhes da Entrega</h2>
+                                <p className="text-xs font-bold text-slate-500 uppercase mt-1">Pedido #{editingDeliveryOrder.orderNumber}</p>
+                            </div>
+                            <button onClick={() => setEditingDeliveryOrder(null)} className="text-slate-400 hover:text-red-500 transition-colors p-2 bg-slate-200/50 hover:bg-red-50 rounded-xl">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            {!(editingDeliveryOrder?.status?.toLowerCase() === 'orçamento' || editingDeliveryOrder?.status?.toLowerCase() === 'rejeitado pelo financeiro' || unlockedDeliveryOrder === editingDeliveryOrder?.id) && (
+                                <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl flex items-start gap-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                    </svg>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-bold uppercase tracking-wider">Atenção</p>
+                                        <p className="text-sm font-medium mt-1">Data e localização já cadastrada. Para alterar, peça a senha do gestor.</p>
+                                    </div>
+                                    <button 
+                                        onClick={handleUnlockDeliveryEdit}
+                                        className="bg-amber-200 hover:bg-amber-300 text-amber-900 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-colors shadow-sm shrink-0 mt-2"
+                                    >
+                                        Liberar
+                                    </button>
+                                </div>
+                            )}
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">Localização da Entrega</label>
+                                <input 
+                                    type="text" 
+                                    value={editDeliveryLocation} 
+                                    onChange={e => setEditDeliveryLocation(e.target.value)} 
+                                    placeholder="Ex: Link do Google Maps ou Endereço..." 
+                                    disabled={!(editingDeliveryOrder?.status?.toLowerCase() === 'orçamento' || editingDeliveryOrder?.status?.toLowerCase() === 'rejeitado pelo financeiro' || unlockedDeliveryOrder === editingDeliveryOrder?.id)}
+                                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-slate-700 font-medium focus:border-[#315f69] focus:ring-2 focus:ring-[#315f69]/20 outline-none transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100" 
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">Data Prometida da Entrega</label>
+                                <input 
+                                    type="date" 
+                                    value={editDeliveryTime} 
+                                    onChange={e => setEditDeliveryTime(e.target.value)} 
+                                    disabled={!(editingDeliveryOrder?.status?.toLowerCase() === 'orçamento' || editingDeliveryOrder?.status?.toLowerCase() === 'rejeitado pelo financeiro' || unlockedDeliveryOrder === editingDeliveryOrder?.id)}
+                                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-slate-700 font-medium focus:border-[#315f69] focus:ring-2 focus:ring-[#315f69]/20 outline-none transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100" 
+                                />
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-slate-200 bg-slate-50 flex gap-3">
+                            <button 
+                                onClick={() => {
+                                    setEditingDeliveryOrder(null);
+                                    setUnlockedDeliveryOrder(null);
+                                }}
+                                className="flex-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold py-3 px-4 rounded-xl transition-all"
+                            >
+                                {(editingDeliveryOrder?.status?.toLowerCase() === 'orçamento' || editingDeliveryOrder?.status?.toLowerCase() === 'rejeitado pelo financeiro' || unlockedDeliveryOrder === editingDeliveryOrder?.id) ? 'Cancelar' : 'Fechar'}
+                            </button>
+                            {(editingDeliveryOrder?.status?.toLowerCase() === 'orçamento' || editingDeliveryOrder?.status?.toLowerCase() === 'rejeitado pelo financeiro' || unlockedDeliveryOrder === editingDeliveryOrder?.id) && (
+                                <button 
+                                    onClick={handleSaveDeliveryDetails}
+                                    className="flex-1 bg-[#315f69] hover:bg-[#284a44] text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md"
+                                >
+                                    Salvar
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Novo Orçamento Modal */}
             {isAddModalOpen && (
@@ -1148,6 +1284,27 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                         placeholder="Ex: Descarregamento por conta do cliente..." 
                                         className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-slate-700 font-medium focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none transition-all shadow-sm resize-none" 
                                     />
+                                </div>
+                                <div className="space-y-2 mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black text-slate-500 uppercase tracking-wider">Localização da Entrega</label>
+                                        <input 
+                                            type="text" 
+                                            value={newDeliveryLocation} 
+                                            onChange={e => setNewDeliveryLocation(e.target.value)} 
+                                            placeholder="Ex: Link do Google Maps ou Endereço..." 
+                                            className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-slate-700 font-medium focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none transition-all shadow-sm" 
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black text-slate-500 uppercase tracking-wider">Data Prometida da Entrega</label>
+                                        <input 
+                                            type="date" 
+                                            value={newDeliveryTime} 
+                                            onChange={e => setNewDeliveryTime(e.target.value)} 
+                                            className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-slate-700 font-medium focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none transition-all shadow-sm" 
+                                        />
+                                    </div>
                                 </div>
                             </div>
 

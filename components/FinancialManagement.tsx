@@ -265,6 +265,7 @@ export const FinancialManagement: React.FC<FinancialManagementProps> = ({
                                             <th className="p-4 text-center font-bold text-xs uppercase w-24">Data</th>
                                             <th className="p-4 text-center font-bold text-xs uppercase w-28">Vendedor</th>
                                             <th className="p-4 font-bold text-xs uppercase">Cliente</th>
+                                            <th className="p-4 text-center font-bold text-xs uppercase w-32">Prazo Entrega</th>
                                             <th className="p-4 text-center font-bold text-xs uppercase w-32">Status</th>
                                             <th className="p-4 text-center font-bold text-xs uppercase w-36">Preço</th>
                                             <th className="p-4 text-center font-bold text-xs uppercase w-48">Ações</th>
@@ -295,6 +296,13 @@ export const FinancialManagement: React.FC<FinancialManagementProps> = ({
                                                                 </span>
                                                                 {order.clientCity && <span className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">{order.clientCity}</span>}
                                                             </div>
+                                                        </td>
+                                                        <td className="p-4 text-center font-bold text-slate-700 text-xs">
+                                                            {order.deliveryTime ? (
+                                                                <span className="bg-slate-100 px-3 py-1 rounded-full whitespace-nowrap text-[10px]">
+                                                                    {order.deliveryTime.split('-').reverse().join('/')}
+                                                                </span>
+                                                            ) : '-'}
                                                         </td>
                                                         <td className="p-4 text-center">
                                                             <div className={`${order.status?.toLowerCase().includes('rejeitado') ? 'bg-red-500 border-red-600' : (order.status?.toLowerCase() === 'aguardando financeiro' ? 'bg-red-500 border-red-600 animate-pulse' : 'bg-emerald-500 border-emerald-600')} text-white text-[10px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap shadow-md border inline-block`}>
@@ -376,6 +384,7 @@ export const FinancialManagement: React.FC<FinancialManagementProps> = ({
                                             <th className="p-4 text-center font-bold text-xs uppercase w-24">Data</th>
                                             <th className="p-4 text-center font-bold text-xs uppercase w-28">Vendedor</th>
                                             <th className="p-4 font-bold text-xs uppercase">Cliente</th>
+                                            <th className="p-4 text-center font-bold text-xs uppercase w-32">Prazo Entrega</th>
                                             <th className="p-4 text-center font-bold text-xs uppercase w-32">Status</th>
                                             <th className="p-4 text-center font-bold text-xs uppercase w-36">Valores</th>
                                             <th className="p-4 text-center font-bold text-xs uppercase w-48">Ações</th>
@@ -406,6 +415,13 @@ export const FinancialManagement: React.FC<FinancialManagementProps> = ({
                                                                 </span>
                                                                 {order.clientCity && <span className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">{order.clientCity}</span>}
                                                             </div>
+                                                        </td>
+                                                        <td className="p-4 text-center font-bold text-slate-700 text-xs">
+                                                            {order.deliveryTime ? (
+                                                                <span className="bg-slate-100 px-3 py-1 rounded-full whitespace-nowrap text-[10px]">
+                                                                    {order.deliveryTime.split('-').reverse().join('/')}
+                                                                </span>
+                                                            ) : '-'}
                                                         </td>
                                                         <td className="p-4 text-center">
                                                             <div className="flex flex-col items-center gap-1">

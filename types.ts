@@ -458,6 +458,7 @@ export interface CommercialOrder {
     status: string;
     projectIdent?: string;
     deliveryTime?: string;
+    deliveryLocation?: string;
     paymentCondition?: string;
     paymentValue?: number;
     paymentReceiptUrl?: string;

@@ -786,6 +786,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                 <th className="p-4 text-center font-bold text-xs uppercase w-24">Data</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-28">Vendedor</th>
                                 <th className="p-4 font-bold text-xs uppercase">Cliente</th>
+                                <th className="p-4 text-center font-bold text-xs uppercase w-32">Prazo Entrega</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-32">Máquinas</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-20">Qtd O.S</th>
                                 <th className="p-4 text-center font-bold text-xs uppercase w-28">Bitolas</th>
@@ -882,6 +883,13 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                 <span className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">{q.clientCity}</span>
                                                 {q.clientObs && <span className="text-[9px] font-semibold text-sky-600 mt-1 italic">{q.clientObs}</span>}
                                             </div>
+                                        </td>
+                                        <td className="p-4 text-center font-bold text-slate-700 text-xs">
+                                            {q.deliveryTime ? (
+                                                <span className="bg-slate-100 px-3 py-1 rounded-full whitespace-nowrap text-[10px]">
+                                                    {String(q.deliveryTime).includes('-') ? String(q.deliveryTime).split('-').reverse().join('/') : q.deliveryTime}
+                                                </span>
+                                            ) : '-'}
                                         </td>
                                         <td className="p-4 text-center">
                                             {orderMachines.length > 0 ? (
