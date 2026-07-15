@@ -3,13 +3,15 @@ import { supabase } from '../../supabaseClient';
 
 interface MaintenanceManagerProps {
     activeBrandingPartner?: any;
+    machineFilter?: string;
 }
 
-const MaintenanceManager: React.FC<MaintenanceManagerProps> = ({ activeBrandingPartner }) => {
+const MaintenanceManager: React.FC<MaintenanceManagerProps> = ({ activeBrandingPartner, machineFilter }) => {
     const [maintenances, setMaintenances] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
 
     // Form state
     const [machineName, setMachineName] = useState('');
@@ -28,17 +30,47 @@ const MaintenanceManager: React.FC<MaintenanceManagerProps> = ({ activeBrandingP
     const [status, setStatus] = useState('Pendente');
     const [scheduledDate, setScheduledDate] = useState('');
 
+    const openNewModal = () => {
+        setEditingId(null);
+        setMachineName(machineFilter || (activeBrandingPartner?.machines?.length > 0 ? activeBrandingPartner.machines[0].name : ''));
+        setMaintenanceType('Preventiva');
+        setDescription('');
+        setTechnicianName('');
+        setCost('');
+        setStatus('Pendente');
+        setScheduledDate('');
+        setShowModal(true);
+    };
+
+    const handleEditMaintenance = (maintenance: any) => {
+        setEditingId(maintenance.id);
+        setMachineName(maintenance.machine_name);
+        setMaintenanceType(maintenance.maintenance_type);
+        setDescription(maintenance.description || '');
+        setTechnicianName(maintenance.technician_name || '');
+        setCost(maintenance.cost ? maintenance.cost.toString() : '');
+        setStatus(maintenance.status);
+        setScheduledDate(maintenance.scheduled_date ? maintenance.scheduled_date.split('T')[0] : '');
+        setShowModal(true);
+    };
+
     useEffect(() => {
         fetchMaintenances();
-    }, []);
+    }, [machineFilter]);
 
     const fetchMaintenances = async () => {
         setLoading(true);
         try {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('machine_maintenance')
                 .select('*')
                 .order('created_at', { ascending: false });
+                
+            if (machineFilter) {
+                query = query.eq('machine_name', machineFilter);
+            }
+            
+            const { data, error } = await query;
             
             if (error) {
                 console.error('Error fetching maintenances:', error);
@@ -56,24 +88,34 @@ const MaintenanceManager: React.FC<MaintenanceManagerProps> = ({ activeBrandingP
         e.preventDefault();
         setSaving(true);
         try {
-            const { error } = await supabase
-                .from('machine_maintenance')
-                .insert([{
-                    machine_name: machineName,
-                    maintenance_type: maintenanceType,
-                    description,
-                    technician_name: technicianName,
-                    cost: cost ? parseFloat(cost) : 0,
-                    status,
-                    scheduled_date: scheduledDate || null
-                }]);
+            const payload = {
+                machine_name: machineName,
+                maintenance_type: maintenanceType,
+                description,
+                technician_name: technicianName,
+                cost: cost ? parseFloat(cost) : 0,
+                status,
+                scheduled_date: scheduledDate || null
+            };
 
-            if (error) throw error;
+            if (editingId) {
+                const { error } = await supabase
+                    .from('machine_maintenance')
+                    .update(payload)
+                    .eq('id', editingId);
+                if (error) throw error;
+            } else {
+                const { error } = await supabase
+                    .from('machine_maintenance')
+                    .insert([payload]);
+                if (error) throw error;
+            }
 
             setShowModal(false);
             fetchMaintenances();
             
             // Reset form
+            setEditingId(null);
             setMachineName('');
             setMaintenanceType('Preventiva');
             setDescription('');
@@ -94,7 +136,7 @@ const MaintenanceManager: React.FC<MaintenanceManagerProps> = ({ activeBrandingP
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-slate-800">Manutenções</h2>
                 <button 
-                    onClick={() => setShowModal(true)}
+                    onClick={openNewModal}
                     className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-xl shadow-md transition-all"
                 >
                     + Nova Manutenção
@@ -113,12 +155,13 @@ const MaintenanceManager: React.FC<MaintenanceManagerProps> = ({ activeBrandingP
                                 <th className="p-4 font-bold">Responsável</th>
                                 <th className="p-4 font-bold">Status</th>
                                 <th className="p-4 font-bold">Data Agendada</th>
+                                <th className="p-4 font-bold text-right">Ações</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {maintenances.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="p-8 text-center text-slate-500 font-medium">Nenhuma manutenção registrada.</td>
+                                    <td colSpan={6} className="p-8 text-center text-slate-500 font-medium">Nenhuma manutenção registrada.</td>
                                 </tr>
                             ) : (
                                 maintenances.map(item => (
@@ -134,6 +177,14 @@ const MaintenanceManager: React.FC<MaintenanceManagerProps> = ({ activeBrandingP
                                         <td className="p-4 text-slate-600">
                                             {item.scheduled_date ? new Date(item.scheduled_date).toLocaleDateString('pt-BR') : '-'}
                                         </td>
+                                        <td className="p-4 text-right">
+                                            <button 
+                                                onClick={() => handleEditMaintenance(item)}
+                                                className="text-sky-600 hover:text-sky-800 font-bold text-sm bg-sky-50 px-3 py-1.5 rounded-lg transition-colors"
+                                            >
+                                                Editar
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))
                             )}
@@ -146,7 +197,7 @@ const MaintenanceManager: React.FC<MaintenanceManagerProps> = ({ activeBrandingP
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-                            <h3 className="text-lg font-bold text-slate-800">Nova Manutenção</h3>
+                            <h3 className="text-lg font-bold text-slate-800">{editingId ? 'Editar Manutenção' : 'Nova Manutenção'}</h3>
                             <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>

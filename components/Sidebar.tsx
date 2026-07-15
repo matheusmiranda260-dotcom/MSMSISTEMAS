@@ -75,7 +75,7 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
         } else if (['programarMaquinas'].includes(page)) {
             setExpandedMenus(prev => prev.includes('machines') ? prev : [...prev, 'machines']);
             if (isCollapsed) setIsCollapsed(false);
-        } else if (['peopleManagement', 'continuousImprovement', 'machineManagement'].includes(page)) {
+        } else if (['peopleManagement', 'continuousImprovement'].includes(page)) {
             setExpandedMenus(prev => prev.includes('people') ? prev : [...prev, 'people']);
         }
     }, [page]);
@@ -329,14 +329,22 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                 </div>
             )}
 
+                {/* MÁQUINAS */}
+                {hasPermission('machineManagement') && (
+                    <div className="sidebar-category">
+                        <div className="sidebar-category-title">{isCollapsed ? '⚙️' : '⚙️ Máquinas'}</div>
+                        <MenuItem target="machineManagement" label="Gestão de Máquinas" icon={WrenchScrewdriverIcon} />
+                    </div>
+                )}
+
                 {/* PESSOAS */}
-                {(hasPermission('peopleManagement') || hasPermission('continuousImprovement') || hasPermission('machineManagement')) && (
+                {(hasPermission('peopleManagement') || hasPermission('continuousImprovement')) && (
                     <div className="sidebar-category">
                         <div className="sidebar-category-title">{isCollapsed ? '👥' : '👥 Pessoas'}</div>
 
                         <button
                             onClick={() => toggleMenu('people')}
-                            className={`sidebar-item ${['peopleManagement', 'continuousImprovement', 'machineManagement'].includes(page) ? 'active' : ''} justify-between group`}
+                            className={`sidebar-item ${['peopleManagement', 'continuousImprovement'].includes(page) ? 'active' : ''} justify-between group`}
                             title={isCollapsed ? 'Pessoas' : ''}
                         >
                             <div className="flex items-center gap-3 overflow-hidden">
@@ -360,11 +368,6 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                                 {hasPermission('continuousImprovement') && (
                                     <button onClick={() => setPage('continuousImprovement')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'continuousImprovement' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
                                         ✨ Melhoria Contínua
-                                    </button>
-                                )}
-                                {hasPermission('machineManagement') && (
-                                    <button onClick={() => setPage('machineManagement')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'machineManagement' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
-                                        ⚙️ Gestão de Máquinas
                                     </button>
                                 )}
                             </div>

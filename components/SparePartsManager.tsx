@@ -5,9 +5,10 @@ import { fetchTable, insertItem, updateItem, deleteItem, fetchByColumn, uploadFi
 
 interface SparePartsManagerProps {
     activeBrandingPartner?: any;
+    machineFilter?: string;
 }
 
-const SparePartsManager: React.FC<SparePartsManagerProps> = ({ activeBrandingPartner }) => {
+const SparePartsManager: React.FC<SparePartsManagerProps> = ({ activeBrandingPartner, machineFilter }) => {
     const [parts, setParts] = useState<SparePart[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -39,7 +40,11 @@ const SparePartsManager: React.FC<SparePartsManagerProps> = ({ activeBrandingPar
         setLoading(true);
         try {
             const data = await fetchTable<SparePart>('spare_parts');
-            setParts(data.sort((a, b) => a.name.localeCompare(b.name)));
+            let filtered = data;
+            if (machineFilter) {
+                filtered = data.filter(p => p.machine === machineFilter);
+            }
+            setParts(filtered.sort((a, b) => a.name.localeCompare(b.name)));
         } catch (error) {
             console.error('Error loading parts:', error);
         } finally {
@@ -49,7 +54,7 @@ const SparePartsManager: React.FC<SparePartsManagerProps> = ({ activeBrandingPar
 
     useEffect(() => {
         loadParts();
-    }, []);
+    }, [machineFilter]);
 
     // --- Handlers ---
 
@@ -60,7 +65,7 @@ const SparePartsManager: React.FC<SparePartsManagerProps> = ({ activeBrandingPar
             setFormData({ ...part });
         } else {
             setSelectedPart(null);
-            const initialMachine = activeBrandingPartner?.machines?.length > 0 ? activeBrandingPartner.machines[0].name : 'Geral';
+            const initialMachine = machineFilter || (activeBrandingPartner?.machines?.length > 0 ? activeBrandingPartner.machines[0].name : 'Geral');
             setFormData({ name: '', model: '', machine: initialMachine, currentStock: 0, minStock: 0, imageUrl: '' });
         }
         setImageFile(null);

@@ -3,9 +3,10 @@ import { supabase } from '../../supabaseClient';
 
 interface PurchaseOrdersManagerProps {
     activeBrandingPartner?: any;
+    machineFilter?: string;
 }
 
-const PurchaseOrdersManager: React.FC<PurchaseOrdersManagerProps> = ({ activeBrandingPartner }) => {
+const PurchaseOrdersManager: React.FC<PurchaseOrdersManagerProps> = ({ activeBrandingPartner, machineFilter }) => {
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -13,7 +14,7 @@ const PurchaseOrdersManager: React.FC<PurchaseOrdersManagerProps> = ({ activeBra
 
     // Form state
     const [partName, setPartName] = useState('');
-    const [machineName, setMachineName] = useState('');
+    const [machineName, setMachineName] = useState(machineFilter || '');
     const [quantity, setQuantity] = useState('1');
     const [requesterName, setRequesterName] = useState('');
     const [supplierName, setSupplierName] = useState('');
@@ -24,15 +25,21 @@ const PurchaseOrdersManager: React.FC<PurchaseOrdersManagerProps> = ({ activeBra
 
     useEffect(() => {
         fetchOrders();
-    }, []);
+    }, [machineFilter]);
 
     const fetchOrders = async () => {
         setLoading(true);
         try {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('machine_purchase_orders')
                 .select('*')
                 .order('created_at', { ascending: false });
+                
+            if (machineFilter) {
+                query = query.eq('machine_name', machineFilter);
+            }
+            
+            const { data, error } = await query;
             
             if (error) {
                 console.error('Error fetching purchase orders:', error);
@@ -71,7 +78,7 @@ const PurchaseOrdersManager: React.FC<PurchaseOrdersManagerProps> = ({ activeBra
             
             // Reset form
             setPartName('');
-            setMachineName('');
+            setMachineName(machineFilter || '');
             setQuantity('1');
             setRequesterName('');
             setSupplierName('');
