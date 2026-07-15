@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { Page, Customer, CommercialOrder, User, Partner } from '../types';
 import { insertItem, deleteItem, updateItem } from '../services/supabaseService';
 import { OrderItemsEditor } from './OrderItemsEditor';
@@ -324,16 +325,21 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
         const dayOfWeek = today.getDay();
         const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
         
-        const monday = new Date(today);
-        monday.setDate(today.getDate() + diffToMonday + (weekOffset * 7));
+        const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + diffToMonday + (weekOffset * 7));
         
         const dayNames = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
         
+        const toLocalDateString = (d: Date) => {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
         if (selectedDay !== null) {
-            const d = new Date(monday);
-            d.setDate(monday.getDate() + selectedDay);
+            const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + selectedDay);
             days.push({
-                date: d.toISOString().split('T')[0],
+                date: toLocalDateString(d),
                 name: dayNames[selectedDay],
                 shortDate: `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`
             });
@@ -343,10 +349,9 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
         const numDays = showSaturday ? 6 : 5;
         
         for (let i = 0; i < numDays; i++) {
-            const d = new Date(monday);
-            d.setDate(monday.getDate() + i);
+            const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
             days.push({
-                date: d.toISOString().split('T')[0],
+                date: toLocalDateString(d),
                 name: dayNames[i],
                 shortDate: `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`
             });
@@ -1433,10 +1438,10 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
             )}
 
             {/* Modal Programar Maquina (Semana Matriz) */}
-{isProgramModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-[98vw] max-w-[1800px] h-[95vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="p-6 border-b border-slate-200 bg-slate-50 flex justify-between items-center shrink-0">
+{isProgramModalOpen && createPortal(
+                <div className="fixed inset-0 bg-white z-[100] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex-1 flex flex-col min-h-0">
+                        <div className="p-4 md:p-6 border-b border-slate-200 bg-slate-50 flex flex-col md:flex-row md:justify-between md:items-center gap-4 shrink-0">
                             <div>
                                 <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-sky-500"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
@@ -1675,7 +1680,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                         </div>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* Modal de Máquinas */}
             {isMachinesModalOpen && (

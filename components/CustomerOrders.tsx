@@ -263,8 +263,16 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
             return;
         }
 
-        if (deleteGestorPassword !== currentUser?.password) {
-            setDeleteGestorError('Senha incorreta.');
+        try {
+            const users = await fetchTable<User>('app_users');
+            const manager = users.find(u => u.password === deleteGestorPassword && (u.role === 'admin' || u.role === 'gestor'));
+            if (!manager) {
+                setDeleteGestorError('Senha incorreta ou usuário sem permissão.');
+                return;
+            }
+        } catch (e) {
+            console.error('Erro ao verificar senha', e);
+            setDeleteGestorError('Erro ao verificar senha.');
             return;
         }
 
@@ -1049,7 +1057,24 @@ export const CustomerOrders: React.FC<CustomerOrdersProps> = ({ setPage, custome
                                                                 Entrega
                                                             </div>
                                                             <div className="pt-8 flex flex-col gap-2 text-[10px] text-slate-600 font-medium whitespace-nowrap">
-                                                                <span className="text-slate-400 italic">Pendente...</span>
+                                                                {q.deliveryTime || q.deliveryLocation ? (
+                                                                    <>
+                                                                        {q.deliveryTime && (
+                                                                            <div className="flex flex-col">
+                                                                                <span className="font-bold text-slate-500 uppercase text-[8px]">Data Limite:</span>
+                                                                                <span className="text-orange-500 font-black animate-pulse">{q.deliveryTime.split('-').reverse().join('/')}</span>
+                                                                            </div>
+                                                                        )}
+                                                                        {q.deliveryLocation && (
+                                                                            <div className="flex flex-col mt-1 max-w-[120px] overflow-hidden">
+                                                                                <span className="font-bold text-slate-500 uppercase text-[8px]">Localização:</span>
+                                                                                <span className="text-orange-500 font-black animate-pulse truncate" title={q.deliveryLocation}>{q.deliveryLocation}</span>
+                                                                            </div>
+                                                                        )}
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="text-slate-400 italic">Pendente...</span>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     )}
