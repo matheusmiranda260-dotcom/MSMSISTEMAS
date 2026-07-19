@@ -330,10 +330,11 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
             )}
 
                 {/* MÁQUINAS */}
-                {hasPermission('machineManagement') && (
+                {(hasPermission('machineManagement') || hasPermission('mechanicDashboard')) && (
                     <div className="sidebar-category">
                         <div className="sidebar-category-title">{isCollapsed ? '⚙️' : '⚙️ Máquinas'}</div>
-                        <MenuItem target="machineManagement" label="Gestão de Máquinas" icon={WrenchScrewdriverIcon} />
+                        {hasPermission('machineManagement') && <MenuItem target="machineManagement" label="Gestão de Máquinas" icon={WrenchScrewdriverIcon} />}
+                        {hasPermission('mechanicDashboard') && <MenuItem target="mechanicDashboard" label="Mecânico" icon={WrenchScrewdriverIcon} />}
                     </div>
                 )}
 

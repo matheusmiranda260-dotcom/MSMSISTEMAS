@@ -1,6 +1,6 @@
 // types.ts
 
-export type Page = 'login' | 'menu' | 'stock' | 'stockAdd' | 'stockTransfer' | 'documents' | 'finishedGoods' | 'productionOrder' | 'orderManagement' | 'productionManagement' | 'productionDashboard' | 'meetingsTasks' | 'continuousImprovement' | 'peopleManagement' | 'machineManagement' | 'reports' | 'userManagement' | 'gaugesManager' | 'partsManager' | 'workInstructions' | 'people' | 'finished_goods' | 'spare_parts' | 'quality' | 'instructions' | 'weighing' | 'meetings' | 'downtimeConfigs' | 'desbobinadeira' | 'desbobinadeiraDashboard' | 'desbobinadeiraInProgress' | 'desbobinadeiraPending' | 'desbobinadeiraCompleted' | 'desbobinadeiraReports' | 'productionOrderDesbobinadeira' | 'trefila' | 'trefilaInProgress' | 'trefilaPending' | 'trefilaCompleted' | 'trefilaReports' | 'trefilaParts' | 'trefilaWeighing' | 'trefilaRings' | 'trelica' | 'trelicaInProgress' | 'trelicaPending' | 'trelicaCompleted' | 'trelicaReports' | 'trelicaParts' | 'productionOrderTrelica' | 'labelConfig' | 'partnerConfig' | 'pointingSystem' | 'programarMaquinas' | 'customersManagement' | 'customerRegistration' | 'customerOrders' | 'productsCatalog' | 'salesDashboard' | 'financialManagement' | 'databaseMetrics' | 'blank';
+export type Page = 'login' | 'menu' | 'stock' | 'stockAdd' | 'stockTransfer' | 'documents' | 'finishedGoods' | 'productionOrder' | 'orderManagement' | 'productionManagement' | 'productionDashboard' | 'meetingsTasks' | 'continuousImprovement' | 'peopleManagement' | 'machineManagement' | 'mechanicDashboard' | 'reports' | 'userManagement' | 'gaugesManager' | 'partsManager' | 'workInstructions' | 'people' | 'finished_goods' | 'spare_parts' | 'quality' | 'instructions' | 'weighing' | 'meetings' | 'downtimeConfigs' | 'desbobinadeira' | 'desbobinadeiraDashboard' | 'desbobinadeiraInProgress' | 'desbobinadeiraPending' | 'desbobinadeiraCompleted' | 'desbobinadeiraReports' | 'productionOrderDesbobinadeira' | 'trefila' | 'trefilaInProgress' | 'trefilaPending' | 'trefilaCompleted' | 'trefilaReports' | 'trefilaParts' | 'trefilaWeighing' | 'trefilaRings' | 'trelica' | 'trelicaInProgress' | 'trelicaPending' | 'trelicaCompleted' | 'trelicaReports' | 'trelicaParts' | 'productionOrderTrelica' | 'labelConfig' | 'partnerConfig' | 'pointingSystem' | 'programarMaquinas' | 'customersManagement' | 'customerRegistration' | 'customerOrders' | 'productsCatalog' | 'salesDashboard' | 'financialManagement' | 'databaseMetrics' | 'blank';
 
 export interface DowntimeConfig {
     id: string;
@@ -51,6 +51,26 @@ export interface EmployeeDocument {
 }
 
 export type MachineType = 'Corte-01' | 'Corte-02' | 'Geral' | 'Empilhadeira' | 'Desbobinadeira 1' | 'Trefila 1' | 'Trefila 2' | 'Treliça 1' | 'Treliça 2' | 'Trefila' | 'Treliça';
+
+export interface MachineManual {
+    id: string;
+    machine_name: string;
+    title: string;
+    file_url: string;
+    created_at?: string;
+}
+
+export interface MachineMaintenanceTask {
+    id: string;
+    maintenance_id: string;
+    description: string;
+    status: 'Pendente' | 'Em Andamento' | 'Aguardando Peça' | 'Resolvido';
+    before_image_url?: string | null;
+    after_image_url?: string | null;
+    resolution_notes?: string | null;
+    created_at?: string;
+    updated_at?: string;
+}
 
 export type MaterialType = 'Fio Máquina' | 'Sucata' | 'CA-60' | 'CA-50';
 

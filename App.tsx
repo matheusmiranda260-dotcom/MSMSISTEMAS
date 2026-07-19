@@ -11,6 +11,7 @@ import DesbobinadeiraDashboard from './components/DesbobinadeiraDashboard';
 import Reports from './components/Reports';
 import UserManagement from './components/UserManagement';
 import MachineManagement from './components/MachineManagement/MachineManagement';
+import MechanicDashboard from './components/MachineManagement/MechanicDashboard';
 import Notification from './components/Notification';
 import Sidebar from './components/Sidebar';
 import PartnerConfig from './components/PartnerConfig';
@@ -2815,6 +2816,7 @@ const App: React.FC = () => {
             case 'partsManager': return <SparePartsManager />;
             case 'continuousImprovement': return <ContinuousImprovement setPage={setPage} />;
             case 'machineManagement': return <MachineManagement activeBrandingPartner={activeBrandingPartner} />;
+            case 'mechanicDashboard': return <MechanicDashboard activeBrandingPartner={activeBrandingPartner} />;
             case 'workInstructions': return <WorkInstructions setPage={setPage} />;
             case 'peopleManagement': return <PeopleManagement setPage={setPage} currentUser={currentUser} activeBrandingPartner={activeBrandingPartner} />;
             case 'customerRegistration': return <CustomerRegistration setPage={setPage} customers={customers} />;

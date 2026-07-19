@@ -11,6 +11,8 @@ const PurchaseOrdersManager: React.FC<PurchaseOrdersManagerProps> = ({ activeBra
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [maintenanceTaskId, setMaintenanceTaskId] = useState<string | null>(null);
 
     // Form state
     const [partName, setPartName] = useState('');
@@ -22,6 +24,39 @@ const PurchaseOrdersManager: React.FC<PurchaseOrdersManagerProps> = ({ activeBra
     const [status, setStatus] = useState('Pendente');
     const [priority, setPriority] = useState('Média');
     const [notes, setNotes] = useState('');
+    const [deadlineDate, setDeadlineDate] = useState('');
+
+    const openNewModal = () => {
+        setEditingId(null);
+        setMaintenanceTaskId(null);
+        setPartName('');
+        setMachineName(machineFilter || '');
+        setQuantity('1');
+        setRequesterName('');
+        setSupplierName('');
+        setEstimatedCost('');
+        setStatus('Pendente');
+        setPriority('Média');
+        setNotes('');
+        setDeadlineDate('');
+        setShowModal(true);
+    };
+
+    const handleEditOrder = (order: any) => {
+        setEditingId(order.id);
+        setMaintenanceTaskId(order.maintenance_task_id || null);
+        setPartName(order.part_name);
+        setMachineName(order.machine_name || '');
+        setQuantity(order.quantity?.toString() || '1');
+        setRequesterName(order.requester_name || '');
+        setSupplierName(order.supplier_name || '');
+        setEstimatedCost(order.estimated_cost?.toString() || '');
+        setStatus(order.status || 'Pendente');
+        setPriority(order.priority || 'Média');
+        setNotes(order.notes || '');
+        setDeadlineDate(order.deadline_date ? order.deadline_date.split('T')[0] : '');
+        setShowModal(true);
+    };
 
     useEffect(() => {
         fetchOrders();
@@ -57,26 +92,48 @@ const PurchaseOrdersManager: React.FC<PurchaseOrdersManagerProps> = ({ activeBra
         e.preventDefault();
         setSaving(true);
         try {
-            const { error } = await supabase
-                .from('machine_purchase_orders')
-                .insert([{
-                    part_name: partName,
-                    machine_name: machineName,
-                    quantity: parseInt(quantity, 10),
-                    requester_name: requesterName,
-                    supplier_name: supplierName,
-                    estimated_cost: estimatedCost ? parseFloat(estimatedCost) : 0,
-                    status,
-                    priority,
-                    notes
-                }]);
+            const payload = {
+                part_name: partName,
+                machine_name: machineName,
+                quantity: parseInt(quantity, 10),
+                requester_name: requesterName,
+                supplier_name: supplierName,
+                estimated_cost: estimatedCost ? parseFloat(estimatedCost) : 0,
+                status,
+                priority,
+                notes,
+                deadline_date: deadlineDate || null
+            };
 
-            if (error) throw error;
+            if (editingId) {
+                const { error } = await supabase
+                    .from('machine_purchase_orders')
+                    .update(payload)
+                    .eq('id', editingId);
+                if (error) throw error;
+
+                if (maintenanceTaskId) {
+                    await supabase
+                        .from('machine_maintenance_task_logs')
+                        .insert([{
+                            maintenance_task_id: maintenanceTaskId,
+                            action_type: 'gestor_update',
+                            description: `Gestor atualizou a Ordem de Compra: Status [${status}] ${deadlineDate ? `| Prazo: ${deadlineDate.split('-').reverse().join('/')}` : ''}`,
+                            user_name: 'Gestor'
+                        }]);
+                }
+            } else {
+                const { error } = await supabase
+                    .from('machine_purchase_orders')
+                    .insert([payload]);
+                if (error) throw error;
+            }
 
             setShowModal(false);
             fetchOrders();
             
-            // Reset form
+            setEditingId(null);
+            setMaintenanceTaskId(null);
             setPartName('');
             setMachineName(machineFilter || '');
             setQuantity('1');
@@ -86,6 +143,7 @@ const PurchaseOrdersManager: React.FC<PurchaseOrdersManagerProps> = ({ activeBra
             setStatus('Pendente');
             setPriority('Média');
             setNotes('');
+            setDeadlineDate('');
         } catch (err) {
             console.error('Error saving order:', err);
             alert('Erro ao salvar ordem de compra.');
@@ -99,7 +157,7 @@ const PurchaseOrdersManager: React.FC<PurchaseOrdersManagerProps> = ({ activeBra
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-slate-800">Ordens de Compra</h2>
                 <button 
-                    onClick={() => setShowModal(true)}
+                    onClick={openNewModal}
                     className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-xl shadow-md transition-all"
                 >
                     + Solicitar Peça
@@ -119,12 +177,14 @@ const PurchaseOrdersManager: React.FC<PurchaseOrdersManagerProps> = ({ activeBra
                                 <th className="p-4 font-bold">Solicitante</th>
                                 <th className="p-4 font-bold">Status</th>
                                 <th className="p-4 font-bold">Data Solicitação</th>
+                                <th className="p-4 font-bold text-blue-600">Prazo de Compra</th>
+                                <th className="p-4 font-bold text-center">Ações</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {orders.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="p-8 text-center text-slate-500 font-medium">Nenhuma ordem de compra registrada.</td>
+                                    <td colSpan={8} className="p-8 text-center text-slate-500 font-medium">Nenhuma ordem de compra registrada.</td>
                                 </tr>
                             ) : (
                                 orders.map(item => (
@@ -141,6 +201,17 @@ const PurchaseOrdersManager: React.FC<PurchaseOrdersManagerProps> = ({ activeBra
                                         <td className="p-4 text-slate-600">
                                             {item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '-'}
                                         </td>
+                                        <td className="p-4 font-bold text-blue-600">
+                                            {item.deadline_date ? new Date(item.deadline_date).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : '-'}
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <button 
+                                                onClick={() => handleEditOrder(item)}
+                                                className="text-sky-600 hover:text-sky-800 font-bold text-sm bg-sky-50 hover:bg-sky-100 px-3 py-1.5 rounded-lg transition-colors"
+                                            >
+                                                Editar
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))
                             )}
@@ -153,7 +224,7 @@ const PurchaseOrdersManager: React.FC<PurchaseOrdersManagerProps> = ({ activeBra
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-                            <h3 className="text-lg font-bold text-slate-800">Nova Ordem de Compra</h3>
+                            <h3 className="text-lg font-bold text-slate-800">{editingId ? 'Editar Ordem de Compra' : 'Nova Solicitação de Peça'}</h3>
                             <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
@@ -192,13 +263,26 @@ const PurchaseOrdersManager: React.FC<PurchaseOrdersManagerProps> = ({ activeBra
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Custo Estimado (R$)</label>
+                                    <input type="number" step="0.01" value={estimatedCost} onChange={e => setEstimatedCost(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/50 text-slate-700" placeholder="0.00" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-blue-500 uppercase mb-1">Prazo de Compra / Previsão</label>
+                                    <input type="date" value={deadlineDate} onChange={e => setDeadlineDate(e.target.value)} className="w-full px-3 py-2 border border-blue-200 bg-blue-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-slate-700" />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
                                     <select value={status} onChange={e => setStatus(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/50 text-slate-700">
                                         <option value="Pendente">Pendente</option>
-                                        <option value="Aprovada">Aprovada</option>
-                                        <option value="Comprada">Comprada</option>
-                                        <option value="Entregue">Entregue</option>
-                                        <option value="Cancelada">Cancelada</option>
+                                        <option value="Em Cotação">Em Cotação</option>
+                                        <option value="Aguardando Aprovação">Aguardando Aprovação</option>
+                                        <option value="Aprovado">Aprovado</option>
+                                        <option value="Comprado / A Caminho">Comprado / A Caminho</option>
+                                        <option value="Recebido">Recebido</option>
+                                        <option value="Cancelado">Cancelado</option>
                                     </select>
                                 </div>
                                 <div>

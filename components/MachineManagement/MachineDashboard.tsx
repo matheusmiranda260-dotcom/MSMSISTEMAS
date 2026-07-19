@@ -15,6 +15,9 @@ const MachineDashboard: React.FC<MachineDashboardProps> = ({ machineName, active
     const [saving, setSaving] = useState(false);
     
     const [techDetails, setTechDetails] = useState<any>(null);
+    const [manuals, setManuals] = useState<any[]>([]);
+    const [isUploadingManual, setIsUploadingManual] = useState(false);
+    const [newManualTitle, setNewManualTitle] = useState('');
     const [installationDate, setInstallationDate] = useState('');
     const [model, setModel] = useState('');
     const [serialNumber, setSerialNumber] = useState('');
@@ -47,6 +50,16 @@ const MachineDashboard: React.FC<MachineDashboardProps> = ({ machineName, active
                 setModel('');
                 setSerialNumber('');
                 setManufacturer('');
+            }
+
+            const { data: manualsData } = await supabase
+                .from('machine_manuals')
+                .select('*')
+                .eq('machine_name', machineName)
+                .order('created_at', { ascending: false });
+
+            if (manualsData) {
+                setManuals(manualsData);
             }
         } catch (error) {
             console.error('Error fetching technical details:', error);
@@ -86,47 +99,59 @@ const MachineDashboard: React.FC<MachineDashboardProps> = ({ machineName, active
         }
     };
 
-    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, field: 'parts_manual_url' | 'instruction_manual_url') => {
+    const handleManualUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
+        if (!newManualTitle.trim()) {
+            alert('Por favor, digite o título do manual antes de anexar.');
+            return;
+        }
 
         try {
-            setLoading(true);
+            setIsUploadingManual(true);
             const fileExt = file.name.split('.').pop();
-            const fileName = `${machineName}-${field}-${Math.random()}.${fileExt}`;
+            const fileName = `${machineName}-${Date.now()}.${fileExt}`;
             const filePath = `manuals/${fileName}`;
 
-            // Substitua 'documents' pelo nome correto do seu bucket no Supabase caso seja outro.
             const { error: uploadError } = await supabase.storage
-                .from('documents')
+                .from('kb-files')
                 .upload(filePath, file);
 
             if (uploadError) throw uploadError;
 
             const { data: publicUrlData } = supabase.storage
-                .from('documents')
+                .from('kb-files')
                 .getPublicUrl(filePath);
-
-            const fileUrl = publicUrlData.publicUrl;
 
             const payload = {
                 machine_name: machineName,
-                [field]: fileUrl
+                title: newManualTitle,
+                file_url: publicUrlData.publicUrl
             };
 
-            if (techDetails?.id) {
-                await supabase.from('machine_technical_details').update(payload).eq('id', techDetails.id);
-            } else {
-                await supabase.from('machine_technical_details').insert([payload]);
-            }
+            const { error: dbError } = await supabase.from('machine_manuals').insert([payload]);
+            if (dbError) throw dbError;
 
             fetchTechDetails();
-            alert('Arquivo anexado com sucesso!');
+            setNewManualTitle('');
+            alert('Manual anexado com sucesso!');
         } catch (error: any) {
             console.error('Upload error:', error.message);
             alert('Erro ao fazer upload do arquivo.');
         } finally {
-            setLoading(false);
+            setIsUploadingManual(false);
+        }
+    };
+
+    const deleteManual = async (id: string) => {
+        if (!window.confirm('Tem certeza que deseja excluir este manual?')) return;
+        try {
+            const { error } = await supabase.from('machine_manuals').delete().eq('id', id);
+            if (error) throw error;
+            fetchTechDetails();
+        } catch (error) {
+            console.error('Error deleting manual:', error);
+            alert('Erro ao excluir manual.');
         }
     };
 
@@ -213,54 +238,56 @@ const MachineDashboard: React.FC<MachineDashboardProps> = ({ machineName, active
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center">
-                                        <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mb-3">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
-                                        </div>
-                                        <h4 className="font-bold text-slate-800 text-lg">Manual de Instruções</h4>
-                                        <p className="text-sm text-slate-500 mb-4">Anexe ou visualize o manual de operação.</p>
-                                        
-                                        {techDetails?.instruction_manual_url ? (
-                                            <div className="flex gap-2">
-                                                <a href={techDetails.instruction_manual_url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition-colors">
-                                                    Abrir Manual
-                                                </a>
-                                                <label className="px-4 py-2 border-2 border-dashed border-emerald-300 text-emerald-600 font-bold rounded-lg hover:bg-emerald-50 cursor-pointer transition-colors">
-                                                    Substituir
-                                                    <input type="file" className="hidden" accept=".pdf,.doc,.docx" onChange={e => handleFileUpload(e, 'instruction_manual_url')} />
-                                                </label>
-                                            </div>
-                                        ) : (
-                                            <label className="px-6 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg hover:bg-slate-200 cursor-pointer transition-colors border border-slate-300">
-                                                Anexar PDF
-                                                <input type="file" className="hidden" accept=".pdf,.doc,.docx" onChange={e => handleFileUpload(e, 'instruction_manual_url')} />
-                                            </label>
-                                        )}
+                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                                    <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
+                                        <h3 className="text-lg font-bold text-slate-800">Manuais e Documentos Técnicos</h3>
                                     </div>
 
-                                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center">
-                                        <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-3">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 01-1.44-4.282m3.102.069a18.036 18.036 0 01-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 018.835 2.535M10.34 6.66a23.847 23.847 0 008.835-2.535m0 0A23.74 23.74 0 0018.795 3m.38 1.125a23.91 23.91 0 011.014 5.395m-1.014-8.81c-2.24 2.133-5.27 3.24-8.38 3.24" /></svg>
+                                    <div className="flex flex-col md:flex-row gap-4 mb-6 p-4 bg-slate-50 rounded-xl border border-slate-200 items-end">
+                                        <div className="flex-1">
+                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo de Manual (Ex: Elétrico, Operação)</label>
+                                            <input value={newManualTitle} onChange={e => setNewManualTitle(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/50 text-slate-700" placeholder="Ex: Diagrama Elétrico" />
                                         </div>
-                                        <h4 className="font-bold text-slate-800 text-lg">Manual de Peças</h4>
-                                        <p className="text-sm text-slate-500 mb-4">Catálogo de peças de reposição e diagramas.</p>
-                                        
-                                        {techDetails?.parts_manual_url ? (
-                                            <div className="flex gap-2">
-                                                <a href={techDetails.parts_manual_url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-amber-500 text-white font-bold rounded-lg hover:bg-amber-600 transition-colors">
-                                                    Abrir Manual
-                                                </a>
-                                                <label className="px-4 py-2 border-2 border-dashed border-amber-300 text-amber-600 font-bold rounded-lg hover:bg-amber-50 cursor-pointer transition-colors">
-                                                    Substituir
-                                                    <input type="file" className="hidden" accept=".pdf,.doc,.docx" onChange={e => handleFileUpload(e, 'parts_manual_url')} />
-                                                </label>
+                                        <div>
+                                            <label className={`px-6 py-2 flex items-center justify-center gap-2 font-bold rounded-xl cursor-pointer transition-all ${newManualTitle.trim() ? 'bg-sky-600 hover:bg-sky-700 text-white shadow-md' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
+                                                {isUploadingManual ? 'Enviando...' : (
+                                                    <>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                                        Anexar PDF
+                                                    </>
+                                                )}
+                                                <input type="file" className="hidden" accept=".pdf,.doc,.docx" disabled={!newManualTitle.trim() || isUploadingManual} onChange={handleManualUpload} />
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        {manuals.length === 0 ? (
+                                            <div className="text-center p-6 text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                                                Nenhum manual cadastrado para esta máquina.
                                             </div>
                                         ) : (
-                                            <label className="px-6 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg hover:bg-slate-200 cursor-pointer transition-colors border border-slate-300">
-                                                Anexar PDF
-                                                <input type="file" className="hidden" accept=".pdf,.doc,.docx" onChange={e => handleFileUpload(e, 'parts_manual_url')} />
-                                            </label>
+                                            manuals.map(manual => (
+                                                <div key={manual.id} className="flex justify-between items-center p-4 bg-white border border-slate-200 rounded-xl hover:shadow-sm transition-shadow">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 bg-emerald-50 text-emerald-500 rounded-lg flex items-center justify-center">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-bold text-slate-800">{manual.title}</h4>
+                                                            <p className="text-xs text-slate-500">Adicionado em {new Date(manual.created_at || '').toLocaleDateString('pt-BR')}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <a href={manual.file_url} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-emerald-100 text-emerald-700 font-bold rounded-lg hover:bg-emerald-200 transition-colors text-sm">
+                                                            Abrir
+                                                        </a>
+                                                        <button onClick={() => deleteManual(manual.id)} className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))
                                         )}
                                     </div>
                                 </div>
