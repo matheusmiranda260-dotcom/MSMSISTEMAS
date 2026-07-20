@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import type { ConferenceData, ConferenceLotData, StockItem, Bitola, MaterialType, StockGauge } from '../types';
 import { MaterialOptions, FioMaquinaBitolaOptions, CA60BitolaOptions, SteelTypeOptions } from '../types';
 import { PrinterIcon, PencilIcon, TrashIcon, WarningIcon } from './icons';
+import { uploadFile } from '../services/supabaseService';
 
 const calculateTheoreticalWeight = (gauge: StockGauge | undefined, qtyPackages: number) => {
     if (!gauge) return 0;
@@ -65,6 +66,9 @@ const EditConferenceModal: React.FC<{
     });
     const [duplicateErrors, setDuplicateErrors] = useState<Record<number, string>>({});
     const [showManualInput, setShowManualInput] = useState<Record<number, boolean>>({});
+    const [nfFile, setNfFile] = useState<File | null>(null);
+    const [certificadoFile, setCertificadoFile] = useState<File | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // all bitola options (both machine types)
     const allBitolaOptions: Bitola[] = [...new Set<string>(gauges.map(g => g.gauge))];
@@ -201,8 +205,10 @@ const EditConferenceModal: React.FC<{
         }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (isSubmitting) return;
 
         // Find the highest existing numeric lot number in stock (excluding items from the current conference) and conferences
         let maxLotNum = 0;
@@ -280,9 +286,31 @@ const EditConferenceModal: React.FC<{
             return;
         }
 
-        const finalData = { ...formData, lots: updatedLots };
-        onSubmit(finalData);
-        onClose();
+        setIsSubmitting(true);
+        try {
+            let nfUrl = formData.nfFileUrl;
+            let certUrl = formData.certificadoFileUrl;
+
+            if (nfFile) {
+                const ext = nfFile.name.split('.').pop();
+                const path = `recebimentos/${Date.now()}_nf.${ext}`;
+                nfUrl = await uploadFile('material_documents', path, nfFile) || undefined;
+            }
+            if (certificadoFile) {
+                const ext = certificadoFile.name.split('.').pop();
+                const path = `recebimentos/${Date.now()}_cert.${ext}`;
+                certUrl = await uploadFile('material_documents', path, certificadoFile) || undefined;
+            }
+
+            const finalData = { ...formData, lots: updatedLots, nfFileUrl: nfUrl, certificadoFileUrl: certUrl };
+            onSubmit(finalData);
+            onClose();
+        } catch (error) {
+            console.error(error);
+            alert('Erro ao salvar conferência e anexos.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -305,6 +333,14 @@ const EditConferenceModal: React.FC<{
                     <div className="text-center">
                         <label className="block text-sm font-medium mb-1">Nº Conferência</label>
                         <input type="text" value={formData.conferenceNumber} disabled className="w-full p-2 border border-slate-300 rounded bg-slate-100 text-center" />
+                    </div>
+                    <div className="text-center col-span-1 md:col-span-2">
+                        <label className="block text-sm font-medium mb-1">Arquivo NF {formData.nfFileUrl && <a href={formData.nfFileUrl} target="_blank" rel="noreferrer" className="text-blue-500 text-xs hover:underline">(Ver atual)</a>}</label>
+                        <input type="file" accept="image/*,.pdf" onChange={e => setNfFile(e.target.files?.[0] || null)} className="w-full p-2 border border-slate-300 rounded bg-white text-sm" />
+                    </div>
+                    <div className="text-center col-span-1 md:col-span-2">
+                        <label className="block text-sm font-medium mb-1">Arquivo Certificado {formData.certificadoFileUrl && <a href={formData.certificadoFileUrl} target="_blank" rel="noreferrer" className="text-blue-500 text-xs hover:underline">(Ver atual)</a>}</label>
+                        <input type="file" accept="image/*,.pdf" onChange={e => setCertificadoFile(e.target.files?.[0] || null)} className="w-full p-2 border border-slate-300 rounded bg-white text-sm" />
                     </div>
                 </div>
                 <div className="flex-grow overflow-y-auto border rounded-lg">
@@ -545,8 +581,10 @@ const EditConferenceModal: React.FC<{
                 </div>
                 <button type="button" onClick={handleAddLot} className="text-slate-600 hover:text-slate-800 font-semibold py-2 mt-2 self-start">+ Adicionar outro lote</button>
                 <div className="flex justify-end gap-4 mt-4 pt-4 border-t">
-                    <button type="button" onClick={onClose} className="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-4 rounded-lg transition">Cancelar</button>
-                    <button type="submit" className="bg-[#0F3F5C] text-white font-bold py-2 px-4 rounded-lg hover:bg-[#0A2A3D] transition">Salvar Alterações</button>
+                    <button type="button" onClick={onClose} disabled={isSubmitting} className="bg-slate-200 hover:bg-slate-300 disabled:opacity-50 text-slate-800 font-bold py-2 px-4 rounded-lg transition">Cancelar</button>
+                    <button type="submit" disabled={isSubmitting} className="bg-[#0F3F5C] text-white disabled:opacity-50 font-bold py-2 px-4 rounded-lg hover:bg-[#0A2A3D] transition">
+                        {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
+                    </button>
                 </div>
             </form>
         </div>
@@ -636,6 +674,7 @@ const FinishedConferencesModal: React.FC<FinishedConferencesModalProps> = ({ con
                                         <th className="p-3 font-semibold text-slate-600">Nº Conferência</th>
                                         <th className="p-3 font-semibold text-slate-600">Fornecedor</th>
                                         <th className="p-3 font-semibold text-slate-600">Nota Fiscal</th>
+                                        <th className="p-3 font-semibold text-slate-600 text-center">Anexos</th>
                                         <th className="p-3 font-semibold text-slate-600 text-center">Nº Lotes</th>
                                         <th className="p-3 font-semibold text-slate-600 text-center">Ações</th>
                                     </tr>
@@ -650,6 +689,24 @@ const FinishedConferencesModal: React.FC<FinishedConferencesModalProps> = ({ con
                                                     <td className="p-3 font-medium">{conf.conferenceNumber}</td>
                                                     <td className="p-3">{conf.supplier}</td>
                                                     <td className="p-3">{conf.nfe}</td>
+                                                    <td className="p-3 text-center">
+                                                        <div className="flex justify-center gap-2">
+                                                            {conf.nfFileUrl ? (
+                                                                <a href={conf.nfFileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs flex items-center gap-1" title="Ver Nota Fiscal">
+                                                                    📄 NF
+                                                                </a>
+                                                            ) : (
+                                                                <span className="text-slate-400 text-xs">-</span>
+                                                            )}
+                                                            {conf.certificadoFileUrl ? (
+                                                                <a href={conf.certificadoFileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs flex items-center gap-1" title="Ver Certificado">
+                                                                    📜 Cert.
+                                                                </a>
+                                                            ) : (
+                                                                <span className="text-slate-400 text-xs">-</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
                                                     <td className="p-3 text-center">{lots.length}</td>
                                                     <td className="p-3 text-center">
                                                         <div className="flex justify-center gap-3">

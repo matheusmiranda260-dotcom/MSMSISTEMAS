@@ -942,7 +942,7 @@ const StockControl: React.FC<{
     addConference: (d: ConferenceData) => void; deleteStockItem: (id: string) => void;
     updateStockItem: (i: StockItem) => void; editConference: (id: string, d: ConferenceData) => void;
     deleteConference: (id: string) => void; gauges: StockGauge[]; currentUser: User | null;
-    initialView?: 'list' | 'add';
+    initialView?: 'list' | 'add' | 'history';
     activeBrandingPartner?: Partner | null;
 }> = ({ stock, conferences, setPage, addConference, deleteStockItem, updateStockItem, editConference, deleteConference, gauges, currentUser, initialView = 'list', activeBrandingPartner }) => {
     const isGestor = currentUser?.role === 'admin' || currentUser?.role === 'gestor';
@@ -1206,6 +1206,20 @@ const StockControl: React.FC<{
             </div>
 
             {reportView && <ConferenceReport reportData={reportView} onClose={() => setReportView(null)} gauges={gauges} activeBrandingPartner={activeBrandingPartner} />}
+            {historyOpen && (
+                <FinishedConferencesModal
+                    conferences={conferences}
+                    stock={stock}
+                    onClose={() => {
+                        setHistoryOpen(false);
+                        if (initialView === 'history') setPage('stock');
+                    }}
+                    onShowReport={setReportView}
+                    onEditConference={editConference}
+                    onDeleteConference={deleteConference}
+                    gauges={gauges}
+                />
+            )}
             {historyLot && <LotHistoryModal lot={historyLot} onClose={() => setHistoryLot(null)} />}
             {editingItem && (
                 <EditStockItemModal
