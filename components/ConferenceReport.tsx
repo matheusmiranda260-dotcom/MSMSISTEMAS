@@ -40,6 +40,13 @@ const ConferenceReport: React.FC<ConferenceReportProps> = ({ reportData, onClose
     });
   }, [activeBrandingPartner]);
 
+  useEffect(() => {
+    document.body.classList.add('print-active');
+    return () => {
+      document.body.classList.remove('print-active');
+    };
+  }, []);
+
   return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999] print-modal-container">
       <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-5xl max-h-[95vh] flex flex-col print-modal-content">
@@ -65,16 +72,16 @@ const ConferenceReport: React.FC<ConferenceReportProps> = ({ reportData, onClose
         </div>
 
         {/* Printable Content */}
-        <div className="overflow-y-auto print-section bg-white flex flex-col h-full font-sans text-black">
-          <div className="p-4 w-full h-full flex flex-col">
+        <div className="overflow-y-auto print-section bg-white flex flex-col h-full print:h-auto font-sans text-black">
+          <div className="p-4 w-full h-full print:h-auto flex flex-col print:block">
 
             {/* 1. Logo e Título */}
-            <div className="flex items-center justify-between mb-6 border-b-2 border-slate-900 pb-4">
+            <div className="flex items-center justify-between mb-6 print:mb-2 border-b-2 border-slate-900 pb-4 print:pb-2">
               {resolvedLogoUrl ? (
                 <img
                   src={resolvedLogoUrl}
                   alt={resolvedCompanyName || 'Logo'}
-                  className="h-16 md:h-20 object-contain"
+                  className="h-16 md:h-20 object-contain print:h-12"
                   style={{ maxHeight: '80px', maxWidth: '200px' }}
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
@@ -83,45 +90,45 @@ const ConferenceReport: React.FC<ConferenceReportProps> = ({ reportData, onClose
                   {/* espaço reservado para logo */}
                 </div>
               )}
-              <h1 className="text-xl md:text-2xl font-bold text-black uppercase text-center flex-1 tracking-wide pl-4">
+              <h1 className="text-xl md:text-2xl print:text-lg font-bold text-black uppercase text-center flex-1 tracking-wide pl-4">
                 CONFERÊNCIA DE MATÉRIA PRIMA
               </h1>
             </div>
 
             {/* 2. Cabeçalho com Data, NF e Conferência */}
-            <div className="flex gap-4 mb-6">
+            <div className="flex gap-4 mb-6 print:mb-2">
               <div className="flex-1 border-2 border-slate-900 px-2 py-1">
                 <span className="font-bold text-[10px] text-black block">Data:</span>
-                <span className="font-bold text-black text-lg text-center block w-full">
+                <span className="font-bold text-black text-lg print:text-sm text-center block w-full">
                   {new Date(reportData.entryDate).toLocaleDateString('pt-BR')}
                 </span>
               </div>
               <div className="flex-1 border-2 border-slate-900 px-2 py-1">
                 <span className="font-bold text-[10px] text-black block">Numero da NF:</span>
-                <span className="font-bold text-black text-lg text-center block w-full">
+                <span className="font-bold text-black text-lg print:text-sm text-center block w-full">
                   {reportData.nfe}
                 </span>
               </div>
               <div className="flex-1 border-2 border-slate-900 px-2 py-1">
                 <span className="font-bold text-[10px] text-black uppercase block">NUMERO DA CONFERÊNCIA</span>
-                <span className="font-bold text-black text-lg text-center block w-full">
-                  {reportData.conferenceNumber}
+                <span className="font-bold text-black text-lg print:text-sm text-center block w-full">
+                  {reportData.conferenceNumber || (reportData as any).conferencenumber || (reportData as any).conference_number}
                 </span>
               </div>
             </div>
 
             {/* 3. Tabela de Lotes */}
-            <div className="flex-grow">
-              <table className="w-full text-sm text-left border-collapse">
-                <thead className="text-sm text-black uppercase font-black border-y-2 border-slate-900">
+            <div className="flex-grow print:flex-none">
+              <table className="w-full text-sm print:text-xs text-left border-collapse">
+                <thead className="text-sm print:text-xs text-black uppercase font-black border-y-2 border-slate-900">
                   <tr>
-                    <th className="px-2 py-2 text-center border-l border-r border-slate-400 w-12">Qnt.</th>
-                    <th className="px-2 py-2 text-center border-r border-slate-400">Lote fornecedor</th>
-                    <th className="px-2 py-2 text-center border-r border-slate-400">Lote interno</th>
-                    <th className="px-2 py-2 text-center border-r border-slate-400 w-24">Bitola(mm)</th>
-                    <th className="px-2 py-2 text-center border-r border-slate-400">FORNECEDOR</th>
-                    <th className="px-2 py-2 text-center border-r border-slate-400">Corrida</th>
-                    <th className="px-2 py-2 text-center border-r border-slate-400 w-32">Peso Liquido (Kg)</th>
+                    <th className="px-2 py-2 print:py-1 text-center border-l border-r border-slate-400 w-12">Qnt.</th>
+                    <th className="px-2 py-2 print:py-1 text-center border-r border-slate-400">Lote fornecedor</th>
+                    <th className="px-2 py-2 print:py-1 text-center border-r border-slate-400">Lote interno</th>
+                    <th className="px-2 py-2 print:py-1 text-center border-r border-slate-400 w-24">Bitola(mm)</th>
+                    <th className="px-2 py-2 print:py-1 text-center border-r border-slate-400">FORNECEDOR</th>
+                    <th className="px-2 py-2 print:py-1 text-center border-r border-slate-400">Corrida</th>
+                    <th className="px-2 py-2 print:py-1 text-center border-r border-slate-400 w-32">Peso Liquido (Kg)</th>
                   </tr>
                 </thead>
                 <tbody className="text-black border-b-2 border-slate-900">
@@ -129,48 +136,48 @@ const ConferenceReport: React.FC<ConferenceReportProps> = ({ reportData, onClose
                     const displaySupplier = lot.supplier || reportData.supplier;
                     return (
                       <tr key={index} className="border-b border-slate-300">
-                        <td className="px-2 py-2 text-center border-l border-r border-slate-400 font-bold text-base">{index + 1}</td>
-                        <td className="px-2 py-2 text-center border-r border-slate-400 font-mono font-bold text-base">{lot.supplierLot}</td>
-                        <td className="px-2 py-2 text-center border-r border-slate-400 font-black text-lg text-[#0F3F5C]">{lot.internalLot}</td>
-                        <td className="px-2 py-2 text-center border-r border-slate-400">
+                        <td className="px-2 py-2 print:py-1 text-center border-l border-r border-slate-400 font-bold text-base print:text-sm">{index + 1}</td>
+                        <td className="px-2 py-2 print:py-1 text-center border-r border-slate-400 font-mono font-bold text-base print:text-sm">{lot.supplierLot}</td>
+                        <td className="px-2 py-2 print:py-1 text-center border-r border-slate-400 font-black text-lg print:text-base text-[#0F3F5C]">{lot.internalLot}</td>
+                        <td className="px-2 py-2 print:py-1 text-center border-r border-slate-400">
                           <div className="flex flex-col items-center">
-                            <span className="font-black text-lg">{lot.bitola}</span>
+                            <span className="font-black text-lg print:text-base">{lot.bitola}</span>
                             {(() => {
                               const gauge = gauges.find(g => g.materialType === lot.materialType && g.gauge === lot.bitola);
-                              return gauge?.productCode ? <span className="text-[9px] font-black uppercase text-slate-500">{gauge.productCode}</span> : null;
+                              return gauge?.productCode ? <span className="text-[9px] print:text-[8px] font-black uppercase text-slate-500">{gauge.productCode}</span> : null;
                             })()}
                           </div>
                         </td>
-                        <td className="px-2 py-2 text-center border-r border-slate-400 uppercase truncate max-w-[120px] font-bold text-sm" title={displaySupplier}>{displaySupplier}</td>
-                        <td className="px-2 py-2 text-center border-r border-slate-400 font-mono font-bold text-base">{lot.runNumber}</td>
-                        <td className="px-2 py-2 text-center border-r border-slate-400 font-bold text-lg">{lot.labelWeight.toFixed(0)}</td>
+                        <td className="px-2 py-2 print:py-1 text-center border-r border-slate-400 uppercase truncate max-w-[120px] font-bold text-sm print:text-xs" title={displaySupplier}>{displaySupplier}</td>
+                        <td className="px-2 py-2 print:py-1 text-center border-r border-slate-400 font-mono font-bold text-base print:text-sm">{lot.runNumber}</td>
+                        <td className="px-2 py-2 print:py-1 text-center border-r border-slate-400 font-bold text-lg print:text-base">{lot.labelWeight.toFixed(0)}</td>
                       </tr>
                     );
                   })}
                 </tbody>
                 <tfoot className="font-bold text-black">
                   <tr>
-                    <td colSpan={9} className="h-4"></td>
+                    <td colSpan={9} className="h-4 print:h-2"></td>
                   </tr>
-                  <tr className="text-base">
-                    <td colSpan={6} className="px-2 py-2 text-right uppercase font-black text-sm">Total Geral:</td>
-                    <td className="px-2 py-2 text-center font-black text-xl">{totalLabelWeight.toFixed(0)} KG</td>
+                  <tr className="text-base print:text-sm">
+                    <td colSpan={6} className="px-2 py-2 print:py-1 text-right uppercase font-black text-sm print:text-xs">Total Geral:</td>
+                    <td className="px-2 py-2 print:py-1 text-center font-black text-xl print:text-lg">{totalLabelWeight.toFixed(0)} KG</td>
                   </tr>
                 </tfoot>
               </table>
             </div>
 
             {/* 4. Assinaturas e Rodapé */}
-            <div className="mt-8">
-              <div className="mb-4">
-                <span className="font-bold text-xs uppercase text-slate-700 block mb-6">CONFERENTE:</span>
+            <div className="mt-8 print:mt-4">
+              <div className="mb-4 print:mb-2">
+                <span className="font-bold text-xs uppercase text-slate-700 block mb-6 print:mb-2">CONFERENTE:</span>
                 <div className="border-b-2 border-slate-900 w-full mb-1"></div>
               </div>
-              <div className="mb-8">
-                <span className="font-bold text-xs uppercase text-slate-700 block mb-6">ENCARREGADO:</span>
+              <div className="mb-8 print:mb-2">
+                <span className="font-bold text-xs uppercase text-slate-700 block mb-6 print:mb-2">ENCARREGADO:</span>
                 <div className="border-b-2 border-slate-900 w-full mb-1"></div>
               </div>
-              <div className="text-center pt-8">
+              <div className="text-center pt-8 print:pt-4">
                 <p className="text-xs text-slate-500 font-medium">Sistema de Gestões inteligente MSM</p>
               </div>
             </div>

@@ -563,7 +563,11 @@ const FinishedConferencesModal: React.FC<FinishedConferencesModalProps> = ({ con
     const conferencesWithLots = conferences.map(conf => {
         if (conf.lots && conf.lots.length > 0) return conf;
         // Rebuild lots from stock_items
-        const stockItems = stock.filter(s => s.conferenceNumber === conf.conferenceNumber);
+        const stockItems = stock.filter(s => {
+            const confNum = conf.conferenceNumber || (conf as any).conferencenumber || (conf as any).conference_number;
+            const stockConfNum = s.conferenceNumber || (s as any).conferencenumber || (s as any).conference_number;
+            return confNum && stockConfNum && String(stockConfNum) === String(confNum);
+        });
         const dynamicMaterialOptions = Array.from(new Set(gauges.map(g => g.materialType))).filter(Boolean) as string[];
         const defaultMaterial = dynamicMaterialOptions.sort()[0] || '';
 

@@ -340,6 +340,11 @@ td {
     display: none !important;
   }
 
+  /* Hide background elements when a portal modal is active */
+  body.print-active #root {
+    display: none !important;
+  }
+
   /* 4. Position the container at the very top-left of the page */
   .print-modal-container {
     display: block !important;

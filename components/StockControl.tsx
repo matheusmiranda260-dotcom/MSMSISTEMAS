@@ -90,7 +90,8 @@ const AddConferencePage: React.FC<{
     isGestor: boolean;
     setPage: (page: Page) => void;
     activeBrandingPartner?: Partner | null;
-}> = ({ onClose, onSubmit, stock, onShowReport, conferences, onEditConference, onDeleteConference, gauges, isGestor, setPage, activeBrandingPartner }) => {
+    onOpenHistory?: () => void;
+}> = ({ onClose, onSubmit, stock, onShowReport, conferences, onEditConference, onDeleteConference, gauges, isGestor, setPage, activeBrandingPartner, onOpenHistory }) => {
     const dynamicMaterialOptions = useMemo(() => {
         const list = Array.from(new Set(gauges.map(g => g.materialType))).filter((m: any) => {
             if (!m) return false;
@@ -114,7 +115,6 @@ const AddConferencePage: React.FC<{
     }]);
     const [showManualInput, setShowManualInput] = useState<Record<number, boolean>>({});
     const [duplicateErrors, setDuplicateErrors] = useState<Record<number, string>>({});
-    const [historyOpen, setHistoryOpen] = useState(false);
     const [conferenceNumberError, setConferenceNumberError] = useState<string>('');
     const [submitResult, setSubmitResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
     const [printLots, setPrintLots] = useState<ConferenceLotData[] | null>(null);
@@ -524,23 +524,12 @@ const AddConferencePage: React.FC<{
                     </div>
                 </div>
             )}
-            {historyOpen && <FinishedConferencesModal
-                conferences={conferences}
-                stock={stock}
-                onClose={() => setHistoryOpen(false)}
-                onShowReport={(conf) => {
-                    onShowReport(conf);
-                    setHistoryOpen(false);
-                    onClose();
-                }}
-                onEditConference={onEditConference}
-                onDeleteConference={onDeleteConference}
-                gauges={gauges}
-            />}
             <div className="max-w-[98%] 2xl:max-w-[1600px] mx-auto space-y-6">
                 <div className="flex items-center justify-between">
                     <button onClick={onClose} className="bg-white p-2 rounded-full shadow-sm hover:bg-slate-100 flex items-center gap-2 px-4 font-bold"><ArrowLeftIcon className="h-5 w-5" /> Voltar</button>
-                    <button onClick={() => setHistoryOpen(true)} className="bg-white text-slate-600 font-bold py-2 px-4 rounded-lg shadow-sm border">Histórico</button>
+                    {onOpenHistory && (
+                        <button type="button" onClick={onOpenHistory} className="bg-white text-slate-600 font-bold py-2 px-4 rounded-lg shadow-sm border">Histórico</button>
+                    )}
                 </div>
                 <form onSubmit={handleFinalSubmit} className="bg-white rounded-xl shadow-lg border overflow-hidden">
                     <div className="p-6 bg-slate-50 border-b grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -958,9 +947,11 @@ const StockControl: React.FC<{
 }> = ({ stock, conferences, setPage, addConference, deleteStockItem, updateStockItem, editConference, deleteConference, gauges, currentUser, initialView = 'list', activeBrandingPartner }) => {
     const isGestor = currentUser?.role === 'admin' || currentUser?.role === 'gestor';
     const [isAdding, setIsAdding] = useState(initialView === 'add');
+    const [historyOpen, setHistoryOpen] = useState(initialView === 'history');
 
     useEffect(() => {
         setIsAdding(initialView === 'add');
+        setHistoryOpen(initialView === 'history');
     }, [initialView]);
     const [reportView, setReportView] = useState<ConferenceData | null>(null);
     const [historyLot, setHistoryLot] = useState<StockItem | null>(null);
@@ -1165,7 +1156,7 @@ const StockControl: React.FC<{
     if (isAdding) return <AddConferencePage onClose={() => setIsAdding(false)} onSubmit={addConference} stock={stock} onShowReport={setReportView} conferences={conferences} onEditConference={editConference} onDeleteConference={deleteConference} gauges={gauges} isGestor={isGestor} setPage={setPage} activeBrandingPartner={activeBrandingPartner} />;
 
     return (
-        <div className="p-4 md:p-8 space-y-6">
+        <div className={`p-4 md:p-8 space-y-6 ${reportView ? 'print:hidden' : ''}`}>
             {consumingItem && (
                 <ConsumeLotModal
                     item={consumingItem}
@@ -1421,7 +1412,7 @@ const StockControl: React.FC<{
                 <SearchIcon className="h-5 w-5 text-slate-400" />
                 <input type="text" placeholder="Buscar lote ou NFe..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="flex-grow outline-none" />
             </div>
-            <div className="bg-white rounded-xl shadow-lg border overflow-hidden">
+            <div className="bg-white rounded-xl shadow-lg border overflow-hidden mt-4">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead className="bg-slate-50 border-b font-bold text-slate-600 uppercase text-[10px]">
