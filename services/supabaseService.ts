@@ -71,7 +71,7 @@ export const mapToCamelCase = (obj: any): any => {
     if (Array.isArray(obj)) return obj.map(v => mapToCamelCase(v));
     if (obj && typeof obj === 'object' && obj.constructor === Object) {
         return Object.keys(obj).reduce((acc, key) => {
-            const camelKey = key.replace(/_([a-z])/g, (_, g) => g.toUpperCase());
+            const camelKey = key.replace(/_([a-z0-9])/g, (_, g) => g.toUpperCase());
             acc[camelKey] = mapToCamelCase(obj[key]);
             return acc;
         }, {} as any);

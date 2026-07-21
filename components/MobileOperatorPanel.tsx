@@ -718,7 +718,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                 };
 
                                 await supabase.from('stock_items').update({
-                                    remainingQuantity: newRemaining,
+                                    remaining_quantity: newRemaining,
                                     history: [...(lotObj.history || []), consumeHistoryItem]
                                 }).eq('id', lotObj.id);
                             }
