@@ -170,7 +170,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     newPo.startTime = po.start_time;
                     newPo.endTime = po.end_time;
                     try {
-                        newPo.sub_items_progress = typeof po.sub_items_progress === 'string' ? JSON.parse(po.sub_items_progress) : (po.sub_items_progress || {});
+                        newPo.sub_items_progress = typeof po.subItemsProgress === 'string' ? JSON.parse(po.subItemsProgress) : (po.subItemsProgress || {});
                     } catch(e) {
                         newPo.sub_items_progress = {};
                     }
@@ -220,9 +220,9 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
 
     const isAnyProducing = React.useMemo(() => {
         return localOrders.some(po => {
-            if (!po.sub_items_progress) return false;
+            if (!po.subItemsProgress) return false;
             try {
-                const progressObj = typeof po.sub_items_progress === 'string' ? JSON.parse(po.sub_items_progress) : po.sub_items_progress;
+                const progressObj = typeof po.subItemsProgress === 'string' ? JSON.parse(po.subItemsProgress) : po.subItemsProgress;
                 return Object.values(progressObj).some((p: any) => p.status === 'producing');
             } catch (e) { return false; }
         });
@@ -547,9 +547,9 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         let foundProducing = false;
 
         if (po) {
-            const currentProgressObj = typeof po.sub_items_progress === 'string' 
-                ? JSON.parse(po.sub_items_progress) 
-                : (po.sub_items_progress || {});
+            const currentProgressObj = typeof po.subItemsProgress === 'string' 
+                ? JSON.parse(po.subItemsProgress) 
+                : (po.subItemsProgress || {});
             
             for (const subOsKey in currentProgressObj) {
                 if (currentProgressObj[subOsKey].status === 'producing') {
@@ -595,7 +595,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
             const po = localOrders.find(p => p.id === osId);
             if (!po) { setLoadingAction(null); return; }
             
-            let currentProgress = po.sub_items_progress;
+            let currentProgress = po.subItemsProgress;
             if (typeof currentProgress === 'string') {
                 try { currentProgress = JSON.parse(currentProgress); } catch(e) { currentProgress = {}; }
             }
@@ -613,7 +613,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 if (p.id === osId) {
                     return { 
                         ...p, 
-                        sub_items_progress: updatedProgress,
+                        subItemsProgress: updatedProgress,
                         status: (p.status !== 'producing' && p.status !== 'in_progress') ? 'in_progress' : p.status,
                         startTime: (p.status !== 'producing' && p.status !== 'in_progress') ? startTime : p.startTime
                     };
@@ -623,8 +623,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
 
             const { error } = await supabase
                 .from('production_orders')
-                .update({ 
-                    sub_items_progress: updatedProgress, 
+                .update({ sub_items_progress: updatedProgress, 
                     ...((po.status !== 'producing' && po.status !== 'in_progress') ? { status: 'in_progress', start_time: startTime } : {})
                 })
                 .eq('id', osId);
@@ -648,7 +647,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
             const po = localOrders.find(p => p.id === osId);
             if (!po) { setLoadingAction(null); return; }
             
-            let currentProgress = po.sub_items_progress;
+            let currentProgress = po.subItemsProgress;
             if (typeof currentProgress === 'string') {
                 try { currentProgress = JSON.parse(currentProgress); } catch(e) { currentProgress = {}; }
             }
@@ -664,7 +663,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
             // OPTIMISTIC UPDATE: Immediate UI Feedback
             setLocalOrders(prev => prev.map(p => {
                 if (p.id === osId) {
-                    return { ...p, sub_items_progress: updatedProgress };
+                    return { ...p, subItemsProgress: updatedProgress };
                 }
                 return p;
             }));
@@ -1196,7 +1195,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     }
                 };
 
-                const currentProgressObj = typeof po.sub_items_progress === 'string' ? JSON.parse(po.sub_items_progress) : (po.sub_items_progress || {});
+                const currentProgressObj = typeof po.subItemsProgress === 'string' ? JSON.parse(po.subItemsProgress) : (po.subItemsProgress || {});
                 const currentItemStatus = activeSubOs ? currentProgressObj?.[activeSubOs.os]?.status : null;
                 const currentItemStart = activeSubOs ? (currentProgressObj?.[activeSubOs.os]?.start_time || currentProgressObj?.[activeSubOs.os]?.startTime) : null;
 
