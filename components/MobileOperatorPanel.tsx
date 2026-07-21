@@ -158,31 +158,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     }, [stock, portaRolo1, portaRolo2, selectedMachine]);
 
     useEffect(() => {
-        const fetchOrders = async () => {
-            const { data } = await supabase.from('production_orders')
-                .select('*')
-                .in('status', ['in_progress', 'producing', 'completed']);
-            if (data) {
-                const mapped = data.map((po: any) => {
-                    const newPo: any = { ...po };
-                    newPo.targetBitola = po.target_bitola;
-                    newPo.orderNumber = po.order_number;
-                    newPo.startTime = po.start_time;
-                    newPo.endTime = po.end_time;
-                    try {
-                        newPo.sub_items_progress = typeof po.subItemsProgress === 'string' ? JSON.parse(po.subItemsProgress) : (po.subItemsProgress || {});
-                    } catch(e) {
-                        newPo.sub_items_progress = {};
-                    }
-                    return newPo;
-                });
-                setLocalOrders(mapped);
-            }
-        };
-        fetchOrders();
-        const interval = setInterval(fetchOrders, 3000);
-        return () => clearInterval(interval);
-    }, []);
+        
     
     const [isOnline, setIsOnline] = useState<boolean>(() => {
         const stored = localStorage.getItem(`shift_online_${currentUser.id}`);
