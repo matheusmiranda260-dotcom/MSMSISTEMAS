@@ -12,6 +12,7 @@ interface MobileOperatorPanelProps {
     gauges: StockGauge[];
     activeBrandingPartner?: any;
     machineStates?: import('../types').MachineCurrentState[];
+    setMachineStates?: React.Dispatch<React.SetStateAction<import('../types').MachineCurrentState[]>>;
 }
 
 const ActiveTimer = ({ startTime }: { startTime: string }) => {
@@ -40,7 +41,7 @@ const ActiveTimer = ({ startTime }: { startTime: string }) => {
     return <span className="font-mono text-3xl font-black tracking-wider text-slate-800 tabular-nums">{elapsed || '00:00:00'}</span>;
 };
 
-const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, onLogout, allProgrammedOrders, commercialOrders, customers, stock, gauges, activeBrandingPartner, machineStates }) => {
+const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, onLogout, allProgrammedOrders, commercialOrders, customers, stock, gauges, activeBrandingPartner, machineStates, setMachineStates }) => {
     const assignedMachines = currentUser.assignedMachines || [];
     const [selectedMachine, setSelectedMachine] = useState<string>(assignedMachines[0] || '');
     const [searchQuery, setSearchQuery] = useState('');
@@ -63,7 +64,22 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 activeFeed2: true
             };
             const payload = { ...current, ...updates, operatorId: currentUser.id };
-            await supabase.from('machine_current_states').upsert({
+            
+            // Optimistic update for snappy UI
+            if (setMachineStates) {
+                setMachineStates(prev => {
+                    const newStates = [...(prev || [])];
+                    const idx = newStates.findIndex(s => s.machineName === selectedMachine);
+                    if (idx >= 0) {
+                        newStates[idx] = { ...newStates[idx], ...updates };
+                    } else {
+                        newStates.push(payload as import('../types').MachineCurrentState);
+                    }
+                    return newStates;
+                });
+            }
+
+            const { error } = await supabase.from('machine_current_states').upsert({
                 machine_name: payload.machineName,
                 operator_id: payload.operatorId,
                 status: payload.status,
@@ -75,8 +91,13 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 active_feed_1: payload.activeFeed1,
                 active_feed_2: payload.activeFeed2
             });
+            if (error) {
+                console.error('Supabase error:', error);
+                alert('Erro ao sincronizar máquina: ' + error.message);
+            }
         } catch (e) {
             console.error('Error updating machine state', e);
+            alert('Erro inesperado: ' + e);
         }
     };
 

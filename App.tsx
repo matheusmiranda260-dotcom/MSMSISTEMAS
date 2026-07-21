@@ -2929,6 +2929,7 @@ const App: React.FC = () => {
                    gauges={gauges}
                    activeBrandingPartner={activeBrandingPartner}
                    machineStates={machineStates}
+                   setMachineStates={setMachineStates}
                />;
     }
 
