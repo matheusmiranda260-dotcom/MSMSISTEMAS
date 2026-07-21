@@ -157,9 +157,6 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         }
     }, [stock, portaRolo1, portaRolo2, selectedMachine]);
 
-    useEffect(() => {
-        
-    
     const [isOnline, setIsOnline] = useState<boolean>(() => {
         const stored = localStorage.getItem(`shift_online_${currentUser.id}`);
         if (stored !== null) return stored === 'true';
