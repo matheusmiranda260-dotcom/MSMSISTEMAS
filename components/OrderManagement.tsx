@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Page, Customer, CommercialOrder, User, Partner } from '../types';
 import { insertItem, deleteItem, updateItem } from '../services/supabaseService';
+import { supabase } from '../services/supabaseService';
 import { OrderItemsEditor } from './OrderItemsEditor';
 import { OrderPrintView } from './OrderPrintView';
 
@@ -135,8 +136,43 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
     };
 
     const handleDeleteOrder = async (id: string) => {
-        if (window.confirm('Tem certeza que deseja excluir este pedido?')) {
+        if (window.confirm('Tem certeza que deseja excluir este pedido e reverter a produção relacionada a ele no estoque?')) {
             try {
+                const order = commercialOrders.find(o => o.id === id);
+                if (order && order.orderNumber) {
+                    const orderNumber = order.orderNumber;
+                    
+                    const { data: stockItems, error: stockError } = await supabase.from('stock_items').select('*');
+                    
+                    if (!stockError && stockItems) {
+                        for (const item of stockItems) {
+                            if (item.history && Array.isArray(item.history)) {
+                                let modified = false;
+                                let newRemaining = item.remaining_quantity ?? item.weight ?? item.label_weight ?? 0;
+                                
+                                const newHistory = item.history.filter((hist: any) => {
+                                    if (hist && hist.action && hist.action.includes(`OS ${orderNumber}`)) {
+                                        const match = hist.action.match(/Baixa de ([\d.]+) kg/);
+                                        if (match) {
+                                            newRemaining += parseFloat(match[1]);
+                                            modified = true;
+                                        }
+                                        return false; // Remove this entry
+                                    }
+                                    return true; // Keep entry
+                                });
+                                
+                                if (modified) {
+                                    await supabase.from('stock_items').update({
+                                        remaining_quantity: newRemaining,
+                                        history: newHistory
+                                    }).eq('id', item.id);
+                                }
+                            }
+                        }
+                    }
+                }
+
                 await deleteItem('commercial_orders', id);
             } catch (error) {
                 console.error('Erro ao excluir pedido:', error);

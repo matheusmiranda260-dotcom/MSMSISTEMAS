@@ -597,6 +597,10 @@ const FinishedConferencesModal: React.FC<FinishedConferencesModalProps> = ({ con
     const [editingConference, setEditingConference] = useState<ConferenceData | null>(null);
     const [deletingConference, setDeletingConference] = useState<ConferenceData | null>(null);
 
+    const [dateFilter, setDateFilter] = useState('');
+    const [supplierFilter, setSupplierFilter] = useState('');
+    const [nfFilter, setNfFilter] = useState('');
+
     // Reconstruct lots from stock_items for conferences that don't have lots populated
     const conferencesWithLots = conferences.map(conf => {
         if (conf.lots && conf.lots.length > 0) return conf;
@@ -624,6 +628,24 @@ const FinishedConferencesModal: React.FC<FinishedConferencesModalProps> = ({ con
             totalPieces: s.totalPieces || 1
         }));
         return { ...conf, lots };
+    });
+
+    const filteredConferences = conferencesWithLots.filter(conf => {
+        let matchDate = true;
+        let matchSupplier = true;
+        let matchNf = true;
+
+        if (dateFilter) {
+            matchDate = (conf.date || '').includes(dateFilter);
+        }
+        if (supplierFilter) {
+            matchSupplier = (conf.supplier || '').toLowerCase().includes(supplierFilter.toLowerCase());
+        }
+        if (nfFilter) {
+            matchNf = (conf.invoiceNumber || '').toLowerCase().includes(nfFilter.toLowerCase());
+        }
+
+        return matchDate && matchSupplier && matchNf;
     });
 
     const toggleExpand = (conferenceNumber: string) => {
@@ -663,10 +685,35 @@ const FinishedConferencesModal: React.FC<FinishedConferencesModalProps> = ({ con
                 <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-7xl max-h-[90vh] flex flex-col">
                     <div className="flex justify-between items-center border-b pb-4 mb-4">
                         <h2 className="text-2xl font-bold text-slate-800">Histórico de Conferências Finalizadas</h2>
+                        
+                        <div className="flex gap-4 flex-grow max-w-2xl mx-6">
+                            <input 
+                                type="date" 
+                                value={dateFilter} 
+                                onChange={e => setDateFilter(e.target.value)} 
+                                className="p-2 border rounded-md text-sm flex-1 outline-none focus:ring-2 focus:ring-blue-500" 
+                                title="Filtrar por Data"
+                            />
+                            <input 
+                                type="text" 
+                                placeholder="Filtrar por Fornecedor..." 
+                                value={supplierFilter} 
+                                onChange={e => setSupplierFilter(e.target.value)} 
+                                className="p-2 border rounded-md text-sm flex-1 outline-none focus:ring-2 focus:ring-blue-500" 
+                            />
+                            <input 
+                                type="text" 
+                                placeholder="Filtrar por NF..." 
+                                value={nfFilter} 
+                                onChange={e => setNfFilter(e.target.value)} 
+                                className="p-2 border rounded-md text-sm flex-1 outline-none focus:ring-2 focus:ring-blue-500" 
+                            />
+                        </div>
+
                         <button onClick={onClose} className="text-slate-500 hover:text-slate-800 text-3xl">&times;</button>
                     </div>
                     <div className="flex-grow overflow-y-auto pr-2">
-                        {conferencesWithLots.length > 0 ? (
+                        {filteredConferences.length > 0 ? (
                             <table className="w-full text-sm">
                                 <thead className="bg-slate-50 text-left sticky top-0">
                                     <tr>
@@ -680,7 +727,7 @@ const FinishedConferencesModal: React.FC<FinishedConferencesModalProps> = ({ con
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
-                                    {conferencesWithLots.map(conf => {
+                                    {filteredConferences.map(conf => {
                                         const lots = conf.lots || [];
                                         return (
                                             <React.Fragment key={conf.conferenceNumber}>

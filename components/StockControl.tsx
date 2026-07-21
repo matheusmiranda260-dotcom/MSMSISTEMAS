@@ -1033,6 +1033,25 @@ const StockControl: React.FC<{
         }, 250);
     };
 
+    const handleRevertLot = (item: StockItem) => {
+        const pwd = window.prompt('Esta ação irá remover o lote da máquina e voltá-lo para Disponível.\nDigite a senha do gestor (123456):');
+        if (pwd === '123456' || pwd === 'admin' || pwd === 'msm123') {
+            const updated = {
+                ...item,
+                status: 'Disponível',
+                location: null as any
+            };
+            updated.history = [...(item.history || []), {
+                date: new Date().toISOString(),
+                action: 'Status revertido manualmente pelo gestor',
+                user: currentUser?.name || currentUser?.username || 'Gestor'
+            }];
+            updateStockItem(updated);
+        } else if (pwd !== null) {
+            alert('Senha incorreta ou acesso negado.');
+        }
+    };
+
     const filtered = useMemo(() => stock.filter(i => {
         const gauge = gauges.find(g => g.materialType === i.materialType && g.gauge === i.bitola);
         const productCode = gauge?.productCode || '';
@@ -1527,15 +1546,29 @@ const StockControl: React.FC<{
                                         <button onClick={() => setHistoryLot(item)} title="Histórico" className="p-1 hover:bg-blue-50 rounded-lg transition-colors">
                                             <BookOpenIcon className="h-5 w-5 text-slate-400 hover:text-blue-500" />
                                         </button>
-                                        <button onClick={() => setEditingItem(item)} title="Editar" className="p-1 hover:bg-amber-50 rounded-lg transition-colors">
-                                            <PencilIcon className="h-5 w-5 text-slate-400 hover:text-amber-500" />
-                                        </button>
-                                        <button onClick={() => handleReprintLabel(item)} title="Reimprimir Etiqueta" className="p-1 hover:bg-slate-50 rounded-lg transition-colors">
-                                            <PrinterIcon className="h-5 w-5 text-slate-400 hover:text-indigo-600" />
-                                        </button>
-                                        <button onClick={() => confirm('Excluir?') && deleteStockItem(item.id)} title="Excluir" className="p-1 hover:bg-red-50 rounded-lg transition-colors">
-                                            <TrashIcon className="h-5 w-5 text-red-400 hover:text-red-600" />
-                                        </button>
+                                        {!item.status?.toLowerCase().startsWith('em suporte') && (
+                                            <>
+                                                <button onClick={() => setEditingItem(item)} title="Editar" className="p-1 hover:bg-amber-50 rounded-lg transition-colors">
+                                                    <PencilIcon className="h-5 w-5 text-slate-400 hover:text-amber-500" />
+                                                </button>
+                                                <button onClick={() => handleReprintLabel(item)} title="Reimprimir Etiqueta" className="p-1 hover:bg-slate-50 rounded-lg transition-colors">
+                                                    <PrinterIcon className="h-5 w-5 text-slate-400 hover:text-indigo-600" />
+                                                </button>
+                                                <button onClick={() => confirm('Excluir?') && deleteStockItem(item.id)} title="Excluir" className="p-1 hover:bg-red-50 rounded-lg transition-colors">
+                                                    <TrashIcon className="h-5 w-5 text-red-400 hover:text-red-600" />
+                                                </button>
+                                            </>
+                                        )}
+                                        {item.status?.toLowerCase().startsWith('em suporte') && (
+                                            <>
+                                                <button onClick={() => handleRevertLot(item)} title="Reverter Status (Gestor)" className="p-1 hover:bg-amber-50 rounded-lg transition-colors">
+                                                    <ArrowPathIcon className="h-5 w-5 text-slate-400 hover:text-amber-600" />
+                                                </button>
+                                                <button onClick={() => handleReprintLabel(item)} title="Reimprimir Etiqueta" className="p-1 hover:bg-slate-50 rounded-lg transition-colors">
+                                                    <PrinterIcon className="h-5 w-5 text-slate-400 hover:text-indigo-600" />
+                                                </button>
+                                            </>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

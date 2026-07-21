@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import type { User, CommercialOrder, ProductionOrderData } from '../types';
+import type { User, CommercialOrder, ProductionOrderData, StockItem, StockGauge } from '../types';
 
 interface MobileOperatorPanelProps {
     currentUser: User;
@@ -8,6 +8,9 @@ interface MobileOperatorPanelProps {
     allProgrammedOrders: ProductionOrderData[];
     commercialOrders: CommercialOrder[];
     customers: any[];
+    stock: StockItem[];
+    gauges: StockGauge[];
+    activeBrandingPartner?: any;
 }
 
 const ActiveTimer = ({ startTime }: { startTime: string }) => {
@@ -36,11 +39,48 @@ const ActiveTimer = ({ startTime }: { startTime: string }) => {
     return <span className="font-mono text-3xl font-black tracking-wider text-slate-800 tabular-nums">{elapsed || '00:00:00'}</span>;
 };
 
-const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, onLogout, allProgrammedOrders, commercialOrders, customers }) => {
+const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, onLogout, allProgrammedOrders, commercialOrders, customers, stock, gauges, activeBrandingPartner }) => {
     const assignedMachines = currentUser.assignedMachines || [];
     const [selectedMachine, setSelectedMachine] = useState<string>(assignedMachines[0] || '');
     const [searchQuery, setSearchQuery] = useState('');
+    const [showCompleted, setShowCompleted] = useState(false);
     
+    // Porta rolos state with initial load from localStorage
+    const [portaRolo1, setPortaRolo1] = useState(() => localStorage.getItem(`porta_rolo_1_${assignedMachines[0] || ''}`) || '');
+    const [portaRolo2, setPortaRolo2] = useState(() => localStorage.getItem(`porta_rolo_2_${assignedMachines[0] || ''}`) || '');
+    const [activeFeed1, setActiveFeed1] = useState(() => localStorage.getItem(`active_feed_1_${assignedMachines[0] || ''}`) !== 'false');
+    const [activeFeed2, setActiveFeed2] = useState(() => localStorage.getItem(`active_feed_2_${assignedMachines[0] || ''}`) !== 'false');
+
+    useEffect(() => {
+        setPortaRolo1(localStorage.getItem(`porta_rolo_1_${selectedMachine}`) || '');
+        setPortaRolo2(localStorage.getItem(`porta_rolo_2_${selectedMachine}`) || '');
+        setActiveFeed1(localStorage.getItem(`active_feed_1_${selectedMachine}`) !== 'false');
+        setActiveFeed2(localStorage.getItem(`active_feed_2_${selectedMachine}`) !== 'false');
+    }, [selectedMachine]);
+
+    const handleFeedToggle = (rolo: 1 | 2) => {
+        if (rolo === 1) {
+            const next = !activeFeed1;
+            setActiveFeed1(next);
+            localStorage.setItem(`active_feed_1_${selectedMachine}`, String(next));
+        } else {
+            const next = !activeFeed2;
+            setActiveFeed2(next);
+            localStorage.setItem(`active_feed_2_${selectedMachine}`, String(next));
+        }
+    };
+
+
+    const handlePortaRoloChange = (rolo: 1 | 2, value: string) => {
+        if (rolo === 1) {
+            setPortaRolo1(value);
+            localStorage.setItem(`porta_rolo_1_${selectedMachine}`, value);
+        } else {
+            setPortaRolo2(value);
+            localStorage.setItem(`porta_rolo_2_${selectedMachine}`, value);
+        }
+    };
+
     // Polled orders fallback and visual feedback state
     const [localOrders, setLocalOrders] = useState<ProductionOrderData[]>(allProgrammedOrders.filter(po => po.status !== 'pending'));
     const [loadingAction, setLoadingAction] = useState<string | null>(null);
@@ -50,6 +90,28 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
             setLocalOrders(allProgrammedOrders.filter(po => po.status !== 'pending'));
         }
     }, [allProgrammedOrders]);
+
+    // Clear Porta Rolo if it was manually reverted to 'Disponível' by gestor
+    useEffect(() => {
+        if (portaRolo1) {
+            const lot1 = stock.find(i => i.internalLot === portaRolo1);
+            if (lot1 && lot1.status?.toLowerCase() === 'disponível') {
+                setPortaRolo1('');
+                localStorage.removeItem(`porta_rolo_1_${selectedMachine}`);
+                setActiveFeed1(false);
+                localStorage.setItem(`active_feed_1_${selectedMachine}`, 'false');
+            }
+        }
+        if (portaRolo2) {
+            const lot2 = stock.find(i => i.internalLot === portaRolo2);
+            if (lot2 && lot2.status?.toLowerCase() === 'disponível') {
+                setPortaRolo2('');
+                localStorage.removeItem(`porta_rolo_2_${selectedMachine}`);
+                setActiveFeed2(false);
+                localStorage.setItem(`active_feed_2_${selectedMachine}`, 'false');
+            }
+        }
+    }, [stock, portaRolo1, portaRolo2, selectedMachine]);
 
     useEffect(() => {
         const fetchOrders = async () => {
@@ -177,8 +239,71 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     const [isStopReasonModalOpen, setIsStopReasonModalOpen] = useState(false);
     const [activeStopReason, setActiveStopReason] = useState<string>(() => localStorage.getItem(`machine_stop_reason_${currentUser.id}`) || 'Aguardando início de produção');
 
+    // Abastecimento Modal state
+    const [isAbastecimentoModalOpen, setIsAbastecimentoModalOpen] = useState(false);
+    const [abastecimentoStep, setAbastecimentoStep] = useState<1 | 2>(1);
+    const [selectedPortaRolo, setSelectedPortaRolo] = useState<1 | 2>(1);
+    const [selectedBitola, setSelectedBitola] = useState<string>('');
+    const [availableLots, setAvailableLots] = useState<any[]>([]);
+    const [isLoadingLots, setIsLoadingLots] = useState(false);
+    const [isLoadingMaterials, setIsLoadingMaterials] = useState(false);
+    
+    // As opções agora são puxadas dinamicamente do estoque (ex: ROLO - 12.50 mm)
+    const [availableMaterialOptions, setAvailableMaterialOptions] = useState<string[]>([]);
+
+    const fetchAvailableMaterialOptions = () => {
+        setIsLoadingMaterials(true);
+        try {
+            const machineConfig = activeBrandingPartner?.machines?.find((m: any) => m.name === selectedMachine);
+            let allowedBitolas: string[] = [];
+            if (machineConfig?.gaugeRange) {
+                allowedBitolas = machineConfig.gaugeRange.split('-').map((b: string) => b.trim().toLowerCase());
+            }
+
+            // Utilizamos o stock já carregado na memória pelo App.tsx
+            const activeGauges = gauges.filter(g => g.showInStockManagement !== false).map(g => `${g.materialType} - ${g.gauge}`);
+            const availableStock = stock.filter(i => i.status !== 'Consumido').map(i => `${i.materialType} - ${i.bitola}`);
+            
+            const uniqueOptions = Array.from(new Set([...activeGauges, ...availableStock])).filter(s => {
+                if (!s || s === ' - ' || s === 'undefined - undefined') return false;
+                if (!s.toUpperCase().includes('ROLO')) return false;
+
+                if (allowedBitolas.length > 0) {
+                    const match = allowedBitolas.some(ab => {
+                        const abValue = parseFloat(ab.replace('mm', '').replace(',', '.').trim());
+                        const sValue = parseFloat(s.split('-')[1]?.replace('mm', '').trim() || '0');
+                        return abValue === sValue;
+                    });
+                    if (!match) return false;
+                }
+
+                return true;
+            }).sort();
+            
+            setAvailableMaterialOptions(uniqueOptions);
+        } catch (e) {
+            console.error('Erro ao processar opções de material:', e);
+        } finally {
+            setIsLoadingMaterials(false);
+        }
+    };
+
     const confirmStopMachine = async (reason: string) => {
         setIsStopReasonModalOpen(false);
+        if (reason.toUpperCase() === 'ABASTECIMENTO') {
+            setAbastecimentoStep(1);
+            setSelectedPortaRolo(1);
+            setSelectedBitola('');
+            setAvailableLots([]);
+            setIsAbastecimentoModalOpen(true);
+            fetchAvailableMaterialOptions();
+            return;
+        }
+        await registerMachineStop(reason);
+    };
+
+    const registerMachineStop = async (reason: string) => {
+
         const now = new Date().toISOString();
         
         try {
@@ -200,6 +325,78 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         localStorage.setItem(`machine_state_${currentUser.id}`, 'PARADA');
         localStorage.setItem(`machine_state_since_${currentUser.id}`, now);
         localStorage.setItem(`machine_stop_reason_${currentUser.id}`, reason);
+    };
+
+    const handleSearchLots = async () => {
+        if (!selectedBitola) return;
+        setIsLoadingLots(true);
+        setAbastecimentoStep(2);
+        try {
+            let material = '';
+            let bitola = '';
+            if (selectedBitola.includes(' - ')) {
+                const parts = selectedBitola.split(' - ');
+                material = parts[0];
+                bitola = parts.slice(1).join(' - ');
+            }
+
+            // Filtrar localmente usando a prop 'stock' passada pelo App.tsx
+            const validLots = stock.filter(item => {
+                if (item.status === 'Consumido') return false;
+                // Exigir que seja Disponível ou não consumido, mas para alimentar a máquina geralmente é "Disponível"
+                // Vamos usar a mesma lógica do painel de estoques, onde tudo não consumido é operável.
+                if (material && item.materialType !== material) return false;
+                if (bitola && item.bitola !== bitola) return false;
+                return true;
+            });
+
+            // Ordenar por entryDate ascendente
+            validLots.sort((a, b) => {
+                const dateA = a.entryDate ? new Date(a.entryDate).getTime() : 0;
+                const dateB = b.entryDate ? new Date(b.entryDate).getTime() : 0;
+                return dateA - dateB;
+            });
+
+            setAvailableLots(validLots);
+        } catch (e) {
+            console.error('Erro ao buscar lotes', e);
+            alert('Falha ao buscar lotes');
+            setAbastecimentoStep(1);
+        } finally {
+            setIsLoadingLots(false);
+        }
+    };
+
+    const handleSelectLot = async (lot: any) => {
+        try {
+            // Find old lot in the selected porta rolo to free it
+            const oldInternalLot = selectedPortaRolo === 1 ? portaRolo1 : portaRolo2;
+            if (oldInternalLot && oldInternalLot !== lot.internalLot) {
+                const oldLot = stock.find(i => i.internalLot === oldInternalLot);
+                if (oldLot) {
+                    await supabase.from('stock_items').update({ status: 'Disponível' }).eq('id', oldLot.id);
+                }
+            }
+
+            // Bind new lot to machine and add history
+            const newHistoryItem = {
+                date: new Date().toISOString(),
+                action: `Operador(a) ${currentUser.username || currentUser.name || 'Desconhecido'} selecionou o lote para uso na máquina ${selectedMachine}`,
+                user: currentUser.username || currentUser.name || 'Sistema'
+            };
+            const existingHistory = lot.history || [];
+            
+            await supabase.from('stock_items').update({ 
+                status: `Em suporte de ${selectedMachine}`,
+                history: [...existingHistory, newHistoryItem]
+            }).eq('id', lot.id);
+        } catch (error) {
+            console.error('Erro ao vincular lote:', error);
+        }
+
+        handlePortaRoloChange(selectedPortaRolo, lot.internalLot || lot.supplierLot || lot.id);
+        setIsAbastecimentoModalOpen(false);
+        registerMachineStop('Abastecimento');
     };
 
     // SubOs Modal state
@@ -291,7 +488,46 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         }
     };
 
+    const validateBitolaMatch = (osId: string) => {
+        const po = localOrders.find(p => p.id === osId);
+        if (!po) return true;
+        
+        const osBitola = (po as any).target_bitola || (po as any).targetBitola || '';
+        if (!osBitola) return true;
+        
+        const stdOsBitola = parseFloat(String(osBitola).replace(',', '.').replace(/[^\d.]/g, ''));
+
+        let activeLotsBitolas: number[] = [];
+        if (portaRolo1 && activeFeed1) {
+            const l1 = stock.find(i => i.internalLot === portaRolo1);
+            if (l1) {
+                const b = parseFloat(String(l1.bitola || l1.gauge || '').replace(',', '.').replace(/[^\d.]/g, ''));
+                if (!isNaN(b)) activeLotsBitolas.push(b);
+            }
+        }
+        if (portaRolo2 && activeFeed2) {
+            const l2 = stock.find(i => i.internalLot === portaRolo2);
+            if (l2) {
+                const b = parseFloat(String(l2.bitola || l2.gauge || '').replace(',', '.').replace(/[^\d.]/g, ''));
+                if (!isNaN(b)) activeLotsBitolas.push(b);
+            }
+        }
+
+        const mismatch = activeLotsBitolas.some(b => b !== stdOsBitola);
+        if (mismatch && !isNaN(stdOsBitola)) {
+            alert(`ALERTA DE SEGURANÇA:\nA bitola do pedido é ${osBitola}, mas você selecionou rolos com bitolas diferentes no Porta Rolo ativo. Por favor, corrija o abastecimento ou a seleção antes de continuar.`);
+            return false;
+        }
+        return true;
+    };
+
     const handleOpenModal = (osId: string) => {
+        const hasValidFeed = (portaRolo1 && activeFeed1) || (portaRolo2 && activeFeed2);
+        if (!hasValidFeed) {
+            alert('Você precisa abastecer a máquina e manter ATIVADA pelo menos uma das opções (Porta Rolo 1 ou 2) antes de continuar o corte.');
+            return;
+        }
+        if (!validateBitolaMatch(osId)) return;
         setActiveModalPoId(osId);
         const po = localOrders.find(p => p.id === osId);
         let foundProducing = false;
@@ -334,6 +570,12 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     };
 
     const handleStartSubOs = async (osId: string, subOsKey: string) => {
+        const hasValidFeed = (portaRolo1 && activeFeed1) || (portaRolo2 && activeFeed2);
+        if (!hasValidFeed) {
+            alert('Você precisa abastecer a máquina e manter ATIVADA pelo menos uma das opções (Porta Rolo 1 ou 2) antes de iniciar ou continuar o corte.');
+            return;
+        }
+        if (!validateBitolaMatch(osId)) return;
         setLoadingAction(`start-${osId}-${subOsKey}`);
         try {
             const po = localOrders.find(p => p.id === osId);
@@ -421,6 +663,56 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
             if (error) {
                 console.error('Supabase error:', error);
                 alert('Erro do sistema ao finalizar o corte.');
+            } else {
+                // Abater peso do lote selecionado
+                try {
+                    const qtd = parseFloat(activeSubOs.qunti || activeSubOs.quantidade || activeSubOs.qtd || '0');
+                    const compCm = parseFloat(activeSubOs.comprimento || activeSubOs.comp || '0');
+                    let weightProduced = parseFloat(activeSubOs.peso || activeSubOs.pesoTotal || '0');
+                    
+                    if (!weightProduced || isNaN(weightProduced) || weightProduced === 0) {
+                        const bitolaStr = po.target_bitola || po.targetBitola || '';
+                        const gaugeObj = gauges.find(g => g.gauge === bitolaStr);
+                        const weightPerM = gaugeObj?.weightPerMeter || gaugeObj?.rawWeightValue || 0;
+                        if (weightPerM > 0) {
+                            weightProduced = (compCm / 100) * qtd * weightPerM;
+                        }
+                    }
+
+                    if (weightProduced > 0) {
+                        const activeLots = [];
+                        if (portaRolo1 && activeFeed1) {
+                            const l1 = stock.find(i => i.internalLot === portaRolo1);
+                            if (l1) activeLots.push(l1);
+                        }
+                        if (portaRolo2 && activeFeed2) {
+                            const l2 = stock.find(i => i.internalLot === portaRolo2);
+                            if (l2) activeLots.push(l2);
+                        }
+
+                        if (activeLots.length > 0) {
+                            const weightPerLot = weightProduced / activeLots.length;
+                            
+                            for (const lotObj of activeLots) {
+                                const currentQty = lotObj.remainingQuantity ?? lotObj.weight ?? lotObj.labelWeight ?? 0;
+                                const newRemaining = Math.max(0, currentQty - weightPerLot);
+                                
+                                const consumeHistoryItem = {
+                                    date: endTime,
+                                    action: `OS ${po.orderNumber} - SubOS ${subOsKey}: Baixa de ${weightPerLot.toFixed(2)} kg`,
+                                    user: currentUser.username || currentUser.name || 'Sistema'
+                                };
+
+                                await supabase.from('stock_items').update({
+                                    remainingQuantity: newRemaining,
+                                    history: [...(lotObj.history || []), consumeHistoryItem]
+                                }).eq('id', lotObj.id);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error('Erro ao abater peso do lote:', err);
+                }
             }
                 
             const commOrderId = (po as any).related_commercial_order_id || (po as any).relatedCommercialOrderId;
@@ -463,7 +755,12 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 .update({ status: 'completed', end_time: endTime })
                 .eq('id', osId);
                 
-            setLocalOrders(prev => prev.filter(po => po.id !== osId));
+            setLocalOrders(prev => prev.map(po => {
+                if (po.id === osId) {
+                    return { ...po, status: 'completed', end_time: endTime };
+                }
+                return po;
+            }));
             setActiveModalPoId(null);
         } catch (e) {
             console.error('Erro ao finalizar produção:', e);
@@ -510,11 +807,16 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         );
     }
 
-    const osList = localOrders.filter(po => {
+    const filteredOrders = localOrders.filter(po => {
         const matchMachine = String(po.machine).trim().toLowerCase() === String(selectedMachine).trim().toLowerCase();
         const matchQuery = !searchQuery || String(po.orderNumber || (po as any).order_number).toLowerCase().includes(searchQuery.toLowerCase());
         return matchMachine && matchQuery;
     });
+
+    const pendingOrders = filteredOrders.filter(po => po.status !== 'completed');
+    const completedOrders = filteredOrders.filter(po => po.status === 'completed');
+    
+    const osList = showCompleted ? completedOrders : pendingOrders;
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
@@ -647,6 +949,83 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                             </div>
                         </div>
                     )}
+                
+                <div className="bg-white p-4 rounded-2xl shadow-sm border-2 border-slate-200 flex flex-col gap-3">
+                    <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                        Alimentação (Porta Rolos)
+                    </h3>
+                    <div className="flex gap-3">
+                        {(() => {
+                            const renderPortaRolo = (title: string, internalLotId: string, roloIndex: 1 | 2) => {
+                                const lot = stock.find(i => i.internalLot === internalLotId);
+                                const isActive = roloIndex === 1 ? activeFeed1 : activeFeed2;
+                                
+                                if (!lot) {
+                                    return (
+                                        <div className="flex-1 flex flex-col gap-1">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase">{title}</label>
+                                            <div className="w-full min-h-[104px] bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400">
+                                                <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Livre / Vazio</span>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+
+                                const initialWeight = lot.labelWeight || lot.weight || 0;
+                                const remainingWeight = lot.remainingQuantity ?? initialWeight;
+                                const consumedWeight = Math.max(0, initialWeight - remainingWeight);
+
+                                return (
+                                    <div className={`flex-1 flex flex-col gap-1 transition-all ${isActive ? 'opacity-100' : 'opacity-60 grayscale'}`}>
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase">{title}</label>
+                                            <div className="flex items-center gap-1 cursor-pointer" onClick={() => handleFeedToggle(roloIndex)}>
+                                                <div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${isActive ? 'bg-indigo-500' : 'bg-slate-300'}`}>
+                                                    <div className={`bg-white w-3 h-3 rounded-full shadow-sm transform transition-transform ${isActive ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                                                </div>
+                                                <span className={`text-[9px] font-bold uppercase ${isActive ? 'text-indigo-600' : 'text-slate-400'}`}>
+                                                    {isActive ? 'Ativo' : 'Pausado'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className={`bg-white border-2 rounded-xl p-3 flex flex-col gap-1 shadow-sm relative overflow-hidden min-h-[104px] transition-colors ${isActive ? 'border-indigo-200' : 'border-slate-200'}`}>
+                                            <div className="absolute top-0 right-0 bg-indigo-500 text-white text-[9px] font-black px-2 py-0.5 rounded-bl-lg z-10">
+                                                LOTE: {lot.internalLot || lot.supplierLot}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-black text-slate-800">{lot.bitola || lot.gauge || '-'}</span>
+                                                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded uppercase tracking-wider">{lot.materialType}</span>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-x-2 gap-y-1 mt-1 text-[10px]">
+                                                <div className="flex flex-col">
+                                                    <span className="text-slate-400 font-bold uppercase">Inicial</span>
+                                                    <span className="text-slate-700 font-black">{Number(initialWeight).toFixed(2)} kg</span>
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-slate-400 font-bold uppercase">Restante</span>
+                                                    <span className="text-emerald-600 font-black">{Number(remainingWeight).toFixed(2)} kg</span>
+                                                </div>
+                                                <div className="flex col-span-2 pt-1 border-t border-slate-100 flex-row justify-between items-center">
+                                                    <span className="text-slate-400 font-bold uppercase">Consumido</span>
+                                                    <span className="text-orange-500 font-black">{Number(consumedWeight).toFixed(2)} kg</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            };
+
+                            return (
+                                <>
+                                    {renderPortaRolo('Porta Rolo 1', portaRolo1, 1)}
+                                    {renderPortaRolo('Porta Rolo 2', portaRolo2, 2)}
+                                </>
+                            );
+                        })()}
+                    </div>
+                </div>
+
                 <div className="relative">
                     <input 
                         type="text" 
@@ -663,7 +1042,23 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
 
                 <div className="flex justify-between items-end px-1">
                     <h2 className="font-black text-slate-800 text-lg uppercase tracking-tight">{selectedMachine}</h2>
-                    <span className="text-xs font-bold text-slate-500 bg-slate-200 px-2 py-1 rounded-md">{osList.length} O.S. Pendentes</span>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => setShowCompleted(!showCompleted)}
+                            className={`text-[10px] font-bold px-2 py-1.5 rounded-lg border transition-all ${
+                                showCompleted 
+                                ? 'bg-indigo-100 text-indigo-700 border-indigo-200' 
+                                : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
+                            }`}
+                        >
+                            {showCompleted ? 'Ver Pendentes' : 'Ver Finalizados'}
+                        </button>
+                        <span className={`text-xs font-bold px-2 py-1.5 rounded-lg ${
+                            showCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'
+                        }`}>
+                            {showCompleted ? `${completedOrders.length} O.S. Finalizadas` : `${pendingOrders.length} O.S. Pendentes`}
+                        </span>
+                    </div>
                 </div>
 
                 <div className="flex flex-col gap-4 pb-10">
@@ -718,7 +1113,11 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                     </div>
                                 )}
 
-                                {!isProducing ? (
+                                {po.status === 'completed' ? (
+                                    <div className="w-full bg-emerald-100 border border-emerald-300 text-emerald-700 font-black py-4 rounded-xl text-lg uppercase shadow-sm text-center">
+                                        Finalizado
+                                    </div>
+                                ) : !isProducing ? (
                                     <button 
                                         onClick={() => handleOpenModal(po.id)}
                                         className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 rounded-xl text-lg uppercase shadow-sm active:scale-95 transition-all"
@@ -917,6 +1316,146 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                         </div>
                     </div>
                 )}
+
+                {/* Modal de Abastecimento (Porta Rolo e Lote) */}
+                {isAbastecimentoModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[250] flex flex-col items-center justify-center p-4 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden flex flex-col shadow-2xl h-[85vh]">
+                            <div className="bg-[#0F3F5C] p-6 flex justify-between items-center shrink-0">
+                                <div>
+                                    <h3 className="text-xl font-black text-white uppercase tracking-tight">Abastecimento de Máquina</h3>
+                                    <p className="text-xs font-bold text-indigo-200 mt-1">
+                                        {abastecimentoStep === 1 ? 'Selecione o porta rolo e a bitola' : 'Selecione o lote desejado'}
+                                    </p>
+                                </div>
+                                <button onClick={() => setIsAbastecimentoModalOpen(false)} className="p-2 bg-white/10 rounded-xl shadow-sm text-white hover:bg-white/20">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                            
+                            <div className="p-6 flex-1 overflow-y-auto bg-slate-50">
+                                {abastecimentoStep === 1 && (
+                                    <div className="flex flex-col gap-6">
+                                        <div className="flex flex-col gap-3">
+                                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest">1. Qual Porta Rolo?</label>
+                                            <div className="flex gap-4">
+                                                <button 
+                                                    onClick={() => setSelectedPortaRolo(1)}
+                                                    className={`flex-1 flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all ${selectedPortaRolo === 1 ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-md' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-100'}`}
+                                                >
+                                                    <span className="font-black text-lg">Porta Rolo 1</span>
+                                                    {portaRolo1 && (
+                                                        <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full mt-1 uppercase">
+                                                            Já abastecido
+                                                        </span>
+                                                    )}
+                                                </button>
+                                                <button 
+                                                    onClick={() => setSelectedPortaRolo(2)}
+                                                    className={`flex-1 flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all ${selectedPortaRolo === 2 ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-md' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-100'}`}
+                                                >
+                                                    <span className="font-black text-lg">Porta Rolo 2</span>
+                                                    {portaRolo2 && (
+                                                        <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full mt-1 uppercase">
+                                                            Já abastecido
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            </div>
+                                            {((selectedPortaRolo === 1 && portaRolo1) || (selectedPortaRolo === 2 && portaRolo2)) && (
+                                                <div className="bg-amber-50 border border-amber-200 text-amber-700 p-3 rounded-xl text-xs font-bold flex items-center gap-2">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                                    </svg>
+                                                    <span>Atenção: O Porta Rolo selecionado já possui um lote. Ao continuar, o lote atual será substituído.</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex flex-col gap-3">
+                                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest">2. Qual o Material?</label>
+                                            {isLoadingMaterials ? (
+                                                <div className="flex justify-center items-center py-4 text-slate-400 font-bold text-sm">
+                                                    Carregando opções disponíveis...
+                                                </div>
+                                            ) : availableMaterialOptions.length === 0 ? (
+                                                <div className="flex justify-center items-center py-4 text-slate-400 font-bold text-sm">
+                                                    Nenhum material disponível no estoque.
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                                    {availableMaterialOptions.map(option => (
+                                                        <button
+                                                            key={option}
+                                                            onClick={() => setSelectedBitola(option)}
+                                                            className={`p-3 rounded-xl border-2 font-black text-sm transition-all ${selectedBitola === option ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-md' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'}`}
+                                                        >
+                                                            {option}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <button 
+                                            disabled={!selectedBitola}
+                                            onClick={handleSearchLots}
+                                            className="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-xl text-lg uppercase shadow-sm active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+                                        >
+                                            Buscar Lotes Disponíveis
+                                        </button>
+                                    </div>
+                                )}
+
+                                {abastecimentoStep === 2 && (
+                                    <div className="flex flex-col gap-4">
+                                        <button 
+                                            onClick={() => setAbastecimentoStep(1)}
+                                            className="text-xs font-bold text-indigo-600 uppercase flex items-center gap-1 hover:underline self-start"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clipRule="evenodd" /></svg>
+                                            Voltar para Bitolas
+                                        </button>
+                                        
+                                        <h4 className="font-black text-slate-700 uppercase">Lotes de {selectedBitola}</h4>
+                                        
+                                        {isLoadingLots ? (
+                                            <div className="flex justify-center p-8">
+                                                <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-indigo-600"></div>
+                                            </div>
+                                        ) : availableLots.length === 0 ? (
+                                            <div className="bg-red-50 border-2 border-dashed border-red-200 p-8 text-center rounded-2xl">
+                                                <p className="text-red-500 font-bold uppercase tracking-wider">Nenhum lote disponível encontrado para {selectedBitola}</p>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col gap-3">
+                                                {availableLots.map(lot => (
+                                                    <div key={lot.id} className="bg-white border-2 border-slate-200 rounded-2xl p-4 flex justify-between items-center hover:border-indigo-300 hover:shadow-md transition-all">
+                                                        <div>
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{lot.supplier || 'Fornecedor Desconhecido'}</p>
+                                                            <p className="text-lg font-black text-slate-800 uppercase tracking-tight">{lot.internalLot || lot.supplierLot}</p>
+                                                            <div className="flex gap-3 mt-1">
+                                                                <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">Peso: {lot.remainingQuantity || lot.weight || lot.labelWeight} kg</span>
+                                                                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">{lot.materialType}</span>
+                                                            </div>
+                                                        </div>
+                                                        <button 
+                                                            onClick={() => handleSelectLot(lot)}
+                                                            className="bg-emerald-500 hover:bg-emerald-600 text-white font-black px-6 py-3 rounded-xl uppercase shadow-sm active:scale-95 transition-all text-sm"
+                                                        >
+                                                            Selecionar
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 </>
             )}
         </div>

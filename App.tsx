@@ -2918,6 +2918,9 @@ const App: React.FC = () => {
                    allProgrammedOrders={productionOrders}
                    commercialOrders={commercialOrders}
                    customers={customers}
+                   stock={stock}
+                   gauges={gauges}
+                   activeBrandingPartner={activeBrandingPartner}
                />;
     }
 
