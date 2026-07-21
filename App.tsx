@@ -41,7 +41,7 @@ import { FinancialManagement } from './components/FinancialManagement';
 import MobileOperatorPanel from './components/MobileOperatorPanel';
 import { ProductsCatalog } from './components/ProductsCatalog';
 import { supabase } from './supabaseClient';
-import type { StockGauge, StickyNote, GaugeComponent, CommercialOrder } from './types';
+import type { StockGauge, StickyNote, GaugeComponent, CommercialOrder, MachineCurrentState } from './types';
 
 import { fetchTable, insertItem, updateItem, deleteItem, deleteItemByColumn, updateItemByColumn, mapToCamelCase, fetchByColumn } from './services/supabaseService';
 import { useAllRealtimeSubscriptions } from './hooks/useSupabaseRealtime';
@@ -119,6 +119,7 @@ const App: React.FC = () => {
     const [partners, setPartners] = useState<Partner[]>([]);
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [commercialOrders, setCommercialOrders] = useState<CommercialOrder[]>([]);
+    const [machineStates, setMachineStates] = useState<MachineCurrentState[]>([]);
 
     const activeBrandingPartner = useMemo(() => {
         return partners.find(p => p.isActiveBranding) || (partners.length > 0 ? partners[0] : null);
@@ -186,7 +187,7 @@ const App: React.FC = () => {
                     fetchedUsers, fetchedEmployees, fetchedStock, fetchedConferences, fetchedTransfers,
                     fetchedOrders, fetchedFinishedGoods, fetchedPontas, fetchedFGTransfers,
                     fetchedParts, fetchedReports, fetchedProductionRecords, fetchedGauges, fetchedNotes, fetchedMeetings, fetchedCategories, fetchedDowntimeConfigs,
-                    fetchedAccessLogs, fetchedGaugeComponents, fetchedPartners, fetchedMachineOrders, fetchedCustomers, fetchedCommercialOrders
+                    fetchedAccessLogs, fetchedGaugeComponents, fetchedPartners, fetchedMachineOrders, fetchedCustomers, fetchedCommercialOrders, fetchedMachineStates
                 ] = await Promise.all([
                     fetchTable<User>('app_users').catch(() => []),
                     fetchTable<Employee>('employees').catch(() => []),
@@ -211,7 +212,8 @@ const App: React.FC = () => {
                     fetchTable<Partner>('partners').catch(() => []),
                     fetchTable<MachineOrder>('machine_orders').catch(() => []),
                     fetchTable<Customer>('customers').catch(() => []),
-                    fetchTable<CommercialOrder>('commercial_orders').catch(() => [])
+                    fetchTable<CommercialOrder>('commercial_orders').catch(() => []),
+                    fetchTable<MachineCurrentState>('machine_current_states').catch(() => [])
                 ]);
 
                 setUsers(fetchedUsers);
@@ -229,6 +231,7 @@ const App: React.FC = () => {
                 setMachineOrders(fetchedMachineOrders);
                 setCustomers(fetchedCustomers || []);
                 setCommercialOrders(fetchedCommercialOrders || []);
+                setMachineStates(fetchedMachineStates || []);
 
                 let partnersToSet = fetchedPartners;
                 if (!fetchedPartners || fetchedPartners.length === 0) {
@@ -387,6 +390,7 @@ const App: React.FC = () => {
         setAccessLogs,
         setGaugeComponents,
         setCommercialOrders,
+        setMachineStates,
     }), []);
 
     useAllRealtimeSubscriptions(realtimeSetters, !!currentUser);
@@ -2130,6 +2134,9 @@ const App: React.FC = () => {
                     actualProducedWeight: actualWeight,
                 };
 
+                const fetchedCustomers = await fetchTable('customers');
+                const fetchedCommercialOrders = await fetchTable('commercial_orders');
+
                 const latestStock = await fetchTable<StockItem>('stock_items');
                 const currentStockLookup = new Map(latestStock.map(s => [String(s.id).trim(), { ...s }]));
 
@@ -2921,6 +2928,7 @@ const App: React.FC = () => {
                    stock={stock}
                    gauges={gauges}
                    activeBrandingPartner={activeBrandingPartner}
+                   machineStates={machineStates}
                />;
     }
 

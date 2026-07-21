@@ -7,7 +7,7 @@ import type {
     PartsRequest, ShiftReport, ProductionRecord,
     StickyNote, Meeting, MeetingCategory, DowntimeConfig, User,
     UserAccessLog, StockGauge, GaugeComponent, MachineOrder, Customer,
-    CommercialOrder
+    CommercialOrder, MachineCurrentState
 } from '../types';
 import { mapToCamelCase } from '../services/supabaseService';
 
@@ -35,6 +35,7 @@ interface RealtimeSetters {
     setMachineOrders?: React.Dispatch<React.SetStateAction<MachineOrder[]>>;
     setCustomers?: React.Dispatch<React.SetStateAction<Customer[]>>;
     setCommercialOrders?: React.Dispatch<React.SetStateAction<CommercialOrder[]>>;
+    setMachineStates?: React.Dispatch<React.SetStateAction<MachineCurrentState[]>>;
 }
 
 /**
@@ -277,6 +278,10 @@ export function useAllRealtimeSubscriptions(setters: RealtimeSetters, enabled: b
 
         if (setters.setCommercialOrders) {
             createSubscription<CommercialOrder>('commercial_orders', setters.setCommercialOrders);
+        }
+
+        if (setters.setMachineStates) {
+            createSubscription<MachineCurrentState>('machine_current_states', setters.setMachineStates, { idField: 'machineName' });
         }
 
         channelsRef.current = channels;

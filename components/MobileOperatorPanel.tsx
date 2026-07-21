@@ -11,6 +11,7 @@ interface MobileOperatorPanelProps {
     stock: StockItem[];
     gauges: StockGauge[];
     activeBrandingPartner?: any;
+    machineStates?: import('../types').MachineCurrentState[];
 }
 
 const ActiveTimer = ({ startTime }: { startTime: string }) => {
@@ -39,45 +40,59 @@ const ActiveTimer = ({ startTime }: { startTime: string }) => {
     return <span className="font-mono text-3xl font-black tracking-wider text-slate-800 tabular-nums">{elapsed || '00:00:00'}</span>;
 };
 
-const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, onLogout, allProgrammedOrders, commercialOrders, customers, stock, gauges, activeBrandingPartner }) => {
+const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, onLogout, allProgrammedOrders, commercialOrders, customers, stock, gauges, activeBrandingPartner, machineStates }) => {
     const assignedMachines = currentUser.assignedMachines || [];
     const [selectedMachine, setSelectedMachine] = useState<string>(assignedMachines[0] || '');
     const [searchQuery, setSearchQuery] = useState('');
     const [showCompleted, setShowCompleted] = useState(false);
     
-    // Porta rolos state with initial load from localStorage
-    const [portaRolo1, setPortaRolo1] = useState(() => localStorage.getItem(`porta_rolo_1_${assignedMachines[0] || ''}`) || '');
-    const [portaRolo2, setPortaRolo2] = useState(() => localStorage.getItem(`porta_rolo_2_${assignedMachines[0] || ''}`) || '');
-    const [activeFeed1, setActiveFeed1] = useState(() => localStorage.getItem(`active_feed_1_${assignedMachines[0] || ''}`) !== 'false');
-    const [activeFeed2, setActiveFeed2] = useState(() => localStorage.getItem(`active_feed_2_${assignedMachines[0] || ''}`) !== 'false');
+    // Porta rolos state with initial load from Realtime
+    const currentMachineState = machineStates?.find(m => m.machineName === selectedMachine);
+    const portaRolo1 = currentMachineState?.portaRolo1Lot || '';
+    const portaRolo2 = currentMachineState?.portaRolo2Lot || '';
+    const activeFeed1 = currentMachineState?.activeFeed1 ?? true;
+    const activeFeed2 = currentMachineState?.activeFeed2 ?? true;
 
-    useEffect(() => {
-        setPortaRolo1(localStorage.getItem(`porta_rolo_1_${selectedMachine}`) || '');
-        setPortaRolo2(localStorage.getItem(`porta_rolo_2_${selectedMachine}`) || '');
-        setActiveFeed1(localStorage.getItem(`active_feed_1_${selectedMachine}`) !== 'false');
-        setActiveFeed2(localStorage.getItem(`active_feed_2_${selectedMachine}`) !== 'false');
-    }, [selectedMachine]);
-
-    const handleFeedToggle = (rolo: 1 | 2) => {
-        if (rolo === 1) {
-            const next = !activeFeed1;
-            setActiveFeed1(next);
-            localStorage.setItem(`active_feed_1_${selectedMachine}`, String(next));
-        } else {
-            const next = !activeFeed2;
-            setActiveFeed2(next);
-            localStorage.setItem(`active_feed_2_${selectedMachine}`, String(next));
+    const updateMachineStateDB = async (updates: Partial<import('../types').MachineCurrentState>) => {
+        if (!selectedMachine) return;
+        try {
+            const current = machineStates?.find(m => m.machineName === selectedMachine) || {
+                machineName: selectedMachine,
+                status: 'PARADA' as const,
+                activeFeed1: true,
+                activeFeed2: true
+            };
+            const payload = { ...current, ...updates, operatorId: currentUser.id };
+            await supabase.from('machine_current_states').upsert({
+                machine_name: payload.machineName,
+                operator_id: payload.operatorId,
+                status: payload.status,
+                status_since: payload.statusSince,
+                stop_reason: payload.stopReason,
+                idle_since: payload.idleSince,
+                porta_rolo_1_lot: payload.portaRolo1Lot,
+                porta_rolo_2_lot: payload.portaRolo2Lot,
+                active_feed_1: payload.activeFeed1,
+                active_feed_2: payload.activeFeed2
+            });
+        } catch (e) {
+            console.error('Error updating machine state', e);
         }
     };
 
+    const handleFeedToggle = (rolo: 1 | 2) => {
+        if (rolo === 1) {
+            updateMachineStateDB({ activeFeed1: !activeFeed1 });
+        } else {
+            updateMachineStateDB({ activeFeed2: !activeFeed2 });
+        }
+    };
 
     const handlePortaRoloChange = (rolo: 1 | 2, value: string) => {
         if (rolo === 1) {
-            setPortaRolo1(value);
-            localStorage.setItem(`porta_rolo_1_${selectedMachine}`, value);
+            updateMachineStateDB({ portaRolo1Lot: value });
         } else {
-            setPortaRolo2(value);
-            localStorage.setItem(`porta_rolo_2_${selectedMachine}`, value);
+            updateMachineStateDB({ portaRolo2Lot: value });
         }
     };
 
@@ -93,23 +108,31 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
 
     // Clear Porta Rolo if it was manually reverted to 'Disponível' by gestor
     useEffect(() => {
+        let changed = false;
+        let newPR1 = portaRolo1;
+        let newPR2 = portaRolo2;
+        let newF1 = activeFeed1;
+        let newF2 = activeFeed2;
+
         if (portaRolo1) {
             const lot1 = stock.find(i => i.internalLot === portaRolo1);
             if (lot1 && lot1.status?.toLowerCase() === 'disponível') {
-                setPortaRolo1('');
-                localStorage.removeItem(`porta_rolo_1_${selectedMachine}`);
-                setActiveFeed1(false);
-                localStorage.setItem(`active_feed_1_${selectedMachine}`, 'false');
+                newPR1 = '';
+                newF1 = false;
+                changed = true;
             }
         }
         if (portaRolo2) {
             const lot2 = stock.find(i => i.internalLot === portaRolo2);
             if (lot2 && lot2.status?.toLowerCase() === 'disponível') {
-                setPortaRolo2('');
-                localStorage.removeItem(`porta_rolo_2_${selectedMachine}`);
-                setActiveFeed2(false);
-                localStorage.setItem(`active_feed_2_${selectedMachine}`, 'false');
+                newPR2 = '';
+                newF2 = false;
+                changed = true;
             }
+        }
+
+        if (changed) {
+            updateMachineStateDB({ portaRolo1Lot: newPR1, portaRolo2Lot: newPR2, activeFeed1: newF1, activeFeed2: newF2 });
         }
     }, [stock, portaRolo1, portaRolo2, selectedMachine]);
 
@@ -147,13 +170,11 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     });
     const [isTogglingShift, setIsTogglingShift] = useState(false);
 
-    // Machine Status State (Local for now)
-    const [machineState, setMachineState] = useState<'PARADA' | 'ATIVA'>(() => {
-        return (localStorage.getItem(`machine_state_${currentUser.id}`) as 'PARADA' | 'ATIVA') || 'PARADA';
-    });
-    const [machineStateSince, setMachineStateSince] = useState<string>(() => {
-        return localStorage.getItem(`machine_state_since_${currentUser.id}`) || new Date().toISOString();
-    });
+    // Machine Status State (DB Sync)
+    const machineState = currentMachineState?.status || 'PARADA';
+    const machineStateSince = currentMachineState?.statusSince || new Date().toISOString();
+    const idleSince = currentMachineState?.idleSince || null;
+    const activeStopReason = currentMachineState?.stopReason || 'Aguardando início de produção';
     
     const formatTimeDiff = (startStr: string) => {
         const start = new Date(startStr).getTime();
@@ -165,23 +186,16 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         return `${h}:${m}:${s}`;
     };
     const [machineTimer, setMachineTimer] = useState<string>(() => formatTimeDiff(machineStateSince));
-
-    const [idleSince, setIdleSince] = useState<string | null>(() => {
-        return localStorage.getItem(`machine_idle_since_${currentUser.id}`);
-    });
     const [idleTimer, setIdleTimer] = useState<string>('00:00:00');
 
     useEffect(() => {
         if (!isOnline) return;
         const interval = setInterval(() => {
             setMachineTimer(formatTimeDiff(machineStateSince));
-            setIdleTimer(prev => {
-                const newIdle = localStorage.getItem(`machine_idle_since_${currentUser.id}`);
-                return newIdle ? formatTimeDiff(newIdle) : '00:00:00';
-            });
+            setIdleTimer(idleSince ? formatTimeDiff(idleSince) : '00:00:00');
         }, 1000);
         return () => clearInterval(interval);
-    }, [isOnline, machineStateSince, currentUser.id]);
+    }, [isOnline, machineStateSince, idleSince]);
 
     const isAnyProducing = React.useMemo(() => {
         return localOrders.some(po => {
@@ -197,13 +211,11 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         if (machineState === 'ATIVA' && !isAnyProducing) {
             if (!idleSince) {
                 const now = new Date().toISOString();
-                setIdleSince(now);
-                localStorage.setItem(`machine_idle_since_${currentUser.id}`, now);
+                updateMachineStateDB({ idleSince: now });
             }
         } else {
             if (idleSince !== null) {
-                setIdleSince(null);
-                localStorage.removeItem(`machine_idle_since_${currentUser.id}`);
+                updateMachineStateDB({ idleSince: null });
             }
         }
     }, [machineState, isAnyProducing, idleSince, currentUser.id]);
@@ -226,18 +238,12 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
             console.error('Error updating machine stop state', e);
         }
 
-        setMachineState('ATIVA');
-        setMachineStateSince(now);
         setMachineTimer('00:00:00');
-        setActiveStopReason('');
-        localStorage.setItem(`machine_state_${currentUser.id}`, 'ATIVA');
-        localStorage.setItem(`machine_state_since_${currentUser.id}`, now);
-        localStorage.removeItem(`machine_stop_reason_${currentUser.id}`);
+        updateMachineStateDB({ status: 'ATIVA', statusSince: now, stopReason: '' });
     };
 
     // Modal state
     const [isStopReasonModalOpen, setIsStopReasonModalOpen] = useState(false);
-    const [activeStopReason, setActiveStopReason] = useState<string>(() => localStorage.getItem(`machine_stop_reason_${currentUser.id}`) || 'Aguardando início de produção');
 
     // Abastecimento Modal state
     const [isAbastecimentoModalOpen, setIsAbastecimentoModalOpen] = useState(false);
@@ -318,13 +324,8 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
             console.error('Error starting machine stop', e);
         }
 
-        setMachineState('PARADA');
-        setMachineStateSince(now);
         setMachineTimer('00:00:00');
-        setActiveStopReason(reason);
-        localStorage.setItem(`machine_state_${currentUser.id}`, 'PARADA');
-        localStorage.setItem(`machine_state_since_${currentUser.id}`, now);
-        localStorage.setItem(`machine_stop_reason_${currentUser.id}`, reason);
+        updateMachineStateDB({ status: 'PARADA', statusSince: now, stopReason: reason });
     };
 
     const handleSearchLots = async () => {
@@ -441,13 +442,8 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                         .eq('user_id', currentUser.id)
                         .is('end_time', null);
                         
-                    setMachineState('ATIVA');
-                    setMachineStateSince(now);
                     setMachineTimer('00:00:00');
-                    setActiveStopReason('');
-                    localStorage.setItem(`machine_state_${currentUser.id}`, 'ATIVA');
-                    localStorage.setItem(`machine_state_since_${currentUser.id}`, now);
-                    localStorage.removeItem(`machine_stop_reason_${currentUser.id}`);
+                    updateMachineStateDB({ status: 'ATIVA', statusSince: now, stopReason: '' });
                 } else {
                     throw error;
                 }
@@ -470,10 +466,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                         .eq('user_id', currentUser.id)
                         .is('end_time', null);
                         
-                    localStorage.removeItem(`machine_state_${currentUser.id}`);
-                    localStorage.removeItem(`machine_state_since_${currentUser.id}`);
-                    localStorage.removeItem(`machine_stop_reason_${currentUser.id}`);
-                    setActiveStopReason('');
+                    updateMachineStateDB({ status: 'PARADA', statusSince: now, stopReason: '' });
                 } else {
                     throw error;
                 }

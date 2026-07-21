@@ -1295,7 +1295,6 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                                                 try {
                                                                                                     await supabase.from('production_orders').delete().eq('id', programmedInfo.id);
                                                                                                     setProgrammedOrders(prev => prev.filter(p => p.id !== programmedInfo.id));
-                                                                                                    setAllProgrammedOrders(prev => prev.filter(p => p.id !== programmedInfo.id));
                                                                                                 } catch (err) { alert('Erro ao remover programação'); }
                                                                                             }
                                                                                         }}
@@ -1629,7 +1628,6 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                                 if (window.confirm(`Deseja remover a programação da OS ${po.order_number}?`)) {
                                                                                     try {
                                                                                         await supabase.from('production_orders').delete().eq('id', po.id);
-                                                                                        setAllProgrammedOrders(prev => prev.filter(p => p.id !== po.id));
                                                                                         setProgrammedOrders(prev => prev.filter(p => p.id !== po.id));
                                                                                     } catch(err) { alert('Erro ao remover'); }
                                                                                 }

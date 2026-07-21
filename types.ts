@@ -1108,3 +1108,17 @@ export interface MachineOrder {
     weight?: number;
     labelPrinted?: boolean;
 }
+
+export interface MachineCurrentState {
+    machineName: string;
+    operatorId?: string;
+    status: 'ATIVA' | 'PARADA';
+    statusSince?: string;
+    stopReason?: string;
+    idleSince?: string;
+    portaRolo1Lot?: string;
+    portaRolo2Lot?: string;
+    activeFeed1: boolean;
+    activeFeed2: boolean;
+    updatedAt?: string;
+}
