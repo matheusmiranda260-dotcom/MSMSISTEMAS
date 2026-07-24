@@ -323,7 +323,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
         };
         
         fetchData();
-        const interval = setInterval(fetchData, 2000); // refresh every 2s while open
+        const interval = setInterval(fetchData, 1500); // refresh every 1.5s while open
         return () => clearInterval(interval);
     }, [isReportModalOpen, selectedMachineTab, selectedShiftId]);
 
@@ -338,7 +338,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
             } catch(e) {}
         };
         fetchAll();
-        const interval = setInterval(fetchAll, 3000);
+        const interval = setInterval(fetchAll, 1500);
         return () => clearInterval(interval);
     }, [isProgramModalOpen, isViewProjectModalOpen, isMachinesModalOpen, isReportModalOpen]);
 
@@ -2312,7 +2312,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                     return (
                                                         <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
                                                             <td className="p-2 font-bold">{safeFormatTime(stop?.start_time)}</td>
-                                                            <td className="p-2 font-bold">{stop?.end_time ? safeFormatTime(stop.end_time) : '--:--:--'}</td>
+                                                            <td className="p-2 font-bold">{stop?.end_time ? safeFormatTime(stop.end_time) : <span className="text-orange-600 font-black animate-pulse">Em andamento</span>}</td>
                                                             <td className="p-2 font-black text-rose-700">{formatDuration(Math.max(0, durS || 0))}</td>
                                                             <td className="p-2 font-medium text-slate-600 truncate max-w-[200px]">{stop.reason || 'Motivo...'}</td>
                                                         </tr>

@@ -140,6 +140,30 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         }
     }, [allProgrammedOrders]);
 
+    // Fast direct polling for operator panel (1.5s interval)
+    useEffect(() => {
+        if (!selectedMachine) return;
+        const pollFreshData = async () => {
+            try {
+                const { data: pos } = await supabase
+                    .from('production_orders')
+                    .select('*')
+                    .eq('machine', selectedMachine)
+                    .in('status', ['pending', 'in_progress', 'producing', 'completed']);
+                if (pos && pos.length > 0) {
+                    setLocalOrders(pos.map(p => ({
+                        ...p,
+                        subItemsProgress: p.sub_items_progress || (p as any).subItemsProgress,
+                        sub_items_progress: p.sub_items_progress || (p as any).subItemsProgress
+                    })));
+                }
+            } catch(e) {}
+        };
+        pollFreshData();
+        const interval = setInterval(pollFreshData, 1500);
+        return () => clearInterval(interval);
+    }, [selectedMachine]);
+
     // Clear Porta Rolo if it was manually reverted to 'Disponível' by gestor
     useEffect(() => {
         let changed = false;
@@ -1002,8 +1026,8 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                         <div className="flex justify-between items-center">
                             <div>
                                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Status em tempo real</p>
-                                <p className={`text-lg font-black mt-0.5 ${idleSince ? 'text-orange-400 animate-pulse' : 'text-emerald-400'}`}>
-                                    {idleSince ? 'MÁQUINA PARADA' : 'ESTADO ATIVO'}
+                                <p className={`text-lg font-black mt-0.5 ${isAnyProducing ? 'text-emerald-400' : 'text-orange-400 animate-pulse'}`}>
+                                    {isAnyProducing ? '⚡ EM PRODUÇÃO' : '🟠 AGUARDANDO O.S.'}
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">
@@ -1025,12 +1049,12 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                 </button>
                             </div>
                         </div>
-                        <div className={`py-2 px-4 rounded-lg flex items-center justify-center gap-2 font-mono text-xl font-bold ${idleSince ? 'bg-orange-900/50 text-orange-400 border border-orange-500/30' : 'bg-emerald-900/50 text-emerald-100'}`}>
-                            {idleSince && (
+                        <div className={`py-2 px-4 rounded-lg flex items-center justify-center gap-2 font-mono text-xl font-bold ${isAnyProducing ? 'bg-emerald-900/50 text-emerald-100 border border-emerald-500/30' : 'bg-orange-900/50 text-orange-400 border border-orange-500/30'}`}>
+                            {!isAnyProducing && (
                                 <span className="uppercase text-[12px] mr-2 font-black tracking-widest text-orange-400 animate-pulse">AGUARDANDO O.S. — </span>
                             )}
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                            {idleSince ? idleTimer : machineTimer}
+                            {isAnyProducing ? machineTimer : (idleTimer !== '00:00:00' ? idleTimer : machineTimer)}
                         </div>
                     </div>
                 </div>
