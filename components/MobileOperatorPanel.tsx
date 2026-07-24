@@ -47,57 +47,83 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     const [searchQuery, setSearchQuery] = useState('');
     const [showCompleted, setShowCompleted] = useState(false);
     
-    // Porta rolos state with initial load from Realtime
-    const currentMachineState = machineStates?.find(m => m.machineName === selectedMachine);
-    const portaRolo1 = currentMachineState?.portaRolo1Lot || '';
-    const portaRolo2 = currentMachineState?.portaRolo2Lot || '';
-    const activeFeed1 = currentMachineState?.activeFeed1 ?? true;
-    const activeFeed2 = currentMachineState?.activeFeed2 ?? true;
+    // Porta rolos state with initial load from Realtime (supports both camelCase and snake_case DB fields)
+    const currentMachineState = machineStates?.find(m => (m.machineName || (m as any).machine_name) === selectedMachine);
+    let portaRolo1 = (currentMachineState?.portaRolo1Lot || (currentMachineState as any)?.porta_rolo_1_lot || '').toString().trim();
+    let portaRolo2 = (currentMachineState?.portaRolo2Lot || (currentMachineState as any)?.porta_rolo_2_lot || '').toString().trim();
+    
+    // Auto-sanitização visual: Se ambos tiverem o mesmo lote no banco, evita duplicação na interface
+    if (portaRolo1 && portaRolo1 === portaRolo2) {
+        portaRolo2 = '';
+    }
+
+    const activeFeed1 = currentMachineState?.activeFeed1 ?? (currentMachineState as any)?.active_feed_1 ?? true;
+    const activeFeed2 = currentMachineState?.activeFeed2 ?? (currentMachineState as any)?.active_feed_2 ?? true;
 
     const updateMachineStateDB = async (updates: Partial<import('../types').MachineCurrentState>) => {
         if (!selectedMachine) return;
         try {
-            const current = machineStates?.find(m => m.machineName === selectedMachine) || {
+            const current = machineStates?.find(m => (m.machineName || (m as any).machine_name) === selectedMachine) || {
                 machineName: selectedMachine,
                 status: 'PARADA' as const,
                 activeFeed1: true,
                 activeFeed2: true
             };
+            
+            // Extract the desired values explicitly. If `updates` provides a value (even null), it MUST override.
+            const nextPR1 = 'portaRolo1Lot' in updates ? (updates.portaRolo1Lot || null) : (current.portaRolo1Lot || (current as any).porta_rolo_1_lot || null);
+            let nextPR2 = 'portaRolo2Lot' in updates ? (updates.portaRolo2Lot || null) : (current.portaRolo2Lot || (current as any).porta_rolo_2_lot || null);
+            
+            // Prevent duplicate lots explicitly
+            if (nextPR1 && nextPR1 === nextPR2) {
+                nextPR2 = null;
+            }
+
             const payload = { ...current, ...updates, operatorId: currentUser.id };
             
             // Optimistic update for snappy UI
             if (setMachineStates) {
                 setMachineStates(prev => {
                     const newStates = [...(prev || [])];
-                    const idx = newStates.findIndex(s => s.machineName === selectedMachine);
+                    const idx = newStates.findIndex(s => (s.machineName || (s as any).machine_name) === selectedMachine);
+                    const updatedObj = {
+                        ...(idx >= 0 ? newStates[idx] : {}),
+                        ...updates,
+                        machineName: selectedMachine,
+                        machine_name: selectedMachine,
+                        portaRolo1Lot: nextPR1 || undefined,
+                        portaRolo2Lot: nextPR2 || undefined,
+                        porta_rolo_1_lot: nextPR1,
+                        porta_rolo_2_lot: nextPR2,
+                    };
                     if (idx >= 0) {
-                        newStates[idx] = { ...newStates[idx], ...updates };
+                        newStates[idx] = updatedObj as any;
                     } else {
-                        newStates.push(payload as import('../types').MachineCurrentState);
+                        newStates.push(updatedObj as any);
                     }
                     return newStates;
                 });
             }
 
             const { error } = await supabase.from('machine_current_states').upsert({
-                machine_name: payload.machineName,
-                operator_id: payload.operatorId,
+                machine_name: selectedMachine,
+                operator_id: currentUser.id,
                 status: payload.status,
                 status_since: payload.statusSince,
                 stop_reason: payload.stopReason,
                 idle_since: payload.idleSince,
-                porta_rolo_1_lot: payload.portaRolo1Lot,
-                porta_rolo_2_lot: payload.portaRolo2Lot,
-                active_feed_1: payload.activeFeed1,
-                active_feed_2: payload.activeFeed2
+                porta_rolo_1_lot: nextPR1,
+                porta_rolo_2_lot: nextPR2,
+                active_feed_1: payload.activeFeed1 ?? true,
+                active_feed_2: payload.activeFeed2 ?? true
             });
             if (error) {
                 console.error('Supabase error:', error);
-                alert('Erro ao sincronizar máquina: ' + error.message);
+                alert('Erro do banco ao tentar atualizar a máquina: ' + error.message);
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error('Error updating machine state', e);
-            alert('Erro inesperado: ' + e);
+            alert('Falha crítica ao atualizar máquina: ' + (e?.message || JSON.stringify(e)));
         }
     };
 
@@ -164,35 +190,9 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         return () => clearInterval(interval);
     }, [selectedMachine]);
 
-    // Clear Porta Rolo if it was manually reverted to 'Disponível' by gestor
-    useEffect(() => {
-        let changed = false;
-        let newPR1 = portaRolo1;
-        let newPR2 = portaRolo2;
-        let newF1 = activeFeed1;
-        let newF2 = activeFeed2;
+    const recentlySelectedLots = useRef<Record<string, number>>({});
 
-        if (portaRolo1) {
-            const lot1 = stock.find(i => i.internalLot === portaRolo1);
-            if (lot1 && lot1.status?.toLowerCase() === 'disponível') {
-                newPR1 = '';
-                newF1 = false;
-                changed = true;
-            }
-        }
-        if (portaRolo2) {
-            const lot2 = stock.find(i => i.internalLot === portaRolo2);
-            if (lot2 && lot2.status?.toLowerCase() === 'disponível') {
-                newPR2 = '';
-                newF2 = false;
-                changed = true;
-            }
-        }
 
-        if (changed) {
-            updateMachineStateDB({ portaRolo1Lot: newPR1, portaRolo2Lot: newPR2, activeFeed1: newF1, activeFeed2: newF2 });
-        }
-    }, [stock, portaRolo1, portaRolo2, selectedMachine]);
 
     const [isOnline, setIsOnline] = useState<boolean>(() => {
         const stored = localStorage.getItem(`shift_online_${currentUser.id}`);
@@ -336,9 +336,9 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         setIsLoadingMaterials(true);
         try {
             const machineConfig = activeBrandingPartner?.machines?.find((m: any) => m.name === selectedMachine);
-            let allowedBitolas: string[] = [];
+            let allowedBitolas: number[] = [];
             if (machineConfig?.gaugeRange) {
-                allowedBitolas = machineConfig.gaugeRange.split('-').map((b: string) => b.trim().toLowerCase());
+                allowedBitolas = machineConfig.gaugeRange.split(/[-;|\/]+/).map((s: string) => parseFloat(s.replace(',', '.').replace(/[^\d.]/g, ''))).filter((n: number) => !isNaN(n));
             }
 
             // Utilizamos o stock já carregado na memória pelo App.tsx
@@ -350,11 +350,8 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 if (!s.toUpperCase().includes('ROLO')) return false;
 
                 if (allowedBitolas.length > 0) {
-                    const match = allowedBitolas.some(ab => {
-                        const abValue = parseFloat(ab.replace('mm', '').replace(',', '.').trim());
-                        const sValue = parseFloat(s.split('-')[1]?.replace('mm', '').trim() || '0');
-                        return abValue === sValue;
-                    });
+                    const sValue = parseFloat(s.split('-')[1]?.replace(',', '.').replace(/[^\d.]/g, '') || '0');
+                    const match = allowedBitolas.some(abValue => abValue === sValue);
                     if (!match) return false;
                 }
 
@@ -444,35 +441,187 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     };
 
     const handleSelectLot = async (lot: any) => {
+        setIsAbastecimentoModalOpen(false);
+        const lotValToSave = lot.internalLot || lot.supplierLot || lot.id;
+        const now = new Date().toISOString();
+        recentlySelectedLots.current[lotValToSave] = Date.now();
+
+        const newPR1 = selectedPortaRolo === 1 ? lotValToSave : (portaRolo1 === lotValToSave ? null : (portaRolo1 || null));
+        const newPR2 = selectedPortaRolo === 2 ? lotValToSave : (portaRolo2 === lotValToSave ? null : (portaRolo2 || null));
+
+        // 1. Immediate optimistic UI update
+        if (setMachineStates) {
+            setMachineStates(prev => {
+                const newStates = [...(prev || [])];
+                const idx = newStates.findIndex(s => (s.machineName || (s as any).machine_name) === selectedMachine);
+                const updatedObj = {
+                    ...(idx >= 0 ? newStates[idx] : {}),
+                    machineName: selectedMachine,
+                    machine_name: selectedMachine,
+                    portaRolo1Lot: newPR1 || undefined,
+                    portaRolo2Lot: newPR2 || undefined,
+                    porta_rolo_1_lot: newPR1 || null,
+                    porta_rolo_2_lot: newPR2 || null,
+                    status: 'PARADA',
+                    statusSince: now,
+                    stopReason: 'Abastecimento'
+                };
+                if (idx >= 0) {
+                    newStates[idx] = updatedObj as any;
+                } else {
+                    newStates.push(updatedObj as any);
+                }
+                return newStates;
+            });
+        }
+
+        setMachineTimer('00:00:00');
+
+        // 2. Immediate DB update
         try {
-            // Find old lot in the selected porta rolo to free it
+            await supabase.from('machine_current_states').upsert({
+                machine_name: selectedMachine,
+                operator_id: currentUser.id,
+                status: 'PARADA',
+                status_since: now,
+                stop_reason: 'Abastecimento',
+                porta_rolo_1_lot: newPR1,
+                porta_rolo_2_lot: newPR2,
+                active_feed_1: activeFeed1,
+                active_feed_2: activeFeed2
+            });
+        } catch (e) {
+            console.error('Error updating machine state on select lot', e);
+        }
+
+        // 3. Background updates for stock_items and machine_stops
+        try {
             const oldInternalLot = selectedPortaRolo === 1 ? portaRolo1 : portaRolo2;
-            if (oldInternalLot && oldInternalLot !== lot.internalLot) {
-                const oldLot = stock.find(i => i.internalLot === oldInternalLot);
+            if (oldInternalLot && oldInternalLot !== lotValToSave) {
+                const oldLot = stock.find(i => i.internalLot === oldInternalLot || i.supplierLot === oldInternalLot || i.id === oldInternalLot);
                 if (oldLot) {
-                    await supabase.from('stock_items').update({ status: 'Disponível' }).eq('id', oldLot.id);
+                    supabase.from('stock_items').update({ status: 'Disponível' }).eq('id', oldLot.id).then(() => {}).catch(() => {});
                 }
             }
 
-            // Bind new lot to machine and add history
             const newHistoryItem = {
-                date: new Date().toISOString(),
+                date: now,
                 action: `Operador(a) ${currentUser.username || currentUser.name || 'Desconhecido'} selecionou o lote para uso na máquina ${selectedMachine}`,
                 user: currentUser.username || currentUser.name || 'Sistema'
             };
-            const existingHistory = lot.history || [];
+            const existingHistory = Array.isArray(lot.history) ? lot.history : [];
             
-            await supabase.from('stock_items').update({ 
+            supabase.from('stock_items').update({ 
                 status: `Em suporte de ${selectedMachine}`,
                 history: [...existingHistory, newHistoryItem]
-            }).eq('id', lot.id);
+            }).eq('id', lot.id).then(() => {}).catch(() => {});
+
+            supabase.from('machine_stops').insert({
+                machine: selectedMachine,
+                user_id: currentUser.id,
+                username: currentUser.username,
+                start_time: now,
+                reason: 'Abastecimento'
+            }).then(() => {}).catch(() => {});
+            
+            alert('Lote selecionado com sucesso!');
         } catch (error) {
             console.error('Erro ao vincular lote:', error);
+            alert('Erro ao selecionar lote.');
         }
+    };
 
-        handlePortaRoloChange(selectedPortaRolo, lot.internalLot || lot.supplierLot || lot.id);
-        setIsAbastecimentoModalOpen(false);
-        registerMachineStop('Abastecimento');
+    const handleRemoveLot = async (roloIndex: 1 | 2, lot: any) => {
+        const pwd = window.prompt('Digite a senha de Gestor para DESABASTECER a máquina:');
+        if (pwd !== '123456') {
+            alert('Senha incorreta!');
+            return;
+        }
+        try {
+            const now = new Date().toISOString();
+            const lotVal = String(lot?.internalLot || lot?.supplierLot || lot?.id || '').trim();
+
+            const isDuplicateOnBoth = Boolean(
+                (portaRolo1 && portaRolo2 && portaRolo1 === portaRolo2) ||
+                (lotVal && (portaRolo1 === lotVal || String((currentMachineState as any)?.porta_rolo_1_lot || '').trim() === lotVal) && (portaRolo2 === lotVal || String((currentMachineState as any)?.porta_rolo_2_lot || '').trim() === lotVal))
+            );
+
+            let newPR1 = (roloIndex === 1 || isDuplicateOnBoth) ? null : (portaRolo1 || null);
+            let newPR2 = (roloIndex === 2 || isDuplicateOnBoth) ? null : (portaRolo2 || null);
+
+            if (newPR1 && newPR1 === newPR2) {
+                newPR1 = null;
+                newPR2 = null;
+            }
+
+            if (setMachineStates) {
+                setMachineStates(prev => {
+                    const newStates = [...(prev || [])];
+                    const idx = newStates.findIndex(s => (s.machineName || (s as any).machine_name) === selectedMachine);
+                    const updatedObj = {
+                        ...(idx >= 0 ? newStates[idx] : {}),
+                        machineName: selectedMachine,
+                        machine_name: selectedMachine,
+                        portaRolo1Lot: newPR1 || undefined,
+                        portaRolo2Lot: newPR2 || undefined,
+                        porta_rolo_1_lot: newPR1 || null,
+                        porta_rolo_2_lot: newPR2 || null,
+                        status: 'PARADA',
+                        statusSince: now,
+                        stopReason: 'Abastecimento'
+                    };
+                    if (idx >= 0) {
+                        newStates[idx] = updatedObj as any;
+                    } else {
+                        newStates.push(updatedObj as any);
+                    }
+                    return newStates;
+                });
+            }
+
+            setMachineTimer('00:00:00');
+
+            await supabase.from('machine_current_states').upsert({
+                machine_name: selectedMachine,
+                operator_id: currentUser?.id || null,
+                status: 'PARADA',
+                status_since: now,
+                stop_reason: 'Abastecimento',
+                porta_rolo_1_lot: newPR1,
+                porta_rolo_2_lot: newPR2,
+                active_feed_1: activeFeed1,
+                active_feed_2: activeFeed2
+            });
+
+            if (lot && lot.id) {
+                const newHistoryItem = {
+                    date: now,
+                    action: `Operador(a) ${currentUser?.username || currentUser?.name || 'Desconhecido'} desabasteceu o lote da máquina ${selectedMachine}`,
+                    user: currentUser?.username || currentUser?.name || 'Sistema'
+                };
+                const existingHistory = Array.isArray(lot.history) ? lot.history : [];
+                
+                supabase.from('stock_items').update({ 
+                    status: 'Disponível',
+                    history: [...existingHistory, newHistoryItem]
+                }).eq('id', lot.id).then(() => {}).catch(err => console.error(err));
+            }
+
+            try {
+                await supabase.from('machine_stops').insert({
+                    machine: selectedMachine,
+                    user_id: currentUser?.id || null,
+                    username: currentUser?.username || 'unknown',
+                    start_time: now,
+                    reason: 'Abastecimento'
+                });
+            } catch (e) {}
+            
+            alert('Lote removido com sucesso!');
+        } catch (error: any) {
+            alert('ERRO AO DESABASTECER: ' + (error?.message || JSON.stringify(error)));
+            console.error(error);
+        }
     };
 
     // SubOs Modal state
@@ -567,14 +716,14 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
 
         let activeLotsBitolas: number[] = [];
         if (portaRolo1 && activeFeed1) {
-            const l1 = stock.find(i => i.internalLot === portaRolo1);
+            const l1 = stock.find(i => i.internalLot === portaRolo1 || i.supplierLot === portaRolo1 || i.id === portaRolo1);
             if (l1) {
                 const b = parseFloat(String(l1.bitola || l1.gauge || '').replace(',', '.').replace(/[^\d.]/g, ''));
                 if (!isNaN(b)) activeLotsBitolas.push(b);
             }
         }
         if (portaRolo2 && activeFeed2) {
-            const l2 = stock.find(i => i.internalLot === portaRolo2);
+            const l2 = stock.find(i => i.internalLot === portaRolo2 || i.supplierLot === portaRolo2 || i.id === portaRolo2);
             if (l2) {
                 const b = parseFloat(String(l2.bitola || l2.gauge || '').replace(',', '.').replace(/[^\d.]/g, ''));
                 if (!isNaN(b)) activeLotsBitolas.push(b);
@@ -701,8 +850,8 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                         ...p, 
                         subItemsProgress: updatedProgress,
                         sub_items_progress: updatedProgress,
-                        status: (p.status !== 'producing' && p.status !== 'in_progress') ? 'in_progress' : p.status,
-                        startTime: (p.status !== 'producing' && p.status !== 'in_progress') ? startTime : p.startTime
+                        status: 'in_progress',
+                        startTime: p.startTime || p.start_time || startTime
                     };
                 }
                 return p;
@@ -710,8 +859,10 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
 
             const { error } = await supabase
                 .from('production_orders')
-                .update({ sub_items_progress: updatedProgress, 
-                    ...((po.status !== 'producing' && po.status !== 'in_progress') ? { status: 'in_progress', start_time: startTime } : {})
+                .update({ 
+                    sub_items_progress: updatedProgress, 
+                    status: 'in_progress',
+                    ...((!po.startTime && !po.start_time) ? { start_time: startTime } : {})
                 })
                 .eq('id', osId);
                 
@@ -811,11 +962,11 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     if (weightProduced > 0) {
                         const activeLots = [];
                         if (portaRolo1 && activeFeed1) {
-                            const l1 = stock.find(i => i.internalLot === portaRolo1);
+                            const l1 = stock.find(i => i.internalLot === portaRolo1 || i.supplierLot === portaRolo1 || i.id === portaRolo1);
                             if (l1) activeLots.push(l1);
                         }
                         if (portaRolo2 && activeFeed2) {
-                            const l2 = stock.find(i => i.internalLot === portaRolo2);
+                            const l2 = stock.find(i => i.internalLot === portaRolo2 || i.supplierLot === portaRolo2 || i.id === portaRolo2);
                             if (l2) activeLots.push(l2);
                         }
 
@@ -963,7 +1114,19 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         return matchMachine && matchQuery;
     });
 
-    const pendingOrders = filteredOrders.filter(po => po.status !== 'completed');
+    const pendingOrders = filteredOrders.filter(po => po.status !== 'completed').sort((a, b) => {
+        const aIsCutting = a.sub_items_progress && Object.values(a.sub_items_progress).some((sub: any) => sub.status === 'producing');
+        const bIsCutting = b.sub_items_progress && Object.values(b.sub_items_progress).some((sub: any) => sub.status === 'producing');
+        if (aIsCutting && !bIsCutting) return -1;
+        if (!aIsCutting && bIsCutting) return 1;
+        
+        const aIsProducing = a.status === 'producing' || a.status === 'in_progress';
+        const bIsProducing = b.status === 'producing' || b.status === 'in_progress';
+        if (aIsProducing && !bIsProducing) return -1;
+        if (!aIsProducing && bIsProducing) return 1;
+
+        return 0;
+    });
     const completedOrders = filteredOrders.filter(po => po.status === 'completed');
     
     const osList = showCompleted ? completedOrders : pendingOrders;
@@ -1087,15 +1250,6 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                     RETORNAR À PRODUÇÃO
                                 </button>
                                 
-                                <button 
-                                    onClick={toggleShift}
-                                    className="w-full bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold py-4 rounded-2xl text-lg uppercase active:scale-95 transition-all flex items-center justify-center gap-2 mt-2"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
-                                    </svg>
-                                    FINALIZAR TURNO
-                                </button>
                             </div>
                         </div>
                     )}
@@ -1108,7 +1262,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     <div className="flex gap-3">
                         {(() => {
                             const renderPortaRolo = (title: string, internalLotId: string, roloIndex: 1 | 2) => {
-                                const lot = stock.find(i => i.internalLot === internalLotId);
+                                const lot = internalLotId ? stock.find(i => (i.internalLot && i.internalLot === internalLotId) || (i.supplierLot && i.supplierLot === internalLotId) || (i.id && i.id === internalLotId)) : undefined;
                                 const isActive = roloIndex === 1 ? activeFeed1 : activeFeed2;
                                 
                                 if (!lot) {
@@ -1159,6 +1313,14 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                                 <div className="flex col-span-2 pt-1 border-t border-slate-100 flex-row justify-between items-center">
                                                     <span className="text-slate-400 font-bold uppercase">Consumido</span>
                                                     <span className="text-orange-500 font-black">{Number(consumedWeight).toFixed(2)} kg</span>
+                                                </div>
+                                                <div className="col-span-2 mt-1">
+                                                    <button
+                                                        onClick={() => handleRemoveLot(roloIndex, lot)}
+                                                        className="w-full text-[10px] font-bold text-red-500 bg-red-50 hover:bg-red-100 rounded py-1.5 px-2 uppercase transition-colors"
+                                                    >
+                                                        Desabastecer
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
@@ -1223,72 +1385,92 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                         const commOrder = commercialOrders.find(co => co.id === commOrderId);
                         const isProducing = po.status === 'producing' || po.status === 'in_progress';
                         
-                        // Determinar o comprimento (tamanho) da peça
                         const lengthCm = (po as any).tamanho || ((po as any).total_meters && (po as any).quantity_os ? Math.round(((po as any).total_meters / (po as any).quantity_os) * 100) : 0);
+                        const isCuttingSubOS = po.sub_items_progress && Object.values(po.sub_items_progress).some((sub: any) => sub.status === 'producing');
+                        const isMachineCutting = localOrders.some(p => p.sub_items_progress && Object.values(p.sub_items_progress).some((sub: any) => sub.status === 'producing'));
                         
                         return (
-                            <div key={po.id} className={`bg-white rounded-2xl p-5 shadow-sm border-l-8 flex flex-col gap-4 transition-all ${isProducing ? 'border-orange-400 shadow-md ring-2 ring-orange-200' : 'border-indigo-500'}`}>
-                                <div className="flex justify-between items-start">
-                                    <div className="flex-1 pr-2">
-                                        <div className="flex flex-col gap-1">
-                                            {((commOrder as any)?.order_number || commOrder?.orderNumber) && (
-                                                <p className="text-sm font-bold text-slate-600 bg-slate-100 rounded px-2 py-1 inline-block self-start">
-                                                    Pedido #{((commOrder as any)?.order_number || commOrder?.orderNumber)}
-                                                </p>
-                                            )}
-                                            {((commOrder as any)?.client_name || commOrder?.clientName) && (
-                                                <p className="text-sm font-semibold text-slate-700 mt-1">
-                                                    <span className="text-slate-400 font-normal">Cliente:</span> {((commOrder as any)?.client_name || commOrder?.clientName)}
-                                                </p>
-                                            )}
-                                        </div>
+                            <div key={po.id} className={`bg-white rounded-xl p-3 shadow-sm border-l-4 flex flex-col gap-2 transition-all duration-500 ${po.status === 'completed' ? 'border-slate-300 opacity-80' : isCuttingSubOS ? 'border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.4)] ring-2 ring-orange-400 bg-orange-50/40 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]' : isProducing ? 'border-emerald-500 shadow-md ring-1 ring-emerald-100 bg-emerald-50/30' : (po.status === 'paused' || (po.status === 'pending' && po.startTime)) ? 'border-orange-400 shadow-md ring-1 ring-orange-100' : 'border-indigo-500'}`}>
+                                {/* Linha 1: Pedido e Bitola */}
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2 overflow-hidden pr-2">
+                                        {((commOrder as any)?.order_number || commOrder?.orderNumber) && (
+                                            <span className="text-xs font-black text-slate-700 bg-slate-100 rounded px-2 py-0.5 shrink-0">
+                                                #{((commOrder as any)?.order_number || commOrder?.orderNumber)}
+                                            </span>
+                                        )}
+                                        {((commOrder as any)?.client_name || commOrder?.clientName) && (
+                                            <span className="text-[11px] font-semibold text-slate-500 truncate">
+                                                {((commOrder as any)?.client_name || commOrder?.clientName)}
+                                            </span>
+                                        )}
                                     </div>
-                                    <div className="bg-slate-100 px-3 py-1.5 rounded-lg text-center shrink-0">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase">Bitola</p>
-                                        <p className="font-black text-lg text-slate-700">{(po as any).target_bitola || po.targetBitola}mm</p>
+                                    <div className="flex items-center shrink-0">
+                                        <span className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-black text-slate-600 border border-slate-200">
+                                            {(po as any).target_bitola || po.targetBitola}mm
+                                        </span>
                                     </div>
                                 </div>
 
-                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 mt-1">
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase">Quantidade / Comprimento</p>
-                                    <p className="font-bold text-slate-800 text-sm">
-                                        {((po as any).quantity_os || (po as any).quantityOs || 0)} un. {lengthCm > 0 && <span className="text-indigo-600 font-black"> x {lengthCm} cm</span>}
-                                    </p>
-                                </div>
-                                
-                                {isProducing && (
-                                    <div className="bg-orange-50 rounded-xl p-4 flex flex-col items-center justify-center border border-orange-200">
-                                        <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest animate-pulse mb-1">Em Execução Global</span>
-                                        {po.startTime ? <ActiveTimer startTime={po.startTime} /> : <span className="font-mono font-bold text-orange-500">PAUSADO OU SEM INÍCIO</span>}
+                                {/* Linha 2: Quantidade/Comprimento e Status */}
+                                <div className="flex justify-between items-center bg-slate-50 rounded-lg p-2 border border-slate-100">
+                                    <div className="flex items-center gap-1.5">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className={`w-3.5 h-3.5 shrink-0 ${isCuttingSubOS ? 'text-orange-500 animate-[spin_3s_linear_infinite]' : isProducing ? 'text-emerald-500 animate-[spin_3s_linear_infinite]' : 'text-slate-400'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                        <span className="font-bold text-slate-700 text-[11px]">
+                                            {((po as any).quantity_os || (po as any).quantityOs || 0)} un.
+                                        </span>
+                                        {lengthCm > 0 && (
+                                            <>
+                                                <span className="text-slate-300 text-[11px] font-black">×</span>
+                                                <span className="text-indigo-600 font-black text-[11px]">{lengthCm} cm</span>
+                                            </>
+                                        )}
                                     </div>
-                                )}
 
-                                {po.status === 'completed' ? (
-                                    <div className="w-full bg-emerald-100 border border-emerald-300 text-emerald-700 font-black py-4 rounded-xl text-lg uppercase shadow-sm text-center">
-                                        Finalizado
+                                    <div className="shrink-0">
+                                        {po.status === 'completed' ? (
+                                            <span className="text-[9px] font-black text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded uppercase">Finalizada</span>
+                                        ) : isProducing && po.startTime ? (
+                                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded border shadow-sm ${isCuttingSubOS ? 'bg-orange-100 border-orange-300' : 'bg-emerald-100 border-emerald-200'}`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isCuttingSubOS ? 'bg-orange-500' : 'bg-emerald-500'}`}></span>
+                                                <span className={`text-[9px] font-black uppercase flex items-center gap-1 ${isCuttingSubOS ? 'text-orange-700' : 'text-emerald-700'}`}>
+                                                    CORTANDO: <ActiveTimer startTime={po.startTime} />
+                                                </span>
+                                            </div>
+                                        ) : (po.status === 'paused' || (po.status === 'pending' && po.startTime)) ? (
+                                            <span className="text-[9px] font-black text-orange-600 bg-orange-100 px-2 py-0.5 rounded uppercase">Pausada</span>
+                                        ) : (
+                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Aguardando</span>
+                                        )}
                                     </div>
-                                ) : !isProducing ? (
-                                    <button 
-                                        onClick={() => handleOpenModal(po.id)}
-                                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 rounded-xl text-lg uppercase shadow-sm active:scale-95 transition-all"
-                                    >
-                                        Iniciar Produção
-                                    </button>
-                                ) : (
-                                    <div className="flex gap-2">
-                                        <button 
-                                            onClick={() => handleOpenModal(po.id)}
-                                            className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-black py-4 px-2 rounded-xl text-[13px] sm:text-sm uppercase shadow-md active:scale-95 transition-all whitespace-nowrap"
-                                        >
-                                            CONTINUAR CORTE
-                                        </button>
-                                        <button 
-                                            disabled={loadingAction === `pause-batch-${po.id}`}
-                                            onClick={() => handlePauseProductionBatch(po.id)}
-                                            className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-black py-4 px-2 rounded-xl text-[13px] sm:text-sm uppercase shadow-md active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap"
-                                        >
-                                            {loadingAction === `pause-batch-${po.id}` ? 'AGUARDE...' : 'PAUSAR'}
-                                        </button>
+                                </div>
+
+                                {/* Linha 3: Botões */}
+                                {po.status !== 'completed' && (
+                                    <div className="mt-0.5">
+                                        {isMachineCutting && !isCuttingSubOS ? (
+                                            <div className="w-full bg-slate-100 text-slate-400 font-black py-2.5 rounded-lg text-xs uppercase text-center border border-slate-200 shadow-inner">
+                                                Em fila para produzir
+                                            </div>
+                                        ) : !isProducing ? (
+                                            <button 
+                                                disabled={localOrders.some(p => p.status === 'producing' || p.status === 'in_progress')}
+                                                onClick={() => handleOpenModal(po.id)}
+                                                className={`w-full ${po.status === 'paused' || (po.status === 'pending' && po.startTime) ? 'bg-indigo-500 hover:bg-indigo-600' : 'bg-emerald-500 hover:bg-emerald-600'} text-white font-black py-2.5 rounded-lg text-xs uppercase shadow-sm active:scale-95 transition-all disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 disabled:pointer-events-none`}
+                                            >
+                                                {po.status === 'paused' || (po.status === 'pending' && po.startTime) ? 'Retomar Produção' : 'Iniciar Produção'}
+                                            </button>
+                                        ) : (
+                                            <button 
+                                                onClick={() => handleOpenModal(po.id)}
+                                                className={`w-full ${isCuttingSubOS ? 'bg-red-500 hover:bg-red-600' : 'bg-indigo-500 hover:bg-indigo-600'} text-white font-black py-2.5 px-2 rounded-lg text-[10px] sm:text-[11px] uppercase shadow-sm active:scale-95 transition-all whitespace-nowrap`}
+                                            >
+                                                {isCuttingSubOS ? 'FINALIZAR CORTE' : 'INICIAR CORTE'}
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -1480,9 +1662,15 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                                         <span className="font-black text-xl text-slate-800">{activeSubOs.quantidade || activeSubOs.qtd} un.</span>
                                                         <span className="font-black text-xl text-slate-800">{activeSubOs.comprimento || activeSubOs.comp} cm</span>
                                                     </div>
-                                                    <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-inner">
-                                                        <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Em Andamento</span>
-                                                        <ActiveTimer startTime={currentItemStart!} />
+                                                    <div className="bg-orange-50 border-2 border-orange-300 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-[0_0_15px_rgba(251,146,60,0.6)] animate-pulse transition-all">
+                                                        <span className="text-[11px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2">
+                                                            <span className="w-2 h-2 rounded-full bg-orange-500 animate-bounce"></span>
+                                                            Em Andamento
+                                                            <span className="w-2 h-2 rounded-full bg-orange-500 animate-bounce" style={{animationDelay: '0.2s'}}></span>
+                                                        </span>
+                                                        <div className="scale-110 mt-1">
+                                                            <ActiveTimer startTime={currentItemStart!} />
+                                                        </div>
                                                     </div>
                                                     <button 
                                                         disabled={loadingAction === `finish-${po.id}-${activeSubOs.os}`}
