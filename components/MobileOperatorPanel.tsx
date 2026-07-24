@@ -945,53 +945,55 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 alert('Erro do sistema ao finalizar o corte.');
             } else {
                 // Abater peso do lote selecionado
-                try {
-                    const qtd = parseFloat(activeSubOs.qunti || activeSubOs.quantidade || activeSubOs.qtd || '0');
-                    const compCm = parseFloat(activeSubOs.comprimento || activeSubOs.comp || '0');
-                    let weightProduced = parseFloat(activeSubOs.peso || activeSubOs.pesoTotal || '0');
-                    
-                    if (!weightProduced || isNaN(weightProduced) || weightProduced === 0) {
-                        const bitolaStr = po.target_bitola || po.targetBitola || '';
-                        const gaugeObj = gauges.find(g => g.gauge === bitolaStr);
-                        const weightPerM = gaugeObj?.weightPerMeter || gaugeObj?.rawWeightValue || 0;
-                        if (weightPerM > 0) {
-                            weightProduced = (compCm / 100) * qtd * weightPerM;
-                        }
-                    }
-
-                    if (weightProduced > 0) {
-                        const activeLots = [];
-                        if (portaRolo1 && activeFeed1) {
-                            const l1 = stock.find(i => i.internalLot === portaRolo1 || i.supplierLot === portaRolo1 || i.id === portaRolo1);
-                            if (l1) activeLots.push(l1);
-                        }
-                        if (portaRolo2 && activeFeed2) {
-                            const l2 = stock.find(i => i.internalLot === portaRolo2 || i.supplierLot === portaRolo2 || i.id === portaRolo2);
-                            if (l2) activeLots.push(l2);
-                        }
-
-                        if (activeLots.length > 0) {
-                            const weightPerLot = weightProduced / activeLots.length;
-                            
-                            for (const lotObj of activeLots) {
-                                const currentQty = lotObj.remainingQuantity ?? lotObj.weight ?? lotObj.labelWeight ?? 0;
-                                const newRemaining = Math.max(0, currentQty - weightPerLot);
-                                
-                                const consumeHistoryItem = {
-                                    date: endTime,
-                                    action: `OS ${po.orderNumber} - SubOS ${subOsKey}: Baixa de ${weightPerLot.toFixed(2)} kg`,
-                                    user: currentUser.username || currentUser.name || 'Sistema'
-                                };
-
-                                await supabase.from('stock_items').update({
-                                    remaining_quantity: newRemaining,
-                                    history: [...(lotObj.history || []), consumeHistoryItem]
-                                }).eq('id', lotObj.id);
+                if (selectedMachine !== 'Bancada/Cortador' && selectedMachine !== 'BANCADA/CORTADOR') {
+                    try {
+                        const qtd = parseFloat(activeSubOs.qunti || activeSubOs.quantidade || activeSubOs.qtd || '0');
+                        const compCm = parseFloat(activeSubOs.comprimento || activeSubOs.comp || '0');
+                        let weightProduced = parseFloat(activeSubOs.peso || activeSubOs.pesoTotal || '0');
+                        
+                        if (!weightProduced || isNaN(weightProduced) || weightProduced === 0) {
+                            const bitolaStr = po.target_bitola || po.targetBitola || '';
+                            const gaugeObj = gauges.find(g => g.gauge === bitolaStr);
+                            const weightPerM = gaugeObj?.weightPerMeter || gaugeObj?.rawWeightValue || 0;
+                            if (weightPerM > 0) {
+                                weightProduced = (compCm / 100) * qtd * weightPerM;
                             }
                         }
+
+                        if (weightProduced > 0) {
+                            const activeLots = [];
+                            if (portaRolo1 && activeFeed1) {
+                                const l1 = stock.find(i => i.internalLot === portaRolo1 || i.supplierLot === portaRolo1 || i.id === portaRolo1);
+                                if (l1) activeLots.push(l1);
+                            }
+                            if (portaRolo2 && activeFeed2) {
+                                const l2 = stock.find(i => i.internalLot === portaRolo2 || i.supplierLot === portaRolo2 || i.id === portaRolo2);
+                                if (l2) activeLots.push(l2);
+                            }
+
+                            if (activeLots.length > 0) {
+                                const weightPerLot = weightProduced / activeLots.length;
+                                
+                                for (const lotObj of activeLots) {
+                                    const currentQty = lotObj.remainingQuantity ?? lotObj.weight ?? lotObj.labelWeight ?? 0;
+                                    const newRemaining = Math.max(0, currentQty - weightPerLot);
+                                    
+                                    const consumeHistoryItem = {
+                                        date: endTime,
+                                        action: `OS ${po.orderNumber} - SubOS ${subOsKey}: Baixa de ${weightPerLot.toFixed(2)} kg`,
+                                        user: currentUser.username || currentUser.name || 'Sistema'
+                                    };
+
+                                    await supabase.from('stock_items').update({
+                                        remaining_quantity: newRemaining,
+                                        history: [...(lotObj.history || []), consumeHistoryItem]
+                                    }).eq('id', lotObj.id);
+                                }
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Erro ao abater peso do lote:', err);
                     }
-                } catch (err) {
-                    console.error('Erro ao abater peso do lote:', err);
                 }
             }
                 
@@ -1017,6 +1019,35 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
             } else {
                 setSubOsSearch('');
                 setActiveSubOs(null);
+            }
+            
+            if (selectedMachine !== 'Bancada/Cortador' && selectedMachine !== 'BANCADA/CORTADOR') {
+                setTimeout(async () => {
+                    const goesToBancada = window.confirm(`A peça ${subOsKey} finalizada agora precisa ir para a Bancada?`);
+                    if (goesToBancada) {
+                        try {
+                            const newOs = {
+                                order_number: `${po.order_number || po.orderNumber} - ${subOsKey}`,
+                                machine: 'Bancada/Cortador',
+                                target_bitola: po.target_bitola || po.targetBitola,
+                                selected_lot_ids: po.selected_lot_ids || po.selectedLotIds || [],
+                                total_weight: po.total_weight || po.totalWeight,
+                                total_meters: po.total_meters || po.totalMeters,
+                                is_ghost_order: po.is_ghost_order || po.isGhostOrder,
+                                status: 'pending',
+                                creation_date: new Date().toISOString(),
+                                related_commercial_order_id: po.related_commercial_order_id || po.relatedCommercialOrderId,
+                                quantity_os: po.quantity_os || po.quantityOs,
+                                sub_items_progress: {}
+                            };
+                            await supabase.from('production_orders').insert(newOs);
+                            alert(`Peça ${subOsKey} enviada para a fila da Bancada com sucesso!`);
+                        } catch (err) {
+                            console.error('Erro ao clonar para bancada:', err);
+                            alert('Erro ao enviar peça para bancada.');
+                        }
+                    }
+                }, 500);
             }
         } catch (e) {
             console.error('Erro ao finalizar mini OS:', e);
@@ -1254,6 +1285,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                         </div>
                     )}
                 
+                {selectedMachine !== 'Bancada/Cortador' && selectedMachine !== 'BANCADA/CORTADOR' && (
                 <div className="bg-white p-4 rounded-2xl shadow-sm border-2 border-slate-200 flex flex-col gap-3">
                     <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
@@ -1337,6 +1369,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                         })()}
                     </div>
                 </div>
+                )}
 
                 <div className="relative">
                     <input 
