@@ -248,54 +248,86 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
     const [timelineFilter, setTimelineFilter] = useState<'all' | 'stops' | 'cuts'>('all');
     const [selectedShiftId, setSelectedShiftId] = useState<string>('');
     const [allMachineShifts, setAllMachineShifts] = useState<any[]>([]);
+    const [machineStates, setMachineStates] = useState<any[]>([]);
+    const [gauges, setGauges] = useState<any[]>([]);
     
     // Fetch shifts and stops for the daily report
     useEffect(() => {
         if (!isReportModalOpen || !selectedMachineTab) return;
         
         const fetchData = async () => {
-            const { data: shifts } = await supabase
-                .from('operator_shifts')
-                .select('*')
-                .eq('machine', selectedMachineTab)
-                .order('start_time', { ascending: false })
-                .limit(50); // Get recent 50 shifts for history
-                
-            if (shifts && shifts.length > 0) {
-                setAllMachineShifts(shifts);
-                
-                // If no shift is selected, default to the most recent one
-                const targetShiftId = selectedShiftId || shifts[0].id;
-                if (!selectedShiftId) setSelectedShiftId(targetShiftId);
-                
-                const activeShift = shifts.find(s => s.id === targetShiftId) || shifts[0];
-                setDailyShifts([activeShift]);
-                
-                let stopsQuery = supabase
-                    .from('machine_stops')
+            try {
+                const { data: msData } = await supabase.from('machine_current_states').select('*');
+                if (msData) {
+                    setMachineStates(msData.map((m: any) => ({
+                        machineName: m.machine_name || m.machineName,
+                        portaRolo1Lot: m.porta_rolo_1_lot || m.porta_rolo1_lot || m.portaRolo1Lot,
+                        portaRolo2Lot: m.porta_rolo_2_lot || m.porta_rolo2_lot || m.portaRolo2Lot,
+                        activeFeed1: m.active_feed_1 ?? m.active_feed1 ?? m.activeFeed1 ?? true,
+                        activeFeed2: m.active_feed_2 ?? m.active_feed2 ?? m.activeFeed2 ?? false
+                    })));
+                }
+
+                const { data: gData } = await supabase.from('gauges').select('*');
+                if (gData) setGauges(gData);
+
+                const { data: shifts, error: shiftsErr } = await supabase
+                    .from('operator_shifts')
                     .select('*')
                     .eq('machine', selectedMachineTab)
-                    .gte('start_time', activeShift.start_time);
+                    .order('start_time', { ascending: false })
+                    .limit(50); // Get recent 50 shifts for history
                     
-                if (activeShift.end_time) {
-                    stopsQuery = stopsQuery.lte('start_time', activeShift.end_time);
+                if (shifts && shifts.length > 0) {
+                    setAllMachineShifts(shifts);
+                    
+                    // If no shift is selected, default to the most recent one
+                    const targetShiftId = selectedShiftId || shifts[0]?.id;
+                    if (!selectedShiftId && targetShiftId) setSelectedShiftId(targetShiftId);
+                    
+                    const activeShift = shifts.find(s => s?.id === targetShiftId) || shifts[0];
+                    if (activeShift) {
+                        setDailyShifts([activeShift]);
+                        
+                        if (activeShift.start_time) {
+                            let stopsQuery = supabase
+                                .from('machine_stops')
+                                .select('*')
+                                .eq('machine', selectedMachineTab)
+                                .gte('start_time', activeShift.start_time);
+                                
+                            if (activeShift.end_time) {
+                                stopsQuery = stopsQuery.lte('start_time', activeShift.end_time);
+                            }
+                            
+                            const { data: stops } = await stopsQuery.order('start_time', { ascending: true });
+                            if (stops) setMachineStops(stops);
+                        }
+                    }
+                } else {
+                    setAllMachineShifts([]);
+                    setDailyShifts([]);
+                    const todayStart = new Date();
+                    todayStart.setHours(0, 0, 0, 0);
+                    const { data: stops } = await supabase
+                        .from('machine_stops')
+                        .select('*')
+                        .eq('machine', selectedMachineTab)
+                        .gte('start_time', todayStart.toISOString())
+                        .order('start_time', { ascending: true });
+                    if (stops) setMachineStops(stops);
                 }
-                
-                const { data: stops } = await stopsQuery.order('start_time', { ascending: false });
-                if (stops) setMachineStops(stops);
-            } else {
-                setAllMachineShifts([]);
-                setDailyShifts([]);
-                setMachineStops([]);
+            } catch (err) {
+                console.error("Error fetching report shift data:", err);
             }
         };
         
         fetchData();
-        const interval = setInterval(fetchData, 10000); // refresh every 10s while open
+        const interval = setInterval(fetchData, 2000); // refresh every 2s while open
         return () => clearInterval(interval);
     }, [isReportModalOpen, selectedMachineTab, selectedShiftId]);
 
-    // Always poll production orders when machines modal is open (guarantees fresh data)
+    // Always poll production orders when machines modal or report modal is open (guarantees fresh data)
     useEffect(() => {
         const fetchAll = async () => {
             try {
@@ -308,7 +340,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
         fetchAll();
         const interval = setInterval(fetchAll, 3000);
         return () => clearInterval(interval);
-    }, [isProgramModalOpen, isViewProjectModalOpen, isMachinesModalOpen]);
+    }, [isProgramModalOpen, isViewProjectModalOpen, isMachinesModalOpen, isReportModalOpen]);
 
     const [isFinishReadingModalOpen, setIsFinishReadingModalOpen] = useState(false);
     const [orderToFinishReading, setOrderToFinishReading] = useState<CommercialOrder | null>(null);
@@ -1683,7 +1715,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
             {/* Modal de Máquinas */}
             {isMachinesModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-[90vw] max-w-6xl h-[80vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl w-[98vw] max-w-[1600px] h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                         <div className="p-6 border-b border-slate-200 bg-indigo-50 flex justify-between items-center shrink-0">
                             <div>
                                 <h2 className="text-xl font-black text-indigo-900 uppercase tracking-tight flex items-center gap-2">
@@ -1993,419 +2025,471 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                 </div>
             )}
             {/* Modal de Relatório Diário */}
-            {isReportModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4 print:fixed print:inset-0 print:bg-white print:z-[9999] print:block print:overflow-visible print:p-0">
-                    <div className="bg-white rounded-2xl shadow-2xl w-[90vw] max-w-4xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 print:w-full print:max-w-none print:h-auto print:max-h-none print:shadow-none print:rounded-none">
-                        
-                        {/* Header para Impressão */}
-                        <div className="hidden print:flex flex-col items-center border-b pb-6 pt-6 mb-6">
-                            {activeBrandingPartner?.logoUrl && <img src={activeBrandingPartner.logoUrl} className="h-16 object-contain mb-4" alt="Logo Cliente" />}
-                            <h2 className="text-2xl font-black uppercase text-slate-800">Relatório Diário de Produção</h2>
-                            <p className="text-sm font-bold text-slate-500 mt-1">{new Date().toLocaleDateString('pt-BR')} - Máquina: {selectedMachineTab}</p>
-                        </div>
+            {isReportModalOpen && (() => {
+                try {
+                const getField = (po: any, snake: string, camel: string) => po?.[snake] ?? po?.[camel];
+                const getParsedProgress = (po: any) => {
+                    try {
+                        let raw = po?.sub_items_progress || po?.subItemsProgress;
+                        if (!raw) return {};
+                        const p = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                        return p || {};
+                    } catch { return {}; }
+                };
+                const safeFormatTime = (dStr: any) => {
+                    try {
+                        if (!dStr) return '--:--:--';
+                        const d = new Date(dStr);
+                        if (isNaN(d.getTime())) return '--:--:--';
+                        return d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+                    } catch { return '--:--:--'; }
+                };
+                const safeFormatDate = (dStr: any) => {
+                    try {
+                        if (!dStr) return '--/--/----';
+                        const d = new Date(dStr);
+                        if (isNaN(d.getTime())) return '--/--/----';
+                        return d.toLocaleDateString('pt-BR');
+                    } catch { return '--/--/----'; }
+                };
 
-                        <div className="p-6 border-b border-slate-200 bg-indigo-50 flex justify-between items-center shrink-0 print:hidden">
-                            <div>
-                                <h2 className="text-xl font-black text-indigo-900 uppercase tracking-tight flex items-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-600"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
-                                    Relatório de Produção: {selectedMachineTab}
-                                </h2>
-                                <p className="text-xs font-bold text-indigo-700 mt-1 uppercase">Acompanhamento Diário da Máquina</p>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                {allMachineShifts.length > 0 && (
-                                    <div className="flex items-center gap-2 bg-white rounded-lg p-1.5 border border-slate-200 shadow-sm">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 ml-2"><path d="M5 3v18"/><path d="m19 9-7 7-7-7"/></svg>
-                                        <select 
-                                            value={selectedShiftId}
-                                            onChange={(e) => setSelectedShiftId(e.target.value)}
-                                            className="bg-transparent text-xs font-bold text-slate-700 outline-none uppercase py-1 px-2 cursor-pointer w-48"
-                                        >
-                                            {allMachineShifts.map((shift, idx) => (
-                                                <option key={shift.id} value={shift.id}>
-                                                    {new Date(shift.start_time).toLocaleDateString('pt-BR')} - {new Date(shift.start_time).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})} {shift.end_time ? `às ${new Date(shift.end_time).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}` : '(Em andamento)'}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                )}
-                                <button onClick={() => window.print()} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-xl shadow-sm transition-colors flex items-center gap-2 text-sm uppercase">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                                    Imprimir
-                                </button>
-                                <button onClick={() => setIsReportModalOpen(false)} className="text-slate-400 hover:text-red-500 transition-colors p-2 bg-white hover:bg-red-50 rounded-xl shadow-sm border">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                        <div className="p-6 overflow-y-auto print:overflow-visible print:p-8 bg-slate-50 print:bg-white flex-1">
-                            {(() => {
-                                const getField = (po: any, snake: string, camel: string) => po[snake] ?? po[camel];
-                                const getParsedProgress = (po: any) => typeof po.sub_items_progress === 'string' ? JSON.parse(po.sub_items_progress) : (po.sub_items_progress || {});
 
-                                // 1. Operador atual e horário
-                                const operatorsAssigned = liveUsers.filter(u => u.assignedMachines?.some(m => m.toLowerCase() === selectedMachineTab?.toLowerCase()));
-                                const isOperatorOnline = operatorsAssigned.some(u => u.isOnline);
-                                const currentOp = operatorsAssigned.find(u => u.isOnline);
-                                const shiftStartStr = currentOp && (currentOp as any).current_shift_start ? new Date((currentOp as any).current_shift_start).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : '--:--';
+                // 1. Operador atual e horário
+                const operatorsAssigned = (liveUsers || []).filter(u => u.assignedMachines?.some(m => String(m).toLowerCase() === String(selectedMachineTab).toLowerCase()));
+                const currentOp = operatorsAssigned.find(u => u.isOnline);
+                
+                // 2. Coletar e formatar todas as sub-O.S trabalhadas
+                const reportItems: any[] = [];
+                (allProgrammedOrders || []).forEach(po => {
+                    if (String(getField(po, 'machine', 'machine')).trim().toLowerCase() !== String(selectedMachineTab).trim().toLowerCase()) return;
+                    
+                    const progress = getParsedProgress(po);
+                    Object.entries(progress).forEach(([subKey, val]: [string, any]) => {
+                        const vStartTime = val?.start_time || val?.startTime;
+                        const vEndTime = val?.end_time || val?.endTime;
 
-                                // 2. Coletar e formatar todas as sub-O.S trabalhadas
-                                const reportItems: any[] = [];
-                                allProgrammedOrders.forEach(po => {
-                                    if (String(getField(po, 'machine', 'machine')).trim().toLowerCase() !== String(selectedMachineTab).trim().toLowerCase()) return;
-                                    
-                                    const progress = getParsedProgress(po);
-                                    Object.entries(progress).forEach(([subKey, val]: [string, any]) => {
-                                        if (val && typeof val === 'object' && val.start_time) {
-                                            // Verifica se o item pertence ao turno selecionado
-                                            const activeShift = dailyShifts[0];
-                                            if (activeShift) {
-                                                const itemTime = new Date(val.start_time).getTime();
-                                                const shiftStartTime = new Date(activeShift.start_time).getTime();
-                                                const shiftEndTime = activeShift.end_time ? new Date(activeShift.end_time).getTime() : new Date().getTime() + 86400000;
-                                                
-                                                if (itemTime < shiftStartTime || itemTime > shiftEndTime) {
-                                                    return; // Ignora se não estiver no range do turno
-                                                }
-                                            }
-
-                                            const subNum = subKey.replace('sub_', '');
-                                            const osNum = getField(po, 'order_number', 'orderNumber');
-                                            
-                                            // Calcula a duração
-                                            let durationStr = 'Em andamento';
-                                            if (val.end_time) {
-                                                const dStart = new Date(val.start_time);
-                                                const dEnd = new Date(val.end_time);
-                                                const diffS = Math.floor((dEnd.getTime() - dStart.getTime()) / 1000);
-                                                const m = Math.floor(diffS / 60);
-                                                const s = diffS % 60;
-                                                durationStr = `${m}m ${s}s`;
-                                            }
-
-                                            // Weight and length per cut
-                                            const totalWeight = parseFloat(getField(po, 'total_weight', 'totalWeight') || '0');
-                                            const totalMeters = parseFloat(getField(po, 'total_meters', 'totalMeters') || '0');
-                                            const quantityOs = parseFloat(getField(po, 'quantity_os', 'quantityOs') || '1') || 1;
-                                            
-                                            const weightPerCut = totalWeight / quantityOs;
-                                            const metersPerCut = totalMeters / quantityOs;
-
-                                            reportItems.push({
-                                                osNum,
-                                                subNum,
-                                                startTimeRaw: val.start_time,
-                                                endTimeRaw: val.end_time,
-                                                startTimeStr: new Date(val.start_time).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'}),
-                                                endTimeStr: val.end_time ? new Date(val.end_time).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'}) : '--:--:--',
-                                                durationStr,
-                                                status: val.status,
-                                                weightPerCut,
-                                                metersPerCut
-                                            });
-                                        }
-                                    });
-                                });
-
-                                const formatDuration = (s: number) => {
-                                    const h = Math.floor(s / 3600);
-                                    const m = Math.floor((s % 3600) / 60);
-                                    const sec = s % 60;
-                                    if (h > 0) return `${h}h ${m}m ${sec}s`;
-                                    return `${m}m ${sec}s`;
-                                };
-
-                                let totalProductionS = 0;
-                                let totalStopS = 0;
-                                const nowTime = new Date().getTime();
-
-                                const timelineEvents: any[] = [];
-
-                                // 1. Shifts
-                                dailyShifts.forEach((shift: any) => {
-                                    timelineEvents.push({
-                                        id: `shift_start_${shift.id}`,
-                                        timestampRaw: shift.start_time,
-                                        label: 'Início do Turno',
-                                        details: 'Turno iniciado',
-                                        operator: shift.username,
-                                        icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3v18"/><path d="m19 9-7 7-7-7"/></svg>,
-                                        colorClass: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-                                        type: 'shift'
-                                    });
-                                    if (shift.end_time) {
-                                        timelineEvents.push({
-                                            id: `shift_end_${shift.id}`,
-                                            timestampRaw: shift.end_time,
-                                            label: 'Fim do Turno',
-                                            details: 'Turno finalizado',
-                                            operator: shift.username,
-                                            icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>,
-                                            colorClass: 'bg-slate-200 text-slate-700 border-slate-300',
-                                            type: 'shift'
-                                        });
-                                    }
-                                });
-
-                                // 2. Stops
-                                machineStops.forEach((stop: any) => {
-                                    const dStart = new Date(stop.start_time).getTime();
-                                    const dEnd = stop.end_time ? new Date(stop.end_time).getTime() : nowTime;
-                                    const durS = Math.floor(Math.max(0, dEnd - dStart) / 1000);
-                                    totalStopS += durS;
-
-                                    timelineEvents.push({
-                                        id: `stop_start_${stop.id}`,
-                                        timestampRaw: stop.start_time,
-                                        label: 'Máquina Parada',
-                                        details: `Motivo: ${stop.reason || 'Não informado'}`,
-                                        operator: stop.username,
-                                        icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>,
-                                        colorClass: 'bg-rose-100 text-rose-700 border-rose-200',
-                                        type: 'stop'
-                                    });
-                                    if (stop.end_time) {
-                                        timelineEvents.push({
-                                            id: `stop_end_${stop.id}`,
-                                            timestampRaw: stop.end_time,
-                                            label: 'Retorno à Produção',
-                                            details: `Voltou de: ${stop.reason || 'Não informado'}`,
-                                            operator: stop.username,
-                                            icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
-                                            colorClass: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-                                            type: 'stop',
-                                            durationDisplay: `Parado por ${formatDuration(durS)}`
-                                        });
-                                    }
-                                });
-
-                                // 3. Cuts
-                                reportItems.forEach((item, idx) => {
-                                    const dStart = new Date(item.startTimeRaw).getTime();
-                                    const dEnd = item.endTimeRaw ? new Date(item.endTimeRaw).getTime() : nowTime;
-                                    const durS = Math.floor(Math.max(0, dEnd - dStart) / 1000);
-                                    totalProductionS += durS;
-
-                                    if (item.endTimeRaw) {
-                                        timelineEvents.push({
-                                            id: `cut_${item.osNum}_${item.subNum}_${idx}`,
-                                            timestampRaw: item.endTimeRaw, // Sorting by completion time or start time? Let's use start time to keep chronological order of execution. Actually, end time is fine for completed.
-                                            label: 'Corte Realizado',
-                                            details: `O.S. #${item.osNum} - POS ${item.subNum} | Peso: ${item.weightPerCut.toFixed(2)} kg | Comp: ${item.metersPerCut.toFixed(2)} m`,
-                                            operator: 'Sistema',
-                                            icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7"/></svg>,
-                                            colorClass: 'bg-blue-100 text-blue-700 border-blue-200',
-                                            type: 'cut',
-                                            timeDisplay: `${new Date(item.startTimeRaw).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})} - ${new Date(item.endTimeRaw).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}`,
-                                            durationDisplay: `Duração: ${formatDuration(durS)}`
-                                        });
-                                    } else {
-                                        timelineEvents.push({
-                                            id: `cut_${item.osNum}_${item.subNum}_${idx}`,
-                                            timestampRaw: item.startTimeRaw,
-                                            label: 'Cortando...',
-                                            details: `O.S. #${item.osNum} - POS ${item.subNum} | Peso: ${item.weightPerCut.toFixed(2)} kg | Comp: ${item.metersPerCut.toFixed(2)} m`,
-                                            operator: 'Sistema',
-                                            icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>,
-                                            colorClass: 'bg-red-100 text-red-600 border-red-300 animate-pulse',
-                                            type: 'cut',
-                                            timeDisplay: `${new Date(item.startTimeRaw).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})} - Agora`,
-                                            durationDisplay: `Em andamento: ${formatDuration(durS)}`
-                                        });
-                                    }
-                                });
-
-                                // 4. Idle periods (Aguardando O.S.)
-                                const busyIntervals: {start: number, end: number}[] = [];
-                                reportItems.forEach(item => {
-                                    busyIntervals.push({
-                                        start: new Date(item.startTimeRaw).getTime(),
-                                        end: item.endTimeRaw ? new Date(item.endTimeRaw).getTime() : nowTime
-                                    });
-                                });
-                                machineStops.forEach((stop: any) => {
-                                    busyIntervals.push({
-                                        start: new Date(stop.start_time).getTime(),
-                                        end: stop.end_time ? new Date(stop.end_time).getTime() : nowTime
-                                    });
-                                });
+                        if (val && typeof val === 'object' && vStartTime) {
+                            const activeShift = (dailyShifts || [])[0];
+                            if (activeShift && activeShift.start_time) {
+                                const itemTime = new Date(vStartTime).getTime();
+                                const shiftStartTime = new Date(activeShift.start_time).getTime() - (12 * 3600 * 1000);
+                                const shiftEndTime = activeShift.end_time ? new Date(activeShift.end_time).getTime() + (2 * 3600 * 1000) : new Date().getTime() + 86400000;
                                 
-                                busyIntervals.sort((a, b) => a.start - b.start);
-                                const mergedBusy: {start: number, end: number}[] = [];
-                                if (busyIntervals.length > 0) {
-                                    mergedBusy.push({...busyIntervals[0]});
-                                    for (let i = 1; i < busyIntervals.length; i++) {
-                                        const last = mergedBusy[mergedBusy.length - 1];
-                                        const curr = busyIntervals[i];
-                                        if (curr.start <= last.end) {
-                                            last.end = Math.max(last.end, curr.end);
-                                        } else {
-                                            mergedBusy.push({...curr});
+                                if (itemTime < shiftStartTime || itemTime > shiftEndTime) {
+                                    return;
+                                }
+                            }
+
+                            const subNum = val.sub_os_key || val.subOsKey || subKey.replace('sub_', '').split('_')[0];
+                            const osNum = getField(po, 'order_number', 'orderNumber');
+                            
+                            let durationStr = 'Em andamento';
+                            if (vEndTime) {
+                                const dStart = new Date(vStartTime);
+                                const dEnd = new Date(vEndTime);
+                                const diffS = Math.floor((dEnd.getTime() - dStart.getTime()) / 1000);
+                                const m = Math.floor(diffS / 60);
+                                const s = diffS % 60;
+                                const pad = (n: number) => n.toString().padStart(2, '0');
+                                durationStr = `00:${pad(m)}:${pad(s)}`;
+                                if (diffS >= 3600) {
+                                    const h = Math.floor(diffS / 3600);
+                                    const m2 = Math.floor((diffS % 3600) / 60);
+                                    durationStr = `${pad(h)}:${pad(m2)}:${pad(s)}`;
+                                }
+                            }
+
+                            const commOrderId = getField(po, 'related_commercial_order_id', 'relatedCommercialOrderId');
+                            const commOrder = (commercialOrders || []).find((co: any) => co?.id === commOrderId);
+                            
+                            let subQtd = 1;
+                            let subCompCm = 0;
+                            let subWeight = 0;
+                            
+                            if (commOrder) {
+                                const rawProjectData = getField(commOrder, 'project_data', 'projectData');
+                                if (rawProjectData && Array.isArray(rawProjectData)) {
+                                    const normalizedData = rawProjectData.map((item: any) => {
+                                        const newItem: any = {};
+                                        if (item && typeof item === 'object') {
+                                            for (const key in item) {
+                                                if (key) newItem[String(key).trim().toLowerCase()] = item[key];
+                                            }
                                         }
+                                        return newItem;
+                                    });
+                                    const foundSubOs = normalizedData.find((s: any) => String(s?.os).trim() === String(subNum).trim());
+                                    if (foundSubOs) {
+                                        subQtd = parseFloat(foundSubOs.qunti || foundSubOs.quantidade || foundSubOs.qtd || '1');
+                                        subCompCm = parseFloat(foundSubOs.comprimento || foundSubOs.comp || '0');
+                                        subWeight = parseFloat(foundSubOs.peso || foundSubOs.pesoTotal || '0');
                                     }
                                 }
+                            }
+                            
+                            if (!subWeight || isNaN(subWeight) || subWeight === 0) {
+                                const bitolaStr = getField(po, 'target_bitola', 'targetBitola') || getField(po, 'gauge', 'gauge') || '';
+                                const gaugeObj = (gauges || []).find((g: any) => g?.gauge === bitolaStr);
+                                const weightPerM = gaugeObj?.weightPerMeter || gaugeObj?.rawWeightValue || 0;
+                                if (weightPerM > 0 && subCompCm > 0) {
+                                    subWeight = (subCompCm / 100) * subQtd * weightPerM;
+                                } else {
+                                    const totalWeight = parseFloat(getField(po, 'total_weight', 'totalWeight') || '0');
+                                    const quantityOs = parseFloat(getField(po, 'quantity_os', 'quantityOs') || '1') || 1;
+                                    subWeight = totalWeight / quantityOs;
+                                }
+                            }
+                            
+                            let metersPerCut = 0;
+                            if (subCompCm > 0) {
+                                metersPerCut = (subCompCm / 100) * subQtd;
+                            } else {
+                                const totalMeters = parseFloat(getField(po, 'total_meters', 'totalMeters') || '0');
+                                const quantityOs = parseFloat(getField(po, 'quantity_os', 'quantityOs') || '1') || 1;
+                                metersPerCut = totalMeters / quantityOs;
+                            }
+                            
+                            const machineState = (machineStates || []).find((ms: any) => String(ms?.machineName).trim().toLowerCase() === String(selectedMachineTab).trim().toLowerCase());
+                            let loteStr = '-';
+                            if (machineState) {
+                                const lots = [];
+                                const lot1 = machineState.portaRolo1Lot || machineState.porta_rolo_1_lot || machineState.porta_rolo1_lot;
+                                const lot2 = machineState.portaRolo2Lot || machineState.porta_rolo_2_lot || machineState.porta_rolo2_lot;
+                                
+                                if (lot1 && (machineState.activeFeed1 !== false)) lots.push(lot1);
+                                if (lot2 && (machineState.activeFeed2 === true)) lots.push(lot2);
+                                if (lots.length > 0) loteStr = lots.join(' / ');
+                            }
+                            if (loteStr === '-') {
+                                loteStr = getField(po, 'lot_number', 'lotNumber') || '-';
+                            }
 
-                                dailyShifts.forEach((shift: any) => {
-                                    const sStart = new Date(shift.start_time).getTime();
-                                    const sEnd = shift.end_time ? new Date(shift.end_time).getTime() : nowTime;
-                                    
-                                    let currentTime = sStart;
-                                    for (const busy of mergedBusy) {
-                                        if (busy.end <= currentTime) continue;
-                                        if (busy.start >= sEnd) break;
-                                        
-                                        if (busy.start > currentTime) {
-                                            const gapEnd = Math.min(busy.start, sEnd);
-                                            const durS = Math.floor((gapEnd - currentTime) / 1000);
-                                            if (durS > 5) {
-                                                totalStopS += durS;
-                                                timelineEvents.push({
-                                                    id: `idle_${currentTime}`,
-                                                    timestampRaw: new Date(currentTime).toISOString(),
-                                                    label: 'Aguardando O.S.',
-                                                    details: `Máquina ociosa aguardando início de O.S.`,
-                                                    operator: shift.username,
-                                                    icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-                                                    colorClass: 'bg-orange-100 text-orange-700 border-orange-200',
-                                                    type: 'idle',
-                                                    durationDisplay: `Duração: ${formatDuration(durS)}`
-                                                });
-                                            }
-                                        }
-                                        currentTime = Math.max(currentTime, Math.min(busy.end, sEnd));
-                                    }
-                                    
-                                    if (currentTime < sEnd) {
-                                        const gapEnd = sEnd;
-                                        const durS = Math.floor((gapEnd - currentTime) / 1000);
-                                        if (durS > 5) {
-                                            totalStopS += durS;
-                                            timelineEvents.push({
-                                                id: `idle_${currentTime}`,
-                                                timestampRaw: new Date(currentTime).toISOString(),
-                                                label: 'Aguardando O.S.',
-                                                details: `Máquina ociosa aguardando início de O.S.`,
-                                                operator: shift.username,
-                                                icon: <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-                                                colorClass: 'bg-orange-100 text-orange-700 border-orange-200',
-                                                type: 'idle',
-                                                durationDisplay: `Duração: ${formatDuration(durS)}`
-                                            });
-                                        }
-                                    }
-                                });
+                            reportItems.push({
+                                osNum,
+                                subNum,
+                                startTimeRaw: vStartTime,
+                                endTimeRaw: vEndTime,
+                                startTimeStr: safeFormatTime(vStartTime),
+                                endTimeStr: vEndTime ? safeFormatTime(vEndTime) : '--:--:--',
+                                durationStr,
+                                status: val.status,
+                                weightPerCut: subWeight,
+                                metersPerCut,
+                                subQtd,
+                                loteStr
+                            });
+                        }
+                    });
+                });
 
-                                // Sort timeline
-                                timelineEvents.sort((a, b) => new Date(b.timestampRaw).getTime() - new Date(a.timestampRaw).getTime());
+                reportItems.sort((a, b) => new Date(a.startTimeRaw || 0).getTime() - new Date(b.startTimeRaw || 0).getTime());
 
-                                // Calculate Totals for top cards
-                                const totalWeightProduced = reportItems.reduce((acc, curr) => acc + curr.weightPerCut, 0);
-                                const totalMetersProduced = reportItems.reduce((acc, curr) => acc + curr.metersPerCut, 0);
+                const formatDuration = (s: number) => {
+                    const h = Math.floor(s / 3600);
+                    const m = Math.floor((s % 3600) / 60);
+                    const sec = s % 60;
+                    const pad = (n: number) => n.toString().padStart(2, '0');
+                    return `${pad(h)}:${pad(m)}:${pad(sec)}`;
+                };
 
-                                // Filter timeline
-                                const filteredTimeline = timelineEvents.filter(ev => {
-                                    if (timelineFilter === 'all') return true;
-                                    if (timelineFilter === 'stops') return ev.type === 'stop' || ev.type === 'idle';
-                                    if (timelineFilter === 'cuts') return ev.type === 'cut';
-                                    return true;
-                                });
+                let totalProductionS = 0;
+                let totalStopS = 0;
+                const nowTime = new Date().getTime();
 
-                                return (
-                                    <div className="space-y-6">
-                                        {/* Metricas */}
-                                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                                            <div className={`p-4 rounded-xl border flex items-center justify-between ${isOperatorOnline ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-100 border-slate-200'} col-span-2 lg:col-span-1`}>
-                                                <div>
-                                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Operador Logado</p>
-                                                    <p className={`text-sm font-bold mt-0.5 ${isOperatorOnline ? 'text-emerald-800' : 'text-slate-700'}`}>
-                                                        {currentOp ? currentOp.username : 'Nenhum online'}
-                                                    </p>
-                                                </div>
-                                                <div className={`w-3 h-3 rounded-full ${isOperatorOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
+                (machineStops || []).forEach((stop: any) => {
+                    const dStart = new Date(stop.start_time).getTime();
+                    const dEnd = stop.end_time ? new Date(stop.end_time).getTime() : nowTime;
+                    const durS = Math.floor(Math.max(0, dEnd - dStart) / 1000);
+                    totalStopS += durS;
+                });
+
+                reportItems.forEach((item) => {
+                    const dStart = new Date(item.startTimeRaw).getTime();
+                    const dEnd = item.endTimeRaw ? new Date(item.endTimeRaw).getTime() : nowTime;
+                    const durS = Math.floor(Math.max(0, dEnd - dStart) / 1000);
+                    totalProductionS += durS;
+                });
+
+                const activeShift = (dailyShifts || [])[0];
+                const shiftStart = activeShift ? new Date(activeShift.start_time).getTime() : new Date().getTime();
+                const shiftEnd = activeShift && activeShift.end_time ? new Date(activeShift.end_time).getTime() : nowTime;
+                const totalShiftS = Math.floor(Math.max(0, shiftEnd - shiftStart) / 1000);
+                
+                const effectiveS = totalProductionS; 
+                const totalCalculatedS = Math.max(totalShiftS, effectiveS + totalStopS);
+                
+                const pctStop = totalCalculatedS > 0 ? ((totalStopS / totalCalculatedS) * 100).toFixed(1) : '0,0';
+                const pctEffective = totalCalculatedS > 0 ? ((effectiveS / totalCalculatedS) * 100).toFixed(1) : '0,0';
+
+                const totalWeightProduced = reportItems.reduce((acc, curr) => acc + curr.weightPerCut, 0);
+                const totalMetersProduced = reportItems.reduce((acc, curr) => acc + curr.metersPerCut, 0);
+
+                const avgSpeedMs = effectiveS > 0 ? (totalMetersProduced / effectiveS).toFixed(2) : '0,00';
+                const avgSpeedMmin = effectiveS > 0 ? (totalMetersProduced / (effectiveS / 60)).toFixed(1) : '0,0';
+
+                const firstOrder = reportItems.length > 0 ? (allProgrammedOrders || []).find(po => getField(po, 'order_number', 'orderNumber') === reportItems[0].osNum) : null;
+                const inputDesc = firstOrder ? getField(firstOrder, 'input_material', 'inputMaterial') || '-' : '-';
+                const outputDesc = firstOrder ? getField(firstOrder, 'output_material', 'outputMaterial') || '-' : '-';
+
+                return (
+                    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4 print:fixed print:inset-0 print:bg-white print:z-[9999] print:block print:overflow-visible print:p-0">
+                        <div className="bg-white shadow-2xl w-[98vw] max-w-[1600px] h-[95vh] flex flex-col overflow-hidden rounded-xl border-4 border-[#3a3a3a] print:w-full print:max-w-none print:h-auto print:max-h-none print:shadow-none print:rounded-none print:border-none">
+                            {/* Header: Logo, Title, Date */}
+                            <div className="flex border-b-2 border-[#3a3a3a] bg-white">
+                                <div className="w-1/4 p-4 flex flex-col items-center justify-center border-r border-[#3a3a3a]">
+                                    {activeBrandingPartner?.logoUrl ? (
+                                        <img src={activeBrandingPartner.logoUrl} className="h-16 object-contain mb-1" alt="Logo Cliente" />
+                                    ) : (
+                                        <div className="h-16 flex flex-col items-center justify-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#3a3a3a]"><path d="m12 2 9 4.9V17L12 22l-9-4.9V7z"/><path d="m12 22 9-4.9"/><path d="M12 2v20"/><path d="m3 7 9 4.9"/><path d="m12 11.9 9-4.9"/></svg>
+                                            <span className="font-black text-xl uppercase mt-1 tracking-widest text-[#3a3a3a]">ARMAÇO</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="w-2/4 p-4 flex flex-col justify-center bg-[#3a3a3a] text-white">
+                                    <h2 className="text-4xl font-black uppercase tracking-widest text-center text-white">Controle de Produção Diária</h2>
+                                    <p className="text-base uppercase mt-1 font-bold text-center text-slate-100">Máquina - {selectedMachineTab}</p>
+                                </div>
+                                <div className="w-1/4 p-4 flex flex-col items-center justify-center bg-[#3a3a3a] text-white border-l border-[#3a3a3a]">
+                                    <p className="text-[10px] font-bold uppercase mb-1 tracking-wider text-slate-300">Data da produção</p>
+                                    <div className="flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                        <span className="text-xl font-black">{safeFormatDate(new Date())}</span>
+                                    </div>
+                                    <p className="text-xs uppercase mt-1 font-bold text-slate-300">
+                                        {(() => {
+                                            try { return new Date().toLocaleDateString('pt-BR', { weekday: 'long' }); }
+                                            catch { return 'Dia Atual'; }
+                                        })()}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            {/* Operador, Total Weight */}
+                            <div className="flex border-b-2 border-[#3a3a3a] bg-white text-[#3a3a3a]">
+                                <div className="w-1/2 p-4 flex flex-col justify-center items-center border-r border-[#3a3a3a]">
+                                    <p className="text-xs font-black uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                        Operador / Auxiliar
+                                    </p>
+                                    <p className="text-3xl font-black uppercase">
+                                        {currentOp ? currentOp.username : 'Nenhum online...'}
+                                    </p>
+                                </div>
+                                
+                                <div className="w-1/2 p-4 flex flex-col justify-center items-center">
+                                    <p className="text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Peso Total Produzido</p>
+                                    <p className="text-5xl font-black">
+                                        {totalWeightProduced.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}<span className="text-2xl font-bold ml-1">kg</span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Two Columns: Stops and Stats */}
+                            <div className="flex bg-white min-h-[250px] text-[#3a3a3a]">
+                                {/* Paradas */}
+                                <div className="w-7/12 border-r border-[#3a3a3a] flex flex-col p-4 bg-slate-50/50">
+                                    <div className="bg-[#3a3a3a] text-white flex justify-between items-center px-4 py-1.5 rounded-t-lg">
+                                        <h3 className="font-black text-base uppercase tracking-widest text-white">Paradas e seus motivos</h3>
+                                        <button className="bg-white text-[#3a3a3a] text-[10px] px-2 py-0.5 rounded font-black uppercase shadow-sm">Limpar</button>
+                                    </div>
+                                    <div className="border border-[#3a3a3a] border-t-0 rounded-b-lg flex-1 overflow-auto bg-white min-h-[150px]">
+                                        <table className="w-full text-xs">
+                                            <thead className="border-b border-slate-300">
+                                                <tr>
+                                                    <th className="p-2 text-left font-black tracking-wider text-slate-700">INÍCIO</th>
+                                                    <th className="p-2 text-left font-black tracking-wider text-slate-700">FIM</th>
+                                                    <th className="p-2 text-left font-black tracking-wider text-slate-700">DURAÇÃO</th>
+                                                    <th className="p-2 text-left font-black tracking-wider text-slate-700">MOTIVO</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {(machineStops || []).map((stop: any, idx: number) => {
+                                                    const dStart = stop?.start_time ? new Date(stop.start_time) : new Date();
+                                                    const dEnd = stop?.end_time ? new Date(stop.end_time) : new Date();
+                                                    const durS = Math.floor((dEnd.getTime() - dStart.getTime()) / 1000);
+                                                    
+                                                    return (
+                                                        <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
+                                                            <td className="p-2 font-bold">{safeFormatTime(stop?.start_time)}</td>
+                                                            <td className="p-2 font-bold">{stop?.end_time ? safeFormatTime(stop.end_time) : '--:--:--'}</td>
+                                                            <td className="p-2 font-black text-rose-700">{formatDuration(Math.max(0, durS || 0))}</td>
+                                                            <td className="p-2 font-medium text-slate-600 truncate max-w-[200px]">{stop.reason || 'Motivo...'}</td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                                {(machineStops || []).length === 0 && (
+                                                    <tr>
+                                                        <td colSpan={4} className="p-4 text-center text-slate-400 font-medium italic">Nenhuma parada registrada.</td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                {/* Estatísticas */}
+                                <div className="w-5/12 flex flex-col p-4 bg-slate-50/50">
+                                    <div className="bg-[#3a3a3a] text-white flex items-center px-4 py-1.5 rounded-t-lg">
+                                        <div className="w-3 h-3 rounded-full bg-white mr-2 border border-slate-300 flex items-center justify-center">
+                                            <div className="w-1.5 h-1.5 bg-[#3a3a3a] rounded-full"></div>
+                                        </div>
+                                        <h3 className="font-black text-base uppercase tracking-widest text-white">Estatística do dia</h3>
+                                    </div>
+                                    <div className="border border-[#3a3a3a] border-t-0 rounded-b-lg flex-1 p-5 space-y-4 bg-white flex flex-col justify-center min-h-[150px]">
+                                        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                                            <div className="flex items-center gap-2 text-slate-700">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                <span className="text-sm font-medium">Horas (Turno trabalhado)</span>
                                             </div>
-                                            
-                                            <div className="p-4 rounded-xl border bg-blue-50 border-blue-200 flex flex-col justify-center">
-                                                <p className="text-[10px] font-black uppercase text-blue-500 tracking-wider">Em Produção</p>
-                                                <p className="text-lg font-bold mt-0.5 text-blue-800">
-                                                    {formatDuration(totalProductionS)}
-                                                </p>
+                                            <span className="font-bold text-base">{formatDuration(totalShiftS)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                                            <div className="flex items-center gap-2 text-rose-700">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                                <span className="text-sm font-black uppercase">Tempo de máquina (Parada)</span>
                                             </div>
-
-                                            <div className="p-4 rounded-xl border bg-rose-50 border-rose-200 flex flex-col justify-center">
-                                                <p className="text-[10px] font-black uppercase text-rose-500 tracking-wider">Tempo Parado</p>
-                                                <p className="text-lg font-bold mt-0.5 text-rose-800">
-                                                    {formatDuration(totalStopS)}
-                                                </p>
-                                            </div>
-
-                                            <div className="p-4 rounded-xl border bg-indigo-50 border-indigo-200 flex flex-col justify-center">
-                                                <p className="text-[10px] font-black uppercase text-indigo-500 tracking-wider">Peso Produzido</p>
-                                                <p className="text-lg font-bold mt-0.5 text-indigo-800">
-                                                    {totalWeightProduced.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs font-medium">kg</span>
-                                                </p>
-                                            </div>
-
-                                            <div className="p-4 rounded-xl border bg-amber-50 border-amber-200 flex flex-col justify-center">
-                                                <p className="text-[10px] font-black uppercase text-amber-600 tracking-wider">Metros Produzidos</p>
-                                                <p className="text-lg font-bold mt-0.5 text-amber-900">
-                                                    {totalMetersProduced.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs font-medium">m</span>
-                                                </p>
+                                            <div className="flex gap-4">
+                                                <span className="font-black text-rose-700">{formatDuration(totalStopS)}</span>
+                                                <span className="font-black text-rose-700 w-12 text-right">{pctStop}%</span>
                                             </div>
                                         </div>
-
-                                        {/* Linha do Tempo */}
-                                        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                                            <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between flex-wrap gap-4">
-                                                <h4 className="font-black text-slate-800 uppercase text-xs flex items-center gap-2">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400"><path d="M12 2v20"/><path d="m8 6 4-4 4 4"/><path d="m8 18 4 4 4-4"/></svg>
-                                                    Linha do Tempo (Sequencial)
-                                                </h4>
-                                                <div className="flex items-center gap-1 bg-slate-200/50 p-1 rounded-lg print:hidden">
-                                                    <button onClick={() => setTimelineFilter('all')} className={`px-3 py-1 rounded text-[10px] font-bold uppercase transition-colors ${timelineFilter === 'all' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Todos</button>
-                                                    <button onClick={() => setTimelineFilter('cuts')} className={`px-3 py-1 rounded text-[10px] font-bold uppercase transition-colors ${timelineFilter === 'cuts' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Cortes (O.S.)</button>
-                                                    <button onClick={() => setTimelineFilter('stops')} className={`px-3 py-1 rounded text-[10px] font-bold uppercase transition-colors ${timelineFilter === 'stops' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Paradas</button>
-                                                </div>
-                                                <span className="text-[10px] font-bold text-slate-500 print:hidden">{filteredTimeline.length} eventos</span>
+                                        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                                            <div className="flex items-center gap-2 text-emerald-700">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="16 12 12 8 8 12"/><line x1="12" y1="16" x2="12" y2="8"/></svg>
+                                                <span className="text-sm font-black uppercase">Tempo de máquina (Efetivo)</span>
                                             </div>
-                                            
-                                            <div className="p-4 max-h-[60vh] overflow-y-auto print:max-h-none print:overflow-visible">
-                                                {filteredTimeline.length === 0 ? (
-                                                    <div className="py-8 text-center text-slate-400 text-sm font-bold">Nenhum evento registrado hoje.</div>
-                                                ) : (
-                                                    <div className="relative border-l-2 border-slate-200 ml-4 space-y-6 pb-4">
-                                                        {filteredTimeline.map((ev, i) => (
-                                                            <div key={ev.id} className="relative pl-6">
-                                                                <div className={`absolute -left-[17px] top-1 w-8 h-8 rounded-full border-2 bg-white flex items-center justify-center shadow-sm z-10 ${ev.colorClass}`}>
-                                                                    {ev.icon}
-                                                                </div>
-                                                                <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
-                                                                    <div className="flex justify-between items-start">
-                                                                        <div className="flex flex-col">
-                                                                            <span className={`text-[11px] font-black uppercase tracking-wider ${ev.colorClass.split(' ')[1]}`}>{ev.label}</span>
-                                                                            <span className="text-sm font-bold text-slate-800 mt-0.5">{ev.details}</span>
-                                                                        </div>
-                                                                        <div className="flex flex-col items-end">
-                                                                            <span className="text-xs font-bold text-slate-500">{ev.timeDisplay || new Date(ev.timestampRaw).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</span>
-                                                                            {ev.durationDisplay && <span className="text-[10px] font-bold text-indigo-500 uppercase mt-0.5">{ev.durationDisplay}</span>}
-                                                                            <span className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">{ev.operator}</span>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                            <div className="flex gap-4">
+                                                <span className="font-black text-emerald-700">{formatDuration(effectiveS)}</span>
+                                                <span className="font-black text-emerald-700 w-12 text-right">{pctEffective}%</span>
                                             </div>
+                                        </div>
+                                        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                                            <div className="flex items-center gap-2 text-slate-700">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 16.326A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 .5 8.973M13 12v9m-4-4l4 4 4-4"/></svg>
+                                                <span className="text-sm font-medium">Peso saída (produzido)</span>
+                                            </div>
+                                            <span className="font-bold text-base">{totalWeightProduced.toLocaleString('pt-BR')} kg</span>
+                                        </div>
+                                        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                                            <div className="flex items-center gap-2 text-slate-700">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="2" y="7" width="20" height="10" rx="2" ry="2"/><line x1="6" y1="7" x2="6" y2="17"/><line x1="10" y1="7" x2="10" y2="17"/><line x1="14" y1="7" x2="14" y2="17"/><line x1="18" y1="7" x2="18" y2="17"/></svg>
+                                                <span className="text-sm font-medium">Quant. metros produzidos</span>
+                                            </div>
+                                            <span className="font-bold text-base">{totalMetersProduced.toLocaleString('pt-BR')} metros</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-2 text-slate-700">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                <span className="text-sm font-medium">Velocidade (média)</span>
+                                            </div>
+                                            <span className="font-bold text-base">{avgSpeedMs} m/s ({avgSpeedMmin} m/min)</span>
                                         </div>
                                     </div>
-                                );
-                            })()}
+                                </div>
+                            </div>
+
+                            {/* Atualização da Produção */}
+                            <div className="p-4 bg-slate-50/50 flex-1 h-[240px] overflow-hidden flex flex-col border-t-2 border-[#3a3a3a]">
+                                <div className="bg-[#3a3a3a] text-white flex justify-center items-center px-4 py-1.5 rounded-t-lg">
+                                    <h3 className="font-black text-base uppercase tracking-widest text-white">Atualização da produção</h3>
+                                </div>
+                                <div className="border border-[#3a3a3a] border-t-0 rounded-b-lg flex-1 overflow-auto bg-white">
+                                    <table className="w-full text-xs text-center">
+                                        <thead className="bg-white border-b border-[#3a3a3a] sticky top-0 z-10 shadow-sm">
+                                            <tr>
+                                                <th className="p-2 font-black tracking-wider uppercase text-[#3a3a3a] border-r border-[#3a3a3a] w-16">OP</th>
+                                                <th className="p-2 font-black tracking-wider uppercase text-[#3a3a3a] border-r border-[#3a3a3a] w-16">OS</th>
+                                                <th className="p-2 font-black tracking-wider uppercase text-[#3a3a3a] border-r border-[#3a3a3a]">BITOLA</th>
+                                                <th className="p-2 font-black tracking-wider uppercase text-[#3a3a3a] border-r border-[#3a3a3a]">QNT</th>
+                                                <th className="p-2 font-black tracking-wider uppercase text-[#3a3a3a] border-r border-[#3a3a3a]">TAMANHO</th>
+                                                <th className="p-2 font-black tracking-wider uppercase text-[#3a3a3a] border-r border-[#3a3a3a]">PESO</th>
+                                                <th className="p-2 font-black tracking-wider uppercase text-[#3a3a3a] border-r border-[#3a3a3a]">LOTE</th>
+                                                <th className="p-2 font-black tracking-wider uppercase text-[#3a3a3a]">HORA-INICIO-TERMINO (DURAÇÃO)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {reportItems.map((item, idx) => {
+                                                const po = (allProgrammedOrders || []).find(p => getField(p, 'order_number', 'orderNumber') === item.osNum);
+                                                const bitola = po ? (getField(po, 'target_bitola', 'targetBitola') || getField(po, 'gauge', 'gauge') || '-') : '-';
+                                                const qnt = item.subQtd || 1;
+                                                const size = typeof item.metersPerCut === 'number' ? item.metersPerCut.toFixed(2) : '-';
+                                                const peso = typeof item.weightPerCut === 'number' ? item.weightPerCut.toFixed(2) : '-';
+                                                const lote = item.loteStr || '-';
+                                                
+                                                return (
+                                                    <tr key={idx} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
+                                                        <td className="p-2 font-bold border-r border-[#3a3a3a]">{item.osNum}</td>
+                                                        <td className="p-2 font-bold border-r border-[#3a3a3a]">{item.subNum}</td>
+                                                        <td className="p-2 border-r border-[#3a3a3a]">{bitola}</td>
+                                                        <td className="p-2 border-r border-[#3a3a3a]">{qnt}</td>
+                                                        <td className="p-2 border-r border-[#3a3a3a]">{size}</td>
+                                                        <td className="p-2 border-r border-[#3a3a3a]">{peso}</td>
+                                                        <td className="p-2 border-r border-[#3a3a3a]">{lote}</td>
+                                                        <td className="p-2">{item.startTimeStr} - {item.endTimeStr} ({item.durationStr})</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            {reportItems.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={8} className="p-4 text-center text-slate-400 font-medium italic">Nenhuma produção registrada.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            {/* Footer info & Actions */}
+                            <div className="flex justify-between items-center p-3 bg-white border-t-2 border-[#3a3a3a]">
+                                <span className="text-[10px] text-slate-500 font-medium tracking-wide">Observação: Relatório gerado automaticamente • Sistema de Controle de Produção</span>
+                                <div className="flex items-center gap-3 print:hidden">
+                                    {(allMachineShifts || []).length > 0 && (
+                                        <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1.5 border border-slate-300 shadow-sm">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500 ml-1"><path d="M5 3v18"/><path d="m19 9-7 7-7-7"/></svg>
+                                            <select 
+                                                value={selectedShiftId}
+                                                onChange={(e) => setSelectedShiftId(e.target.value)}
+                                                className="bg-transparent text-[10px] font-bold text-slate-700 outline-none uppercase py-0.5 px-1 cursor-pointer w-36"
+                                            >
+                                                {(allMachineShifts || []).map((shift: any, idx: number) => (
+                                                    <option key={shift?.id || idx} value={shift?.id}>
+                                                        {safeFormatDate(shift?.start_time)} - {safeFormatTime(shift?.start_time)}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
+                                    <button onClick={() => window.print()} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-6 rounded-lg shadow-sm transition-colors text-xs uppercase flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                                        Imprimir
+                                    </button>
+                                    <button onClick={() => setIsReportModalOpen(false)} className="bg-white border-2 border-slate-300 hover:bg-slate-100 text-slate-700 font-bold py-1.5 px-6 rounded-lg shadow-sm transition-colors text-xs uppercase">
+                                        Fechar
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                );
+                } catch (err: any) {
+                    console.error("Report Modal Render Error:", err);
+                    return (
+                        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+                            <div className="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-md border-2 border-red-500">
+                                <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
+                                </div>
+                                <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight mb-1">Aviso do Relatório</h3>
+                                <p className="text-xs font-bold text-slate-500 mb-4">{err?.message || String(err)}</p>
+                                <button onClick={() => setIsReportModalOpen(false)} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 px-4 rounded-xl text-xs uppercase shadow-md transition-all">
+                                    Fechar e Voltar
+                                </button>
+                            </div>
+                        </div>
+                    );
+                }
+            })()}
         </div>
     );
 };

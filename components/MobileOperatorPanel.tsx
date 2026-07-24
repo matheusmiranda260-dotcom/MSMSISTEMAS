@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import type { User, CommercialOrder, ProductionOrderData, StockItem, StockGauge } from '../types';
 
@@ -118,12 +118,25 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     };
 
     // Polled orders fallback and visual feedback state
-    const [localOrders, setLocalOrders] = useState<ProductionOrderData[]>(allProgrammedOrders.filter(po => po.status !== 'pending'));
+    const [localOrders, setLocalOrders] = useState<ProductionOrderData[]>(allProgrammedOrders);
     const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
+    const getProgressObj = (po: any) => {
+        if (!po) return {};
+        let p = po.sub_items_progress || po.subItemsProgress;
+        if (typeof p === 'string') {
+            try { p = JSON.parse(p); } catch(e) { p = {}; }
+        }
+        return p || {};
+    };
+
     useEffect(() => {
-        if (allProgrammedOrders.length > 0) {
-            setLocalOrders(allProgrammedOrders.filter(po => po.status !== 'pending'));
+        if (allProgrammedOrders && allProgrammedOrders.length > 0) {
+            setLocalOrders(allProgrammedOrders.map(p => ({
+                ...p,
+                subItemsProgress: (p as any).sub_items_progress || p.subItemsProgress,
+                sub_items_progress: (p as any).sub_items_progress || p.subItemsProgress
+            })));
         }
     }, [allProgrammedOrders]);
 
@@ -193,26 +206,70 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
 
     const isAnyProducing = React.useMemo(() => {
         return localOrders.some(po => {
-            if (!po.subItemsProgress) return false;
-            try {
-                const progressObj = typeof po.subItemsProgress === 'string' ? JSON.parse(po.subItemsProgress) : po.subItemsProgress;
-                return Object.values(progressObj).some((p: any) => p.status === 'producing');
-            } catch (e) { return false; }
+            const progressObj = getProgressObj(po);
+            return Object.values(progressObj).some((p: any) => p && typeof p === 'object' && p.status === 'producing');
         });
     }, [localOrders]);
 
+    const idleStopRef = useRef(false);
+
     useEffect(() => {
         if (machineState === 'ATIVA' && !isAnyProducing) {
-            if (!idleSince) {
+            if (!idleStopRef.current) {
+                idleStopRef.current = true;
                 const now = new Date().toISOString();
-                updateMachineStateDB({ idleSince: now });
+                
+                if (!idleSince) {
+                    updateMachineStateDB({ idleSince: now });
+                }
+                
+                // Registra a parada de Aguardando O.S., evitando duplicatas
+                const startIdleStop = async () => {
+                    try {
+                        const { data } = await supabase.from('machine_stops')
+                            .select('id')
+                            .eq('user_id', currentUser.id)
+                            .eq('machine', selectedMachine)
+                            .is('end_time', null);
+                            
+                        if (!data || data.length === 0) {
+                            await supabase.from('machine_stops').insert({
+                                machine: selectedMachine,
+                                user_id: currentUser.id,
+                                username: currentUser.username,
+                                start_time: idleSince || now,
+                                reason: 'Aguardando O.S.'
+                            });
+                        }
+                    } catch (e) {
+                        console.error('Error recording idle stop', e);
+                    }
+                };
+                startIdleStop();
             }
         } else {
             if (idleSince !== null) {
+                idleStopRef.current = false;
+                const now = new Date().toISOString();
                 updateMachineStateDB({ idleSince: null });
+                
+                // Encerra a parada de Aguardando O.S.
+                const endIdleStop = async () => {
+                    try {
+                        await supabase.from('machine_stops')
+                            .update({ end_time: now })
+                            .eq('user_id', currentUser.id)
+                            .eq('machine', selectedMachine)
+                            .eq('reason', 'Aguardando O.S.')
+                            .is('end_time', null);
+                    } catch (e) {
+                        console.error('Error closing idle stop', e);
+                    }
+                };
+                endIdleStop();
             }
         }
-    }, [machineState, isAnyProducing, idleSince, currentUser.id]);
+    }, [machineState, isAnyProducing, idleSince, currentUser.id, currentUser.username, selectedMachine]);
 
     const toggleMachineState = async () => {
         if (machineState === 'ATIVA') {
@@ -520,12 +577,13 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         let foundProducing = false;
 
         if (po) {
-            const currentProgressObj = typeof po.subItemsProgress === 'string' 
-                ? JSON.parse(po.subItemsProgress) 
-                : (po.subItemsProgress || {});
+            const currentProgressObj = getProgressObj(po);
             
-            for (const subOsKey in currentProgressObj) {
-                if (currentProgressObj[subOsKey].status === 'producing') {
+            for (const key in currentProgressObj) {
+                if (currentProgressObj[key]?.status === 'producing') {
+                    let cleanSubOsKey = key.replace('sub_', '').split('_')[0];
+                    const valSubOsKey = currentProgressObj[key]?.subOsKey || currentProgressObj[key]?.sub_os_key;
+                    if (valSubOsKey) cleanSubOsKey = String(valSubOsKey);
                     const commOrderId = (po as any).related_commercial_order_id || (po as any).relatedCommercialOrderId;
                     const commOrder = commercialOrders.find(co => co.id === commOrderId);
                     const rawProjectData = (commOrder as any)?.project_data || commOrder?.projectData;
@@ -533,15 +591,15 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     if (rawProjectData && Array.isArray(rawProjectData)) {
                         const normalizedData = rawProjectData.map(item => {
                             const newItem: any = {};
-                            for (const key in item) {
-                                newItem[key.trim().toLowerCase()] = item[key];
+                            for (const k in item) {
+                                newItem[k.trim().toLowerCase()] = item[k];
                             }
                             return newItem;
                         });
-                        const foundSub = normalizedData.find(s => String(s.os).trim() === subOsKey);
+                        const foundSub = normalizedData.find(s => String(s.os).trim() === cleanSubOsKey);
                         if (foundSub) {
                             setActiveSubOs(foundSub);
-                            setSubOsSearch(subOsKey);
+                            setSubOsSearch(cleanSubOsKey);
                             foundProducing = true;
                             break;
                         }
@@ -568,17 +626,48 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
             const po = localOrders.find(p => p.id === osId);
             if (!po) { setLoadingAction(null); return; }
             
-            let currentProgress = po.subItemsProgress;
-            if (typeof currentProgress === 'string') {
-                try { currentProgress = JSON.parse(currentProgress); } catch(e) { currentProgress = {}; }
-            }
-            currentProgress = currentProgress || {};
-            
+            let currentProgress = getProgressObj(po);
             const startTime = new Date().toISOString();
+            const strSubKey = String(subOsKey).trim();
             
+            if (machineState === 'PARADA') {
+                try {
+                    await supabase.from('machine_stops')
+                        .update({ end_time: startTime })
+                        .eq('user_id', currentUser.id)
+                        .eq('machine', selectedMachine)
+                        .is('end_time', null);
+                    updateMachineStateDB({ status: 'ATIVA', statusSince: startTime, stopReason: '' });
+                } catch(e) {}
+            }
+            
+            const isAlreadyDone = Object.values(currentProgress).some((v: any) => {
+                const valKey = v?.subOsKey || v?.sub_os_key;
+                return String(valKey) === strSubKey && v?.status === 'completed';
+            });
+
+            if (isAlreadyDone) {
+                alert(`A O.S. ${strSubKey} já foi finalizada e não pode ser reiniciada.`);
+                setLoadingAction(null);
+                return;
+            }
+
+            // Check if there is already an entry for this subOsKey that is currently 'producing'
+            let cutKey = Object.keys(currentProgress).find(k => {
+                let clean = k.replace('sub_', '').split('_')[0];
+                const valSubOsKey = currentProgress[k]?.subOsKey || currentProgress[k]?.sub_os_key;
+                if (valSubOsKey) clean = String(valSubOsKey);
+                return clean === strSubKey && currentProgress[k]?.status === 'producing';
+            });
+
+            if (!cutKey) {
+                // Generate a unique timestamped key so previous cuts are NEVER overwritten
+                cutKey = `${strSubKey}_${Date.now()}`;
+            }
+
             const updatedProgress = {
                 ...currentProgress,
-                [subOsKey]: { status: 'producing', start_time: startTime }
+                [cutKey]: { status: 'producing', start_time: startTime, sub_os_key: strSubKey }
             };
 
             // OPTIMISTIC UPDATE: Immediate UI Feedback
@@ -587,6 +676,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     return { 
                         ...p, 
                         subItemsProgress: updatedProgress,
+                        sub_items_progress: updatedProgress,
                         status: (p.status !== 'producing' && p.status !== 'in_progress') ? 'in_progress' : p.status,
                         startTime: (p.status !== 'producing' && p.status !== 'in_progress') ? startTime : p.startTime
                     };
@@ -620,23 +710,52 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
             const po = localOrders.find(p => p.id === osId);
             if (!po) { setLoadingAction(null); return; }
             
-            let currentProgress = po.subItemsProgress;
-            if (typeof currentProgress === 'string') {
-                try { currentProgress = JSON.parse(currentProgress); } catch(e) { currentProgress = {}; }
-            }
-            currentProgress = currentProgress || {};
+            let currentProgress = getProgressObj(po);
             const endTime = new Date().toISOString();
-            const existingStart = currentProgress[subOsKey]?.start_time || currentProgress[subOsKey]?.startTime;
+            const strSubKey = String(subOsKey).trim();
+
+            const isAlreadyDone = Object.values(currentProgress).some((v: any) => {
+                const valKey = v?.subOsKey || v?.sub_os_key;
+                return String(valKey) === strSubKey && v?.status === 'completed';
+            });
+
+            if (isAlreadyDone) {
+                alert(`A O.S. ${strSubKey} já está finalizada.`);
+                setLoadingAction(null);
+                return;
+            }
+
+            // Find producing entry for this subOsKey, or fallback
+            let cutKey = Object.keys(currentProgress).find(k => {
+                let clean = k.replace('sub_', '').split('_')[0];
+                const valSubOsKey = currentProgress[k]?.subOsKey || currentProgress[k]?.sub_os_key;
+                if (valSubOsKey) clean = String(valSubOsKey);
+                return clean === strSubKey && currentProgress[k]?.status === 'producing';
+            });
+
+            if (!cutKey) {
+                if (currentProgress[strSubKey] && currentProgress[strSubKey].status !== 'completed') {
+                    cutKey = strSubKey;
+                } else {
+                    cutKey = `${strSubKey}_${Date.now()}`;
+                }
+            }
+
+            const existingStart = currentProgress[cutKey]?.start_time || currentProgress[cutKey]?.startTime || endTime;
             
             const updatedProgress = {
                 ...currentProgress,
-                [subOsKey]: { status: 'completed', start_time: existingStart, end_time: endTime }
+                [cutKey]: { status: 'completed', start_time: existingStart, end_time: endTime, sub_os_key: strSubKey }
             };
 
             // OPTIMISTIC UPDATE: Immediate UI Feedback
             setLocalOrders(prev => prev.map(p => {
                 if (p.id === osId) {
-                    return { ...p, subItemsProgress: updatedProgress };
+                    return { 
+                        ...p, 
+                        subItemsProgress: updatedProgress,
+                        sub_items_progress: updatedProgress
+                    };
                 }
                 return p;
             }));
@@ -759,16 +878,37 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     const handlePauseProductionBatch = async (osId: string) => {
         setLoadingAction(`pause-batch-${osId}`);
         try {
+            const po = localOrders.find(p => p.id === osId);
+            let updatedProgress = getProgressObj(po);
+            
+            let hasChanges = false;
+            const now = new Date().toISOString();
+            
+            Object.keys(updatedProgress).forEach(key => {
+                if ((updatedProgress as any)[key].status === 'producing') {
+                    (updatedProgress as any)[key].status = 'paused';
+                    (updatedProgress as any)[key].end_time = now;
+                    hasChanges = true;
+                }
+            });
+
             await supabase
                 .from('production_orders')
-                .update({ status: 'pending' })
+                .update({ 
+                    status: 'pending',
+                    ...(hasChanges ? { sub_items_progress: updatedProgress } : {})
+                })
                 .eq('id', osId);
                 
-            setLocalOrders(prev => prev.map(po => {
-                if (po.id === osId) {
-                    return { ...po, status: 'pending' };
+            setLocalOrders(prev => prev.map(poItem => {
+                if (poItem.id === osId) {
+                    return { 
+                        ...poItem, 
+                        status: 'pending',
+                        ...(hasChanges ? { subItemsProgress: updatedProgress } : {})
+                    };
                 }
-                return po;
+                return poItem;
             }));
         } catch (e) {
             console.error('Erro ao pausar produção:', e);
@@ -1092,10 +1232,10 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                     </p>
                                 </div>
                                 
-                                {isProducing && po.startTime && (
+                                {isProducing && (
                                     <div className="bg-orange-50 rounded-xl p-4 flex flex-col items-center justify-center border border-orange-200">
                                         <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest animate-pulse mb-1">Em Execução Global</span>
-                                        <ActiveTimer startTime={po.startTime} />
+                                        {po.startTime ? <ActiveTimer startTime={po.startTime} /> : <span className="font-mono font-bold text-orange-500">PAUSADO OU SEM INÍCIO</span>}
                                     </div>
                                 )}
 
@@ -1168,9 +1308,45 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     }
                 };
 
-                const currentProgressObj = typeof po.subItemsProgress === 'string' ? JSON.parse(po.subItemsProgress) : (po.subItemsProgress || {});
-                const currentItemStatus = activeSubOs ? currentProgressObj?.[activeSubOs.os]?.status : null;
-                const currentItemStart = activeSubOs ? (currentProgressObj?.[activeSubOs.os]?.start_time || currentProgressObj?.[activeSubOs.os]?.startTime) : null;
+                const currentProgressObj = getProgressObj(po);
+                const targetSubOsStr = activeSubOs ? String(activeSubOs.os).trim() : '';
+
+                const producingCutEntry = activeSubOs ? Object.entries(currentProgressObj).find(([k, v]: any) => {
+                    const cleanKey = k.replace('sub_', '').split('_')[0];
+                    const valSubOsKey = v?.subOsKey || v?.sub_os_key;
+                    if (valSubOsKey) {
+                         return String(valSubOsKey) === targetSubOsStr && v?.status === 'producing';
+                    }
+                    return cleanKey === targetSubOsStr && v?.status === 'producing';
+                }) : null;
+
+                const completedCutsCount = activeSubOs ? Object.entries(currentProgressObj).filter(([k, v]: any) => {
+                    const cleanKey = k.replace('sub_', '').split('_')[0];
+                    const valSubOsKey = v?.subOsKey || v?.sub_os_key;
+                    if (valSubOsKey) {
+                         return String(valSubOsKey) === targetSubOsStr && v?.status === 'completed';
+                    }
+                    return cleanKey === targetSubOsStr && v?.status === 'completed';
+                }).length : 0;
+
+                const isCompleted = activeSubOs ? Object.values(currentProgressObj).some((v: any) => {
+                    if (!v || typeof v !== 'object') return false;
+                    const valSubOsKey = v?.subOsKey || v?.sub_os_key;
+                    if (valSubOsKey) {
+                        return String(valSubOsKey) === targetSubOsStr && v?.status === 'completed';
+                    }
+                    return false;
+                }) : false;
+
+                let currentItemStatus = null;
+                let currentItemStart = null;
+
+                if (producingCutEntry) {
+                    currentItemStatus = 'producing';
+                    currentItemStart = (producingCutEntry[1] as any)?.start_time || (producingCutEntry[1] as any)?.startTime;
+                } else if (isCompleted || completedCutsCount > 0) {
+                    currentItemStatus = 'completed';
+                }
 
                 return (
                     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
@@ -1186,6 +1362,43 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                             </div>
                             
                             <div className="p-6 flex flex-col gap-6">
+                                {subItems.length > 0 && (
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-xs font-black text-slate-500 uppercase tracking-wider block">O.S. deste Lote ({subItems.length}):</label>
+                                        <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
+                                            {subItems.map(item => {
+                                                const itemOsStr = String(item.os).trim();
+                                                const isComp = Object.values(currentProgressObj).some((v: any) => {
+                                                    const kStr = v?.subOsKey || v?.sub_os_key;
+                                                    return String(kStr) === itemOsStr && v?.status === 'completed';
+                                                });
+                                                const isProd = Object.values(currentProgressObj).some((v: any) => {
+                                                    const kStr = v?.subOsKey || v?.sub_os_key;
+                                                    return String(kStr) === itemOsStr && v?.status === 'producing';
+                                                });
+                                                const isSelected = activeSubOs && String(activeSubOs.os).trim() === itemOsStr;
+
+                                                let badgeStyle = 'bg-slate-100 text-slate-700 border-slate-200';
+                                                if (isComp) badgeStyle = 'bg-emerald-100 text-emerald-800 border-emerald-300 font-black';
+                                                else if (isProd) badgeStyle = 'bg-orange-100 text-orange-800 border-orange-300 font-black animate-pulse';
+
+                                                return (
+                                                    <button
+                                                        key={itemOsStr}
+                                                        onClick={() => {
+                                                            setActiveSubOs(item);
+                                                            setSubOsSearch(itemOsStr);
+                                                        }}
+                                                        className={`px-3 py-2 rounded-xl text-xs border transition-all flex items-center gap-1.5 whitespace-nowrap shadow-sm ${badgeStyle} ${isSelected ? 'ring-2 ring-indigo-500 scale-105' : 'opacity-80 hover:opacity-100'}`}
+                                                    >
+                                                        {isComp ? '✅' : isProd ? '⚡' : '⏱️'} OS {itemOsStr}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {currentItemStatus !== 'producing' && (
                                     <div>
                                         <label className="text-sm font-bold text-slate-600 block mb-2">Digite o número da OS:</label>
@@ -1226,9 +1439,12 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
 
                                         <div className="mt-2 pt-4 border-t border-slate-200">
                                             {currentItemStatus === 'completed' ? (
-                                                <div className="bg-emerald-100 text-emerald-700 font-black p-4 rounded-xl text-center flex flex-col items-center gap-2">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8"><path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" /></svg>
-                                                    Corte Concluído!
+                                                <div className="bg-emerald-50 border-2 border-emerald-300 text-emerald-800 font-black p-5 rounded-2xl text-center flex flex-col items-center gap-2 shadow-sm">
+                                                    <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7"><path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" /></svg>
+                                                    </div>
+                                                    <span className="text-lg uppercase font-black tracking-tight text-emerald-900">O.S. JÁ FINALIZADA!</span>
+                                                    <p className="text-xs font-bold text-emerald-700">Esta O.S. foi executada e concluída. Não é possível iniciar ou alterar novamente.</p>
                                                 </div>
                                             ) : currentItemStatus === 'producing' ? (
                                                 <div className="flex flex-col gap-3">
