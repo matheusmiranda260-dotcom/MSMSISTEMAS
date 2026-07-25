@@ -46,6 +46,11 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     const [selectedMachine, setSelectedMachine] = useState<string>(assignedMachines[0] || '');
     const [searchQuery, setSearchQuery] = useState('');
     const [showCompleted, setShowCompleted] = useState(false);
+    const [bancadaConfirmState, setBancadaConfirmState] = useState<{ isOpen: boolean, subOsKey: string, po: any, subOsItem: any, weight: number } | null>(null);
+    
+    const bancadaMachineObj = activeBrandingPartner?.machines?.find((m: any) => m.name.toLowerCase().includes('bancada') || m.name.toLowerCase().includes('cortador'));
+    const bancadaTargetName = bancadaMachineObj ? bancadaMachineObj.name : 'Bancada/Cortador';
+    const isCurrentMachineBancada = selectedMachine.toLowerCase().includes('bancada') || selectedMachine.toLowerCase().includes('cortador');
     
     // Porta rolos state with initial load from Realtime (supports both camelCase and snake_case DB fields)
     const currentMachineState = machineStates?.find(m => (m.machineName || (m as any).machine_name) === selectedMachine);
@@ -247,23 +252,31 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     updateMachineStateDB({ idleSince: now });
                 }
                 
-                // Registra a parada de Aguardando O.S., evitando duplicatas
+                // Registra a parada de Aguardando O.S.
                 const startIdleStop = async () => {
                     try {
-                        const { data } = await supabase.from('machine_stops')
-                            .select('id')
-                            .eq('user_id', currentUser.id)
+                        // Fecha paradas "fantasmas" antigas do mesmo motivo que ficaram sem end_time
+                        await supabase.from('machine_stops')
+                            .update({ end_time: now })
                             .eq('machine', selectedMachine)
+                            .eq('reason', 'Aguardando O.S.')
                             .is('end_time', null);
+                    } catch (e) {
+                        console.error('Ignorando erro ao fechar paradas fantasmas:', e);
+                    }
                             
-                        if (!data || data.length === 0) {
-                            await supabase.from('machine_stops').insert({
-                                machine: selectedMachine,
-                                user_id: currentUser.id,
-                                username: currentUser.username,
-                                start_time: idleSince || now,
-                                reason: 'Aguardando O.S.'
-                            });
+                    try {
+                        console.log('Inserindo nova parada de Aguardando O.S.');
+                        const insertResult = await supabase.from('machine_stops').insert({
+                            machine: selectedMachine,
+                            user_id: currentUser?.id || null,
+                            username: currentUser?.username || 'unknown',
+                            start_time: now,
+                            reason: 'Aguardando O.S.'
+                        });
+                        console.log('Resultado da inserção:', insertResult);
+                        if (insertResult.error) {
+                            console.error('Erro ao inserir parada:', insertResult.error);
                         }
                     } catch (e) {
                         console.error('Error recording idle stop', e);
@@ -272,8 +285,8 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 startIdleStop();
             }
         } else {
+            idleStopRef.current = false;
             if (idleSince !== null) {
-                idleStopRef.current = false;
                 const now = new Date().toISOString();
                 updateMachineStateDB({ idleSince: null });
                 
@@ -282,7 +295,6 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     try {
                         await supabase.from('machine_stops')
                             .update({ end_time: now })
-                            .eq('user_id', currentUser.id)
                             .eq('machine', selectedMachine)
                             .eq('reason', 'Aguardando O.S.')
                             .is('end_time', null);
@@ -293,9 +305,10 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 endIdleStop();
             }
         }
-    }, [machineState, isAnyProducing, idleSince, currentUser.id, currentUser.username, selectedMachine]);
+    }, [machineState, isAnyProducing, idleSince, currentUser?.id, currentUser?.username, selectedMachine]);
 
     const toggleMachineState = async () => {
+        idleStopRef.current = false;
         if (machineState === 'ATIVA') {
             setIsStopReasonModalOpen(true);
             return;
@@ -306,7 +319,6 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         try {
             await supabase.from('machine_stops')
                 .update({ end_time: now })
-                .eq('user_id', currentUser.id)
                 .eq('machine', selectedMachine)
                 .is('end_time', null);
         } catch (e) {
@@ -314,7 +326,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         }
 
         setMachineTimer('00:00:00');
-        updateMachineStateDB({ status: 'ATIVA', statusSince: now, stopReason: '' });
+        updateMachineStateDB({ status: 'ATIVA', statusSince: now, stopReason: '', idleSince: null });
     };
 
     // Modal state
@@ -381,14 +393,21 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     };
 
     const registerMachineStop = async (reason: string) => {
-
         const now = new Date().toISOString();
+        idleStopRef.current = false;
         
         try {
+            // Fecha qualquer parada "Aguardando O.S." aberta antes de iniciar a nova parada manual
+            await supabase.from('machine_stops')
+                .update({ end_time: now })
+                .eq('machine', selectedMachine)
+                .eq('reason', 'Aguardando O.S.')
+                .is('end_time', null);
+
             await supabase.from('machine_stops').insert({
                 machine: selectedMachine,
-                user_id: currentUser.id,
-                username: currentUser.username,
+                user_id: currentUser?.id || null,
+                username: currentUser?.username || 'unknown',
                 start_time: now,
                 reason: reason
             });
@@ -397,7 +416,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         }
 
         setMachineTimer('00:00:00');
-        updateMachineStateDB({ status: 'PARADA', statusSince: now, stopReason: reason });
+        updateMachineStateDB({ status: 'PARADA', statusSince: now, stopReason: reason, idleSince: null });
     };
 
     const handleSearchLots = async () => {
@@ -814,17 +833,6 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 } catch(e) {}
             }
             
-            const isAlreadyDone = Object.values(currentProgress).some((v: any) => {
-                const valKey = v?.subOsKey || v?.sub_os_key;
-                return String(valKey) === strSubKey && v?.status === 'completed';
-            });
-
-            if (isAlreadyDone) {
-                alert(`A O.S. ${strSubKey} já foi finalizada e não pode ser reiniciada.`);
-                setLoadingAction(null);
-                return;
-            }
-
             // Check if there is already an entry for this subOsKey that is currently 'producing'
             let cutKey = Object.keys(currentProgress).find(k => {
                 let clean = k.replace('sub_', '').split('_')[0];
@@ -883,24 +891,16 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         setLoadingAction(`finish-${osId}-${subOsKey}`);
         try {
             const po = localOrders.find(p => p.id === osId);
-            if (!po) { setLoadingAction(null); return; }
+            if (!po) { 
+                alert('OS não encontrada na memória local.');
+                setLoadingAction(null); 
+                return; 
+            }
             
             let currentProgress = getProgressObj(po);
             const endTime = new Date().toISOString();
             const strSubKey = String(subOsKey).trim();
 
-            const isAlreadyDone = Object.values(currentProgress).some((v: any) => {
-                const valKey = v?.subOsKey || v?.sub_os_key;
-                return String(valKey) === strSubKey && v?.status === 'completed';
-            });
-
-            if (isAlreadyDone) {
-                alert(`A O.S. ${strSubKey} já está finalizada.`);
-                setLoadingAction(null);
-                return;
-            }
-
-            // Find producing entry for this subOsKey, or fallback
             let cutKey = Object.keys(currentProgress).find(k => {
                 let clean = k.replace('sub_', '').split('_')[0];
                 const valSubOsKey = currentProgress[k]?.subOsKey || currentProgress[k]?.sub_os_key;
@@ -923,7 +923,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 [cutKey]: { status: 'completed', start_time: existingStart, end_time: endTime, sub_os_key: strSubKey }
             };
 
-            // OPTIMISTIC UPDATE: Immediate UI Feedback
+            // OPTIMISTIC UPDATE
             setLocalOrders(prev => prev.map(p => {
                 if (p.id === osId) {
                     return { 
@@ -935,6 +935,9 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 return p;
             }));
 
+            const activeSubOsRef = { ...activeSubOs };
+            let pieceWeightForBancada = 0;
+
             const { error } = await supabase
                 .from('production_orders')
                 .update({ sub_items_progress: updatedProgress })
@@ -942,14 +945,14 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 
             if (error) {
                 console.error('Supabase error:', error);
-                alert('Erro do sistema ao finalizar o corte.');
+                alert(`Erro do sistema ao finalizar o corte: ${error.message || JSON.stringify(error)}`);
             } else {
-                // Abater peso do lote selecionado
-                if (selectedMachine !== 'Bancada/Cortador' && selectedMachine !== 'BANCADA/CORTADOR') {
+                // Abater peso
+                if (!isCurrentMachineBancada) {
                     try {
-                        const qtd = parseFloat(activeSubOs.qunti || activeSubOs.quantidade || activeSubOs.qtd || '0');
-                        const compCm = parseFloat(activeSubOs.comprimento || activeSubOs.comp || '0');
-                        let weightProduced = parseFloat(activeSubOs.peso || activeSubOs.pesoTotal || '0');
+                        const qtd = parseFloat(activeSubOsRef.qunti || activeSubOsRef.quantidade || activeSubOsRef.qtd || '0');
+                        const compCm = parseFloat(activeSubOsRef.comprimento || activeSubOsRef.comp || '0');
+                        let weightProduced = parseFloat(activeSubOsRef.peso || activeSubOsRef.pesoTotal || '0');
                         
                         if (!weightProduced || isNaN(weightProduced) || weightProduced === 0) {
                             const bitolaStr = po.target_bitola || po.targetBitola || '';
@@ -959,6 +962,8 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                 weightProduced = (compCm / 100) * qtd * weightPerM;
                             }
                         }
+
+                        pieceWeightForBancada = weightProduced;
 
                         if (weightProduced > 0) {
                             const activeLots = [];
@@ -991,67 +996,24 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                 }
                             }
                         }
-                    } catch (err) {
+                    } catch (err: any) {
                         console.error('Erro ao abater peso do lote:', err);
+                        alert(`Erro ao abater peso: ${err.message || 'Desconhecido'}`);
                     }
                 }
             }
                 
-            const commOrderId = (po as any).related_commercial_order_id || (po as any).relatedCommercialOrderId;
-            const commOrder = commercialOrders.find(co => co.id === commOrderId);
+            setSubOsSearch('');
+            setActiveSubOs(null);
             
-            let totalSubItems = 0;
-            const rawProjectData = (commOrder as any)?.project_data || commOrder?.projectData;
-            if (rawProjectData && Array.isArray(rawProjectData)) {
-                const subItems = rawProjectData.filter(item => {
-                    const mm = item.mm || item.bitola || item.diametro || item.bit;
-                    const poBitola = (po as any).target_bitola || po.targetBitola || '0';
-                    return parseFloat(String(mm).replace(',', '.').replace(/[^\d.-]/g, '')) === parseFloat(String(poBitola).replace(',', '.').replace(/[^\d.-]/g, ''));
-                });
-                totalSubItems = subItems.length;
+            if (!isCurrentMachineBancada) {
+                setBancadaConfirmState({ isOpen: true, subOsKey, po, subOsItem: activeSubOsRef, weight: pieceWeightForBancada });
             }
-
-            const completedCount = Object.values(updatedProgress).filter((p: any) => p.status === 'completed').length;
-
-            if (totalSubItems > 0 && completedCount >= totalSubItems) {
-                // Auto-finaliza a O.S pai
-                await handleFinishProductionBatch(osId);
-            } else {
-                setSubOsSearch('');
-                setActiveSubOs(null);
-            }
-            
-            if (selectedMachine !== 'Bancada/Cortador' && selectedMachine !== 'BANCADA/CORTADOR') {
-                setTimeout(async () => {
-                    const goesToBancada = window.confirm(`A peça ${subOsKey} finalizada agora precisa ir para a Bancada?`);
-                    if (goesToBancada) {
-                        try {
-                            const newOs = {
-                                order_number: `${po.order_number || po.orderNumber} - ${subOsKey}`,
-                                machine: 'Bancada/Cortador',
-                                target_bitola: po.target_bitola || po.targetBitola,
-                                selected_lot_ids: po.selected_lot_ids || po.selectedLotIds || [],
-                                total_weight: po.total_weight || po.totalWeight,
-                                total_meters: po.total_meters || po.totalMeters,
-                                is_ghost_order: po.is_ghost_order || po.isGhostOrder,
-                                status: 'pending',
-                                creation_date: new Date().toISOString(),
-                                related_commercial_order_id: po.related_commercial_order_id || po.relatedCommercialOrderId,
-                                quantity_os: po.quantity_os || po.quantityOs,
-                                sub_items_progress: {}
-                            };
-                            await supabase.from('production_orders').insert(newOs);
-                            alert(`Peça ${subOsKey} enviada para a fila da Bancada com sucesso!`);
-                        } catch (err) {
-                            console.error('Erro ao clonar para bancada:', err);
-                            alert('Erro ao enviar peça para bancada.');
-                        }
-                    }
-                }, 500);
-            }
-        } catch (e) {
+        } catch (e: any) {
             console.error('Erro ao finalizar mini OS:', e);
-            alert('Erro ao finalizar corte da peça.');
+            alert(`Erro Crítico ao finalizar corte da peça: ${e.message || JSON.stringify(e)}`);
+            setSubOsSearch('');
+            setActiveSubOs(null);
         } finally {
             setLoadingAction(null);
         }
@@ -1285,7 +1247,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                         </div>
                     )}
                 
-                {selectedMachine !== 'Bancada/Cortador' && selectedMachine !== 'BANCADA/CORTADOR' && (
+                {!isCurrentMachineBancada && (
                 <div className="bg-white p-4 rounded-2xl shadow-sm border-2 border-slate-200 flex flex-col gap-3">
                     <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
@@ -1453,7 +1415,13 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                             <circle cx="12" cy="12" r="3"/>
                                         </svg>
                                         <span className="font-bold text-slate-700 text-[11px]">
-                                            {((po as any).quantity_os || (po as any).quantityOs || 0)} un.
+                                            {(() => {
+                                                const total = (po as any).quantity_os || (po as any).quantityOs || 0;
+                                                const completed = po.sub_items_progress 
+                                                    ? Object.values(po.sub_items_progress).filter((s: any) => s.status === 'completed' || s.from_machine).length 
+                                                    : 0;
+                                                return `${completed} / ${total} un.`;
+                                            })()}
                                         </span>
                                         {lengthCm > 0 && (
                                             <>
@@ -1529,11 +1497,29 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                         }
                         return newItem;
                     });
-                    subItems = normalizedData.filter(item => {
+                    
+                    let subItemsResult = normalizedData.filter(item => {
                         const mm = item.mm || item.bitola || item.diametro || item.bit;
                         const poBitola = (po as any).target_bitola || po.targetBitola || '0';
                         return parseFloat(String(mm).replace(',', '.').replace(/[^\d.-]/g, '')) === parseFloat(String(poBitola).replace(',', '.').replace(/[^\d.-]/g, ''));
                     });
+
+                    // Se a máquina for Bancada, mostra apenas os itens que constam no sub_items_progress (peças enviadas)
+                    const isBancada = selectedMachine === 'Bancada/Cortador' || selectedMachine === 'BANCADA/CORTADOR';
+                    if (isBancada) {
+                        const progress = getProgressObj(po);
+                        const allowedSubOsKeys = Object.keys(progress).map(k => {
+                            const valSubOsKey = progress[k]?.subOsKey || progress[k]?.sub_os_key;
+                            if (valSubOsKey) return String(valSubOsKey).trim();
+                            return k.replace('sub_', '').split('_')[0].trim();
+                        });
+                        
+                        subItemsResult = subItemsResult.filter(item => {
+                            return allowedSubOsKeys.includes(String(item.os).trim());
+                        });
+                    }
+                    
+                    subItems = subItemsResult;
                 }
 
                 const handleSearch = () => {
@@ -1904,6 +1890,106 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 )}
 
                 </>
+            )}
+
+            {/* Modal Confirmação Bancada */}
+            {bancadaConfirmState?.isOpen && (
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-200">
+                        <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-4 text-3xl">
+                            🤔
+                        </div>
+                        <h3 className="text-xl font-black text-slate-800 mb-2">Atenção</h3>
+                        <p className="text-sm font-medium text-slate-500 mb-6">
+                            A peça <strong className="text-indigo-600">{bancadaConfirmState.subOsKey}</strong> finalizada agora precisa ir para a Bancada?
+                        </p>
+                        <div className="flex gap-3 w-full">
+                            <button
+                                onClick={() => setBancadaConfirmState(null)}
+                                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl transition-colors"
+                            >
+                                Não
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    const { subOsKey, po, subOsItem, weight } = bancadaConfirmState;
+                                    setBancadaConfirmState(null);
+                                    try {
+                                        const { data: existingOrders, error: fetchErr } = await supabase
+                                            .from('production_orders')
+                                            .select('*')
+                                            .eq('machine', bancadaTargetName)
+                                            .eq('related_commercial_order_id', po.related_commercial_order_id || po.relatedCommercialOrderId)
+                                            .eq('target_bitola', po.target_bitola || po.targetBitola)
+                                            .in('status', ['in_progress', 'producing', 'pending']);
+                                            
+                                        if (fetchErr) throw fetchErr;
+                                        
+                                        const existingOrder = existingOrders && existingOrders.length > 0 ? existingOrders[0] : null;
+
+                                        const qtd = parseFloat(subOsItem?.qunti || subOsItem?.quantidade || subOsItem?.qtd || '0');
+                                        const compCm = parseFloat(subOsItem?.comprimento || subOsItem?.comp || '0');
+                                        const metersToAdd = (compCm / 100) * qtd;
+
+                                        if (existingOrder) {
+                                            const newWeight = (existingOrder.total_weight || 0) + (weight || 0);
+                                            const newMeters = (existingOrder.total_meters || 0) + metersToAdd;
+                                            
+                                            const updatedProgress = { ...(existingOrder.sub_items_progress || {}) };
+                                            updatedProgress[subOsKey] = { status: 'pending', from_machine: true };
+                                            
+                                            const orderNumbers = existingOrder.order_number.split(',').map((n: string) => n.trim());
+                                            let newOrderNumber = existingOrder.order_number;
+                                            if (!orderNumbers.includes(subOsKey) && !existingOrder.order_number.includes('BANCADA')) {
+                                                newOrderNumber = `${existingOrder.order_number}, ${subOsKey}`;
+                                            }
+
+                                            const newQuantity = (existingOrder.quantity_os || 1) + 1;
+
+                                            await supabase
+                                                .from('production_orders')
+                                                .update({
+                                                    total_weight: newWeight,
+                                                    total_meters: newMeters,
+                                                    sub_items_progress: updatedProgress,
+                                                    order_number: newOrderNumber,
+                                                    quantity_os: newQuantity
+                                                })
+                                                .eq('id', existingOrder.id);
+                                                
+                                            // alert(`Peça ${subOsKey} acumulada na O.S. da Bancada!`);
+                                        } else {
+                                            const newOs = {
+                                                order_number: `${po.order_number || po.orderNumber} - BANCADA`,
+                                                machine: bancadaTargetName,
+                                                target_bitola: po.target_bitola || po.targetBitola,
+                                                selected_lot_ids: po.selected_lot_ids || po.selectedLotIds || [],
+                                                total_weight: weight || 0,
+                                                total_meters: metersToAdd || 0,
+                                                is_ghost_order: po.is_ghost_order || po.isGhostOrder,
+                                                status: 'in_progress',
+                                                creation_date: new Date().toISOString(),
+                                                related_commercial_order_id: po.related_commercial_order_id || po.relatedCommercialOrderId,
+                                                quantity_os: 1,
+                                                sub_items_progress: {
+                                                    [subOsKey]: { status: 'pending', from_machine: true }
+                                                }
+                                            };
+                                            await supabase.from('production_orders').insert(newOs);
+                                            // alert(`Peça ${subOsKey} enviada para a fila da Bancada com sucesso!`);
+                                        }
+                                    } catch (err) {
+                                        console.error('Erro ao processar bancada:', err);
+                                        alert('Erro ao enviar peça para bancada.');
+                                    }
+                                }}
+                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md"
+                            >
+                                Sim
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

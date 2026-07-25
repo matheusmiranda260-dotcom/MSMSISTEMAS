@@ -237,12 +237,15 @@ const ProductionOrderReport: React.FC<ProductionOrderReportProps> = ({ reportDat
                             <h3 className="text-center italic underline font-bold mb-0.5 text-sm">PARADAS E SEUS MOTIVOS:</h3>
                             <table className="w-full border-collapse border border-black text-xs text-center font-bold">
                                 <tbody>
-                                    {reportData.downtimeEvents?.filter(e => e.resumeTime).map((event, idx) => {
-                                        const duration = new Date(event.resumeTime!).getTime() - new Date(event.stopTime).getTime();
+                                    {reportData.downtimeEvents?.map((event, idx) => {
+                                        const end = event.resumeTime ? new Date(event.resumeTime).getTime() : (reportData.endTime ? new Date(reportData.endTime).getTime() : new Date().getTime());
+                                        const duration = end - new Date(event.stopTime).getTime();
                                         return (
                                             <tr key={idx} className="bg-gray-100 border-b border-black">
                                                 <td className="border-r border-black p-0.5 w-[15%] text-red-600">{new Date(event.stopTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
-                                                <td className="border-r border-black p-0.5 w-[15%] text-green-600">{new Date(event.resumeTime!).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
+                                                <td className="border-r border-black p-0.5 w-[15%] text-green-600">
+                                                    {event.resumeTime ? new Date(event.resumeTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : (reportData.endTime ? new Date(reportData.endTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })) + '*'}
+                                                </td>
                                                 <td className="border-r border-black p-0.5 italic text-gray-700 uppercase">
                                                     {event.reason}
                                                     {event.justification && <div className="text-[10px] lowercase text-red-500 mt-1 normal-case font-medium">Justificativa: {event.justification}</div>}
@@ -430,15 +433,15 @@ const ProductionOrderReport: React.FC<ProductionOrderReportProps> = ({ reportDat
                                 </thead>
                                 <tbody>
                                     {(reportData.downtimeEvents || []).map((event, idx) => {
-                                        if (!event.resumeTime) return null;
-                                        const duration = new Date(event.resumeTime).getTime() - new Date(event.stopTime).getTime();
+                                        const end = event.resumeTime ? new Date(event.resumeTime).getTime() : (reportData.endTime ? new Date(reportData.endTime).getTime() : new Date().getTime());
+                                        const duration = end - new Date(event.stopTime).getTime();
                                         return (
                                             <tr key={idx}>
                                                 <td className="border border-black p-1 text-red-600">
                                                     {new Date(event.stopTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                                                 </td>
                                                 <td className="border border-black p-1 text-green-600">
-                                                    {new Date(event.resumeTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                    {event.resumeTime ? new Date(event.resumeTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : (reportData.endTime ? new Date(reportData.endTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })) + '*'}
                                                 </td>
                                                 <td className="border border-black p-1 uppercase italic">
                                                     {event.reason}
@@ -624,15 +627,15 @@ const ProductionOrderReport: React.FC<ProductionOrderReportProps> = ({ reportDat
                                 </thead>
                                 <tbody>
                                     {(reportData.downtimeEvents || []).map((event, idx) => {
-                                        if (!event.resumeTime) return null;
-                                        const duration = new Date(event.resumeTime).getTime() - new Date(event.stopTime).getTime();
+                                        const end = event.resumeTime ? new Date(event.resumeTime).getTime() : (reportData.endTime ? new Date(reportData.endTime).getTime() : new Date().getTime());
+                                        const duration = end - new Date(event.stopTime).getTime();
                                         return (
                                             <tr key={idx}>
                                                 <td className="border border-black p-1 text-red-600">
                                                     {new Date(event.stopTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                                                 </td>
                                                 <td className="border border-black p-1 text-green-600">
-                                                    {new Date(event.resumeTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                    {event.resumeTime ? new Date(event.resumeTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : (reportData.endTime ? new Date(reportData.endTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })) + '*'}
                                                 </td>
                                                 <td className="border border-black p-1 uppercase italic">
                                                     {event.reason}
@@ -931,8 +934,8 @@ const ProductionOrderReport: React.FC<ProductionOrderReportProps> = ({ reportDat
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
                                         {(reportData.downtimeEvents || []).map((event, index) => {
-                                            if (!event.resumeTime) return null;
-                                            const duration = new Date(event.resumeTime).getTime() - new Date(event.stopTime).getTime();
+                                            const end = event.resumeTime ? new Date(event.resumeTime).getTime() : (reportData.endTime ? new Date(reportData.endTime).getTime() : new Date().getTime());
+                                            const duration = end - new Date(event.stopTime).getTime();
                                             if (duration <= 0) return null;
                                             return (
                                                 <tr key={index} className="bg-white hover:bg-slate-50">

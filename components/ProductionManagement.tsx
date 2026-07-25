@@ -297,7 +297,12 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                 .gte('start_time', activeShift.start_time);
                                 
                             if (activeShift.end_time) {
-                                stopsQuery = stopsQuery.lte('start_time', activeShift.end_time);
+                                const dStart = new Date(activeShift.start_time).getTime();
+                                const dEnd = new Date(activeShift.end_time).getTime();
+                                // Se a data de fim for menor que a inicial (tablet com relógio errado), ignora o teto
+                                if (dEnd >= dStart) {
+                                    stopsQuery = stopsQuery.lte('start_time', activeShift.end_time);
+                                }
                             }
                             
                             const { data: stops } = await stopsQuery.order('start_time', { ascending: true });
@@ -335,6 +340,10 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                     .select('id, machine, creation_date, total_weight, total_meters, target_bitola, status, order_number, quantity_os, related_commercial_order_id, start_time, end_time, sub_items_progress')
                     .in('status', ['pending', 'in_progress', 'producing', 'completed']);
                 if (data) setLocalProgrammedOrders(data);
+
+                // A busca e polling de `machine_stops` já estão sendo feitas adequadamente 
+                // pelo outro `useEffect` responsável pelo `isReportModalOpen`, 
+                // evitando assim conflitos de re-renderização (tela piscando).
             } catch(e) {}
         };
         fetchAll();
@@ -398,24 +407,61 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
             return;
         }
 
-        const newOrder = {
-            orderNumber: programOrderNumber.trim(),
-            machine: machineName,
-            targetBitola: programData.bitola,
-            selectedLotIds: [],
-            totalWeight: parseFloat(programWeight.toString().replace(',','.')),
-            totalMeters: parseFloat(programData.compM?.toString().replace(',','.') || '0'),
-            isGhostOrder: true,
-            inputBitola: '',
-            status: 'pending',
-            creationDate: dateStr + 'T12:00:00Z',
-            relatedCommercialOrderId: orderToView.id,
-            quantityOs: programData.quantity
-        };
-
         try {
-            await insertItem('production_orders', newOrder as any);
-            alert(`Máquina ${machineName} programada para o dia ${dateStr.split('-').reverse().join('/')} com sucesso!`);
+            // Verifica se já existe uma OS para este mesmo pedido, máquina e bitola
+            const { data: existingOrders, error: fetchErr } = await supabase
+                .from('production_orders')
+                .select('*')
+                .eq('relatedCommercialOrderId', orderToView.id)
+                .eq('machine', machineName)
+                .eq('targetBitola', programData.bitola)
+                .order('created_at', { ascending: false });
+
+            if (existingOrders && existingOrders.length > 0) {
+                // Se já existe, acumula os valores
+                const existing = existingOrders[0];
+                const newWeight = (existing.totalWeight || 0) + parseFloat(programWeight.toString().replace(',','.'));
+                const newMeters = (existing.totalMeters || 0) + parseFloat(programData.compM?.toString().replace(',','.') || '0');
+                const newQtd = (existing.quantityOs || 0) + programData.quantity;
+                
+                // Anexa o novo subnúmero ao número da OS, se ainda não estiver lá
+                let newOrderNumber = existing.orderNumber;
+                const newPart = programOrderNumber.trim();
+                if (!newOrderNumber.includes(newPart)) {
+                    newOrderNumber += ` / ${newPart}`;
+                }
+
+                await supabase.from('production_orders')
+                    .update({
+                        totalWeight: newWeight,
+                        totalMeters: newMeters,
+                        quantityOs: newQtd,
+                        orderNumber: newOrderNumber,
+                        status: existing.status === 'completed' ? 'in_progress' : existing.status
+                    })
+                    .eq('id', existing.id);
+            } else {
+                // Se não existe, cria uma nova
+                const newOrder = {
+                    orderNumber: programOrderNumber.trim(),
+                    machine: machineName,
+                    targetBitola: programData.bitola,
+                    selectedLotIds: [],
+                    totalWeight: parseFloat(programWeight.toString().replace(',','.')),
+                    totalMeters: parseFloat(programData.compM?.toString().replace(',','.') || '0'),
+                    isGhostOrder: true,
+                    inputBitola: '',
+                    status: 'in_progress', // Vai direto pro painel do operador
+                    creationDate: dateStr + 'T12:00:00Z',
+                    relatedCommercialOrderId: orderToView.id,
+                    quantityOs: programData.quantity
+                };
+                await insertItem('production_orders', newOrder as any);
+            }
+
+            // Atualiza status do pedido comercial para Produzindo, já que a OS foi direto pro painel
+            await supabase.from('commercial_orders').update({ status: 'Produzindo' }).eq('id', orderToView.id);
+            setOrderToView({...orderToView, status: 'Produzindo'});
             setIsProgramModalOpen(false);
         } catch (error: any) {
             console.error('Erro ao programar máquina:', error);
@@ -1590,7 +1636,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                 
                                 {/* Machine Rows */}
                                 <div className="flex flex-col relative z-10">
-                                    {(activeBrandingPartner?.machines || [
+                                    {(activeBrandingPartner?.machines?.length ? activeBrandingPartner.machines : [
                                         { name: 'Trefila 1', capacityKgPerHour: 500 },
                                         { name: 'Trefila 2', capacityKgPerHour: 500 },
                                         { name: 'Treliça', capacityKgPerHour: 800 }
@@ -1733,7 +1779,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                         <div className="flex flex-1 overflow-hidden">
                             {/* Sidebar de Máquinas */}
                             <div className="w-64 bg-slate-50 border-r border-slate-200 p-4 flex flex-col gap-2 overflow-y-auto">
-                                {['Schnell-PRIMA', 'DHE 6P', 'JJW', 'Desbobinadeira', 'Bancada/Cortador'].map(m => {
+                                {(activeBrandingPartner?.machines?.length ? activeBrandingPartner.machines.map(m => m.name) : ['Schnell-PRIMA', 'DHE 6P', 'JJW', 'Desbobinadeira', 'Bancada/Cortador']).map(m => {
                                     const machineOsCount = allProgrammedOrders.filter(po => po.machine === m && (po.status === 'in_progress' || po.status === 'producing')).length;
                                     return (
                                         <button 
@@ -2073,8 +2119,13 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                             if (activeShift && activeShift.start_time) {
                                 const itemTime = new Date(vStartTime).getTime();
                                 const shiftStartTime = new Date(activeShift.start_time).getTime() - (12 * 3600 * 1000);
-                                const shiftEndTime = activeShift.end_time ? new Date(activeShift.end_time).getTime() + (2 * 3600 * 1000) : new Date().getTime() + 86400000;
+                                let shiftEndTime = activeShift.end_time ? new Date(activeShift.end_time).getTime() + (2 * 3600 * 1000) : new Date().getTime() + 86400000;
                                 
+                                // Proteção contra hora errada do tablet
+                                if (shiftEndTime < shiftStartTime) {
+                                    shiftEndTime = new Date().getTime() + 86400000;
+                                }
+
                                 if (itemTime < shiftStartTime || itemTime > shiftEndTime) {
                                     return;
                                 }
