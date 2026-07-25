@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import type { StockGauge, Partner } from '../types';
 
 interface LabelConfigurationProps {
@@ -121,24 +122,7 @@ const LabelConfiguration: React.FC<LabelConfigurationProps> = ({ gauges = [], sh
         return () => clearInterval(interval);
     }, []);
 
-    // Generate Barcode using qrcode-generator from CDN
-    useEffect(() => {
-        if (showBarcode && barcodeRef.current) {
-            const qrcode = (window as any).qrcode;
-            if (typeof qrcode !== 'undefined') {
-                try {
-                    const qr = qrcode(0, 'M');
-                    qr.addData(lotNumber);
-                    qr.make();
-                    barcodeRef.current.src = qr.createDataURL(4, 0);
-                } catch (err) {
-                    console.error("Error rendering QR code:", err);
-                }
-            } else {
-                console.warn("qrcode generator library is not loaded.");
-            }
-        }
-    }, [lotNumber, showBarcode]);
+
 
     // Generate QR Code using qrcode-generator from CDN
     useEffect(() => {
@@ -542,12 +526,7 @@ const LabelConfiguration: React.FC<LabelConfigurationProps> = ({ gauges = [], sh
                     {/* Barcode Section (Lot number representation) */}
                     {showBarcode && (
                         <div className="flex flex-col items-center justify-center py-2.5 border-t border-b border-slate-200/80 bg-slate-50/50">
-                            <img 
-                                ref={barcodeRef} 
-                                id="barcode-canvas" 
-                                className="w-24 h-24 object-contain"
-                                alt="QR Code"
-                            />
+                            <QRCodeSVG value={lotNumber || '0000'} size={96} level="M" />
                         </div>
                     )}
 

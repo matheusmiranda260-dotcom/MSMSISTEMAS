@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import {
     ArrowLeftIcon, CameraIcon, TrashIcon, CheckCircleIcon, DocumentReportIcon,
     AdjustmentsIcon, PencilIcon, BookOpenIcon, SearchIcon, FilterIcon, XIcon, PrinterIcon,
@@ -428,29 +429,6 @@ const AddConferencePage: React.FC<{
             setSubmitResult({ type: 'error', message: error.message || 'Erro ao registrar conferência.' });
         }
     };
-
-    useEffect(() => {
-        if (printLots && printLots.length > 0) {
-            const qrcode = (window as any).qrcode;
-            if (typeof qrcode !== 'undefined') {
-                setTimeout(() => {
-                    printLots.forEach(lot => {
-                        const element = document.getElementById(`print-barcode-${lot.internalLot}`) as HTMLImageElement;
-                        if (element) {
-                            try {
-                                const qr = qrcode(0, 'M');
-                                qr.addData(lot.internalLot);
-                                qr.make();
-                                element.src = qr.createDataURL(4, 0);
-                            } catch (err) {
-                                console.error("Error generating QR code:", err);
-                            }
-                        }
-                    });
-                }, 150);
-            }
-        }
-    }, [printLots]);
 
 
     return (
@@ -909,11 +887,7 @@ const AddConferencePage: React.FC<{
 
                                     {/* Barcode Section */}
                                     <div className="flex flex-col items-center justify-center py-2 bg-slate-50">
-                                        <img
-                                            id={`print-barcode-${lot.internalLot}`}
-                                            className="w-24 h-24 object-contain"
-                                            alt="QR Code"
-                                        />
+                                        <QRCodeSVG value={lot.internalLot || '0000'} size={96} level="M" />
                                     </div>
 
                                     {/* Footer */}
@@ -991,26 +965,6 @@ const StockControl: React.FC<{
         }
     }, [isPrinting]);
 
-    useEffect(() => {
-        if (reprintLot) {
-            const qrcode = (window as any).qrcode;
-            if (typeof qrcode !== 'undefined') {
-                setTimeout(() => {
-                    const element = document.getElementById(`reprint-barcode-${reprintLot.internalLot}`) as HTMLImageElement;
-                    if (element) {
-                        try {
-                            const qr = qrcode(0, 'M');
-                            qr.addData(reprintLot.internalLot);
-                            qr.make();
-                            element.src = qr.createDataURL(4, 0);
-                        } catch (err) {
-                            console.error("Error generating QR code:", err);
-                        }
-                    }
-                }, 100);
-            }
-        }
-    }, [reprintLot]);
 
     const handleReprintLabel = (item: StockItem) => {
         setReprintLot(item);
@@ -1698,11 +1652,7 @@ const StockControl: React.FC<{
 
                                 {/* Barcode Section */}
                                 <div className="flex flex-col items-center justify-center py-2 bg-slate-50">
-                                    <img
-                                        id={`reprint-barcode-${reprintLot.internalLot}`}
-                                        className="w-24 h-24 object-contain"
-                                        alt="QR Code"
-                                    />
+                                    <QRCodeSVG value={reprintLot.internalLot || '0000'} size={96} level="M" />
                                 </div>
 
                                 {/* Footer */}
