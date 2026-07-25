@@ -27,10 +27,12 @@ const permissionCategories = [
         ]
     },
     {
-        title: '⚙️ Produção',
+        title: '⚙️ Produção e Máquinas',
         permissions: [
             { page: 'orderManagement', label: '⚙️ Gestão de Pedidos - Eng' },
             { page: 'productionManagement', label: '🏭 Gestão de Produção' },
+            { page: 'machineManagement', label: '⚙️ Gestão de Máquinas' },
+            { page: 'mechanicDashboard', label: '🔧 Painel do Mecânico' },
         ]
     },
     {
@@ -46,7 +48,6 @@ const permissionCategories = [
         permissions: [
             { page: 'peopleManagement', label: '👥 Gestão de Pessoas' },
             { page: 'continuousImprovement', label: '✨ Melhoria Contínua' },
-            { page: 'machineManagement', label: '⚙️ Gestão de Máquinas' },
         ]
     },
     {
@@ -65,6 +66,7 @@ const permissionCategories = [
             { page: 'partnerConfig', label: '🤝 Configuração de Parceiros' },
             { page: 'gaugesManager', label: '⚙️ Configuração de Materiais' },
             { page: 'labelConfig', label: '🏷️ Configuração de Etiqueta' },
+            { page: 'downtimeConfigs', label: '⏱️ Configuração de Paradas' },
         ]
     }
 ];
