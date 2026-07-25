@@ -983,9 +983,14 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                     const currentQty = lotObj.remainingQuantity ?? lotObj.weight ?? lotObj.labelWeight ?? 0;
                                     const newRemaining = Math.max(0, currentQty - weightPerLot);
                                     
+                                    const commOrderId = (po as any).related_commercial_order_id || (po as any).relatedCommercialOrderId;
+                                    const commOrder = commercialOrders.find(co => co.id === commOrderId);
+                                    const clientName = (commOrder as any)?.client_name || commOrder?.clientName || 'Não informado';
+                                    const orderNumberStr = (commOrder as any)?.order_number || commOrder?.orderNumber || (po as any).order_number || po.orderNumber || 'Desconhecido';
+
                                     const consumeHistoryItem = {
                                         date: endTime,
-                                        action: `OS ${po.orderNumber} - SubOS ${subOsKey}: Baixa de ${weightPerLot.toFixed(2)} kg`,
+                                        action: `Máquina: ${selectedMachine} | Operador: ${currentUser.username || currentUser.name || 'Sistema'} | Cliente: ${clientName} | Pedido: ${orderNumberStr} (SubOS ${subOsKey}) | Baixa: ${weightPerLot.toFixed(2)} kg`,
                                         user: currentUser.username || currentUser.name || 'Sistema'
                                     };
 
