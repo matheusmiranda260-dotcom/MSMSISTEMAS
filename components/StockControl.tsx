@@ -431,26 +431,19 @@ const AddConferencePage: React.FC<{
 
     useEffect(() => {
         if (printLots && printLots.length > 0) {
-            const jsBarcode = (window as any).JsBarcode;
-            if (typeof jsBarcode !== 'undefined') {
+            const qrcode = (window as any).qrcode;
+            if (typeof qrcode !== 'undefined') {
                 setTimeout(() => {
                     printLots.forEach(lot => {
-                        const element = document.getElementById(`print-barcode-${lot.internalLot}`);
+                        const element = document.getElementById(`print-barcode-${lot.internalLot}`) as HTMLImageElement;
                         if (element) {
                             try {
-                                jsBarcode(element, lot.internalLot, {
-                                    format: "CODE128",
-                                    lineColor: "#000000",
-                                    width: 1.8,
-                                    height: 50,
-                                    displayValue: true,
-                                    fontSize: 12,
-                                    font: "monospace",
-                                    textMargin: 2,
-                                    margin: 0
-                                });
+                                const qr = qrcode(0, 'M');
+                                qr.addData(lot.internalLot);
+                                qr.make();
+                                element.src = qr.createDataURL(4, 0);
                             } catch (err) {
-                                console.error("Error rendering print barcode:", err);
+                                console.error("Error generating QR code:", err);
                             }
                         }
                     });
@@ -916,9 +909,10 @@ const AddConferencePage: React.FC<{
 
                                     {/* Barcode Section */}
                                     <div className="flex flex-col items-center justify-center py-2 bg-slate-50">
-                                        <svg
+                                        <img
                                             id={`print-barcode-${lot.internalLot}`}
-                                            className="max-w-full"
+                                            className="w-24 h-24 object-contain"
+                                            alt="QR Code"
                                         />
                                     </div>
 
@@ -999,25 +993,18 @@ const StockControl: React.FC<{
 
     useEffect(() => {
         if (reprintLot) {
-            const jsBarcode = (window as any).JsBarcode;
-            if (typeof jsBarcode !== 'undefined') {
+            const qrcode = (window as any).qrcode;
+            if (typeof qrcode !== 'undefined') {
                 setTimeout(() => {
-                    const element = document.getElementById(`reprint-barcode-${reprintLot.internalLot}`);
+                    const element = document.getElementById(`reprint-barcode-${reprintLot.internalLot}`) as HTMLImageElement;
                     if (element) {
                         try {
-                            jsBarcode(element, reprintLot.internalLot, {
-                                format: "CODE128",
-                                lineColor: "#000000",
-                                width: 1.8,
-                                height: 50,
-                                displayValue: true,
-                                fontSize: 12,
-                                font: "monospace",
-                                textMargin: 2,
-                                margin: 0
-                            });
+                            const qr = qrcode(0, 'M');
+                            qr.addData(reprintLot.internalLot);
+                            qr.make();
+                            element.src = qr.createDataURL(4, 0);
                         } catch (err) {
-                            console.error("Error rendering reprint barcode:", err);
+                            console.error("Error generating QR code:", err);
                         }
                     }
                 }, 100);
@@ -1711,9 +1698,10 @@ const StockControl: React.FC<{
 
                                 {/* Barcode Section */}
                                 <div className="flex flex-col items-center justify-center py-2 bg-slate-50">
-                                    <svg
+                                    <img
                                         id={`reprint-barcode-${reprintLot.internalLot}`}
-                                        className="max-w-full"
+                                        className="w-24 h-24 object-contain"
+                                        alt="QR Code"
                                     />
                                 </div>
 

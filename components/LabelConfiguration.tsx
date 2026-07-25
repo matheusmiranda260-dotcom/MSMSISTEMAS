@@ -86,7 +86,7 @@ const LabelConfiguration: React.FC<LabelConfigurationProps> = ({ gauges = [], sh
     const [labelModel, setLabelModel] = useState<'recebimento' | 'produto_acabado'>('recebimento');
 
     // DOM references for barcode and QR code containers
-    const barcodeRef = useRef<SVGSVGElement | null>(null);
+    const barcodeRef = useRef<HTMLImageElement | null>(null);
     const [qrCodeHtml, setQrCodeHtml] = useState<string>('');
 
     // Update preset attributes when a new one is selected
@@ -121,26 +121,21 @@ const LabelConfiguration: React.FC<LabelConfigurationProps> = ({ gauges = [], sh
         return () => clearInterval(interval);
     }, []);
 
-    // Generate Barcode using JsBarcode from CDN
+    // Generate Barcode using qrcode-generator from CDN
     useEffect(() => {
         if (showBarcode && barcodeRef.current) {
-            const jsBarcode = (window as any).JsBarcode;
-            if (typeof jsBarcode !== 'undefined') {
+            const qrcode = (window as any).qrcode;
+            if (typeof qrcode !== 'undefined') {
                 try {
-                    jsBarcode(barcodeRef.current, lotNumber, {
-                        format: "CODE128",
-                        lineColor: "#000000",
-                        width: 1.8,
-                        height: 50,
-                        displayValue: true,
-                        fontSize: 12,
-                        font: "monospace",
-                        textMargin: 2,
-                        margin: 0
-                    });
+                    const qr = qrcode(0, 'M');
+                    qr.addData(lotNumber);
+                    qr.make();
+                    barcodeRef.current.src = qr.createDataURL(4, 0);
                 } catch (err) {
-                    console.error("Error rendering barcode with JsBarcode:", err);
+                    console.error("Error rendering QR code:", err);
                 }
+            } else {
+                console.warn("qrcode generator library is not loaded.");
             }
         }
     }, [lotNumber, showBarcode]);
@@ -547,10 +542,11 @@ const LabelConfiguration: React.FC<LabelConfigurationProps> = ({ gauges = [], sh
                     {/* Barcode Section (Lot number representation) */}
                     {showBarcode && (
                         <div className="flex flex-col items-center justify-center py-2.5 border-t border-b border-slate-200/80 bg-slate-50/50">
-                            <svg 
+                            <img 
                                 ref={barcodeRef} 
                                 id="barcode-canvas" 
-                                className="max-w-full"
+                                className="w-24 h-24 object-contain"
+                                alt="QR Code"
                             />
                         </div>
                     )}
