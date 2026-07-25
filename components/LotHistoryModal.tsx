@@ -35,7 +35,16 @@ const LotHistoryModal: React.FC<LotHistoryModalProps> = ({ lot, onClose }) => {
                         const dateStr = isObject && event.date ? new Date(event.date) : null;
                         const dateFormatted = dateStr && !isNaN(dateStr.getTime()) ? dateStr.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'Data desconhecida';
                         const typeStr = isObject ? event.type || 'Atualização' : 'Registro';
-                        const detailsObj = isObject ? event.details : event;
+                        
+                        let detailsObj: any = event;
+                        if (isObject) {
+                            if (event.details !== undefined) {
+                                detailsObj = event.details;
+                            } else {
+                                const { type, date, id, ...rest } = event;
+                                detailsObj = Object.keys(rest).length > 0 ? rest : undefined;
+                            }
+                        }
 
                         return (
                             <div key={index} className="relative pl-8 pb-8">
