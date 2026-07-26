@@ -264,6 +264,16 @@ export interface ConferenceData {
     lots: ConferenceLotData[];
     nfFileUrl?: string;
     certificadoFileUrl?: string;
+    status?: string;
+    invoiceNumber?: string;
+}
+
+export interface InventoryConferenceData {
+    id: string;
+    created_at: string;
+    lots: string[];
+    user_name?: string;
+    status: string;
 }
 
 export interface ProductionOrderData {
