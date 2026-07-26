@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { QrCodeIcon, TrashIcon, PrinterIcon } from '@heroicons/react/outline';
+import { QrCodeIcon, TrashIcon, PrinterIcon } from '@heroicons/react/24/outline';
 
 export const InventoryConference: React.FC = () => {
     const [scannedLots, setScannedLots] = useState<string[]>([]);
