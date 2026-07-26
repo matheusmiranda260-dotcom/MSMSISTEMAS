@@ -2819,7 +2819,7 @@ const App: React.FC = () => {
             case 'blank': return (
                 <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center overflow-hidden relative w-full h-full">
                     {activeBrandingPartner?.logoUrl ? (
-                        <div className="relative w-96 h-96 md:w-[500px] md:h-[500px] flex items-center justify-center">
+                        <div className="relative w-[400px] h-[400px] md:w-[800px] md:h-[800px] flex items-center justify-center">
                             <div className="absolute inset-0 bg-blue-100 rounded-full animate-pulse-ring"></div>
                             <img 
                                 src={activeBrandingPartner.logoUrl} 
