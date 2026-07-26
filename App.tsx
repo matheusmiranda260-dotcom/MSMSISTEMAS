@@ -2816,7 +2816,30 @@ const App: React.FC = () => {
             case 'productionManagement': return <ProductionManagement setPage={setPage} customers={customers} commercialOrders={commercialOrders} currentUser={currentUser} activeBrandingPartner={activeBrandingPartner} users={users} productionOrders={productionOrders} />;
             case 'productionOrder': return <ProductionOrder setPage={setPage} stock={stock} productionOrders={productionOrders} addProductionOrder={addProductionOrder} showNotification={showNotification} updateProductionOrder={updateProductionOrder} deleteProductionOrder={deleteProductionOrder} gauges={gauges} currentUser={currentUser} />;
 
-            case 'blank': return <div style={{ height: '100vh', background: '#f0f2f5' }} />;
+            case 'blank': return (
+                <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center overflow-hidden relative w-full h-full">
+                    {activeBrandingPartner?.logoUrl ? (
+                        <div className="relative w-96 h-96 md:w-[500px] md:h-[500px] flex items-center justify-center">
+                            <div className="absolute inset-0 bg-blue-100 rounded-full animate-pulse-ring"></div>
+                            <img 
+                                src={activeBrandingPartner.logoUrl} 
+                                alt="Logo Animação" 
+                                className="absolute inset-0 w-full h-full object-contain animate-fill-explode drop-shadow-xl"
+                            />
+                            <img 
+                                src={activeBrandingPartner.logoUrl} 
+                                alt="Logo Parceiro" 
+                                className="relative w-full h-full object-contain animate-logo-reveal drop-shadow-2xl"
+                                style={{ animationDelay: '1.2s', opacity: 0 }}
+                            />
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center">
+                            <div className="spinner mb-4"></div>
+                        </div>
+                    )}
+                </div>
+            );
             case 'productionDashboard': return <ProductionDashboard setPage={setPage} productionOrders={productionOrders} stock={stock} currentUser={currentUser} downtimeConfigs={downtimeConfigs} />;
             case 'userManagement': return <UserManagement users={users} employees={employees} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} setPage={setPage} accessLogs={accessLogs} currentUser={currentUser} activeBrandingPartner={activeBrandingPartner} />;
             case 'finishedGoods': return <FinishedGoods finishedGoods={finishedGoods} pontasStock={pontasStock} setPage={setPage} finishedGoodsTransfers={finishedGoodsTransfers} createFinishedGoodsTransfer={createFinishedGoodsTransfer} onDelete={deleteFinishedGoods} onUpdateFinishedGood={updateFinishedGood} onUpdatePonta={updatePonta} currentUser={currentUser} users={users} />;

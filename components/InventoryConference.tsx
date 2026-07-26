@@ -200,7 +200,7 @@ export const InventoryConference: React.FC<Props> = ({ activeBrandingPartner }) 
                 {scannedLots.length === 0 ? (
                     <div className="flex flex-col justify-center items-center py-20 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 relative overflow-hidden">
                         {activeBrandingPartner?.logoUrl ? (
-                            <div className="relative w-48 h-48 flex items-center justify-center">
+                            <div className="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center">
                                 {/* Círculo pulsante de fundo */}
                                 <div className="absolute inset-0 bg-blue-100 rounded-full animate-pulse-ring"></div>
                                 
