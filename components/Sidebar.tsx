@@ -327,6 +327,11 @@ const Sidebar: React.FC<SidebarProps> = ({ page, setPage, currentUser, notificat
                                             📜 Histórico de Conferência
                                         </button>
                                     )}
+                                    {hasPermission('stock') && (
+                                        <button onClick={() => setPage('inventoryConference')} className={`text-left text-[12px] font-medium py-1.5 px-3 rounded-md transition-all ${page === 'inventoryConference' ? 'text-[#00E5FF] bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
+                                            📋 Inventário (Patio)
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </>

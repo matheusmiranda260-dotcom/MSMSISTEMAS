@@ -21,6 +21,7 @@ import SparePartsManager from './components/SparePartsManager';
 
 import ContinuousImprovement from './components/ContinuousImprovement';
 import WorkInstructions from './components/WorkInstructions';
+import { InventoryConference } from './components/InventoryConference';
 import PeopleManagement from './components/PeopleManagement';
 
 
