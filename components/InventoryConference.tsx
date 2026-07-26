@@ -1,9 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { QrCodeIcon, TrashIcon, PrinterIcon, PlayIcon, CheckCircleIcon, ClockIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { insertData, fetchData } from '../services/supabaseService';
-import { InventoryConferenceData } from '../types';
+import { InventoryConferenceData, Partner } from '../types';
 
-export const InventoryConference: React.FC = () => {
+interface Props {
+    activeBrandingPartner?: Partner | null;
+}
+
+export const InventoryConference: React.FC<Props> = ({ activeBrandingPartner }) => {
     const [scannedLots, setScannedLots] = useState<string[]>([]);
     const [currentScan, setCurrentScan] = useState('');
     const [isConferenceStarted, setIsConferenceStarted] = useState(false);
@@ -194,10 +198,34 @@ export const InventoryConference: React.FC = () => {
                 </div>
 
                 {scannedLots.length === 0 ? (
-                    <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl">
-                        <QrCodeIcon className="mx-auto h-12 w-12 text-slate-300" />
-                        <h3 className="mt-2 text-sm font-medium text-slate-900">Nenhum lote lido</h3>
-                        <p className="mt-1 text-sm text-slate-500">Comece a ler os QR Codes para preencher a lista.</p>
+                    <div className="flex flex-col justify-center items-center py-20 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 relative overflow-hidden">
+                        {activeBrandingPartner?.logoUrl ? (
+                            <div className="relative w-48 h-48 flex items-center justify-center">
+                                {/* Círculo pulsante de fundo */}
+                                <div className="absolute inset-0 bg-blue-100 rounded-full animate-pulse-ring"></div>
+                                
+                                {/* Animação de preenchimento e explosão */}
+                                <img 
+                                    src={activeBrandingPartner.logoUrl} 
+                                    alt="Logo" 
+                                    className="absolute inset-0 w-full h-full object-contain animate-fill-explode"
+                                />
+                                
+                                {/* Logo completa revelada após a explosão */}
+                                <img 
+                                    src={activeBrandingPartner.logoUrl} 
+                                    alt="Logo Completa" 
+                                    className="relative w-full h-full object-contain animate-logo-reveal"
+                                    style={{ animationDelay: '1.2s', opacity: 0 }}
+                                />
+                            </div>
+                        ) : (
+                            <QrCodeIcon className="h-16 w-16 text-slate-300 mb-4 animate-bounce" />
+                        )}
+                        <h3 className="mt-6 text-lg font-bold text-slate-800">Nenhum lote lido</h3>
+                        <p className="mt-2 text-sm text-slate-500 font-medium text-center max-w-sm">
+                            Inicie a conferência e posicione o cursor no campo de leitura para começar a bipar os QR Codes.
+                        </p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto border rounded-xl">

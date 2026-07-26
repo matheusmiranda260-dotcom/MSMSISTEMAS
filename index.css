@@ -598,6 +598,47 @@ td {
   background: #F8FAFC;
 }
 
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(0.8); opacity: 0.5; }
+}
+
+@keyframes logo-reveal {
+  0% { transform: scale(0); opacity: 0; filter: brightness(2) blur(10px); }
+  60% { transform: scale(1.1); opacity: 1; filter: brightness(1.5) blur(0px); }
+  80% { transform: scale(0.95); filter: brightness(1); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+
+@keyframes fill-explode {
+  0% { clip-path: inset(100% 0 0 0); opacity: 0.5; filter: drop-shadow(0 0 10px #f97316); }
+  50% { clip-path: inset(0 0 0 0); opacity: 1; transform: scale(1.05); filter: drop-shadow(0 0 30px #f97316); }
+  70% { transform: scale(1.3); opacity: 0; filter: brightness(2); }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+.animate-logo-reveal {
+  animation: logo-reveal 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-fill-explode {
+  animation: fill-explode 2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.spinner {
+  width: 40px;
+  background: var(--msm-blue);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .sidebar {
   width: 280px;
   background: var(--msm-blue);
