@@ -551,9 +551,8 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     };
 
     const handleRemoveLot = async (roloIndex: 1 | 2, lot: any) => {
-        const pwd = window.prompt('Digite a senha de Gestor para DESABASTECER a máquina:');
-        if (pwd !== '123456') {
-            alert('Senha incorreta!');
+        const confirm = window.confirm('Realmente quer desabastecer?');
+        if (!confirm) {
             return;
         }
         try {
@@ -620,10 +619,14 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 };
                 const existingHistory = Array.isArray(lot.history) ? lot.history : [];
                 
-                supabase.from('stock_items').update({ 
+                await supabase.from('stock_items').update({ 
                     status: 'Disponível',
                     history: [...existingHistory, newHistoryItem]
-                }).eq('id', lot.id).then(() => {}).catch(err => console.error(err));
+                }).eq('id', lot.id);
+            } else if (lotVal) {
+                await supabase.from('stock_items').update({ 
+                    status: 'Disponível'
+                }).or(`internalLot.eq.${lotVal},supplierLot.eq.${lotVal},id.eq.${lotVal}`);
             }
 
             try {
@@ -1112,7 +1115,15 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         return matchMachine && matchQuery;
     });
 
-    const pendingOrders = filteredOrders.filter(po => po.status !== 'completed').sort((a, b) => {
+    const isOrderFullyCut = (po: any) => {
+        const total = (po as any).quantity_os || (po as any).quantityOs || 0;
+        const completed = po.sub_items_progress 
+            ? Object.values(po.sub_items_progress).filter((s: any) => s.status === 'completed' || s.from_machine).length 
+            : 0;
+        return total > 0 && completed >= total;
+    };
+
+    const pendingOrders = filteredOrders.filter(po => po.status !== 'completed' && !isOrderFullyCut(po)).sort((a, b) => {
         const aIsCutting = a.sub_items_progress && Object.values(a.sub_items_progress).some((sub: any) => sub.status === 'producing');
         const bIsCutting = b.sub_items_progress && Object.values(b.sub_items_progress).some((sub: any) => sub.status === 'producing');
         if (aIsCutting && !bIsCutting) return -1;
@@ -1125,7 +1136,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
 
         return 0;
     });
-    const completedOrders = filteredOrders.filter(po => po.status === 'completed');
+    const completedOrders = filteredOrders.filter(po => po.status === 'completed' || (po.status !== 'completed' && isOrderFullyCut(po)));
     
     const osList = showCompleted ? completedOrders : pendingOrders;
 
@@ -1390,7 +1401,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                         const isMachineCutting = localOrders.some(p => p.sub_items_progress && Object.values(p.sub_items_progress).some((sub: any) => sub.status === 'producing'));
                         
                         return (
-                            <div key={po.id} className={`bg-white rounded-xl p-3 shadow-sm border-l-4 flex flex-col gap-2 transition-all duration-500 ${po.status === 'completed' ? 'border-slate-300 opacity-80' : isCuttingSubOS ? 'border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.4)] ring-2 ring-orange-400 bg-orange-50/40 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]' : isProducing ? 'border-emerald-500 shadow-md ring-1 ring-emerald-100 bg-emerald-50/30' : (po.status === 'paused' || (po.status === 'pending' && po.startTime)) ? 'border-orange-400 shadow-md ring-1 ring-orange-100' : 'border-indigo-500'}`}>
+                            <div key={po.id} className={`bg-white rounded-xl p-3 shadow-sm border-l-4 flex flex-col gap-2 transition-all duration-500 ${po.status === 'completed' || isOrderFullyCut(po) ? 'border-slate-300 opacity-80' : isCuttingSubOS ? 'border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.4)] ring-2 ring-orange-400 bg-orange-50/40 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]' : isProducing ? 'border-emerald-500 shadow-md ring-1 ring-emerald-100 bg-emerald-50/30' : (po.status === 'paused' || (po.status === 'pending' && po.startTime)) ? 'border-orange-400 shadow-md ring-1 ring-orange-100' : 'border-indigo-500'}`}>
                                 {/* Linha 1: Pedido e Bitola */}
                                 <div className="flex justify-between items-center">
                                     <div className="flex items-center gap-2 overflow-hidden pr-2">
@@ -1437,7 +1448,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                     </div>
 
                                     <div className="shrink-0">
-                                        {po.status === 'completed' ? (
+                                        {po.status === 'completed' || isOrderFullyCut(po) ? (
                                             <span className="text-[9px] font-black text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded uppercase">Finalizada</span>
                                         ) : isProducing && po.startTime ? (
                                             <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded border shadow-sm ${isCuttingSubOS ? 'bg-orange-100 border-orange-300' : 'bg-emerald-100 border-emerald-200'}`}>
@@ -1455,7 +1466,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                 </div>
 
                                 {/* Linha 3: Botões */}
-                                {po.status !== 'completed' && (
+                                {(po.status !== 'completed' && !isOrderFullyCut(po)) && (
                                     <div className="mt-0.5">
                                         {isMachineCutting && !isCuttingSubOS ? (
                                             <div className="w-full bg-slate-100 text-slate-400 font-black py-2.5 rounded-lg text-xs uppercase text-center border border-slate-200 shadow-inner">
