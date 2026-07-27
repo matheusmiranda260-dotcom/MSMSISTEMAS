@@ -1875,7 +1875,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                 const producingEntry = entries.find(([_, val]: any) => val && typeof val === 'object' && val.status === 'producing');
                                                 const isActuallyProducing = poStatus === 'producing' || !!producingEntry;
                                                 
-                                                const completedPieces = Object.values(progressObj).filter((v: any) => v && typeof v === 'object' && (v.status === 'completed' || v.from_machine)).length;
+                                                const completedPieces = Object.values(progressObj).filter((v: any) => v && typeof v === 'object' && v.status === 'completed').length;
                                                 const quantityOs = getField(po, 'quantity_os', 'quantityOs');
                                                 const totalPieces = Number(quantityOs) || 1;
                                                 const isFullyCut = totalPieces > 0 && completedPieces >= totalPieces;

@@ -1292,7 +1292,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     const isOrderFullyCut = (po: any) => {
         const total = (po as any).quantity_os || (po as any).quantityOs || 0;
         const completed = po.sub_items_progress 
-            ? Object.values(po.sub_items_progress).filter((s: any) => s.status === 'completed' || s.from_machine).length 
+            ? Object.values(po.sub_items_progress).filter((s: any) => s.status === 'completed').length 
             : 0;
         return total > 0 && completed >= total;
     };
@@ -1643,7 +1643,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                             {(() => {
                                                 const total = (po as any).quantity_os || (po as any).quantityOs || 0;
                                                 const completed = po.sub_items_progress 
-                                                    ? Object.values(po.sub_items_progress).filter((s: any) => s.status === 'completed' || s.from_machine).length 
+                                                    ? Object.values(po.sub_items_progress).filter((s: any) => s.status === 'completed').length 
                                                     : 0;
                                                 return `${completed} / ${total} un.`;
                                             })()}
