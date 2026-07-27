@@ -1128,6 +1128,8 @@ export interface MachineCurrentState {
     idleSince?: string;
     portaRolo1Lot?: string;
     portaRolo2Lot?: string;
+    portaRolo1WaitLot?: string;
+    portaRolo2WaitLot?: string;
     activeFeed1: boolean;
     activeFeed2: boolean;
     updatedAt?: string;

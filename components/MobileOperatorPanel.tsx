@@ -56,6 +56,8 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     const currentMachineState = machineStates?.find(m => (m.machineName || (m as any).machine_name) === selectedMachine);
     let portaRolo1 = (currentMachineState?.portaRolo1Lot || (currentMachineState as any)?.porta_rolo_1_lot || '').toString().trim();
     let portaRolo2 = (currentMachineState?.portaRolo2Lot || (currentMachineState as any)?.porta_rolo_2_lot || '').toString().trim();
+    let portaRolo1Wait = (currentMachineState?.portaRolo1WaitLot || (currentMachineState as any)?.porta_rolo_1_wait_lot || '').toString().trim();
+    let portaRolo2Wait = (currentMachineState?.portaRolo2WaitLot || (currentMachineState as any)?.porta_rolo_2_wait_lot || '').toString().trim();
     
     // Auto-sanitização visual: Se ambos tiverem o mesmo lote no banco, evita duplicação na interface
     if (portaRolo1 && portaRolo1 === portaRolo2) {
@@ -79,6 +81,9 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
             const nextPR1 = 'portaRolo1Lot' in updates ? (updates.portaRolo1Lot || null) : (current.portaRolo1Lot || (current as any).porta_rolo_1_lot || null);
             let nextPR2 = 'portaRolo2Lot' in updates ? (updates.portaRolo2Lot || null) : (current.portaRolo2Lot || (current as any).porta_rolo_2_lot || null);
             
+            const nextPR1Wait = 'portaRolo1WaitLot' in updates ? (updates.portaRolo1WaitLot || null) : (current.portaRolo1WaitLot || (current as any).porta_rolo_1_wait_lot || null);
+            let nextPR2Wait = 'portaRolo2WaitLot' in updates ? (updates.portaRolo2WaitLot || null) : (current.portaRolo2WaitLot || (current as any).porta_rolo_2_wait_lot || null);
+            
             // Prevent duplicate lots explicitly
             if (nextPR1 && nextPR1 === nextPR2) {
                 nextPR2 = null;
@@ -98,8 +103,12 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                         machine_name: selectedMachine,
                         portaRolo1Lot: nextPR1 || undefined,
                         portaRolo2Lot: nextPR2 || undefined,
+                        portaRolo1WaitLot: nextPR1Wait || undefined,
+                        portaRolo2WaitLot: nextPR2Wait || undefined,
                         porta_rolo_1_lot: nextPR1,
                         porta_rolo_2_lot: nextPR2,
+                        porta_rolo_1_wait_lot: nextPR1Wait,
+                        porta_rolo_2_wait_lot: nextPR2Wait,
                     };
                     if (idx >= 0) {
                         newStates[idx] = updatedObj as any;
@@ -119,6 +128,8 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 idle_since: payload.idleSince,
                 porta_rolo_1_lot: nextPR1,
                 porta_rolo_2_lot: nextPR2,
+                porta_rolo_1_wait_lot: nextPR1Wait,
+                porta_rolo_2_wait_lot: nextPR2Wait,
                 active_feed_1: payload.activeFeed1 ?? true,
                 active_feed_2: payload.activeFeed2 ?? true
             });
@@ -465,8 +476,37 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         const now = new Date().toISOString();
         recentlySelectedLots.current[lotValToSave] = Date.now();
 
-        const newPR1 = selectedPortaRolo === 1 ? lotValToSave : (portaRolo1 === lotValToSave ? null : (portaRolo1 || null));
-        const newPR2 = selectedPortaRolo === 2 ? lotValToSave : (portaRolo2 === lotValToSave ? null : (portaRolo2 || null));
+        let newPR1 = portaRolo1;
+        let newPR2 = portaRolo2;
+        let newPR1Wait = portaRolo1Wait;
+        let newPR2Wait = portaRolo2Wait;
+
+        if (selectedPortaRolo === 1) {
+            if (portaRolo1) {
+                const wantsReplace = window.confirm(`O Porta Rolo 1 já tem o lote ${portaRolo1}.\n\nClique em [OK] para SUBSTITUIR o lote atual.\nClique em [Cancelar] para definir este como LOTE EM ESPERA.`);
+                if (wantsReplace) {
+                    newPR1 = lotValToSave;
+                } else {
+                    newPR1Wait = lotValToSave;
+                }
+            } else {
+                newPR1 = lotValToSave;
+            }
+        } else if (selectedPortaRolo === 2) {
+            if (portaRolo2) {
+                const wantsReplace = window.confirm(`O Porta Rolo 2 já tem o lote ${portaRolo2}.\n\nClique em [OK] para SUBSTITUIR o lote atual.\nClique em [Cancelar] para definir este como LOTE EM ESPERA.`);
+                if (wantsReplace) {
+                    newPR2 = lotValToSave;
+                } else {
+                    newPR2Wait = lotValToSave;
+                }
+            } else {
+                newPR2 = lotValToSave;
+            }
+        }
+
+        if (newPR1 === lotValToSave && portaRolo1 === lotValToSave) newPR1 = null;
+        if (newPR2 === lotValToSave && portaRolo2 === lotValToSave) newPR2 = null;
 
         // 1. Immediate optimistic UI update
         if (setMachineStates) {
@@ -479,8 +519,12 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     machine_name: selectedMachine,
                     portaRolo1Lot: newPR1 || undefined,
                     portaRolo2Lot: newPR2 || undefined,
+                    portaRolo1WaitLot: newPR1Wait || undefined,
+                    portaRolo2WaitLot: newPR2Wait || undefined,
                     porta_rolo_1_lot: newPR1 || null,
                     porta_rolo_2_lot: newPR2 || null,
+                    porta_rolo_1_wait_lot: newPR1Wait || null,
+                    porta_rolo_2_wait_lot: newPR2Wait || null,
                     status: 'PARADA',
                     statusSince: now,
                     stopReason: 'Abastecimento'
@@ -506,6 +550,8 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 stop_reason: 'Abastecimento',
                 porta_rolo_1_lot: newPR1,
                 porta_rolo_2_lot: newPR2,
+                porta_rolo_1_wait_lot: newPR1Wait,
+                porta_rolo_2_wait_lot: newPR2Wait,
                 active_feed_1: activeFeed1,
                 active_feed_2: activeFeed2
             });
@@ -821,6 +867,77 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
             const po = localOrders.find(p => p.id === osId);
             if (!po) { setLoadingAction(null); return; }
             
+            // --- NEW: Weight Check Logic ---
+            if (!isCurrentMachineBancada) {
+                const commOrderId = (po as any).related_commercial_order_id || (po as any).relatedCommercialOrderId;
+                const commOrder = commercialOrders.find(co => co.id === commOrderId);
+                const rawProjectData = (commOrder as any)?.project_data || commOrder?.projectData;
+                let weightNeeded = 0;
+                
+                if (rawProjectData && Array.isArray(rawProjectData)) {
+                    const normalizedData = rawProjectData.map(item => {
+                        const newItem: any = {};
+                        for (const k in item) {
+                            newItem[k.trim().toLowerCase()] = item[k];
+                        }
+                        return newItem;
+                    });
+                    const foundSub = normalizedData.find(s => String(s.os).trim() === String(subOsKey).trim());
+                    if (foundSub) {
+                        const qtd = parseFloat(foundSub.qunti || foundSub.quantidade || foundSub.qtd || '0');
+                        const compCm = parseFloat(foundSub.comprimento || foundSub.comp || '0');
+                        weightNeeded = parseFloat(foundSub.peso || foundSub.pesoTotal || '0');
+                        
+                        if (!weightNeeded || isNaN(weightNeeded) || weightNeeded === 0) {
+                            const bitolaStr = po.target_bitola || po.targetBitola || '';
+                            const gaugeObj = gauges.find(g => g.gauge === bitolaStr);
+                            const weightPerM = gaugeObj?.weightPerMeter || gaugeObj?.rawWeightValue || 0;
+                            if (weightPerM > 0) {
+                                weightNeeded = (compCm / 100) * qtd * weightPerM;
+                            }
+                        }
+                    }
+                }
+
+                if (weightNeeded > 0) {
+                    let totalRemaining = 0;
+                    let hasWaitLot = false;
+                    
+                    if (portaRolo1 && activeFeed1) {
+                        const l1 = stock.find(i => i.internalLot === portaRolo1 || i.supplierLot === portaRolo1 || i.id === portaRolo1);
+                        if (l1) totalRemaining += (l1.remainingQuantity ?? l1.labelWeight ?? l1.weight ?? 0);
+                        if (portaRolo1Wait) hasWaitLot = true;
+                    }
+                    if (portaRolo2 && activeFeed2) {
+                        const l2 = stock.find(i => i.internalLot === portaRolo2 || i.supplierLot === portaRolo2 || i.id === portaRolo2);
+                        if (l2) totalRemaining += (l2.remainingQuantity ?? l2.labelWeight ?? l2.weight ?? 0);
+                        if (portaRolo2Wait) hasWaitLot = true;
+                    }
+
+                    if (totalRemaining < weightNeeded && !hasWaitLot) {
+                        alert(`ATENÇÃO: A peça requer ${weightNeeded.toFixed(2)} kg, mas o rolo ativo possui apenas ${totalRemaining.toFixed(2)} kg.\n\nPor favor, adicione um LOTE EM ESPERA no abastecimento antes de continuar.`);
+                        setLoadingAction(null);
+                        
+                        // Try to open modal automatically for the first active porta rolo
+                        if (portaRolo1 && activeFeed1) {
+                            try {
+                                (window as any)._hackSetSelectedPortaRolo && (window as any)._hackSetSelectedPortaRolo(1);
+                                (window as any)._hackSetAbastecimentoStep && (window as any)._hackSetAbastecimentoStep(1);
+                                (window as any)._hackSetIsAbastecimentoModalOpen && (window as any)._hackSetIsAbastecimentoModalOpen(true);
+                            } catch(e) {}
+                        } else if (portaRolo2 && activeFeed2) {
+                            try {
+                                (window as any)._hackSetSelectedPortaRolo && (window as any)._hackSetSelectedPortaRolo(2);
+                                (window as any)._hackSetAbastecimentoStep && (window as any)._hackSetAbastecimentoStep(1);
+                                (window as any)._hackSetIsAbastecimentoModalOpen && (window as any)._hackSetIsAbastecimentoModalOpen(true);
+                            } catch(e) {}
+                        }
+                        return;
+                    }
+                }
+            }
+            // --- END NEW ---
+            
             let currentProgress = getProgressObj(po);
             const startTime = new Date().toISOString();
             const strSubKey = String(subOsKey).trim();
@@ -961,7 +1078,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                             const bitolaStr = po.target_bitola || po.targetBitola || '';
                             const gaugeObj = gauges.find(g => g.gauge === bitolaStr);
                             const weightPerM = gaugeObj?.weightPerMeter || gaugeObj?.rawWeightValue || 0;
-                            if (weightPerM > 0) {
+                    if (weightPerM > 0) {
                                 weightProduced = (compCm / 100) * qtd * weightPerM;
                             }
                         }
@@ -969,38 +1086,93 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                         pieceWeightForBancada = weightProduced;
 
                         if (weightProduced > 0) {
-                            const activeLots = [];
+                            const activeLotsParams = [];
                             if (portaRolo1 && activeFeed1) {
                                 const l1 = stock.find(i => i.internalLot === portaRolo1 || i.supplierLot === portaRolo1 || i.id === portaRolo1);
-                                if (l1) activeLots.push(l1);
+                                const w1 = portaRolo1Wait ? stock.find(i => i.internalLot === portaRolo1Wait || i.supplierLot === portaRolo1Wait || i.id === portaRolo1Wait) : undefined;
+                                if (l1) activeLotsParams.push({ primary: l1, wait: w1, pIndex: 1 });
                             }
                             if (portaRolo2 && activeFeed2) {
                                 const l2 = stock.find(i => i.internalLot === portaRolo2 || i.supplierLot === portaRolo2 || i.id === portaRolo2);
-                                if (l2) activeLots.push(l2);
+                                const w2 = portaRolo2Wait ? stock.find(i => i.internalLot === portaRolo2Wait || i.supplierLot === portaRolo2Wait || i.id === portaRolo2Wait) : undefined;
+                                if (l2) activeLotsParams.push({ primary: l2, wait: w2, pIndex: 2 });
                             }
 
-                            if (activeLots.length > 0) {
-                                const weightPerLot = weightProduced / activeLots.length;
+                            if (activeLotsParams.length > 0) {
+                                const weightPerLot = weightProduced / activeLotsParams.length;
                                 
-                                for (const lotObj of activeLots) {
+                                for (const param of activeLotsParams) {
+                                    const lotObj = param.primary;
+                                    const waitObj = param.wait;
                                     const currentQty = lotObj.remainingQuantity ?? lotObj.weight ?? lotObj.labelWeight ?? 0;
-                                    const newRemaining = Math.max(0, currentQty - weightPerLot);
                                     
                                     const commOrderId = (po as any).related_commercial_order_id || (po as any).relatedCommercialOrderId;
                                     const commOrder = commercialOrders.find(co => co.id === commOrderId);
                                     const clientName = (commOrder as any)?.client_name || commOrder?.clientName || 'Não informado';
                                     const orderNumberStr = (commOrder as any)?.order_number || commOrder?.orderNumber || (po as any).order_number || po.orderNumber || 'Desconhecido';
 
-                                    const consumeHistoryItem = {
-                                        date: endTime,
-                                        action: `Máquina: ${selectedMachine} | Operador: ${currentUser.username || currentUser.name || 'Sistema'} | Cliente: ${clientName} | Pedido: ${orderNumberStr} (SubOS ${subOsKey}) | Baixa: ${weightPerLot.toFixed(2)} kg`,
-                                        user: currentUser.username || currentUser.name || 'Sistema'
-                                    };
+                                    if (currentQty >= weightPerLot) {
+                                        // Consumo normal
+                                        const newRemaining = currentQty - weightPerLot;
+                                        
+                                        const consumeHistoryItem = {
+                                            date: endTime,
+                                            action: `Máquina: ${selectedMachine} | Operador: ${currentUser.username || currentUser.name || 'Sistema'} | Cliente: ${clientName} | Pedido: ${orderNumberStr} (SubOS ${subOsKey}) | Baixa: ${weightPerLot.toFixed(2)} kg`,
+                                            user: currentUser.username || currentUser.name || 'Sistema'
+                                        };
 
-                                    await supabase.from('stock_items').update({
-                                        remaining_quantity: newRemaining,
-                                        history: [...(lotObj.history || []), consumeHistoryItem]
-                                    }).eq('id', lotObj.id);
+                                        await supabase.from('stock_items').update({
+                                            remaining_quantity: newRemaining,
+                                            history: [...(lotObj.history || []), consumeHistoryItem]
+                                        }).eq('id', lotObj.id);
+                                    } else {
+                                        // Consumiu todo o lote principal, o resto vai pro Lote em Espera
+                                        const deficit = weightPerLot - currentQty;
+                                        
+                                        const consumePrimaryHistoryItem = {
+                                            date: endTime,
+                                            action: `Máquina: ${selectedMachine} | Operador: ${currentUser.username || currentUser.name || 'Sistema'} | Cliente: ${clientName} | Pedido: ${orderNumberStr} (SubOS ${subOsKey}) | Baixa Final: ${currentQty.toFixed(2)} kg. (Restante de ${deficit.toFixed(2)} kg abatido do Lote em Espera)`,
+                                            user: currentUser.username || currentUser.name || 'Sistema'
+                                        };
+
+                                        await supabase.from('stock_items').update({
+                                            remaining_quantity: 0,
+                                            status: 'Consumido',
+                                            history: [...(lotObj.history || []), consumePrimaryHistoryItem]
+                                        }).eq('id', lotObj.id);
+
+                                        if (waitObj) {
+                                            const waitQty = waitObj.remainingQuantity ?? waitObj.weight ?? waitObj.labelWeight ?? 0;
+                                            const newWaitRemaining = Math.max(0, waitQty - deficit);
+                                            
+                                            const consumeWaitHistoryItem = {
+                                                date: endTime,
+                                                action: `Máquina: ${selectedMachine} | Operador: ${currentUser.username || currentUser.name || 'Sistema'} | Cliente: ${clientName} | Pedido: ${orderNumberStr} (SubOS ${subOsKey}) | Baixa (Início Rolo): ${deficit.toFixed(2)} kg`,
+                                                user: currentUser.username || currentUser.name || 'Sistema'
+                                            };
+
+                                            await supabase.from('stock_items').update({
+                                                remaining_quantity: newWaitRemaining,
+                                                status: `Em suporte de ${selectedMachine}`,
+                                                history: [...(waitObj.history || []), consumeWaitHistoryItem]
+                                            }).eq('id', waitObj.id);
+
+                                            // Transition wait lot to primary lot
+                                            const nextLotId = waitObj.internalLot || waitObj.supplierLot || waitObj.id;
+                                            if (param.pIndex === 1) {
+                                                updateMachineStateDB({ portaRolo1Lot: nextLotId, portaRolo1WaitLot: null });
+                                            } else {
+                                                updateMachineStateDB({ portaRolo2Lot: nextLotId, portaRolo2WaitLot: null });
+                                            }
+                                        } else {
+                                            // Se não tinha lote de espera, o deficit foi perdido (já alertamos no início, mas caso ocorra)
+                                            if (param.pIndex === 1) {
+                                                updateMachineStateDB({ portaRolo1Lot: null });
+                                            } else {
+                                                updateMachineStateDB({ portaRolo2Lot: null });
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1271,11 +1443,12 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     </h3>
                     <div className="flex gap-3">
                         {(() => {
-                            const renderPortaRolo = (title: string, internalLotId: string, roloIndex: 1 | 2) => {
+                            const renderPortaRolo = (title: string, internalLotId: string, waitLotId: string, roloIndex: 1 | 2) => {
                                 const lot = internalLotId ? stock.find(i => (i.internalLot && i.internalLot === internalLotId) || (i.supplierLot && i.supplierLot === internalLotId) || (i.id && i.id === internalLotId)) : undefined;
+                                const waitLot = waitLotId ? stock.find(i => (i.internalLot && i.internalLot === waitLotId) || (i.supplierLot && i.supplierLot === waitLotId) || (i.id && i.id === waitLotId)) : undefined;
                                 const isActive = roloIndex === 1 ? activeFeed1 : activeFeed2;
                                 
-                                if (!lot) {
+                                if (!lot && !waitLot) {
                                     return (
                                         <div className="flex-1 flex flex-col gap-1">
                                             <label className="text-[10px] font-bold text-slate-400 uppercase">{title}</label>
@@ -1286,9 +1459,12 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                     );
                                 }
 
-                                const initialWeight = lot.labelWeight || lot.weight || 0;
-                                const remainingWeight = lot.remainingQuantity ?? initialWeight;
+                                const initialWeight = lot ? (lot.labelWeight || lot.weight || 0) : 0;
+                                const remainingWeight = lot ? (lot.remainingQuantity ?? initialWeight) : 0;
                                 const consumedWeight = Math.max(0, initialWeight - remainingWeight);
+
+                                const waitInitialWeight = waitLot ? (waitLot.labelWeight || waitLot.weight || 0) : 0;
+                                const waitRemainingWeight = waitLot ? (waitLot.remainingQuantity ?? waitInitialWeight) : 0;
 
                                 return (
                                     <div className={`flex-1 flex flex-col gap-1 transition-all ${isActive ? 'opacity-100' : 'opacity-60 grayscale'}`}>
@@ -1303,45 +1479,76 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                                 </span>
                                             </div>
                                         </div>
-                                        <div className={`bg-white border-2 rounded-xl p-3 flex flex-col gap-1 shadow-sm relative overflow-hidden min-h-[104px] transition-colors ${isActive ? 'border-indigo-200' : 'border-slate-200'}`}>
-                                            <div className="absolute top-0 right-0 bg-indigo-500 text-white text-[9px] font-black px-2 py-0.5 rounded-bl-lg z-10">
-                                                LOTE: {lot.internalLot || lot.supplierLot}
+                                        {lot && (
+                                            <div className={`bg-white border-2 rounded-xl p-3 flex flex-col gap-1 shadow-sm relative overflow-hidden min-h-[104px] transition-colors ${isActive ? 'border-indigo-200' : 'border-slate-200'}`}>
+                                                <div className="absolute top-0 right-0 bg-indigo-500 text-white text-[9px] font-black px-2 py-0.5 rounded-bl-lg z-10">
+                                                    LOTE: {lot.internalLot || lot.supplierLot}
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-black text-slate-800">{lot.bitola || lot.gauge || '-'}</span>
+                                                    <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded uppercase tracking-wider">{lot.materialType}</span>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-x-2 gap-y-1 mt-1 text-[10px]">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-slate-400 font-bold uppercase">Inicial</span>
+                                                        <span className="text-slate-700 font-black">{Number(initialWeight).toFixed(2)} kg</span>
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-slate-400 font-bold uppercase">Restante</span>
+                                                        <span className="text-emerald-600 font-black">{Number(remainingWeight).toFixed(2)} kg</span>
+                                                    </div>
+                                                    <div className="flex col-span-2 pt-1 border-t border-slate-100 flex-row justify-between items-center">
+                                                        <span className="text-slate-400 font-bold uppercase">Consumido</span>
+                                                        <span className="text-orange-500 font-black">{Number(consumedWeight).toFixed(2)} kg</span>
+                                                    </div>
+                                                    <div className="col-span-2 mt-1">
+                                                        <button
+                                                            onClick={() => handleRemoveLot(roloIndex, lot)}
+                                                            className="w-full text-[10px] font-bold text-red-500 bg-red-50 hover:bg-red-100 rounded py-1.5 px-2 uppercase transition-colors"
+                                                        >
+                                                            Desabastecer
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-sm font-black text-slate-800">{lot.bitola || lot.gauge || '-'}</span>
-                                                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded uppercase tracking-wider">{lot.materialType}</span>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-x-2 gap-y-1 mt-1 text-[10px]">
-                                                <div className="flex flex-col">
-                                                    <span className="text-slate-400 font-bold uppercase">Inicial</span>
-                                                    <span className="text-slate-700 font-black">{Number(initialWeight).toFixed(2)} kg</span>
+                                        )}
+                                        {waitLot && (
+                                            <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-3 flex flex-col gap-1 relative overflow-hidden mt-2">
+                                                <div className="absolute top-0 right-0 bg-slate-400 text-white text-[8px] font-black px-2 py-0.5 rounded-bl-lg z-10">
+                                                    EM ESPERA: {waitLot.internalLot || waitLot.supplierLot}
                                                 </div>
-                                                <div className="flex flex-col">
-                                                    <span className="text-slate-400 font-bold uppercase">Restante</span>
-                                                    <span className="text-emerald-600 font-black">{Number(remainingWeight).toFixed(2)} kg</span>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-sm font-black text-slate-600">{waitLot.bitola || waitLot.gauge || '-'}</span>
+                                                    <span className="text-[10px] font-bold text-slate-500 bg-slate-200 px-2 py-0.5 rounded uppercase tracking-wider">{waitLot.materialType}</span>
                                                 </div>
-                                                <div className="flex col-span-2 pt-1 border-t border-slate-100 flex-row justify-between items-center">
-                                                    <span className="text-slate-400 font-bold uppercase">Consumido</span>
-                                                    <span className="text-orange-500 font-black">{Number(consumedWeight).toFixed(2)} kg</span>
+                                                <div className="flex flex-row justify-between items-center mt-1 text-[10px]">
+                                                    <span className="text-slate-400 font-bold uppercase">Disp.</span>
+                                                    <span className="text-slate-700 font-black">{Number(waitRemainingWeight).toFixed(2)} kg</span>
                                                 </div>
-                                                <div className="col-span-2 mt-1">
+                                                <div className="mt-1 border-t border-slate-200 pt-1">
                                                     <button
-                                                        onClick={() => handleRemoveLot(roloIndex, lot)}
-                                                        className="w-full text-[10px] font-bold text-red-500 bg-red-50 hover:bg-red-100 rounded py-1.5 px-2 uppercase transition-colors"
+                                                        onClick={() => {
+                                                            const confirm = window.confirm('Deseja remover este lote da espera?');
+                                                            if (confirm) {
+                                                                if (roloIndex === 1) updateMachineStateDB({ portaRolo1WaitLot: null });
+                                                                else updateMachineStateDB({ portaRolo2WaitLot: null });
+                                                            }
+                                                        }}
+                                                        className="w-full text-[9px] font-bold text-red-400 hover:text-red-600 uppercase text-center"
                                                     >
-                                                        Desabastecer
+                                                        Remover Espera
                                                     </button>
                                                 </div>
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
                                 );
                             };
 
                             return (
                                 <>
-                                    {renderPortaRolo('Porta Rolo 1', portaRolo1, 1)}
-                                    {renderPortaRolo('Porta Rolo 2', portaRolo2, 2)}
+                                    {renderPortaRolo('Porta Rolo 1', portaRolo1, portaRolo1Wait, 1)}
+                                    {renderPortaRolo('Porta Rolo 2', portaRolo2, portaRolo2Wait, 2)}
                                 </>
                             );
                         })()}
