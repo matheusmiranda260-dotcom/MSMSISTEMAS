@@ -774,6 +774,8 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     };
 
     const validateBitolaMatch = (osId: string) => {
+        if (isCurrentMachineBancada) return true;
+        
         const po = localOrders.find(p => p.id === osId);
         if (!po) return true;
         
@@ -808,7 +810,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
 
     const handleOpenModal = (osId: string) => {
         const hasValidFeed = (portaRolo1 && activeFeed1) || (portaRolo2 && activeFeed2);
-        if (!hasValidFeed) {
+        if (!isCurrentMachineBancada && !hasValidFeed) {
             alert('Você precisa abastecer a máquina e manter ATIVADA pelo menos uma das opções (Porta Rolo 1 ou 2) antes de continuar o corte.');
             return;
         }
@@ -857,7 +859,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
 
     const handleStartSubOs = async (osId: string, subOsKey: string) => {
         const hasValidFeed = (portaRolo1 && activeFeed1) || (portaRolo2 && activeFeed2);
-        if (!hasValidFeed) {
+        if (!isCurrentMachineBancada && !hasValidFeed) {
             alert('Você precisa abastecer a máquina e manter ATIVADA pelo menos uma das opções (Porta Rolo 1 ou 2) antes de iniciar ou continuar o corte.');
             return;
         }

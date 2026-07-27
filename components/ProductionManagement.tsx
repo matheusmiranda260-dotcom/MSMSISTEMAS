@@ -182,6 +182,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [dailyShifts, setDailyShifts] = useState<any[]>([]);
     const [selectedMachineTab, setSelectedMachineTab] = useState<string>('');
+    const [machineOsTab, setMachineOsTab] = useState<'proximas' | 'em_producao' | 'finalizadas'>('em_producao');
     const [machineSearchQuery, setMachineSearchQuery] = useState('');
     const [authorizeDate, setAuthorizeDate] = useState('');
     const [authorizeTime, setAuthorizeTime] = useState('');
@@ -1837,18 +1838,74 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                             </div>
                                         </div>
 
+                                        <div className="flex bg-slate-100 p-1 rounded-xl gap-1 w-fit border border-slate-200">
+                                            <button 
+                                                onClick={() => setMachineOsTab('proximas')}
+                                                className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${machineOsTab === 'proximas' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                                            >
+                                                Próximas
+                                            </button>
+                                            <button 
+                                                onClick={() => setMachineOsTab('em_producao')}
+                                                className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${machineOsTab === 'em_producao' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                                            >
+                                                Em Produção
+                                            </button>
+                                            <button 
+                                                onClick={() => setMachineOsTab('finalizadas')}
+                                                className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${machineOsTab === 'finalizadas' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                                            >
+                                                Finalizadas
+                                            </button>
+                                        </div>
+
                                         {(() => {
                                             // Normalize field access: works with both camelCase (Realtime) and snake_case (local fetch)
                                             const getField = (po: any, snake: string, camel: string) => po[snake] ?? po[camel];
 
+                                            const getOsProgressInfo = (po: any) => {
+                                                const poStatus = getField(po, 'status', 'status');
+                                                let progressObj = getField(po, 'sub_items_progress', 'subItemsProgress');
+                                                if (typeof progressObj === 'string') {
+                                                    try { progressObj = JSON.parse(progressObj); } catch(e) { progressObj = {}; }
+                                                }
+                                                progressObj = progressObj || {};
+                                                
+                                                const entries = Object.entries(progressObj);
+                                                const producingEntry = entries.find(([_, val]: any) => val && typeof val === 'object' && val.status === 'producing');
+                                                const isActuallyProducing = poStatus === 'producing' || !!producingEntry;
+                                                
+                                                const completedPieces = Object.values(progressObj).filter((v: any) => v && typeof v === 'object' && (v.status === 'completed' || v.from_machine)).length;
+                                                const quantityOs = getField(po, 'quantity_os', 'quantityOs');
+                                                const totalPieces = Number(quantityOs) || 1;
+                                                const isFullyCut = totalPieces > 0 && completedPieces >= totalPieces;
+                                                
+                                                const isCompletedStatus = poStatus === 'completed';
+                                                const isFinished = isFullyCut || isCompletedStatus;
+                                                
+                                                const hasStarted = poStatus === 'in_progress' || poStatus === 'producing' || entries.length > 0;
+                                                
+                                                return { isActuallyProducing, isFinished, hasStarted, completedPieces, totalPieces };
+                                            };
+
                                             const osList = allProgrammedOrders.filter(po => {
                                                 const machine = getField(po, 'machine', 'machine');
-                                                const status = getField(po, 'status', 'status');
                                                 const matchMachine = String(machine).trim().toLowerCase() === String(selectedMachineTab).trim().toLowerCase();
-                                                const matchStatus = status === 'in_progress' || status === 'producing';
+                                                
                                                 const orderNum = getField(po, 'order_number', 'orderNumber');
                                                 const matchQuery = !machineSearchQuery || String(orderNum).toLowerCase().includes(machineSearchQuery.toLowerCase());
-                                                return matchMachine && matchStatus && matchQuery;
+                                                
+                                                if (!matchMachine || !matchQuery) return false;
+
+                                                const info = getOsProgressInfo(po);
+                                                
+                                                if (machineOsTab === 'finalizadas') {
+                                                    return info.isFinished;
+                                                } else if (machineOsTab === 'em_producao') {
+                                                    return !info.isFinished && info.hasStarted;
+                                                } else { // proximas
+                                                    return !info.isFinished && !info.hasStarted;
+                                                }
                                             });
 
                                             // Machine online status - uses liveUsers (polled directly from DB every 3s)
