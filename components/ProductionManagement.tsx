@@ -2176,11 +2176,11 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                             if (activeShift && activeShift.start_time) {
                                 const itemTime = new Date(vStartTime).getTime();
                                 const shiftStartTime = new Date(activeShift.start_time).getTime() - (12 * 3600 * 1000);
-                                let shiftEndTime = activeShift.end_time ? new Date(activeShift.end_time).getTime() + (2 * 3600 * 1000) : new Date().getTime() + 86400000;
+                                let shiftEndTime = activeShift.end_time ? new Date(activeShift.end_time).getTime() + (2 * 3600 * 1000) : Infinity;
                                 
                                 // Proteção contra hora errada do tablet
                                 if (shiftEndTime < shiftStartTime) {
-                                    shiftEndTime = new Date().getTime() + 86400000;
+                                    shiftEndTime = Infinity;
                                 }
 
                                 if (itemTime < shiftStartTime || itemTime > shiftEndTime) {
