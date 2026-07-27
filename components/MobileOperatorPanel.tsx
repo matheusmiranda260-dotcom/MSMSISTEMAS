@@ -1730,7 +1730,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     });
 
                     // Se a máquina for Bancada, mostra apenas os itens que constam no sub_items_progress (peças enviadas)
-                    const isBancada = selectedMachine === 'Bancada/Cortador' || selectedMachine === 'BANCADA/CORTADOR';
+                    const isBancada = selectedMachine?.trim().toLowerCase() === 'bancada' || selectedMachine?.trim().toLowerCase() === 'bancada/cortador';
                     if (isBancada) {
                         const progress = getProgressObj(po);
                         const allowedSubOsKeys = Object.keys(progress).map(k => {
