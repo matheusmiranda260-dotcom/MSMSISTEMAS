@@ -1694,7 +1694,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                                 onClick={() => handleOpenModal(po.id)}
                                                 className={`w-full ${isCuttingSubOS ? 'bg-red-500 hover:bg-red-600' : 'bg-indigo-500 hover:bg-indigo-600'} text-white font-black py-2.5 px-2 rounded-lg text-[10px] sm:text-[11px] uppercase shadow-sm active:scale-95 transition-all whitespace-nowrap`}
                                             >
-                                                {isCuttingSubOS ? 'FINALIZAR CORTE' : 'INICIAR CORTE'}
+                                                {isCuttingSubOS ? (isCurrentMachineBancada ? 'FINALIZAR DOBRA' : 'FINALIZAR CORTE') : (isCurrentMachineBancada ? 'INICIAR DOBRA' : 'INICIAR CORTE')}
                                             </button>
                                         )}
                                     </div>
@@ -1920,7 +1920,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                                         disabled={loadingAction === `finish-${po.id}-${activeSubOs.os}`}
                                                         onClick={() => handleFinishSubOs(po.id, activeSubOs.os)} 
                                                         className="w-full bg-red-500 hover:bg-red-600 text-white font-black py-4 rounded-xl text-lg uppercase shadow-md active:scale-95 transition-all disabled:opacity-50">
-                                                        {loadingAction === `finish-${po.id}-${activeSubOs.os}` ? 'FINALIZANDO...' : 'FINALIZAR CORTE'}
+                                                        {loadingAction === `finish-${po.id}-${activeSubOs.os}` ? 'FINALIZANDO...' : (isCurrentMachineBancada ? 'FINALIZAR DOBRA' : 'FINALIZAR CORTE')}
                                                     </button>
                                                 </div>
                                             ) : (
@@ -1928,7 +1928,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                                     disabled={loadingAction === `start-${po.id}-${activeSubOs.os}`}
                                                     onClick={() => handleStartSubOs(po.id, activeSubOs.os)} 
                                                     className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 rounded-xl text-lg uppercase shadow-sm active:scale-95 transition-all disabled:opacity-50">
-                                                    {loadingAction === `start-${po.id}-${activeSubOs.os}` ? 'INICIANDO...' : 'INICIAR CORTE'}
+                                                    {loadingAction === `start-${po.id}-${activeSubOs.os}` ? 'INICIANDO...' : (isCurrentMachineBancada ? 'INICIAR DOBRA' : 'INICIAR CORTE')}
                                                 </button>
                                             )}
                                         </div>
