@@ -675,44 +675,67 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
             setGlobalBingoExtractedOSs(extractedArr);
 
             // Agora agrupa por bitola batendo com o projectData
-            const bitolaGroups: Record<string, { osList: string[], peso: number, compM: number, aco: string }> = {};
+            const bitolaGroups: Record<string, { 
+                originalOsList: string[], originalPeso: number, originalCompM: number,
+                pendingOsList: string[], pendingPeso: number, pendingCompM: number,
+                aco: string 
+            }> = {};
 
             data.forEach(item => {
                 if (item.os && extractedArr.includes(item.os.toString())) {
                     const mm = item.mm || item.bitola || item.diametro || 'Indefinido';
                     if (!bitolaGroups[mm]) {
-                        bitolaGroups[mm] = { osList: [], peso: 0, compM: 0, aco: (['5,00', '5.00', '5', '6,00', '6.00', '6'].includes(mm)) ? 'CA60' : 'CA50' };
+                        bitolaGroups[mm] = { 
+                            originalOsList: [], originalPeso: 0, originalCompM: 0,
+                            pendingOsList: [], pendingPeso: 0, pendingCompM: 0,
+                            aco: (['5,00', '5.00', '5', '6,00', '6.00', '6'].includes(mm)) ? 'CA60' : 'CA50' 
+                        };
                     }
-                    if (!bitolaGroups[mm].osList.includes(item.os.toString())) {
-                        bitolaGroups[mm].osList.push(item.os.toString());
+                    
+                    const osStr = item.os.toString();
+                    const itemPeso = parseFloat(item.peso?.toString().replace(',','.') || '0');
+                    const itemCompM = ((parseFloat(item.qunti?.toString() || item.quantidade?.toString() || item.qtd?.toString() || '0')) * (parseFloat(item.comprimento?.toString() || '0'))) / 100;
+
+                    if (!bitolaGroups[mm].originalOsList.includes(osStr)) {
+                        bitolaGroups[mm].originalOsList.push(osStr);
                     }
-                    bitolaGroups[mm].peso += parseFloat(item.peso?.toString().replace(',','.') || '0');
-                    bitolaGroups[mm].compM += ((parseFloat(item.qunti?.toString() || item.quantidade?.toString() || item.qtd?.toString() || '0')) * (parseFloat(item.comprimento?.toString() || '0'))) / 100;
+                    bitolaGroups[mm].originalPeso += itemPeso;
+                    bitolaGroups[mm].originalCompM += itemCompM;
+                    
+                    const programmedOSs = alreadyProgrammedOSsByBitola[mm] || new Set<string>();
+                    if (!programmedOSs.has(osStr)) {
+                        if (!bitolaGroups[mm].pendingOsList.includes(osStr)) {
+                            bitolaGroups[mm].pendingOsList.push(osStr);
+                        }
+                        bitolaGroups[mm].pendingPeso += itemPeso;
+                        bitolaGroups[mm].pendingCompM += itemCompM;
+                    }
                 }
             });
 
             const results = Object.keys(bitolaGroups).map(mm => {
-                const osList = bitolaGroups[mm].osList;
-                const programmedOSs = alreadyProgrammedOSsByBitola[mm] || new Set<string>();
-                const isProgrammed = osList.some(os => programmedOSs.has(os.toString()));
+                const group = bitolaGroups[mm];
+                const isProgrammed = group.pendingOsList.length === 0;
                 let programmedDate = '';
                 
                 if (isProgrammed && existingPOs) {
                     const existingOrder = existingPOs.find(po => {
                         const bitola = po.target_bitola || po.targetBitola;
                         if (bitola !== mm) return false;
-                        return po.summary?.osList?.some((os: any) => osList.includes(os.toString()));
+                        return po.summary?.osList?.some((os: any) => group.originalOsList.includes(os.toString()));
                     });
                     if (existingOrder) {
                         const getField = (po: any, snake: string, camel: string) => po?.[snake] ?? po?.[camel];
                         programmedDate = getField(existingOrder, 'creation_date', 'creationDate') || '';
-                        if (programmedDate) programmedDate = programmedDate.split('T')[0]; // Extract just the date part
+                        if (programmedDate) programmedDate = programmedDate.split('T')[0];
                     }
                 }
 
                 return {
                     bitola: mm,
-                    ...bitolaGroups[mm],
+                    peso: isProgrammed ? group.originalPeso : group.pendingPeso,
+                    compM: isProgrammed ? group.originalCompM : group.pendingCompM,
+                    osList: isProgrammed ? group.originalOsList : group.pendingOsList,
                     machine: globalBingoMachine,
                     date: '',
                     isProgrammed,
