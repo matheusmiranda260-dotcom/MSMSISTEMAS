@@ -495,6 +495,7 @@ export interface CommercialOrder {
     creditRequestUrl?: string;
     creditRequestStatus?: string;
     totalWeight?: number;
+    totalOsQuantity?: number;
     createdAt?: string;
     engineeringDeadline?: string;
     readingStartedAt?: string;

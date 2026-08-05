@@ -142,9 +142,35 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
     // Modal Programar Maquina variables (moved to top for useEffect dependencies)
     const [isProgramModalOpen, setIsProgramModalOpen] = useState(false);
     const [programData, setProgramData] = useState<{bitola: string, peso: number, orderNum: string, quantity: number, compM?: number} | null>(null);
+
+    // Global Bingo variables
+    const [isGlobalBingoModalOpen, setIsGlobalBingoModalOpen] = useState(false);
+    const [globalBingoPdfFile, setGlobalBingoPdfFile] = useState<File | null>(null);
+    const [globalBingoExtractedOSs, setGlobalBingoExtractedOSs] = useState<string[]>([]);
+    const [isExtractingGlobalBingo, setIsExtractingGlobalBingo] = useState(false);
+    const [globalBingoMachine, setGlobalBingoMachine] = useState('');
+    const [globalBingoResults, setGlobalBingoResults] = useState<{bitola: string, osList: string[], peso: number, compM: number, aco: string, machine: string, date: string}[]>([]);
+    const [bingoActiveRowIndex, setBingoActiveRowIndex] = useState<number | null>(null);
+
     const [weekOffset, setWeekOffset] = useState(0);
     const [showSaturday, setShowSaturday] = useState(true);
     const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
+    // Ensure pdf.js is loaded
+    useEffect(() => {
+        const loadPdfJs = async () => {
+            if (!(window as any).pdfjsLib) {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+                script.onload = () => {
+                    const pdfjs = (window as any).pdfjsLib;
+                    pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                };
+                document.body.appendChild(script);
+            }
+        };
+        loadPdfJs();
+    }, []);
 
     useEffect(() => {
         if (!orderToView) {
@@ -155,7 +181,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
             try {
                 const { data, error } = await supabase
                     .from('production_orders')
-                    .select('id, target_bitola, creation_date, machine')
+                    .select('id, target_bitola, creation_date, machine, summary, quantity_os')
                     .eq('related_commercial_order_id', orderToView.id);
                 if (data && !error) {
                     setProgrammedOrders(data);
@@ -350,7 +376,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
         fetchAll();
         const interval = setInterval(fetchAll, 1500);
         return () => clearInterval(interval);
-    }, [isProgramModalOpen, isViewProjectModalOpen, isMachinesModalOpen, isReportModalOpen]);
+    }, [isProgramModalOpen, isViewProjectModalOpen, isMachinesModalOpen, isReportModalOpen, isGlobalBingoModalOpen]);
 
     const [isFinishReadingModalOpen, setIsFinishReadingModalOpen] = useState(false);
     const [orderToFinishReading, setOrderToFinishReading] = useState<CommercialOrder | null>(null);
@@ -413,9 +439,9 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
             const { data: existingOrders, error: fetchErr } = await supabase
                 .from('production_orders')
                 .select('*')
-                .eq('relatedCommercialOrderId', orderToView.id)
+                .eq('related_commercial_order_id', orderToView.id)
                 .eq('machine', machineName)
-                .eq('targetBitola', programData.bitola)
+                .eq('target_bitola', programData.bitola)
                 .order('created_at', { ascending: false });
 
             if (existingOrders && existingOrders.length > 0) {
@@ -436,8 +462,9 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                     .update({
                         totalWeight: newWeight,
                         totalMeters: newMeters,
-                        quantityOs: newQtd,
+                        quantityOs: newQtd, // Mantemos por compatibilidade, caso a coluna exista
                         orderNumber: newOrderNumber,
+                        summary: { ...(existing.summary || {}), manualQuantity: (existing.summary?.manualQuantity || existing.quantityOs || 0) + programData.quantity },
                         status: existing.status === 'completed' ? 'in_progress' : existing.status
                     })
                     .eq('id', existing.id);
@@ -455,7 +482,8 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                     status: 'in_progress', // Vai direto pro painel do operador
                     creationDate: dateStr + 'T12:00:00Z',
                     relatedCommercialOrderId: orderToView.id,
-                    quantityOs: programData.quantity
+                    quantityOs: programData.quantity,
+                    summary: { manualQuantity: programData.quantity }
                 };
                 await insertItem('production_orders', newOrder as any);
             }
@@ -467,6 +495,245 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
         } catch (error: any) {
             console.error('Erro ao programar máquina:', error);
             alert(`Erro ao programar máquina: ${error?.message || JSON.stringify(error)}`);
+        }
+    };
+
+    const handleSaveGlobalBingo = async () => {
+        if (!orderToView) return;
+        
+        if (globalBingoResults.length === 0) {
+            alert('Certifique-se que o PDF possui OSs válidas.');
+            return;
+        }
+
+        const toProgram = globalBingoResults.filter(r => !r.isProgrammed);
+        
+        if (toProgram.length === 0) {
+            alert('Todas as bitolas extraídas já estão programadas!');
+            return;
+        }
+
+        const missingFields = toProgram.some(r => !r.machine || !r.date);
+        if (missingFields) {
+            alert('Preencha a data e a máquina para TODAS as bitolas novas antes de programar.');
+            return;
+        }
+
+        try {
+            for (const res of toProgram) {
+                // Verifica se já existe uma OS para este mesmo pedido, máquina e bitola
+                const { data: existingOrders, error: fetchErr } = await supabase
+                    .from('production_orders')
+                    .select('*')
+                    .eq('related_commercial_order_id', orderToView.id)
+                    .eq('machine', res.machine)
+                    .eq('target_bitola', res.bitola)
+                    .order('created_at', { ascending: false });
+
+                if (existingOrders && existingOrders.length > 0) {
+                    const existing = existingOrders[0];
+                    const newWeight = (existing.totalWeight || existing.total_weight || 0) + res.peso;
+                    const newMeters = (existing.totalMeters || existing.total_meters || 0) + res.compM;
+                    const newQtd = (existing.quantityOs || existing.quantity_os || 0) + res.osList.length;
+                    
+                    let newOrderNumber = existing.orderNumber;
+                    // Como agora usamos o número do pedido base, não precisamos concatenar nada,
+
+                    const { error: updErr } = await supabase.from('production_orders')
+                        .update({ 
+                            total_weight: newWeight,
+                            total_meters: newMeters,
+                            quantity_os: (existing.quantity_os || 0) + res.osList.length,
+                            summary: { 
+                                osList: [...new Set([...(existing.summary?.osList || []), ...res.osList])] 
+                            }
+                        })
+                        .eq('id', existing.id);
+                        
+                    if (updErr) throw updErr;
+                } else {
+                    const newOrder = {
+                        order_number: `${orderToView.orderNumber} - ${res.bitola} - ${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+                        machine: res.machine,
+                        target_bitola: res.bitola,
+                        selected_lot_ids: [],
+                        total_weight: res.peso,
+                        total_meters: res.compM,
+                        is_ghost_order: true,
+                        input_bitola: '',
+                        status: 'in_progress',
+                        creation_date: res.date + 'T12:00:00Z',
+                        related_commercial_order_id: orderToView.id,
+                        quantity_os: res.osList.length,
+                        summary: { osList: res.osList }
+                    };
+
+                    const { error: insErr } = await supabase.from('production_orders').insert(newOrder);
+                    if (insErr) throw insErr;
+                }
+            }
+
+            await supabase.from('commercial_orders').update({ status: 'Produzindo' }).eq('id', orderToView.id);
+            setOrderToView({...orderToView, status: 'Produzindo'});
+            
+            setIsGlobalBingoModalOpen(false);
+            setGlobalBingoResults([]);
+            setGlobalBingoPdfFile(null);
+            setGlobalBingoExtractedOSs([]);
+            alert('Bingo programado com sucesso para a máquina: ' + globalBingoMachine);
+            
+        } catch (error: any) {
+            console.error('Erro ao salvar bingo:', error);
+            alert(`Erro ao programar máquina: ${error?.message || JSON.stringify(error)}`);
+        }
+    };
+
+    const handleExtractGlobalBingo = async (file: File) => {
+        if (!orderToView || !orderToView.projectData) return;
+        
+        setIsExtractingGlobalBingo(true);
+        try {
+            const pdfjs = (window as any).pdfjsLib;
+            if (!pdfjs) throw new Error('PDF JS não carregado');
+            
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjs.getDocument(arrayBuffer).promise;
+            
+            let fullText = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map((item: any) => item.str).join(' ');
+                fullText += pageText + ' ';
+            }
+            
+            const regexOS = /OS\s*(?:Nº|:)?\s*(\d+(?:-\d+)?)/gi;
+            const foundOSs = new Set<string>();
+            let match;
+            while ((match = regexOS.exec(fullText)) !== null) {
+                foundOSs.add(match[1]);
+            }
+
+            const regexTabela = /(\d+)\s+Peso \(kg\)\s+OS\s+Ø \(mm\)\s+Aço\s+Qtde\s+Compr\.\s*\(cm\)\s+(\d+(?:,\d+)?)\s+CA\d+\s+(\d+)\s+(\d+(?:,\d+)?)\s+(\d+(?:-\d+)?)\s+.*?\s+([A-Za-z0-9]+)\s+Pos\./gi;
+            while ((match = regexTabela.exec(fullText)) !== null) {
+                foundOSs.add(match[5]);
+            }
+
+            // Buscar OSs já programadas para este pedido para não deixar programar repetido
+            const { data: existingPOs } = await supabase
+                .from('production_orders')
+                .select('summary, creation_date, target_bitola')
+                .eq('related_commercial_order_id', orderToView.id);
+            
+            const alreadyProgrammedOSsByBitola: Record<string, Set<string>> = {};
+            if (existingPOs) {
+                existingPOs.forEach(po => {
+                    const bitola = po.target_bitola || po.targetBitola;
+                    if (bitola) {
+                        if (!alreadyProgrammedOSsByBitola[bitola]) {
+                            alreadyProgrammedOSsByBitola[bitola] = new Set<string>();
+                        }
+                        if (po.summary && po.summary.osList) {
+                            po.summary.osList.forEach((os: string) => alreadyProgrammedOSsByBitola[bitola].add(os.toString()));
+                        }
+                    }
+                });
+            }
+
+            // CRUCIAL: A pedido do usuário, procurar as OS e bitolas que existem no "detalhado" (projectData) dentro do texto do PDF Bingo
+            const data = orderToView.projectData as any[];
+            data.forEach(item => {
+                if (item.os) {
+                    const osStr = item.os.toString().trim();
+                    const osRegex = new RegExp(`\\b${osStr}\\b`);
+                    
+                    // Se a OS exata for encontrada como palavra no PDF, precisamos checar se a bitola dela também está no PDF 
+                    // para evitar falsos positivos com números pequenos (ex: uma OS nº "2" cruzar com uma quantidade "2")
+                    if (osRegex.test(fullText)) {
+                        const mm = item.mm || item.bitola || item.diametro || '';
+                        const mmStr = mm.toString().replace(',', '.').replace(/[^\d.]/g, ''); // extrai o número da bitola (ex: "16" ou "5")
+                        
+                        // Busca menção a essa bitola no PDF (como "16,00 mm" ou "16 mm" ou apenas "16")
+                        // Se o PDF do bingo não tem a bitola que a OS pertence, então provavelmente o número encontrado não é essa OS
+                        const bitolaRegex = mmStr ? new RegExp(`\\b${mmStr}\\b`) : null;
+                        
+                        if (!bitolaRegex || bitolaRegex.test(fullText)) {
+                            foundOSs.add(osStr);
+                        }
+                    }
+                }
+            });
+
+            if (foundOSs.size === 0) {
+                alert('Aviso: Nenhuma OS reconhecida no PDF.');
+                setGlobalBingoResults([]);
+                setIsExtractingGlobalBingo(false);
+                return;
+            }
+
+            const extractedArr = Array.from(foundOSs);
+            setGlobalBingoExtractedOSs(extractedArr);
+
+            // Agora agrupa por bitola batendo com o projectData
+            const bitolaGroups: Record<string, { osList: string[], peso: number, compM: number, aco: string }> = {};
+
+            data.forEach(item => {
+                if (item.os && extractedArr.includes(item.os.toString())) {
+                    const mm = item.mm || item.bitola || item.diametro || 'Indefinido';
+                    if (!bitolaGroups[mm]) {
+                        bitolaGroups[mm] = { osList: [], peso: 0, compM: 0, aco: (['5,00', '5.00', '5', '6,00', '6.00', '6'].includes(mm)) ? 'CA60' : 'CA50' };
+                    }
+                    if (!bitolaGroups[mm].osList.includes(item.os.toString())) {
+                        bitolaGroups[mm].osList.push(item.os.toString());
+                    }
+                    bitolaGroups[mm].peso += parseFloat(item.peso?.toString().replace(',','.') || '0');
+                    bitolaGroups[mm].compM += ((parseFloat(item.qunti?.toString() || item.quantidade?.toString() || item.qtd?.toString() || '0')) * (parseFloat(item.comprimento?.toString() || '0'))) / 100;
+                }
+            });
+
+            const results = Object.keys(bitolaGroups).map(mm => {
+                const osList = bitolaGroups[mm].osList;
+                const programmedOSs = alreadyProgrammedOSsByBitola[mm] || new Set<string>();
+                const isProgrammed = osList.some(os => programmedOSs.has(os.toString()));
+                let programmedDate = '';
+                
+                if (isProgrammed && existingPOs) {
+                    const existingOrder = existingPOs.find(po => {
+                        const bitola = po.target_bitola || po.targetBitola;
+                        if (bitola !== mm) return false;
+                        return po.summary?.osList?.some((os: any) => osList.includes(os.toString()));
+                    });
+                    if (existingOrder) {
+                        const getField = (po: any, snake: string, camel: string) => po?.[snake] ?? po?.[camel];
+                        programmedDate = getField(existingOrder, 'creation_date', 'creationDate') || '';
+                        if (programmedDate) programmedDate = programmedDate.split('T')[0]; // Extract just the date part
+                    }
+                }
+
+                return {
+                    bitola: mm,
+                    ...bitolaGroups[mm],
+                    machine: globalBingoMachine,
+                    date: '',
+                    isProgrammed,
+                    programmedDate
+                };
+            });
+
+            setGlobalBingoResults(results);
+
+            if (results.length > 0) {
+                alert(`Sucesso! Foram extraídas ${extractedArr.length} OSs, distribuídas em ${results.length} bitola(s).`);
+            } else {
+                alert('Aviso: As OSs foram encontradas no PDF, mas elas não existem no projeto atual.');
+            }
+
+        } catch (err) {
+            console.error('Erro ao ler PDF Global:', err);
+            alert('Erro ao extrair dados do PDF.');
+            setGlobalBingoResults([]);
+        } finally {
+            setIsExtractingGlobalBingo(false);
         }
     };
 
@@ -1293,8 +1560,15 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
 
                                         return (
                                             <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm flex flex-col">
-                                                <div className="bg-slate-800 px-4 py-2 flex items-center justify-center">
+                                                <div className="bg-slate-800 px-4 py-2 flex items-center justify-between">
                                                     <h3 className="text-white font-bold text-lg uppercase tracking-widest">Resumo Geral</h3>
+                                                    <button 
+                                                        onClick={() => setIsGlobalBingoModalOpen(true)}
+                                                        className="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded font-bold text-xs uppercase flex items-center gap-1 shadow-sm transition-colors"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
+                                                        Subir Bingo
+                                                    </button>
                                                 </div>
                                                 <div className="overflow-x-auto">
                                                     <table className="w-full text-center border-collapse">
@@ -1305,13 +1579,31 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                 <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Comp. (m)</th>
                                                                 <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Peso (Kg)</th>
                                                                 <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Qtd O.S.</th>
-                                                                <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">Sugestão Máquina</th>
+                                                                <th className="p-3 text-sm font-black text-slate-700 uppercase border-r border-slate-300">OSs Programadas</th>
                                                                 <th className="p-3 text-sm font-black text-slate-700 uppercase">Status</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
                                                             {orderItemsGrouped.map((item, idx) => {
-                                                                const programmedInfo = programmedOrders.find(po => po.target_bitola === item.bitola);
+                                                                const programmedList = programmedOrders.filter(po => po.target_bitola === item.bitola || po.targetBitola === item.bitola);
+                                                                const programmedQtd = programmedList.reduce((acc, curr) => {
+                                                                    let count = 0;
+                                                                    if (curr.summary && (curr.summary.osList || curr.summary.os_list)) {
+                                                                        const arr = curr.summary.osList || curr.summary.os_list;
+                                                                        count = arr.length;
+                                                                    } else if (curr.summary && (curr.summary.manualQuantity !== undefined || curr.summary.manual_quantity !== undefined)) {
+                                                                        count = curr.summary.manualQuantity ?? curr.summary.manual_quantity;
+                                                                    } else if (curr.quantity_os !== undefined) {
+                                                                        count = curr.quantity_os;
+                                                                    } else if (curr.quantityOs !== undefined) {
+                                                                        count = curr.quantityOs;
+                                                                    } else if (curr.quantity !== undefined) {
+                                                                        count = curr.quantity;
+                                                                    }
+                                                                    return acc + count;
+                                                                }, 0);
+                                                                const isFullyProgrammed = programmedQtd >= item.quantity && item.quantity > 0;
+                                                                
                                                                 grandTotalComp += item.totalLength;
                                                                 grandTotalPeso += item.totalWeight;
                                                                 grandTotalQtd += item.quantity;
@@ -1346,43 +1638,62 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                         <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{item.totalWeight.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                                                         <td className="p-3 text-sm font-medium text-slate-700 border-r border-slate-200">{item.quantity}</td>
                                                                         <td className="p-3 text-sm border-r border-slate-200">
-                                                                            {bestMachine ? (
-                                                                                <div className="flex flex-col items-center justify-center gap-1">
-                                                                                    <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200 uppercase">{bestMachine.name}</span>
-                                                                                    {bestMachineHours > 0 && (
-                                                                                        <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded flex items-center gap-1">
-                                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                                                                            {formatMachineTime(bestMachineHours)}
-                                                                                        </span>
-                                                                                    )}
+                                                                            <div className="flex flex-col items-center justify-center gap-1.5 w-full max-w-[140px] mx-auto">
+                                                                                <div className="flex justify-between w-full text-[10px] font-bold">
+                                                                                    <span className={programmedQtd >= item.quantity ? 'text-emerald-600' : 'text-slate-500'}>
+                                                                                        {programmedQtd} {programmedQtd === 1 ? 'OS' : 'OSs'}
+                                                                                    </span>
+                                                                                    <span className="text-slate-400">/ {item.quantity}</span>
                                                                                 </div>
-                                                                            ) : (
-                                                                                <span className="text-[9px] font-bold text-slate-400 uppercase">N/A</span>
-                                                                            )}
+                                                                                <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                                                                    <div 
+                                                                                        className={`h-full rounded-full transition-all duration-500 ${programmedQtd >= item.quantity ? 'bg-emerald-500' : 'bg-sky-500'}`}
+                                                                                        style={{ width: `${Math.min(100, item.quantity > 0 ? (programmedQtd / item.quantity) * 100 : 0)}%` }}
+                                                                                    ></div>
+                                                                                </div>
+                                                                                {programmedQtd < item.quantity && item.quantity > 0 && (
+                                                                                    <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded uppercase border border-amber-100 w-full text-center">
+                                                                                        Faltam {item.quantity - programmedQtd}
+                                                                                    </span>
+                                                                                )}
+                                                                                {programmedQtd >= item.quantity && item.quantity > 0 && (
+                                                                                    <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded uppercase border border-emerald-100 w-full text-center">
+                                                                                        Concluído
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
                                                                         </td>
                                                                         <td className="p-3 text-sm text-center">
-                                                                            {programmedInfo ? (
-                                                                                <div className="flex flex-col items-center justify-center bg-emerald-50 px-3 py-1 rounded border border-emerald-100 relative group overflow-hidden h-[42px] min-w-[120px]">
-                                                                                    <div className="flex flex-col items-center justify-center group-hover:-translate-y-8 transition-transform duration-300">
-                                                                                        <span className="text-[10px] font-black text-emerald-600 uppercase">Programado</span>
-                                                                                        <span className="text-[9px] font-bold text-emerald-400">{programmedInfo.creation_date?.substring(0,10).split('-').reverse().join('/')} - {programmedInfo.machine}</span>
-                                                                                    </div>
-                                                                                    <button 
-                                                                                        onClick={async (e) => {
-                                                                                            e.stopPropagation();
-                                                                                            if (window.confirm(`Deseja remover a programação da bitola ${item.bitola}mm?`)) {
-                                                                                                try {
-                                                                                                    await supabase.from('production_orders').delete().eq('id', programmedInfo.id);
-                                                                                                    setProgrammedOrders(prev => prev.filter(p => p.id !== programmedInfo.id));
-                                                                                                } catch (err) { alert('Erro ao remover programação'); }
-                                                                                            }
-                                                                                        }}
-                                                                                        className="absolute inset-0 bg-red-50 text-red-600 font-bold text-[10px] uppercase flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-8 group-hover:translate-y-0 cursor-pointer hover:bg-red-100"
-                                                                                    >
-                                                                                        Remover
-                                                                                    </button>
+                                                                            {programmedList.length > 0 && (
+                                                                                <div className="flex flex-col gap-1 mb-2">
+                                                                                    {programmedList.map(prog => (
+                                                                                        <div key={prog.id} className="flex flex-col items-center justify-center bg-emerald-50 px-3 py-1 rounded border border-emerald-100 relative group overflow-hidden h-[42px] min-w-[120px]">
+                                                                                            <div className="flex flex-col items-center justify-center group-hover:-translate-y-8 transition-transform duration-300">
+                                                                                                <span className="text-[10px] font-black text-emerald-600 uppercase">
+                                                                                                    {(prog.summary?.osList || prog.summary?.os_list)?.length ?? prog.summary?.manualQuantity ?? prog.summary?.manual_quantity ?? prog.quantity_os ?? prog.quantityOs ?? prog.quantity ?? 0} OS - {prog.machine}
+                                                                                                </span>
+                                                                                                <span className="text-[9px] font-bold text-emerald-400">{prog.creation_date?.substring(0,10).split('-').reverse().join('/')}</span>
+                                                                                            </div>
+                                                                                            <button 
+                                                                                                onClick={async (e) => {
+                                                                                                    e.stopPropagation();
+                                                                                                    if (window.confirm(`Deseja remover esta programação da bitola ${item.bitola}mm?`)) {
+                                                                                                        try {
+                                                                                                            await supabase.from('production_orders').delete().eq('id', prog.id);
+                                                                                                            setProgrammedOrders(prev => prev.filter(p => p.id !== prog.id));
+                                                                                                        } catch (err) { alert('Erro ao remover programação'); }
+                                                                                                    }
+                                                                                                }}
+                                                                                                className="absolute inset-0 bg-red-50 text-red-600 font-bold text-[10px] uppercase flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-8 group-hover:translate-y-0 cursor-pointer hover:bg-red-100"
+                                                                                            >
+                                                                                                Remover
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    ))}
                                                                                 </div>
-                                                                            ) : (
+                                                                            )}
+                                                                            
+                                                                            {!isFullyProgrammed && (
                                                                                 <button 
                                                                                     onClick={() => {
                                                                                         setProgramData({ bitola: item.bitola, peso: item.totalWeight, orderNum: orderToView?.orderNumber || '', quantity: item.quantity, compM: item.totalLength });
@@ -1392,9 +1703,9 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                                         setProgramMachine(bestMachine ? bestMachine.name : (item.aco === 'CA60' ? 'Trefila 1' : 'Treliça'));
                                                                                         setIsProgramModalOpen(true);
                                                                                     }}
-                                                                                    className="text-[9px] bg-slate-800 text-white font-bold px-2 py-1 rounded-md hover:bg-sky-600 transition uppercase shadow-sm"
+                                                                                    className="text-[9px] bg-slate-800 text-white font-bold px-2 py-1 rounded-md hover:bg-sky-600 transition uppercase shadow-sm w-full"
                                                                                 >
-                                                                                    Programar
+                                                                                    {programmedList.length > 0 ? 'Programar Restante' : 'Programar'}
                                                                                 </button>
                                                                             )}
                                                                         </td>
@@ -1408,13 +1719,12 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                 <td className="p-3 text-sm font-black text-slate-800 border-r border-slate-300">{grandTotalComp.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                                                 <td className="p-3 text-sm font-black text-slate-800 border-r border-slate-300">{grandTotalPeso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                                                 <td className="p-3 text-sm font-black text-slate-800 border-r border-slate-300">{grandTotalQtd}</td>
-                                                                <td className="p-3 text-sm font-black text-sky-800 border-r border-slate-300 text-center">
-                                                                    {grandTotalHours > 0 ? (
-                                                                        <div className="flex items-center justify-center gap-1">
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                                                            {formatMachineTime(grandTotalHours)}
-                                                                        </div>
-                                                                    ) : '-'}
+                                                                <td className="p-3 text-sm font-black text-slate-800 border-r border-slate-300 text-center">
+                                                                    <div className="flex flex-col items-center w-full max-w-[140px] mx-auto">
+                                                                         <span className="text-[10px] text-slate-500">
+                                                                             {programmedOrders.reduce((acc, curr) => acc + ((curr.summary?.osList || curr.summary?.os_list)?.length ?? curr.summary?.manualQuantity ?? curr.summary?.manual_quantity ?? curr.quantity_os ?? curr.quantityOs ?? curr.quantity ?? 0), 0)} OS(s) Prog.
+                                                                         </span>
+                                                                    </div>
                                                                 </td>
                                                                 <td></td>
                                                             </tr>
@@ -1756,6 +2066,267 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                             </div>
                         </div>
                     </div>
+                </div>
+            , document.body)}
+
+            {isGlobalBingoModalOpen && typeof document !== 'undefined' && createPortal(
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-slate-200 bg-emerald-50 flex justify-between items-center shrink-0">
+                            <div>
+                                <h2 className="text-xl font-black text-emerald-900 uppercase tracking-tight flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
+                                    Distribuir OSs via Bingo
+                                </h2>
+                                <p className="text-xs font-bold text-emerald-700 mt-1 uppercase">Suba o PDF da máquina para programar todas as bitolas</p>
+                            </div>
+                            <button onClick={() => {
+                                setIsGlobalBingoModalOpen(false);
+                                setGlobalBingoResults([]);
+                                setGlobalBingoPdfFile(null);
+                                setGlobalBingoExtractedOSs([]);
+                            }} className="text-slate-400 hover:text-red-500 transition-colors p-2 bg-white hover:bg-red-50 rounded-xl shadow-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50 flex flex-col gap-6">
+                            
+                            <div className="flex flex-col gap-2">
+                                <label className="text-xs font-black text-slate-700 uppercase tracking-wider">1. Máquina (Aplicar a todos)</label>
+                                <select
+                                    value={globalBingoMachine}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setGlobalBingoMachine(val);
+                                        setGlobalBingoResults(prev => prev.map(r => ({ ...r, machine: val })));
+                                    }}
+                                    className="w-full bg-white border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-2.5 font-bold shadow-sm"
+                                >
+                                    <option value="">-- Selecione a Máquina --</option>
+                                    {(activeBrandingPartner?.machines?.length ? activeBrandingPartner.machines.map(m => m.name) : ['Schnell-PRIMA', 'DHE 6P', 'JJW', 'Desbobinadeira', 'Bancada/Cortador']).map(m => (
+                                        <option key={m} value={m}>{m}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <label className="text-xs font-black text-slate-700 uppercase tracking-wider">2. Arquivo PDF do Bingo</label>
+                                <input
+                                    type="file"
+                                    accept=".pdf"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                            setGlobalBingoPdfFile(file);
+                                            handleExtractGlobalBingo(file);
+                                        }
+                                    }}
+                                    className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer border border-slate-200 rounded-full bg-white p-1 shadow-sm"
+                                />
+                                {isExtractingGlobalBingo && (
+                                    <div className="text-xs text-emerald-600 font-bold flex items-center gap-2 mt-2">
+                                        <svg className="animate-spin h-4 w-4 text-emerald-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        Extraindo OSs...
+                                    </div>
+                                )}
+                            </div>
+
+                            {globalBingoResults.length > 0 && (
+                                <div className="bg-white border border-emerald-200 rounded-xl p-4 shadow-sm">
+                                    <h3 className="font-black text-slate-800 text-sm uppercase mb-3 flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                        Resumo Extraído
+                                    </h3>
+                                    <div className="flex flex-col gap-2">
+                                        {globalBingoResults.map((res, idx) => (
+                                            <div key={idx} className="flex flex-col md:flex-row justify-between items-start md:items-center text-xs font-bold border-b border-slate-100 pb-3 mb-3 last:border-0 last:pb-0 last:mb-0 gap-3">
+                                                <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-start">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{res.bitola}mm</span>
+                                                        <span className="text-slate-400">({res.aco})</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-4 text-slate-600 md:hidden">
+                                                        <span className="w-16 text-right">{res.osList.length} OS(s)</span>
+                                                        <span className="w-20 text-right">{res.peso.toFixed(2)} Kg</span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="flex items-center gap-2 w-full md:w-auto z-20">
+                                                    <div className="bg-slate-50 border border-slate-200 text-slate-500 text-[10px] rounded px-3 py-1.5 font-bold shadow-sm md:w-32 text-center uppercase truncate" title={globalBingoMachine || 'Nenhuma Máquina'}>
+                                                        {globalBingoMachine || 'Selecione acima'}
+                                                    </div>
+                                                    
+                                                    {res.isProgrammed ? (
+                                                        <div className="bg-emerald-50 border border-emerald-200 text-emerald-600 text-[10px] rounded px-3 py-1.5 font-bold shadow-sm md:w-36 text-center">
+                                                            PROGRAMADO {res.programmedDate ? res.programmedDate.split('-').reverse().join('/') : ''}
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => setBingoActiveRowIndex(idx)}
+                                                            disabled={!globalBingoMachine}
+                                                            className={`border text-[10px] rounded px-3 py-1.5 font-bold shadow-sm md:w-36 text-center transition-colors flex items-center justify-center gap-1.5 
+                                                                ${globalBingoMachine ? 'bg-slate-50 border-slate-300 text-slate-700 hover:border-sky-400 hover:text-sky-600 focus:ring-sky-500 cursor-pointer' : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'}`}
+                                                        >
+                                                            {res.date ? (
+                                                                <>
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-sky-500"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                                                    {res.date.split('-').reverse().join('/')}
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                                                    PROGRAMAR
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                <div className="hidden md:flex items-center gap-4 text-slate-600">
+                                                    <span className="w-16 text-right">{res.osList.length} OS(s)</span>
+                                                    <span className="w-20 text-right">{res.peso.toFixed(2)} Kg</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-4 bg-slate-100 border-t border-slate-200 flex justify-end gap-3 shrink-0">
+                            <button
+                                onClick={() => {
+                                    setIsGlobalBingoModalOpen(false);
+                                    setGlobalBingoResults([]);
+                                    setGlobalBingoPdfFile(null);
+                                    setGlobalBingoExtractedOSs([]);
+                                    setBingoActiveRowIndex(null);
+                                }}
+                                className="px-6 py-2 rounded-xl text-xs font-black uppercase text-slate-500 hover:bg-slate-200 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleSaveGlobalBingo}
+                                disabled={globalBingoResults.length === 0 || globalBingoResults.filter(r => !r.isProgrammed).length === 0}
+                                className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-colors shadow-sm flex items-center gap-2
+                                    ${globalBingoResults.filter(r => !r.isProgrammed).length > 0 && !globalBingoResults.filter(r => !r.isProgrammed).some(r => !r.date) && globalBingoMachine
+                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white' 
+                                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                Programar Máquina
+                            </button>
+                        </div>
+                    </div>
+
+                    {bingoActiveRowIndex !== null && globalBingoMachine && (
+                        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+                            <div className="bg-slate-50 w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                <div className="p-6 border-b border-slate-200 bg-white flex justify-between items-center">
+                                    <div>
+                                        <h2 className="text-xl font-black text-slate-900 uppercase flex items-center gap-3">
+                                            Selecione o Dia de Produção
+                                            <span className="text-sm font-medium bg-slate-100 text-slate-500 px-2 py-1 rounded-md border border-slate-200">
+                                                {weekOffset === 0 ? '(Semana Atual)' : weekOffset === 1 ? '(Próxima Semana)' : weekOffset === -1 ? '(Semana Passada)' : `(${weekOffset > 0 ? '+' : ''}${weekOffset} Semanas)`}
+                                            </span>
+                                        </h2>
+                                        <p className="text-xs font-bold text-slate-500 uppercase mt-1">Máquina: {globalBingoMachine} • Bitola: {globalBingoResults[bingoActiveRowIndex]?.bitola}mm</p>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
+                                            <button 
+                                                onClick={() => setWeekOffset(w => w - 1)} 
+                                                className="p-1.5 hover:bg-white rounded-md text-slate-500 hover:text-slate-800 transition-colors"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                                            </button>
+                                            <span className="text-xs font-bold text-slate-700 px-2 uppercase tracking-wider">
+                                                Semana
+                                            </span>
+                                            <button 
+                                                onClick={() => setWeekOffset(w => w + 1)} 
+                                                className="p-1.5 hover:bg-white rounded-md text-slate-500 hover:text-slate-800 transition-colors"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                                            </button>
+                                        </div>
+
+                                        <button onClick={() => setBingoActiveRowIndex(null)} className="text-slate-400 hover:text-red-500 bg-slate-100 hover:bg-red-50 rounded-full p-2 ml-4">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="flex-1 overflow-auto p-6">
+                                    <div className="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden flex flex-col">
+                                        <div className="flex border-b border-slate-200 bg-slate-800 text-white shadow-md relative z-20">
+                                            <div className="w-48 shrink-0 p-4 border-r border-slate-700 bg-slate-900/50 flex flex-col justify-center">
+                                                <div className="text-xs font-black tracking-widest text-slate-400 uppercase">Máquina</div>
+                                                <div className="text-lg font-black tracking-wider text-white truncate" title={globalBingoMachine}>{globalBingoMachine}</div>
+                                            </div>
+                                            {getWorkingDays().map(day => (
+                                                <div key={day.date} className="flex-1 min-w-[140px] p-3 text-center border-r border-slate-700/50 last:border-0">
+                                                    <div className="text-[10px] font-black text-sky-400 uppercase tracking-widest">{day.name}</div>
+                                                    <div className="text-xl font-bold mt-0.5">{day.shortDate}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="flex relative z-10 hover:bg-slate-50">
+                                            <div className="w-48 shrink-0 p-4 border-r border-slate-200 bg-white flex items-center justify-center">
+                                                <div className="w-10 h-10 rounded-xl bg-sky-500 flex items-center justify-center text-white mr-3 shrink-0">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h4"/><path d="M14 12h4"/></svg>
+                                                </div>
+                                                <span className="font-black text-slate-700 text-sm">{globalBingoMachine}</span>
+                                            </div>
+                                            {getWorkingDays().map(day => {
+                                                const cellOrders = allProgrammedOrders.filter(po => {
+                                                    const getField = (obj: any, snake: string, camel: string) => obj?.[snake] ?? obj?.[camel];
+                                                    const poMachine = getField(po, 'machine', 'machine');
+                                                    const poCreationDate = getField(po, 'creation_date', 'creationDate');
+                                                    const cdStr = poCreationDate ? String(poCreationDate).split('T')[0] : '';
+                                                    return poMachine === globalBingoMachine && cdStr === day.date;
+                                                });
+                                                return (
+                                                    <div key={day.date} className="flex-1 min-w-[140px] border-r border-slate-100 last:border-0 p-2.5 relative flex flex-col gap-2 min-h-[100px]">
+                                                        {cellOrders.length > 0 && (
+                                                            <div className="relative z-10 flex flex-col gap-1 pointer-events-none">
+                                                                {cellOrders.map(po => {
+                                                                    const getField = (obj: any, snake: string, camel: string) => obj?.[snake] ?? obj?.[camel];
+                                                                    const orderNum = getField(po, 'order_number', 'orderNumber');
+                                                                    const targetBitola = getField(po, 'target_bitola', 'targetBitola');
+                                                                    const c = getOrderColor(orderNum);
+                                                                    return (
+                                                                        <div key={po.id} className={`${c.bg} border ${c.border} rounded px-1.5 py-1 text-[8px] ${c.text} shadow-sm truncate pointer-events-auto`} title={`Nº ${orderNum} (${targetBitola}mm)`}>
+                                                                            <span className="font-black">Nº {orderNum}</span> ({targetBitola}mm)
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                        <button
+                                                            onClick={() => {
+                                                                const newResults = [...globalBingoResults];
+                                                                newResults[bingoActiveRowIndex].date = day.date;
+                                                                setGlobalBingoResults(newResults);
+                                                                setBingoActiveRowIndex(null);
+                                                            }}
+                                                            className="absolute inset-0 z-0 w-full h-full border-[2px] border-dashed border-transparent hover:border-sky-400 hover:bg-sky-50/80 hover:shadow-md text-slate-300 hover:text-sky-500 rounded-xl cursor-pointer flex flex-col items-center justify-center transition-all group/btn"
+                                                        >
+                                                            <div className="opacity-0 group-hover/btn:opacity-100 text-sky-500 bg-sky-100 p-2 rounded-full transform translate-y-2 group-hover/btn:translate-y-0 transition-all">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                                            </div>
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             , document.body)}
 

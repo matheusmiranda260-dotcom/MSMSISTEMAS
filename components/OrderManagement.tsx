@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Page, Customer, CommercialOrder, User, Partner } from '../types';
 import { insertItem, deleteItem, updateItem } from '../services/supabaseService';
-import { supabase } from '../services/supabaseService';
 import { OrderItemsEditor } from './OrderItemsEditor';
 import { OrderPrintView } from './OrderPrintView';
 
