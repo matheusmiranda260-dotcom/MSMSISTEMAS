@@ -1997,11 +1997,14 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                         estimatedHours = po.total_meters / mph;
                                                                     }
                                                                     const c = getOrderColor(po.order_number);
+                                                                    const baseOrderNum = po.order_number ? po.order_number.split(' - ')[0] : '';
+                                                                    const relatedCo = commercialOrders.find(co => co.id === po.related_commercial_order_id);
+                                                                    const clientName = relatedCo ? relatedCo.clientName : '';
 
                                                                     return (
                                                                     <div key={po.id} className={`${c.bg} backdrop-blur border ${c.border} rounded px-1.5 py-1 text-[8px] ${c.text} shadow-sm flex items-center justify-between gap-1 relative group/card overflow-hidden whitespace-nowrap`}>
                                                                         <div className="flex items-center gap-1 min-w-0">
-                                                                            <span className={`font-black text-[9px] ${c.titleText} truncate`}>Nº {po.order_number}</span>
+                                                                            <span className={`font-black text-[9px] ${c.titleText} truncate`}>Nº {baseOrderNum}{clientName ? ` - ${clientName}` : ''}</span>
                                                                             <span className="font-bold opacity-80 shrink-0">({po.target_bitola}mm)</span>
                                                                             <span className="font-bold opacity-80 shrink-0">({po.quantity_os || 0} OS)</span>
                                                                         </div>
@@ -2297,9 +2300,12 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                     const orderNum = getField(po, 'order_number', 'orderNumber');
                                                                     const targetBitola = getField(po, 'target_bitola', 'targetBitola');
                                                                     const c = getOrderColor(orderNum);
+                                                                    const baseOrderNum = orderNum ? orderNum.split(' - ')[0] : '';
+                                                                    const relatedCo = commercialOrders.find(co => co.id === po.related_commercial_order_id);
+                                                                    const clientName = relatedCo ? relatedCo.clientName : '';
                                                                     return (
-                                                                        <div key={po.id} className={`${c.bg} border ${c.border} rounded px-1.5 py-1 text-[8px] ${c.text} shadow-sm truncate pointer-events-auto`} title={`Nº ${orderNum} (${targetBitola}mm)`}>
-                                                                            <span className="font-black">Nº {orderNum}</span> ({targetBitola}mm)
+                                                                        <div key={po.id} className={`${c.bg} border ${c.border} rounded px-1.5 py-1 text-[8px] ${c.text} shadow-sm truncate pointer-events-auto`} title={`Nº ${baseOrderNum}${clientName ? ` - ${clientName}` : ''} (${targetBitola}mm)`}>
+                                                                            <span className="font-black">Nº {baseOrderNum}{clientName ? ` - ${clientName}` : ''}</span> ({targetBitola}mm)
                                                                         </div>
                                                                     );
                                                                 })}
