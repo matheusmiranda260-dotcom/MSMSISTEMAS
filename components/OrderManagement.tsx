@@ -43,6 +43,62 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
     const [searchError, setSearchError] = useState('');
     const [newObservations, setNewObservations] = useState('');
 
+    // Quick Registration (Cadastro Rápido) Modal
+    const [isQuickRegModalOpen, setIsQuickRegModalOpen] = useState(false);
+    const [quickRegClientName, setQuickRegClientName] = useState('');
+    const [quickRegProject, setQuickRegProject] = useState('');
+    const [quickRegRomaneio, setQuickRegRomaneio] = useState('');
+    const [quickRegDelivery, setQuickRegDelivery] = useState('');
+    const [quickRegLocation, setQuickRegLocation] = useState('');
+    const [quickRegError, setQuickRegError] = useState('');
+    const [isSubmittingQuickReg, setIsSubmittingQuickReg] = useState(false);
+
+    const handleQuickRegistration = async () => {
+        if (isSubmittingQuickReg) return;
+        
+        if (!quickRegClientName.trim() || !quickRegRomaneio.trim()) {
+            setQuickRegError('Por favor, preencha o Nome do Cliente e o Número do Romaneio.');
+            return;
+        }
+
+        const newOrder = {
+            orderNumber: quickRegRomaneio.trim(),
+            date: new Date().toISOString().split('T')[0],
+            salesperson: (currentUser?.name || currentUser?.username || 'Cadastro Rápido').toUpperCase(),
+            clientCode: 'N/A',
+            clientName: quickRegClientName.trim(),
+            clientCity: '',
+            price: 0,
+            status: 'Aguardando Engenharia',
+            projectIdent: quickRegProject.trim(),
+            deliveryTime: quickRegDelivery,
+            deliveryLocation: quickRegLocation.trim(),
+            history: [{
+                date: new Date().toISOString(),
+                user: (currentUser?.name || currentUser?.username || 'SISTEMA').toUpperCase(),
+                action: 'Criado via Cadastro Rápido (Engenharia)'
+            }]
+        };
+
+        setIsSubmittingQuickReg(true);
+
+        try {
+            await insertItem<CommercialOrder>('commercial_orders', newOrder);
+            setIsQuickRegModalOpen(false);
+            setQuickRegClientName('');
+            setQuickRegProject('');
+            setQuickRegRomaneio('');
+            setQuickRegDelivery('');
+            setQuickRegLocation('');
+            setQuickRegError('');
+        } catch (error) {
+            console.error("Erro ao criar pedido rápido:", error);
+            setQuickRegError("Erro ao criar pedido. Tente novamente.");
+        } finally {
+            setIsSubmittingQuickReg(false);
+        }
+    };
+
     const handleSearchClient = () => {
         setSearchError('');
         if (!clientSearchTerm.trim()) {
@@ -422,6 +478,13 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
 
                 <div className="flex gap-3">
                     {/* Botões de atalho omitidos para o setor de produção */}
+                    <button
+                        onClick={() => setIsQuickRegModalOpen(true)}
+                        className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition-all"
+                    >
+                        <span>⚡</span>
+                        Cadastro Rápido
+                    </button>
                 </div>
             </div>
 
@@ -519,7 +582,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                                         <td className="p-4">
                                             <div className="flex flex-col">
                                                 <span className="font-extrabold text-slate-950 text-xs uppercase">
-                                                    ({q.clientCode}) {q.clientName}
+                                                    {q.clientCode && q.clientCode !== 'N/A' ? `(${q.clientCode}) ` : ''}{q.clientName}
                                                 </span>
                                                 <span className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">{q.clientCity}</span>
                                                 {q.clientObs && <span className="text-[9px] font-semibold text-sky-600 mt-1 italic">{q.clientObs}</span>}
@@ -585,12 +648,15 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                                                     } else if (e.target.value === 'finish_reading') {
                                                         setOrderToFinishReading(q);
                                                         setIsFinishReadingModalOpen(true);
+                                                    } else if (e.target.value === 'delete') {
+                                                        if (q.id) handleDeleteOrder(q.id);
                                                     }
                                                     e.target.value = '';
                                                 }}
                                             >
                                                 <option value="">Ações...</option>
                                                 <option value="print">🖨️ Imprimir Pedido</option>
+                                                <option value="delete">🗑️ Excluir Pedido</option>
                                                 {q.status?.toLowerCase() === 'aguardando engenharia' && (
                                                     <option value="approve">✅ Autorizar Pedido</option>
                                                 )}
@@ -844,6 +910,109 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                                 }`}
                             >
                                 Salvar Projeto e Finalizar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Quick Registration Modal */}
+            {isQuickRegModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-sky-50/50">
+                            <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                <span className="text-2xl">⚡</span> Cadastro Rápido - Engenharia
+                            </h2>
+                            <button
+                                onClick={() => setIsQuickRegModalOpen(false)}
+                                className="text-slate-400 hover:text-slate-600 transition-colors p-2 hover:bg-slate-100 rounded-full"
+                            >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 space-y-4">
+                            {quickRegError && (
+                                <div className="p-3 bg-red-50 text-red-600 text-sm font-bold rounded-xl border border-red-100">
+                                    {quickRegError}
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="block text-xs font-black text-slate-700 uppercase mb-2">Nome do Cliente</label>
+                                <input
+                                    type="text"
+                                    value={quickRegClientName}
+                                    onChange={(e) => setQuickRegClientName(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-800 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all outline-none"
+                                    placeholder="Digite o nome do cliente"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-black text-slate-700 uppercase mb-2">Para Qual Obra (Projeto)</label>
+                                <input
+                                    type="text"
+                                    value={quickRegProject}
+                                    onChange={(e) => setQuickRegProject(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-800 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all outline-none"
+                                    placeholder="Identificação da obra/projeto"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-black text-slate-700 uppercase mb-2">Número do Romaneio (Ficará no lugar do pedido)</label>
+                                <input
+                                    type="text"
+                                    value={quickRegRomaneio}
+                                    onChange={(e) => setQuickRegRomaneio(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-800 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all outline-none"
+                                    placeholder="Número do romaneio"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-black text-slate-700 uppercase mb-2">Previsão de Entrega</label>
+                                <input
+                                    type="date"
+                                    value={quickRegDelivery}
+                                    onChange={(e) => setQuickRegDelivery(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-800 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all outline-none"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-black text-slate-700 uppercase mb-2">Local de Entrega (Link)</label>
+                                <input
+                                    type="text"
+                                    value={quickRegLocation}
+                                    onChange={(e) => setQuickRegLocation(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-800 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 transition-all outline-none"
+                                    placeholder="Link de localização (ex: Google Maps)"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                            <button
+                                onClick={() => setIsQuickRegModalOpen(false)}
+                                className="px-6 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleQuickRegistration}
+                                disabled={isSubmittingQuickReg}
+                                className={`px-6 py-2.5 rounded-xl font-bold shadow-md transition-all flex items-center gap-2 ${
+                                    isSubmittingQuickReg 
+                                        ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
+                                        : 'bg-sky-600 hover:bg-sky-700 text-white shadow-sky-200'
+                                }`}
+                            >
+                                {isSubmittingQuickReg ? 'Salvando...' : 'Salvar Cadastro'}
                             </button>
                         </div>
                     </div>
