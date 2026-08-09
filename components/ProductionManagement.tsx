@@ -2322,9 +2322,13 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                     const cdStr = poCreationDate ? String(poCreationDate).split('T')[0] : '';
                                                     return poMachine === globalBingoMachine && cdStr === day.date;
                                                 });
+                                                const pendingOrdersForDay = globalBingoResults.filter(res => 
+                                                    !res.isProgrammed && res.date === day.date && (res.machine || globalBingoMachine) === globalBingoMachine
+                                                );
+
                                                 return (
                                                     <div key={day.date} className="flex-1 min-w-[140px] border-r border-slate-100 last:border-0 p-2.5 relative flex flex-col gap-2 min-h-[100px]">
-                                                        {cellOrders.length > 0 && (
+                                                        {(cellOrders.length > 0 || pendingOrdersForDay.length > 0) && (
                                                             <div className="relative z-10 flex flex-col gap-1 pointer-events-none">
                                                                 {cellOrders.map(po => {
                                                                     const getField = (obj: any, snake: string, camel: string) => obj?.[snake] ?? obj?.[camel];
@@ -2340,6 +2344,12 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                         </div>
                                                                     );
                                                                 })}
+                                                                {pendingOrdersForDay.map((res, pIdx) => (
+                                                                    <div key={`pending-${pIdx}`} className="bg-amber-50 border border-amber-300 border-dashed rounded px-1.5 py-1 text-[8px] text-amber-700 shadow-sm truncate pointer-events-auto flex justify-between gap-1" title={`Pendente Bingo - ${res.bitola}mm (${res.peso.toFixed(2)} Kg)`}>
+                                                                        <span className="truncate"><span className="font-black">Pendente</span> ({res.bitola}mm)</span>
+                                                                        <span className="font-bold opacity-75 shrink-0">{res.peso.toFixed(0)}Kg</span>
+                                                                    </div>
+                                                                ))}
                                                             </div>
                                                         )}
                                                         <button
