@@ -2166,7 +2166,13 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                         Resumo Extraído
                                     </h3>
                                     <div className="flex flex-col gap-2">
-                                        {globalBingoResults.map((res, idx) => (
+                                        {globalBingoResults.map((res, idx) => {
+                                            const selectedMachineConfig = activeBrandingPartner?.machines?.find(m => m.name === (res.machine || globalBingoMachine));
+                                            const capacity = selectedMachineConfig?.capacityKgPerHour || 0;
+                                            const timeInHours = capacity > 0 ? res.peso / capacity : null;
+                                            const formattedTime = timeInHours !== null ? `${Math.floor(timeInHours)}h${Math.round((timeInHours - Math.floor(timeInHours)) * 60).toString().padStart(2, '0')}m` : null;
+                                            
+                                            return (
                                             <div key={idx} className="flex flex-col md:flex-row justify-between items-start md:items-center text-xs font-bold border-b border-slate-100 pb-3 mb-3 last:border-0 last:pb-0 last:mb-0 gap-3">
                                                 <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-start">
                                                     <div className="flex items-center gap-2">
@@ -2176,6 +2182,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                     <div className="flex items-center gap-4 text-slate-600 md:hidden">
                                                         <span className="w-16 text-right">{res.osList.length} OS(s)</span>
                                                         <span className="w-20 text-right">{res.peso.toFixed(2)} Kg</span>
+                                                        {formattedTime && <span className="w-16 text-right text-emerald-600" title="Tempo estimado na máquina">{formattedTime}</span>}
                                                     </div>
                                                 </div>
                                                 
@@ -2213,9 +2220,10 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                 <div className="hidden md:flex items-center gap-4 text-slate-600">
                                                     <span className="w-16 text-right">{res.osList.length} OS(s)</span>
                                                     <span className="w-20 text-right">{res.peso.toFixed(2)} Kg</span>
+                                                    {formattedTime && <span className="w-16 text-right text-emerald-600" title="Tempo estimado na máquina">{formattedTime}</span>}
                                                 </div>
                                             </div>
-                                        ))}
+                                        )})}
                                     </div>
                                 </div>
                             )}
