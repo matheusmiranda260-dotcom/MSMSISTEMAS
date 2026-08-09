@@ -2179,10 +2179,10 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                         <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{res.bitola}mm</span>
                                                         <span className="text-slate-400">({res.aco})</span>
                                                     </div>
-                                                    <div className="flex items-center gap-4 text-slate-600 md:hidden">
+                                                    <div className="flex items-center gap-2 text-slate-600 md:hidden">
                                                         <span className="w-16 text-right">{res.osList.length} OS(s)</span>
                                                         <span className="w-20 text-right">{res.peso.toFixed(2)} Kg</span>
-                                                        {formattedTime && <span className="w-16 text-right text-emerald-600" title="Tempo estimado na máquina">{formattedTime}</span>}
+                                                        {formattedTime && <span className="w-12 text-right text-emerald-600" title="Tempo estimado na máquina">{formattedTime}</span>}
                                                     </div>
                                                 </div>
                                                 
@@ -2217,10 +2217,10 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                     )}
                                                 </div>
 
-                                                <div className="hidden md:flex items-center gap-4 text-slate-600">
+                                                <div className="hidden md:flex items-center gap-2 text-slate-600">
                                                     <span className="w-16 text-right">{res.osList.length} OS(s)</span>
                                                     <span className="w-20 text-right">{res.peso.toFixed(2)} Kg</span>
-                                                    {formattedTime && <span className="w-16 text-right text-emerald-600" title="Tempo estimado na máquina">{formattedTime}</span>}
+                                                    {formattedTime && <span className="w-12 text-right text-emerald-600" title="Tempo estimado na máquina">{formattedTime}</span>}
                                                 </div>
                                             </div>
                                         )})}
