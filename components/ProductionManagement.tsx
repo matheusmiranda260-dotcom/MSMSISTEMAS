@@ -607,13 +607,30 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                 fullText += pageText + ' ';
             }
             
-            const regexOS = /OS\s*(?:Nº|:)?\s*(\d+(?:-\d+)?)/gi;
             const foundOSs = new Set<string>();
             let match;
+
+            // 1. Extração robusta do padrão específico de Bingo: "Relação de OS's Bitola: 12,50 mm CA50 1 7-1 7-2 BITOLA"
+            const regexRelacao = /Relação de OS's Bitola:\s*([\s\S]*?)(?=Relação de OS's Bitola:|BITOLA|$)/gi;
+            while ((match = regexRelacao.exec(fullText)) !== null) {
+                const secao = match[1]; 
+                const textWithoutBitola = secao.replace(/[\d,.]+\s*mm(?:\s*CA\d{2})?/i, '');
+                
+                const tokens = textWithoutBitola.trim().split(/\s+/);
+                for (const token of tokens) {
+                    if (/^\d+(?:-\d+)?$/.test(token)) {
+                        foundOSs.add(token);
+                    }
+                }
+            }
+
+            // 2. Tentar extrair de padrões com "OS: X" ou "OS Nº X"
+            const regexOS = /OS\s*(?:Nº|:)?\s*(\d+(?:-\d+)?)/gi;
             while ((match = regexOS.exec(fullText)) !== null) {
                 foundOSs.add(match[1]);
             }
 
+            // 3. Tentar extrair de tabelas conhecidas
             const regexTabela = /(\d+)\s+Peso \(kg\)\s+OS\s+Ø \(mm\)\s+Aço\s+Qtde\s+Compr\.\s*\(cm\)\s+(\d+(?:,\d+)?)\s+CA\d+\s+(\d+)\s+(\d+(?:,\d+)?)\s+(\d+(?:-\d+)?)\s+.*?\s+([A-Za-z0-9]+)\s+Pos\./gi;
             while ((match = regexTabela.exec(fullText)) !== null) {
                 foundOSs.add(match[5]);
@@ -640,30 +657,6 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                 });
             }
 
-            // CRUCIAL: A pedido do usuário, procurar as OS e bitolas que existem no "detalhado" (projectData) dentro do texto do PDF Bingo
-            const data = orderToView.projectData as any[];
-            data.forEach(item => {
-                if (item.os) {
-                    const osStr = item.os.toString().trim();
-                    const osRegex = new RegExp(`\\b${osStr}\\b`);
-                    
-                    // Se a OS exata for encontrada como palavra no PDF, precisamos checar se a bitola dela também está no PDF 
-                    // para evitar falsos positivos com números pequenos (ex: uma OS nº "2" cruzar com uma quantidade "2")
-                    if (osRegex.test(fullText)) {
-                        const mm = item.mm || item.bitola || item.diametro || '';
-                        const mmStr = mm.toString().replace(',', '.').replace(/[^\d.]/g, ''); // extrai o número da bitola (ex: "16" ou "5")
-                        
-                        // Busca menção a essa bitola no PDF (como "16,00 mm" ou "16 mm" ou apenas "16")
-                        // Se o PDF do bingo não tem a bitola que a OS pertence, então provavelmente o número encontrado não é essa OS
-                        const bitolaRegex = mmStr ? new RegExp(`\\b${mmStr}\\b`) : null;
-                        
-                        if (!bitolaRegex || bitolaRegex.test(fullText)) {
-                            foundOSs.add(osStr);
-                        }
-                    }
-                }
-            });
-
             if (foundOSs.size === 0) {
                 alert('Aviso: Nenhuma OS reconhecida no PDF.');
                 setGlobalBingoResults([]);
@@ -681,6 +674,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                 aco: string 
             }> = {};
 
+            const data = orderToView.projectData as any[];
             data.forEach(item => {
                 if (item.os && extractedArr.includes(item.os.toString())) {
                     const mm = item.mm || item.bitola || item.diametro || 'Indefinido';
