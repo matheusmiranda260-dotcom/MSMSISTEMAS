@@ -607,6 +607,18 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                 fullText += pageText + ' ';
             }
             
+            // Validar o número do pedido no PDF
+            const orderNumberStr = String(orderToView.orderNumber).trim();
+            const regexPedido = /PEDIDO[\s:]*([a-zA-Z0-9_-]+)/i;
+            const matchPedido = fullText.match(regexPedido);
+            
+            if (matchPedido && matchPedido[1].toLowerCase() !== orderNumberStr.toLowerCase()) {
+                alert(`Erro: O Bingo selecionado pertence ao Pedido ${matchPedido[1]}, mas o projeto atual é o Pedido ${orderNumberStr}. Ação cancelada para evitar programação incorreta.`);
+                setGlobalBingoResults([]);
+                setIsExtractingGlobalBingo(false);
+                return;
+            }
+
             const foundOSs = new Set<string>();
             let match;
 
@@ -733,7 +745,8 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                     machine: globalBingoMachine,
                     date: '',
                     isProgrammed,
-                    programmedDate
+                    programmedDate,
+                    aco: group.aco
                 };
             });
 
