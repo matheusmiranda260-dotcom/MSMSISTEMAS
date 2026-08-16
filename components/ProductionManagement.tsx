@@ -1499,9 +1499,9 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
             )}
             {/* View Project Modal */}
             {isViewProjectModalOpen && orderToView && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
-                        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4 print-modal-container">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden print-modal-content">
+                        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 no-print">
                             <div className="flex items-center gap-6">
                                 <div>
                                     <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">
@@ -1526,15 +1526,28 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                     </button>
                                 </div>
                             </div>
-                            <button 
-                                onClick={() => setIsViewProjectModalOpen(false)}
-                                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                            </button>
+                            <div className="flex items-center gap-4 no-print">
+                                <button
+                                    onClick={() => window.print()}
+                                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors flex items-center justify-center"
+                                    title="Imprimir"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                    </svg>
+                                </button>
+                                <button 
+                                    onClick={() => setIsViewProjectModalOpen(false)}
+                                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                         
-                        <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
+                        <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50 print:overflow-visible print:h-auto print:bg-white print:block">
                             {(() => {
                                 try {
                                     const data = orderToView.projectData;
