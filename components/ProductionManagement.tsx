@@ -1863,8 +1863,25 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                             }
                                                                         }
                                                                         
+                                                                        let foundConf = null;
                                                                         if (lUsed !== '-' && conferences) {
-                                                                            const foundConf = conferences.find(c => c.lots?.some((l: any) => String(l.internalLot) === String(lUsed) || String(l.supplierLot) === String(lUsed)));
+                                                                            for (const c of conferences) {
+                                                                                let cLots = c.lots;
+                                                                                if (typeof cLots === 'string') {
+                                                                                    try { cLots = JSON.parse(cLots); } catch(e) { cLots = []; }
+                                                                                }
+                                                                                if (Array.isArray(cLots)) {
+                                                                                    const match = cLots.some((l: any) => 
+                                                                                        String(l.internalLot).trim().toLowerCase() === String(lUsed).trim().toLowerCase() ||
+                                                                                        String(l.supplierLot).trim().toLowerCase() === String(lUsed).trim().toLowerCase() ||
+                                                                                        String(l.internalLot).replace(/^0+/, '') === String(lUsed).replace(/^0+/, '')
+                                                                                    );
+                                                                                    if (match) {
+                                                                                        foundConf = c;
+                                                                                        break;
+                                                                                    }
+                                                                                }
+                                                                            }
                                                                             if (foundConf) {
                                                                                 confNum = foundConf.conferenceNumber || '-';
                                                                                 nfNum = foundConf.nfe || foundConf.invoiceNumber || '-';
