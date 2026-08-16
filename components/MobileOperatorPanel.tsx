@@ -1042,9 +1042,14 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
 
             const existingStart = currentProgress[cutKey]?.start_time || currentProgress[cutKey]?.startTime || endTime;
             
+            const usedLotsArr = [];
+            if (portaRolo1 && activeFeed1) usedLotsArr.push(portaRolo1);
+            if (portaRolo2 && activeFeed2) usedLotsArr.push(portaRolo2);
+            const lotUsedStr = usedLotsArr.join(', ') || '-';
+
             const updatedProgress = {
                 ...currentProgress,
-                [cutKey]: { status: 'completed', start_time: existingStart, end_time: endTime, sub_os_key: strSubKey }
+                [cutKey]: { status: 'completed', start_time: existingStart, end_time: endTime, sub_os_key: strSubKey, lot_used: lotUsedStr }
             };
 
             // OPTIMISTIC UPDATE
