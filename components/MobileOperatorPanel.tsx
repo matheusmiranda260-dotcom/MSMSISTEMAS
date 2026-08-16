@@ -351,6 +351,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     const [availableLots, setAvailableLots] = useState<any[]>([]);
     const [isLoadingLots, setIsLoadingLots] = useState(false);
     const [isLoadingMaterials, setIsLoadingMaterials] = useState(false);
+    const [lotSearchQuery, setLotSearchQuery] = useState('');
     
     // As opções agora são puxadas dinamicamente do estoque (ex: ROLO - 12.50 mm)
     const [availableMaterialOptions, setAvailableMaterialOptions] = useState<string[]>([]);
@@ -396,6 +397,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
             setSelectedPortaRolo(1);
             setSelectedBitola('');
             setAvailableLots([]);
+            setLotSearchQuery('');
             setIsAbastecimentoModalOpen(true);
             fetchAvailableMaterialOptions();
             return;
@@ -2076,6 +2078,21 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                         </button>
                                         
                                         <h4 className="font-black text-slate-700 uppercase">Lotes de {selectedBitola}</h4>
+
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <svg className="h-5 w-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                                                </svg>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="Buscar por número do lote..."
+                                                value={lotSearchQuery}
+                                                onChange={(e) => setLotSearchQuery(e.target.value)}
+                                                className="w-full pl-10 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-slate-700 bg-white"
+                                            />
+                                        </div>
                                         
                                         {isLoadingLots ? (
                                             <div className="flex justify-center p-8">
@@ -2087,7 +2104,12 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                             </div>
                                         ) : (
                                             <div className="flex flex-col gap-3">
-                                                {availableLots.map(lot => (
+                                                {availableLots.filter(lot => {
+                                                    if (!lotSearchQuery) return true;
+                                                    const searchLower = lotSearchQuery.toLowerCase();
+                                                    const lotId = String(lot.internalLot || lot.supplierLot || lot.id || '').toLowerCase();
+                                                    return lotId.includes(searchLower);
+                                                }).map(lot => (
                                                     <div key={lot.id} className="bg-white border-2 border-slate-200 rounded-2xl p-4 flex justify-between items-center hover:border-indigo-300 hover:shadow-md transition-all">
                                                         <div>
                                                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{lot.supplier || 'Fornecedor Desconhecido'}</p>
@@ -2105,6 +2127,16 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                                         </button>
                                                     </div>
                                                 ))}
+                                                {availableLots.filter(lot => {
+                                                    if (!lotSearchQuery) return true;
+                                                    const searchLower = lotSearchQuery.toLowerCase();
+                                                    const lotId = String(lot.internalLot || lot.supplierLot || lot.id || '').toLowerCase();
+                                                    return lotId.includes(searchLower);
+                                                }).length === 0 && (
+                                                    <div className="bg-slate-50 border-2 border-dashed border-slate-200 p-8 text-center rounded-2xl">
+                                                        <p className="text-slate-500 font-bold uppercase tracking-wider">Nenhum lote encontrado para "{lotSearchQuery}"</p>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
