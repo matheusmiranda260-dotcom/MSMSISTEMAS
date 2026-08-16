@@ -181,7 +181,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
             try {
                 const { data, error } = await supabase
                     .from('production_orders')
-                    .select('id, target_bitola, creation_date, machine, summary, quantity_os')
+                    .select('id, target_bitola, creation_date, machine, summary, quantity_os, sub_items_progress, start_time, end_time')
                     .eq('related_commercial_order_id', orderToView.id);
                 if (data && !error) {
                     setProgrammedOrders(data);
@@ -1817,25 +1817,87 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                         <th className="p-3 text-xs font-bold text-slate-500 uppercase">POS</th>
                                                                         <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">QTD</th>
                                                                         <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Comprimento</th>
+                                                                        <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Máquina</th>
+                                                                        <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Lote Usado</th>
+                                                                        <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Início</th>
+                                                                        <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Fim</th>
                                                                         <th className="p-3 text-xs font-bold text-slate-500 uppercase text-right">Peso</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
-                                                                    {items.map((item, idx) => (
-                                                                        <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/50">
-                                                                            <td className="p-3 text-sm font-medium text-slate-700">{item.os || '-'}</td>
-                                                                            <td className="p-3 text-sm font-bold text-slate-900">{item.pos || '-'}</td>
-                                                                            <td className="p-3 text-sm text-center font-medium text-slate-600">{item.qunti || item.quantidade || item.qtd || '-'}</td>
-                                                                            <td className="p-3 text-sm text-center font-medium text-slate-600">{item.comprimento || '-'}</td>
-                                                                            <td className="p-3 text-sm text-right font-bold text-slate-700">{parseFloat(item.peso?.toString().replace(',','.') || '0').toFixed(2)} kg</td>
-                                                                        </tr>
-                                                                    ))}
+                                                                    {items.map((item, idx) => {
+                                                                        const subOsKey = String(item.os).trim();
+                                                                        const relatedPos = programmedOrders.filter(po => (po.target_bitola === mm || po.targetBitola === mm));
+                                                                        
+                                                                        let mScheduled = '-';
+                                                                        let lUsed = '-';
+                                                                        let dtStart = '-';
+                                                                        let dtEnd = '-';
+                                                                        
+                                                                        for (const po of relatedPos) {
+                                                                            if (!po.sub_items_progress) continue;
+                                                                            let progData = po.sub_items_progress;
+                                                                            if (typeof progData === 'string') {
+                                                                                try { progData = JSON.parse(progData); } catch(e) {}
+                                                                            }
+                                                                            const cutKey = Object.keys(progData).find(k => {
+                                                                                let clean = k.replace('sub_', '').split('_')[0];
+                                                                                const v = progData[k]?.subOsKey || progData[k]?.sub_os_key;
+                                                                                if (v) clean = String(v).trim();
+                                                                                return clean === subOsKey;
+                                                                            });
+                                                                        
+                                                                            if (cutKey) {
+                                                                                mScheduled = po.machine || '-';
+                                                                                const prog = progData[cutKey];
+                                                                                
+                                                                                const startVal = prog.start_time || prog.startTime;
+                                                                                if (startVal) dtStart = new Date(startVal).toLocaleString('pt-BR');
+                                                                                
+                                                                                const endVal = prog.end_time || prog.endTime;
+                                                                                if (endVal) dtEnd = new Date(endVal).toLocaleString('pt-BR');
+                                                                                
+                                                                                const usedLotRaw = prog.lot_used || prog.lotUsed || prog.used_lot || prog.lot || '-';
+                                                                                lUsed = typeof usedLotRaw === 'object' && usedLotRaw !== null ? (usedLotRaw.internalLot || usedLotRaw.supplierLot || JSON.stringify(usedLotRaw)) : usedLotRaw;
+                                                                                break;
+                                                                            }
+                                                                        }
+                                                                        
+                                                                        if (mScheduled === '-') {
+                                                                            if (relatedPos.length > 0) {
+                                                                                mScheduled = Array.from(new Set(relatedPos.map(p => p.machine).filter(Boolean))).join(', ') || 'AGUARDANDO PROGRAMAÇÃO';
+                                                                            } else {
+                                                                                mScheduled = 'AGUARDANDO PROGRAMAÇÃO';
+                                                                            }
+                                                                        }
+
+                                                                        return (
+                                                                            <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/50">
+                                                                                <td className="p-3 text-sm font-medium text-slate-700">{item.os || '-'}</td>
+                                                                                <td className="p-3 text-sm font-bold text-slate-900">{item.pos || '-'}</td>
+                                                                                <td className="p-3 text-sm text-center font-medium text-slate-600">{item.qunti || item.quantidade || item.qtd || '-'}</td>
+                                                                                <td className="p-3 text-sm text-center font-medium text-slate-600">{item.comprimento || '-'}</td>
+                                                                                <td className="p-3 text-xs text-center font-bold uppercase">
+                                                                                    {mScheduled === 'AGUARDANDO PROGRAMAÇÃO' ? (
+                                                                                        <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] whitespace-nowrap">Aguardando Prog.</span>
+                                                                                    ) : (
+                                                                                        <span className="text-slate-500">{mScheduled}</span>
+                                                                                    )}
+                                                                                </td>
+                                                                                <td className="p-3 text-xs text-center font-bold text-slate-500 uppercase">{lUsed}</td>
+                                                                                <td className="p-3 text-xs text-center font-medium text-slate-500">{dtStart}</td>
+                                                                                <td className="p-3 text-xs text-center font-medium text-slate-500">{dtEnd}</td>
+                                                                                <td className="p-3 text-sm text-right font-bold text-slate-700">{parseFloat(item.peso?.toString().replace(',','.') || '0').toFixed(2)} kg</td>
+                                                                            </tr>
+                                                                        );
+                                                                    })}
                                                                 </tbody>
                                                                 <tfoot className="bg-slate-50/80">
                                                                     <tr>
                                                                         <td colSpan={2} className="p-3 text-xs font-bold text-slate-500 uppercase text-right">Totais desta bitola:</td>
                                                                         <td className="p-3 text-sm text-center font-black text-slate-800">{items.reduce((acc, curr) => acc + (parseInt(curr.qunti?.toString() || curr.quantidade?.toString() || curr.qtd?.toString()) || 0), 0)} un</td>
                                                                         <td className="p-3 text-sm text-center font-black text-slate-800">{totalMetros.toFixed(2)} cm</td>
+                                                                        <td colSpan={4}></td>
                                                                         <td className="p-3 text-sm text-right font-black text-sky-600">{totalPeso.toFixed(2)} kg</td>
                                                                     </tr>
                                                                 </tfoot>
