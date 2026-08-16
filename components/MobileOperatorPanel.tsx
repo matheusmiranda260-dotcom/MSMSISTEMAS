@@ -173,7 +173,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
     };
 
     useEffect(() => {
-        if (allProgrammedOrders && allProgrammedOrders.length > 0) {
+        if (allProgrammedOrders) {
             setLocalOrders(allProgrammedOrders.map(p => ({
                 ...p,
                 subItemsProgress: (p as any).sub_items_progress || p.subItemsProgress,
@@ -192,7 +192,7 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                     .select('*')
                     .eq('machine', selectedMachine)
                     .in('status', ['pending', 'in_progress', 'producing', 'completed']);
-                if (pos && pos.length > 0) {
+                if (pos) {
                     setLocalOrders(pos.map(p => ({
                         ...p,
                         subItemsProgress: p.sub_items_progress || (p as any).subItemsProgress,
