@@ -1547,7 +1547,16 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                             </div>
                         </div>
                         
-                        <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50 print:overflow-visible print:h-auto print:bg-white print:block">
+                        <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50 print:overflow-visible print:h-auto print:bg-white print:block print:p-0">
+                            {/* PRINT ONLY HEADER */}
+                            <div className="hidden print:block mb-8 border-b border-slate-200 pb-4">
+                                <h1 className="text-2xl font-black text-slate-800 uppercase mb-2">Relatório de Rastreabilidade</h1>
+                                <div className="flex gap-8">
+                                    <p className="text-sm text-slate-600"><span className="font-bold">Pedido:</span> {orderToView.orderNumber}</p>
+                                    <p className="text-sm text-slate-600"><span className="font-bold">Cliente:</span> {orderToView.clientName}</p>
+                                </div>
+                            </div>
+
                             {(() => {
                                 try {
                                     const data = orderToView.projectData;
