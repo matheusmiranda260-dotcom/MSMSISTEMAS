@@ -118,9 +118,10 @@ interface OrderManagementProps {
     activeBrandingPartner?: Partner | null;
     users?: User[];
     productionOrders?: any[]; // Realtime orders from App.tsx
+    conferences?: any[];
 }
 
-export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, customers, commercialOrders, currentUser, activeBrandingPartner, users, productionOrders }) => {
+export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, customers, commercialOrders, currentUser, activeBrandingPartner, users, productionOrders, conferences }) => {
     const [search, setSearch] = useState('');
     const [orderBy, setOrderBy] = useState<'id' | 'clientCode'>('id');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -1803,6 +1804,9 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                         <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Comprimento</th>
                                                                         <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Máquina</th>
                                                                         <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Lote Usado</th>
+                                                                        <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Nº Conf</th>
+                                                                        <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">NF</th>
+                                                                        <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Fornecedor</th>
                                                                         <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Início</th>
                                                                         <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Fim</th>
                                                                         <th className="p-3 text-xs font-bold text-slate-500 uppercase text-right">Peso</th>
@@ -1817,6 +1821,10 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                         let lUsed = '-';
                                                                         let dtStart = '-';
                                                                         let dtEnd = '-';
+                                                                        
+                                                                        let confNum = '-';
+                                                                        let nfNum = '-';
+                                                                        let fornecedor = '-';
                                                                         
                                                                         for (const po of relatedPos) {
                                                                             if (!po.sub_items_progress) continue;
@@ -1854,6 +1862,15 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                                 mScheduled = 'AGUARDANDO PROGRAMAÇÃO';
                                                                             }
                                                                         }
+                                                                        
+                                                                        if (lUsed !== '-' && conferences) {
+                                                                            const foundConf = conferences.find(c => c.lots?.some((l: any) => String(l.internalLot) === String(lUsed) || String(l.supplierLot) === String(lUsed)));
+                                                                            if (foundConf) {
+                                                                                confNum = foundConf.conferenceNumber || '-';
+                                                                                nfNum = foundConf.nfe || foundConf.invoiceNumber || '-';
+                                                                                fornecedor = foundConf.supplier || '-';
+                                                                            }
+                                                                        }
 
                                                                         return (
                                                                             <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/50">
@@ -1869,6 +1886,9 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                                     )}
                                                                                 </td>
                                                                                 <td className="p-3 text-xs text-center font-bold text-slate-500 uppercase">{lUsed}</td>
+                                                                                <td className="p-3 text-xs text-center font-medium text-slate-500">{confNum}</td>
+                                                                                <td className="p-3 text-xs text-center font-medium text-slate-500">{nfNum}</td>
+                                                                                <td className="p-3 text-xs text-center font-medium text-slate-500 truncate max-w-[120px]" title={fornecedor}>{fornecedor}</td>
                                                                                 <td className="p-3 text-xs text-center font-medium text-slate-500">{dtStart}</td>
                                                                                 <td className="p-3 text-xs text-center font-medium text-slate-500">{dtEnd}</td>
                                                                                 <td className="p-3 text-sm text-right font-bold text-slate-700">{parseFloat(item.peso?.toString().replace(',','.') || '0').toFixed(2)} kg</td>
@@ -1881,7 +1901,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                         <td colSpan={2} className="p-3 text-xs font-bold text-slate-500 uppercase text-right">Totais desta bitola:</td>
                                                                         <td className="p-3 text-sm text-center font-black text-slate-800">{items.reduce((acc, curr) => acc + (parseInt(curr.qunti?.toString() || curr.quantidade?.toString() || curr.qtd?.toString()) || 0), 0)} un</td>
                                                                         <td className="p-3 text-sm text-center font-black text-slate-800">{totalMetros.toFixed(2)} cm</td>
-                                                                        <td colSpan={4}></td>
+                                                                        <td colSpan={7}></td>
                                                                         <td className="p-3 text-sm text-right font-black text-sky-600">{totalPeso.toFixed(2)} kg</td>
                                                                     </tr>
                                                                 </tfoot>
