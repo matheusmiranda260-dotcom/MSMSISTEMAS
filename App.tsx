@@ -2813,7 +2813,7 @@ const App: React.FC = () => {
 
 
             case 'orderManagement': return <OrderManagement setPage={setPage} customers={customers} commercialOrders={commercialOrders} currentUser={currentUser} activeBrandingPartner={activeBrandingPartner} />;
-            case 'productionManagement': return <ProductionManagement setPage={setPage} customers={customers} commercialOrders={commercialOrders} currentUser={currentUser} activeBrandingPartner={activeBrandingPartner} users={users} productionOrders={productionOrders} conferences={conferences} />;
+            case 'productionManagement': return <ProductionManagement setPage={setPage} customers={customers} commercialOrders={commercialOrders} currentUser={currentUser} activeBrandingPartner={activeBrandingPartner} users={users} productionOrders={productionOrders} conferences={conferences} stock={stock} />;
             case 'productionOrder': return <ProductionOrder setPage={setPage} stock={stock} productionOrders={productionOrders} addProductionOrder={addProductionOrder} showNotification={showNotification} updateProductionOrder={updateProductionOrder} deleteProductionOrder={deleteProductionOrder} gauges={gauges} currentUser={currentUser} />;
 
             case 'blank': return (

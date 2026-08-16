@@ -119,9 +119,10 @@ interface OrderManagementProps {
     users?: User[];
     productionOrders?: any[]; // Realtime orders from App.tsx
     conferences?: any[];
+    stock?: any[]; // For lot details
 }
 
-export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, customers, commercialOrders, currentUser, activeBrandingPartner, users, productionOrders, conferences }) => {
+export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, customers, commercialOrders, currentUser, activeBrandingPartner, users, productionOrders, conferences, stock }) => {
     const [search, setSearch] = useState('');
     const [orderBy, setOrderBy] = useState<'id' | 'clientCode'>('id');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -1864,27 +1865,15 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                         }
                                                                         
                                                                         let foundConf = null;
-                                                                        if (lUsed !== '-' && conferences) {
-                                                                            for (const c of conferences) {
-                                                                                let cLots = c.lots;
-                                                                                if (typeof cLots === 'string') {
-                                                                                    try { cLots = JSON.parse(cLots); } catch(e) { cLots = []; }
-                                                                                }
-                                                                                if (Array.isArray(cLots)) {
-                                                                                    const match = cLots.some((l: any) => 
-                                                                                        String(l.internalLot).trim().toLowerCase() === String(lUsed).trim().toLowerCase() ||
-                                                                                        String(l.supplierLot).trim().toLowerCase() === String(lUsed).trim().toLowerCase() ||
-                                                                                        String(l.internalLot).replace(/^0+/, '') === String(lUsed).replace(/^0+/, '')
-                                                                                    );
-                                                                                    if (match) {
-                                                                                        foundConf = c;
-                                                                                        break;
-                                                                                    }
-                                                                                }
-                                                                            }
+                                                                        if (lUsed !== '-' && stock) {
+                                                                            foundConf = stock.find((s: any) => 
+                                                                                String(s.internalLot || s.internal_lot).trim().toLowerCase() === String(lUsed).trim().toLowerCase() ||
+                                                                                String(s.supplierLot || s.supplier_lot).trim().toLowerCase() === String(lUsed).trim().toLowerCase() ||
+                                                                                String(s.internalLot || s.internal_lot).replace(/^0+/, '') === String(lUsed).replace(/^0+/, '')
+                                                                            );
                                                                             if (foundConf) {
-                                                                                confNum = foundConf.conferenceNumber || '-';
-                                                                                nfNum = foundConf.nfe || foundConf.invoiceNumber || '-';
+                                                                                confNum = foundConf.conferenceNumber || foundConf.conference_number || '-';
+                                                                                nfNum = foundConf.nfe || foundConf.invoiceNumber || foundConf.invoice_number || '-';
                                                                                 fornecedor = foundConf.supplier || '-';
                                                                             }
                                                                         }
