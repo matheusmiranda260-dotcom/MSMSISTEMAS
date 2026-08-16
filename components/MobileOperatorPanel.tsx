@@ -360,9 +360,28 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
         setIsLoadingMaterials(true);
         try {
             const machineConfig = activeBrandingPartner?.machines?.find((m: any) => m.name === selectedMachine);
-            let allowedBitolas: number[] = [];
-            if (machineConfig?.gaugeRange) {
-                allowedBitolas = machineConfig.gaugeRange.split(/[-;|\/]+/).map((s: string) => parseFloat(s.replace(',', '.').replace(/[^\d.]/g, ''))).filter((n: number) => !isNaN(n));
+            let minGauge = 0;
+            let maxGauge = 999;
+            let specificGauges: number[] = [];
+
+            if (machineConfig?.gaugeRange || machineConfig?.gauge_range) {
+                const gr = String(machineConfig.gaugeRange || machineConfig.gauge_range).toUpperCase();
+                const numbers = (gr.match(/\d+(?:[.,]\d+)?/g) || []).map(n => parseFloat(n.replace(',', '.')));
+                
+                if (gr.includes('À') || gr.includes('A') || gr.includes('ATE') || gr.includes('ATÉ') || gr.includes('-')) {
+                    if (numbers.length >= 2) {
+                        minGauge = Math.min(...numbers);
+                        maxGauge = Math.max(...numbers);
+                    } else if (numbers.length === 1) {
+                        specificGauges = numbers;
+                    }
+                } else {
+                    specificGauges = numbers;
+                }
+            } else {
+                // Se não tem configuração de bitola, permite tudo
+                minGauge = 0;
+                maxGauge = 999;
             }
 
             // Utilizamos o stock já carregado na memória pelo App.tsx
@@ -373,10 +392,13 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 if (!s || s === ' - ' || s === 'undefined - undefined') return false;
                 if (!s.toUpperCase().includes('ROLO')) return false;
 
-                if (allowedBitolas.length > 0) {
-                    const sValue = parseFloat(s.split('-')[1]?.replace(',', '.').replace(/[^\d.]/g, '') || '0');
-                    const match = allowedBitolas.some(abValue => abValue === sValue);
-                    if (!match) return false;
+                const sValueStr = s.split('-')[1]?.replace(',', '.').replace(/[^\d.]/g, '') || '0';
+                const sValue = parseFloat(sValueStr);
+
+                if (specificGauges.length > 0) {
+                    if (!specificGauges.includes(sValue)) return false;
+                } else {
+                    if (sValue < minGauge || sValue > maxGauge) return false;
                 }
 
                 return true;
