@@ -133,14 +133,14 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
         ? localProgrammedOrders 
         : (productionOrders || []);
         
-    const programmedOrders = orderToView 
-        ? allProgrammedOrders.filter(po => po.related_commercial_order_id === orderToView.id)
-        : [];
-    
     // View Project Modal
     const [isViewProjectModalOpen, setIsViewProjectModalOpen] = useState(false);
     const [orderToView, setOrderToView] = useState<CommercialOrder | null>(null);
     const [viewMode, setViewMode] = useState<'detalhado' | 'resumo'>('detalhado');
+
+    const programmedOrders = orderToView 
+        ? allProgrammedOrders.filter(po => po.related_commercial_order_id === orderToView.id)
+        : [];
 
     // Modal Programar Maquina variables (moved to top for useEffect dependencies)
     const [isProgramModalOpen, setIsProgramModalOpen] = useState(false);
