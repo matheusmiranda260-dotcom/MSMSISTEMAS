@@ -226,6 +226,11 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ setPage, custo
                             }
                         }
                     }
+
+                    // Remove all related production orders (to avoid orphaned OSs on machines)
+                    await supabase.from('production_orders')
+                        .delete()
+                        .or(`related_commercial_order_id.eq.${id},relatedCommercialOrderId.eq.${id}`);
                 }
 
                 await deleteItem('commercial_orders', id);
