@@ -126,13 +126,16 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingOrder, setEditingOrder] = useState<CommercialOrder | null>(null);
     const [printingOrder, setPrintingOrder] = useState<CommercialOrder | null>(null);
-    const [programmedOrders, setProgrammedOrders] = useState<any[]>([]);
     // Use realtime orders from App.tsx if available, fall back to local polling
     const [localProgrammedOrders, setLocalProgrammedOrders] = useState<any[]>([]);
     // localProgrammedOrders is always fresh (polled every 3s), use it as primary
     const allProgrammedOrders = localProgrammedOrders.length > 0 
         ? localProgrammedOrders 
         : (productionOrders || []);
+        
+    const programmedOrders = orderToView 
+        ? allProgrammedOrders.filter(po => po.related_commercial_order_id === orderToView.id)
+        : [];
     
     // View Project Modal
     const [isViewProjectModalOpen, setIsViewProjectModalOpen] = useState(false);
@@ -172,24 +175,6 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
         loadPdfJs();
     }, []);
 
-    useEffect(() => {
-        if (!orderToView) {
-            setProgrammedOrders([]);
-            return;
-        }
-        const fetchProgrammed = async () => {
-            try {
-                const { data, error } = await supabase
-                    .from('production_orders')
-                    .select('id, target_bitola, creation_date, machine, summary, quantity_os, sub_items_progress, start_time, end_time')
-                    .eq('related_commercial_order_id', orderToView.id);
-                if (data && !error) {
-                    setProgrammedOrders(data);
-                }
-            } catch (e) { console.error(e); }
-        };
-        fetchProgrammed();
-    }, [orderToView, isViewProjectModalOpen, isProgramModalOpen]);
 
     // Form fields for New Order
     const [clientSearchTerm, setClientSearchTerm] = useState('');
@@ -1710,7 +1695,6 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                                                     if (window.confirm(`Deseja remover esta programação da bitola ${item.bitola}mm?`)) {
                                                                                                         try {
                                                                                                             await supabase.from('production_orders').delete().eq('id', prog.id);
-                                                                                                            setProgrammedOrders(prev => prev.filter(p => p.id !== prog.id));
                                                                                                         } catch (err) { alert('Erro ao remover programação'); }
                                                                                                     }
                                                                                                 }}
@@ -2112,7 +2096,6 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                                                                 if (window.confirm(`Deseja remover a programação da OS ${po.order_number}?`)) {
                                                                                     try {
                                                                                         await supabase.from('production_orders').delete().eq('id', po.id);
-                                                                                        setProgrammedOrders(prev => prev.filter(p => p.id !== po.id));
                                                                                     } catch(err) { alert('Erro ao remover'); }
                                                                                 }
                                                                             }}
