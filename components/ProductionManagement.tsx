@@ -2200,7 +2200,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                                     className="w-full bg-white border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-2.5 font-bold shadow-sm"
                                 >
                                     <option value="">-- Selecione a Máquina --</option>
-                                    {(activeBrandingPartner?.machines?.length ? activeBrandingPartner.machines.map(m => m.name) : ['Schnell-PRIMA', 'DHE 6P', 'JJW', 'Desbobinadeira', 'Bancada/Cortador']).map(m => (
+                                    {(activeBrandingPartner?.machines?.length ? activeBrandingPartner.machines.map(m => m.name) : ['PRIMA', 'DHE 6P', 'JJW', 'Desbobinadeira', 'Bancada/Cortador']).map(m => (
                                         <option key={m} value={m}>{m}</option>
                                     ))}
                                 </select>
@@ -2467,7 +2467,7 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
                         <div className="flex flex-1 overflow-hidden">
                             {/* Sidebar de Máquinas */}
                             <div className="w-64 bg-slate-50 border-r border-slate-200 p-4 flex flex-col gap-2 overflow-y-auto">
-                                {(activeBrandingPartner?.machines?.length ? activeBrandingPartner.machines.map(m => m.name) : ['Schnell-PRIMA', 'DHE 6P', 'JJW', 'Desbobinadeira', 'Bancada/Cortador']).map(m => {
+                                {(activeBrandingPartner?.machines?.length ? activeBrandingPartner.machines.map(m => m.name) : ['PRIMA', 'DHE 6P', 'JJW', 'Desbobinadeira', 'Bancada/Cortador']).map(m => {
                                     const machineOsCount = allProgrammedOrders.filter(po => po.machine === m && (po.status === 'in_progress' || po.status === 'producing')).length;
                                     return (
                                         <button 
