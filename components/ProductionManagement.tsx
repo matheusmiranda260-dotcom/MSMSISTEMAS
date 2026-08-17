@@ -125,6 +125,7 @@ interface OrderManagementProps {
 export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, customers, commercialOrders, currentUser, activeBrandingPartner, users, productionOrders, conferences, stock }) => {
     const [search, setSearch] = useState('');
     const [orderBy, setOrderBy] = useState<'id' | 'clientCode'>('id');
+    const [activeTab, setActiveTab] = useState<'ativos' | 'finalizados'>('ativos');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingOrder, setEditingOrder] = useState<CommercialOrder | null>(null);
     const [printingOrder, setPrintingOrder] = useState<CommercialOrder | null>(null);
@@ -1042,6 +1043,11 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
             if (!matchesSearch) return false;
         }
 
+        const isFinished = o.status?.toLowerCase() === 'finalizado' || o.status?.toLowerCase() === 'pedido finalizado' || o.status?.toLowerCase() === 'concluído' || o.status?.toLowerCase() === 'completo' || o.status?.toLowerCase() === 'pedidos completos' || o.status?.toLowerCase() === 'pedido completo';
+        
+        if (activeTab === 'ativos' && isFinished) return false;
+        if (activeTab === 'finalizados' && !isFinished) return false;
+
         return true;
     });
 
@@ -1106,27 +1112,44 @@ export const ProductionManagement: React.FC<OrderManagementProps> = ({ setPage, 
             {/* Classification & Search Bar */}
             <div className="bg-white p-5 rounded-2xl border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
                 <div className="flex flex-wrap items-center gap-6">
-                    <div className="flex items-center gap-2">
-                        <input 
-                            type="radio" 
-                            id="order-budget"
-                            name="orderBy"
-                            checked={orderBy === 'id'}
-                            onChange={() => setOrderBy('id')}
-                            className="accent-sky-600 w-4 h-4 cursor-pointer"
-                        />
-                        <label htmlFor="order-budget" className="text-xs font-bold text-slate-700 uppercase cursor-pointer">Classificar por Nº de Orçamento</label>
+                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                        <button 
+                            onClick={() => setActiveTab('ativos')}
+                            className={`px-4 py-1.5 rounded-md text-xs font-bold uppercase transition-all ${activeTab === 'ativos' ? 'bg-white shadow-sm text-sky-700' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Projetos Ativos
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('finalizados')}
+                            className={`px-4 py-1.5 rounded-md text-xs font-bold uppercase transition-all ${activeTab === 'finalizados' ? 'bg-white shadow-sm text-sky-700' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Projetos Finalizados
+                        </button>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <input 
-                            type="radio" 
-                            id="order-client"
-                            name="orderBy"
-                            checked={orderBy === 'clientCode'}
-                            onChange={() => setOrderBy('clientCode')}
-                            className="accent-sky-600 w-4 h-4 cursor-pointer"
-                        />
-                        <label htmlFor="order-client" className="text-xs font-bold text-slate-700 uppercase cursor-pointer">Classificar por Cód. Cliente</label>
+
+                    <div className="flex items-center gap-4 border-l border-slate-200 pl-6">
+                        <div className="flex items-center gap-2">
+                            <input 
+                                type="radio" 
+                                id="order-budget"
+                                name="orderBy"
+                                checked={orderBy === 'id'}
+                                onChange={() => setOrderBy('id')}
+                                className="accent-sky-600 w-4 h-4 cursor-pointer"
+                            />
+                            <label htmlFor="order-budget" className="text-xs font-bold text-slate-700 uppercase cursor-pointer">Classificar por Nº de Orçamento</label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <input 
+                                type="radio" 
+                                id="order-client"
+                                name="orderBy"
+                                checked={orderBy === 'clientCode'}
+                                onChange={() => setOrderBy('clientCode')}
+                                className="accent-sky-600 w-4 h-4 cursor-pointer"
+                            />
+                            <label htmlFor="order-client" className="text-xs font-bold text-slate-700 uppercase cursor-pointer">Classificar por Cód. Cliente</label>
+                        </div>
                     </div>
                 </div>
 
