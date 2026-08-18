@@ -1905,14 +1905,18 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                             <div className="bg-slate-200 px-3 py-1 rounded-lg text-slate-600 font-bold text-sm uppercase">POS {activeSubOs.pos}</div>
                                         </div>
                                         
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-3 gap-3">
                                             <div>
                                                 <p className="text-[10px] font-bold text-slate-400 uppercase">Quantidade</p>
-                                                <p className="font-black text-slate-700 text-xl">{activeSubOs.qunti || activeSubOs.quantidade || activeSubOs.qtd || '-'} un.</p>
+                                                <p className="font-black text-slate-700 text-xl whitespace-nowrap">{activeSubOs.qunti || activeSubOs.quantidade || activeSubOs.qtd || '-'} un.</p>
                                             </div>
                                             <div>
                                                 <p className="text-[10px] font-bold text-slate-400 uppercase">Comprimento</p>
-                                                <p className="font-black text-slate-700 text-xl">{activeSubOs.comprimento || activeSubOs.comp || '-'} cm</p>
+                                                <p className="font-black text-slate-700 text-xl whitespace-nowrap">{activeSubOs.comprimento || activeSubOs.comp || '-'} cm</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase">Peso</p>
+                                                <p className="font-black text-slate-700 text-xl whitespace-nowrap">{activeSubOs.peso ? parseFloat(activeSubOs.peso.toString().replace(',','.')).toFixed(2) : '-'} kg</p>
                                             </div>
                                         </div>
 
@@ -1927,13 +1931,15 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                                 </div>
                                             ) : currentItemStatus === 'producing' ? (
                                                 <div className="flex flex-col gap-3">
-                                                    <div className="flex justify-between items-center text-xs text-slate-500 font-bold px-1">
-                                                        <span>QUANTIDADE</span>
+                                                    <div className="grid grid-cols-3 gap-2 text-xs text-slate-500 font-bold px-1 text-center">
+                                                        <span className="text-left">QUANTIDADE</span>
                                                         <span>COMPRIMENTO</span>
+                                                        <span className="text-right">PESO</span>
                                                     </div>
-                                                    <div className="flex justify-between items-center bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
-                                                        <span className="font-black text-xl text-slate-800">{activeSubOs.quantidade || activeSubOs.qtd} un.</span>
-                                                        <span className="font-black text-xl text-slate-800">{activeSubOs.comprimento || activeSubOs.comp} cm</span>
+                                                    <div className="grid grid-cols-3 gap-2 items-center bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm text-center">
+                                                        <span className="font-black text-xl text-slate-800 text-left whitespace-nowrap">{activeSubOs.qunti || activeSubOs.quantidade || activeSubOs.qtd || '-'} un.</span>
+                                                        <span className="font-black text-xl text-slate-800 whitespace-nowrap">{activeSubOs.comprimento || activeSubOs.comp || '-'} cm</span>
+                                                        <span className="font-black text-xl text-slate-800 text-right whitespace-nowrap">{activeSubOs.peso ? parseFloat(activeSubOs.peso.toString().replace(',','.')).toFixed(2) : '-'} kg</span>
                                                     </div>
                                                     <div className="bg-orange-50 border-2 border-orange-300 rounded-xl p-4 flex flex-col items-center justify-center gap-1 shadow-[0_0_15px_rgba(251,146,60,0.6)] animate-pulse transition-all">
                                                         <span className="text-[11px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2">
