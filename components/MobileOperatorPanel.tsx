@@ -1790,6 +1790,246 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                 const currentProgressObj = getProgressObj(po);
                 const targetSubOsStr = activeSubOs ? String(activeSubOs.os).trim() : '';
 
+                const handleFinishAllSubOs = async () => {
+                    const pass = window.prompt("Digite a senha do gestor para finalizar todas as O.S. restantes:");
+                    if (pass !== "070223") {
+                        if (pass !== null) alert("Senha incorreta!");
+                        return;
+                    }
+
+                    const pendingSubItems = subItems.filter(item => {
+                        const itemOsStr = String(item.os).trim();
+                        const isComp = Object.values(currentProgressObj).some((v: any) => {
+                            const kStr = v?.subOsKey || v?.sub_os_key;
+                            return String(kStr) === itemOsStr && v?.status === 'completed';
+                        });
+                        return !isComp;
+                    });
+
+                    if (pendingSubItems.length === 0) {
+                        alert("Todas as O.S. deste lote já estão finalizadas.");
+                        return;
+                    }
+
+                    let totalWeightToDeduce = 0;
+                    const bitolaStr = po.target_bitola || po.targetBitola || '';
+                    const gaugeObj = gauges.find(g => g.gauge === bitolaStr);
+                    const weightPerM = gaugeObj?.weightPerMeter || gaugeObj?.rawWeightValue || 0;
+
+                    pendingSubItems.forEach(item => {
+                        let weightProduced = parseFloat(item.peso || item.pesoTotal || '0');
+                        if (!weightProduced || isNaN(weightProduced) || weightProduced === 0) {
+                            const qtd = parseFloat(item.qunti || item.quantidade || item.qtd || '0');
+                            const compCm = parseFloat(item.comprimento || item.comp || '0');
+                            if (weightPerM > 0) {
+                                weightProduced = (compCm / 100) * qtd * weightPerM;
+                            }
+                        }
+                        totalWeightToDeduce += (weightProduced || 0);
+                    });
+
+                    const activeLotsParams: any[] = [];
+                    if (!isCurrentMachineBancada && totalWeightToDeduce > 0) {
+                        if (portaRolo1 && activeFeed1) {
+                            const l1 = stock.find(i => i.internalLot === portaRolo1 || i.supplierLot === portaRolo1 || i.id === portaRolo1);
+                            const w1 = portaRolo1Wait ? stock.find(i => i.internalLot === portaRolo1Wait || i.supplierLot === portaRolo1Wait || i.id === portaRolo1Wait) : undefined;
+                            if (l1) activeLotsParams.push({ primary: l1, wait: w1, pIndex: 1 });
+                        }
+                        if (portaRolo2 && activeFeed2) {
+                            const l2 = stock.find(i => i.internalLot === portaRolo2 || i.supplierLot === portaRolo2 || i.id === portaRolo2);
+                            const w2 = portaRolo2Wait ? stock.find(i => i.internalLot === portaRolo2Wait || i.supplierLot === portaRolo2Wait || i.id === portaRolo2Wait) : undefined;
+                            if (l2) activeLotsParams.push({ primary: l2, wait: w2, pIndex: 2 });
+                        }
+
+                        if (activeLotsParams.length === 0) {
+                            alert("Erro: Nenhum lote ativo na máquina para abater o peso. Verifique o abastecimento.");
+                            return;
+                        }
+
+                        const weightPerLot = totalWeightToDeduce / activeLotsParams.length;
+                        
+                        for (const param of activeLotsParams) {
+                            const lotObj = param.primary;
+                            const waitObj = param.wait;
+                            const primaryQty = lotObj.remainingQuantity ?? lotObj.weight ?? lotObj.labelWeight ?? 0;
+                            const waitQty = waitObj ? (waitObj.remainingQuantity ?? waitObj.weight ?? waitObj.labelWeight ?? 0) : 0;
+                            
+                            const totalAvailable = primaryQty + waitQty;
+                            if (totalAvailable < weightPerLot) {
+                                alert(`ERRO: O lote ${lotObj.internalLot || lotObj.id} (incluindo espera) possui apenas ${totalAvailable.toFixed(2)} kg disponíveis, mas são necessários ${weightPerLot.toFixed(2)} kg para finalizar as ${pendingSubItems.length} O.S. restantes.\n\nPor favor, abasteça a máquina antes de prosseguir.`);
+                                return;
+                            }
+                        }
+                    }
+
+                    const confirm = window.confirm(`Deseja realmente finalizar TODAS as ${pendingSubItems.length} O.S. restantes de uma vez?\n\nPeso total a abater: ${totalWeightToDeduce.toFixed(2)} kg.`);
+                    if (!confirm) return;
+
+                    setLoadingAction(`finish-all-${po.id}`);
+
+                    try {
+                        const endTime = new Date().toISOString();
+                        const usedLotsArr = [];
+                        if (portaRolo1 && activeFeed1) usedLotsArr.push(portaRolo1);
+                        if (portaRolo2 && activeFeed2) usedLotsArr.push(portaRolo2);
+                        const lotUsedStr = usedLotsArr.join(', ') || '-';
+
+                        const updatedProgress = { ...currentProgressObj };
+                        let pieceWeightForBancada = 0;
+
+                        pendingSubItems.forEach(item => {
+                            const strSubKey = String(item.os).trim();
+                            let cutKey = Object.keys(updatedProgress).find(k => {
+                                let clean = k.replace('sub_', '').split('_')[0];
+                                const valSubOsKey = updatedProgress[k]?.subOsKey || updatedProgress[k]?.sub_os_key;
+                                if (valSubOsKey) clean = String(valSubOsKey);
+                                return clean === strSubKey && updatedProgress[k]?.status === 'producing';
+                            });
+
+                            if (!cutKey) {
+                                if (updatedProgress[strSubKey] && updatedProgress[strSubKey].status !== 'completed') {
+                                    cutKey = strSubKey;
+                                } else {
+                                    cutKey = `${strSubKey}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+                                }
+                            }
+
+                            const existingStart = updatedProgress[cutKey]?.start_time || updatedProgress[cutKey]?.startTime || endTime;
+                            updatedProgress[cutKey] = { status: 'completed', start_time: existingStart, end_time: endTime, sub_os_key: strSubKey, lot_used: lotUsedStr };
+                            
+                            let itemWeight = parseFloat(item.peso || item.pesoTotal || '0');
+                            if (!itemWeight || isNaN(itemWeight) || itemWeight === 0) {
+                                const qtd = parseFloat(item.qunti || item.quantidade || item.qtd || '0');
+                                const compCm = parseFloat(item.comprimento || item.comp || '0');
+                                if (weightPerM > 0) {
+                                    itemWeight = (compCm / 100) * qtd * weightPerM;
+                                }
+                            }
+                            pieceWeightForBancada += (itemWeight || 0);
+                        });
+
+                        setLocalOrders(prev => prev.map(p => {
+                            if (p.id === po.id) {
+                                return { ...p, subItemsProgress: updatedProgress, sub_items_progress: updatedProgress };
+                            }
+                            return p;
+                        }));
+
+                        const { error: poError } = await supabase.from('production_orders').update({ sub_items_progress: updatedProgress }).eq('id', po.id);
+                        if (poError) throw poError;
+
+                        if (!isCurrentMachineBancada && totalWeightToDeduce > 0 && activeLotsParams.length > 0) {
+                            const weightPerLot = totalWeightToDeduce / activeLotsParams.length;
+                            const commOrderId = (po as any).related_commercial_order_id || (po as any).relatedCommercialOrderId;
+                            const commOrder = commercialOrders.find(co => co.id === commOrderId);
+                            const clientName = (commOrder as any)?.client_name || commOrder?.clientName || 'Não informado';
+                            const orderNumberStr = (commOrder as any)?.order_number || commOrder?.orderNumber || (po as any).order_number || po.orderNumber || 'Desconhecido';
+
+                            for (const param of activeLotsParams) {
+                                const lotObj = param.primary;
+                                const waitObj = param.wait;
+                                const currentQty = lotObj.remainingQuantity ?? lotObj.weight ?? lotObj.labelWeight ?? 0;
+
+                                if (currentQty >= weightPerLot) {
+                                    const newRemaining = currentQty - weightPerLot;
+                                    const consumeHistoryItem = {
+                                        date: endTime,
+                                        action: `Máquina: ${selectedMachine} | Operador: ${currentUser.username || currentUser.name || 'Sistema'} | Cliente: ${clientName} | Pedido: ${orderNumberStr} (Finalização em Lote) | Baixa: ${weightPerLot.toFixed(2)} kg`,
+                                        user: currentUser.username || currentUser.name || 'Sistema'
+                                    };
+                                    await supabase.from('stock_items').update({
+                                        remaining_quantity: newRemaining,
+                                        history: [...(lotObj.history || []), consumeHistoryItem]
+                                    }).eq('id', lotObj.id);
+                                } else {
+                                    const deficit = weightPerLot - currentQty;
+                                    const consumePrimaryHistoryItem = {
+                                        date: endTime,
+                                        action: `Máquina: ${selectedMachine} | Operador: ${currentUser.username || currentUser.name || 'Sistema'} | Cliente: ${clientName} | Pedido: ${orderNumberStr} (Finalização em Lote) | Baixa Final: ${currentQty.toFixed(2)} kg. (Restante de ${deficit.toFixed(2)} kg abatido do Lote em Espera)`,
+                                        user: currentUser.username || currentUser.name || 'Sistema'
+                                    };
+                                    await supabase.from('stock_items').update({
+                                        remaining_quantity: 0,
+                                        status: 'Consumido',
+                                        history: [...(lotObj.history || []), consumePrimaryHistoryItem]
+                                    }).eq('id', lotObj.id);
+
+                                    if (waitObj) {
+                                        const waitQty = waitObj.remainingQuantity ?? waitObj.weight ?? waitObj.labelWeight ?? 0;
+                                        const newWaitRemaining = Math.max(0, waitQty - deficit);
+                                        const consumeWaitHistoryItem = {
+                                            date: endTime,
+                                            action: `Máquina: ${selectedMachine} | Operador: ${currentUser.username || currentUser.name || 'Sistema'} | Cliente: ${clientName} | Pedido: ${orderNumberStr} (Finalização em Lote) | Baixa de Deficit: ${deficit.toFixed(2)} kg`,
+                                            user: currentUser.username || currentUser.name || 'Sistema'
+                                        };
+                                        const waitStatus = newWaitRemaining <= 0 ? 'Consumido' : waitObj.status;
+                                        
+                                        await supabase.from('stock_items').update({
+                                            remaining_quantity: newWaitRemaining,
+                                            status: waitStatus,
+                                            history: [...(waitObj.history || []), consumeWaitHistoryItem]
+                                        }).eq('id', waitObj.id);
+                                        
+                                        if (param.pIndex === 1 && portaRolo1Wait && newWaitRemaining > 0) {
+                                            await supabase.from('machine_current_states').update({ porta_rolo_1_lot: portaRolo1Wait, porta_rolo_1_wait_lot: null }).eq('machine_name', selectedMachine);
+                                        } else if (param.pIndex === 2 && portaRolo2Wait && newWaitRemaining > 0) {
+                                            await supabase.from('machine_current_states').update({ porta_rolo_2_lot: portaRolo2Wait, porta_rolo_2_wait_lot: null }).eq('machine_name', selectedMachine);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (bancadaTargetName && pieceWeightForBancada > 0 && !isCurrentMachineBancada) {
+                            try {
+                                await supabase.from('bancada_items').insert({
+                                    production_order_id: po.id,
+                                    sub_os_key: `LOTE-${Date.now()}`,
+                                    piece_weight: pieceWeightForBancada,
+                                    status: 'pending',
+                                    bancada_machine_name: bancadaTargetName,
+                                    operator_id: currentUser?.id,
+                                    operator_name: currentUser?.username || currentUser?.name || 'Sistema',
+                                    created_at: endTime
+                                });
+                            } catch (e) {
+                                console.error('Error inserting into bancada:', e);
+                            }
+                        } else if (isCurrentMachineBancada) {
+                            try {
+                                await supabase.from('bancada_items').update({
+                                    status: 'completed',
+                                    completed_at: endTime
+                                }).eq('production_order_id', po.id).eq('status', 'pending');
+                            } catch (e) {}
+                        }
+
+                        if (machineState === 'ATIVA') {
+                            try {
+                                const { data: openCuts } = await supabase.from('machine_stops')
+                                    .select('id, start_time')
+                                    .eq('machine', selectedMachine)
+                                    .eq('reason', 'Produzindo Lote')
+                                    .is('end_time', null);
+                                    
+                                if (openCuts && openCuts.length > 0) {
+                                    for (const cut of openCuts) {
+                                        await supabase.from('machine_stops').update({ end_time: endTime }).eq('id', cut.id);
+                                    }
+                                }
+                            } catch(e) {}
+                        }
+
+                        setActiveModalPoId(null);
+                        alert(`Foram finalizadas ${pendingSubItems.length} O.S. com sucesso!`);
+                    } catch (e: any) {
+                        console.error('Error in handleFinishAllSubOs', e);
+                        alert(`Erro ao finalizar todas as O.S.: ${e.message}`);
+                    } finally {
+                        setLoadingAction(null);
+                    }
+                };
+
                 const producingCutEntry = activeSubOs ? Object.entries(currentProgressObj).find(([k, v]: any) => {
                     const cleanKey = k.replace('sub_', '').split('_')[0];
                     const valSubOsKey = v?.subOsKey || v?.sub_os_key;
@@ -1835,9 +2075,17 @@ const MobileOperatorPanel: React.FC<MobileOperatorPanelProps> = ({ currentUser, 
                                     <h2 className="font-black text-xl tracking-tight">Execução Detalhada</h2>
                                     <p className="text-xs text-indigo-200">Lote Bitola {(po as any).target_bitola || po.targetBitola}mm</p>
                                 </div>
-                                <button onClick={() => setActiveModalPoId(null)} className="p-2 bg-white/10 rounded-full hover:bg-white/20">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button 
+                                        disabled={loadingAction?.startsWith('finish-all')}
+                                        onClick={handleFinishAllSubOs} 
+                                        className="px-3 py-1.5 bg-red-500 hover:bg-red-600 active:scale-95 transition-all text-white rounded-xl text-[10px] sm:text-xs font-black shadow-sm flex items-center gap-1 uppercase">
+                                        {loadingAction?.startsWith('finish-all') ? 'FINALIZANDO...' : 'FINALIZAR TODAS AS O.S.'}
+                                    </button>
+                                    <button onClick={() => setActiveModalPoId(null)} className="p-2 bg-white/10 rounded-full hover:bg-white/20">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
                             </div>
                             
                             <div className="p-6 flex flex-col gap-6">
